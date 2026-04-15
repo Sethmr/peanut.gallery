@@ -15,7 +15,12 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
-import { personas, buildPersonaContext, type Persona } from "./personas";
+import {
+  personas,
+  buildPersonaContext,
+  type Persona,
+  type OtherPersonaResponse,
+} from "./personas";
 
 export interface PersonaResponse {
   personaId: string;
@@ -68,21 +73,52 @@ export class PersonaEngine {
   /**
    * Fire all 4 personas in parallel against the current transcript.
    * Streams each persona's response token-by-token via the callback.
+   *
+   * @param isPaused - If true, personas react to the pause instead of the show
    */
   async fireAll(
     transcript: string,
-    onStream: StreamCallback
+    onStream: StreamCallback,
+    isPaused = false
   ): Promise<void> {
-    // Start fact-check search in parallel with persona calls
-    const searchPromise = this.fetchSearchResults(transcript);
+    // Start fact-check search in parallel (skip if paused — nothing new to check)
+    const searchPromise = isPaused
+      ? Promise.resolve(undefined)
+      : this.fetchSearchResults(transcript);
+
+    // Build cross-persona context: each persona sees the others' last response
+    const otherPersonaMap = new Map<string, OtherPersonaResponse[]>();
+    for (const p of personas) {
+      const others: OtherPersonaResponse[] = [];
+      for (const op of personas) {
+        if (op.id === p.id) continue;
+        const prev = this.previousResponses.get(op.id) || [];
+        if (prev.length > 0) {
+          others.push({
+            name: op.name,
+            emoji: op.emoji,
+            text: prev[prev.length - 1],
+          });
+        }
+      }
+      otherPersonaMap.set(p.id, others);
+    }
 
     const tasks = personas.map(async (persona) => {
       try {
-        // Only wait for search results for the Producer
         const searchResults =
           persona.id === "producer" ? await searchPromise : undefined;
 
-        await this.firePersona(persona, transcript, searchResults, onStream);
+        const otherPersonas = otherPersonaMap.get(persona.id) || [];
+
+        await this.firePersona(
+          persona,
+          transcript,
+          searchResults,
+          onStream,
+          otherPersonas,
+          isPaused
+        );
       } catch (err) {
         console.error(
           `[${persona.id}] Error:`,
@@ -104,14 +140,18 @@ export class PersonaEngine {
     persona: Persona,
     transcript: string,
     searchResults: string | undefined,
-    onStream: StreamCallback
+    onStream: StreamCallback,
+    otherPersonas: OtherPersonaResponse[] = [],
+    isPaused = false
   ): Promise<void> {
     const previous = this.previousResponses.get(persona.id) || [];
     const context = buildPersonaContext(
       persona,
       transcript,
       previous,
-      searchResults
+      searchResults,
+      otherPersonas,
+      isPaused
     );
 
     let fullResponse = "";

@@ -1,0 +1,959 @@
+Innovations in Space Mining, AI, and Entertainment Ventures
+Apr 15, 2026, 4:29 PM • undefined
+
+SUMMARY KEYWORDS
+streaming economics, Star Wars, adaptations, Tedeshi Trucks Band, Jerry Garcia, Lily Allen, West End Girl, Neil Young, Pink Floyd, Flaming Lips
+
+SPEAKERS
+
+
+------------------------------------------------------------------------------------
+
+undefined • 0
+All right, everybody. Welcome back to
+
+undefined • 00:01
+This Week in Startups. It's Friday. That
+
+undefined • 00:02
+means Lon Harris is here with me. And at
+
+undefined • 00:05
+the end of the show, we will do Off Duty
+
+undefined • 00:07
+with Lon. Everybody loves that segment
+
+undefined • 00:10
+where Lon takes us off duty and we share
+
+undefined • 00:13
+what we're buying, uh, what we're
+
+undefined • 00:15
+consuming, what we're watching. Let me
+
+undefined • 00:17
+just start the show by saying I love
+
+undefined • 00:20
+Plaude.
+
+undefined • 00:21
+>> I'm using my Plaude pin right now to
+
+undefined • 00:23
+record this very conversation. Why
+
+undefined • 00:26
+>> you Oh, you have yours, too. Did you
+
+undefined • 00:28
+activate yet?
+
+undefined • 00:29
+>> Oh, yeah. No, it's running. It's been my
+
+undefined • 00:30
+plot is my plug goes all day.
+
+undefined • 00:32
+>> Yes. And I have mine running now and I
+
+undefined • 00:34
+just, you know, it's got the red light
+
+undefined • 00:35
+so I'm being privacy first. Uh, and you
+
+undefined • 00:37
+know, I only use it when people know I'm
+
+undefined • 00:39
+using it. But this is the interesting
+
+undefined • 00:41
+thing. You could wear the plaude pin
+
+undefined • 00:42
+like you're wearing it or you can wear
+
+undefined • 00:44
+it on your wrist. Another great way to
+
+undefined • 00:46
+wear it, and what I do with this is when
+
+undefined • 00:48
+I'm hiking around the ranch or I have a
+
+undefined • 00:50
+moment, uh, plaude, take a memo, action
+
+undefined • 00:53
+item. Uh we need to move two of our
+
+undefined • 00:56
+researchers into the paid
+
+undefined • 00:59
+uh newsletter that we're doing. Please
+
+undefined • 01:02
+have Lon pick as number one and two even
+
+undefined • 01:04
+though that's super uncomfortable to ask
+
+undefined • 01:05
+in front of everybody the one and two.
+
+undefined • 01:08
+Um which is why you didn't answer it.
+
+undefined • 01:10
+>> I sent you my one and two picks
+
+undefined • 01:11
+privately. I don't like to pick in front
+
+undefined • 01:13
+of people.
+
+undefined • 01:14
+>> No, I like to create a little bit of
+
+undefined • 01:15
+like who's ready for this.
+
+undefined • 01:18
+>> Anyway, that's my management style. But
+
+undefined • 01:19
+plaude is amazing. And what it does is
+
+undefined • 01:23
+it creates a summary and then you can
+
+undefined • 01:25
+share that summary.
+
+undefined • 01:26
+>> Yes.
+
+undefined • 01:26
+>> Then they have like 20 different I don't
+
+undefined • 01:28
+know maybe it's hundreds but I have like
+
+undefined • 01:30
+20 really nice templates I use like full
+
+undefined • 01:32
+accurate transcript. It learns who Lon
+
+undefined • 01:35
+is in my life. It learns who Alex is. It
+
+undefined • 01:37
+knows them. So then for all time forward
+
+undefined • 01:39
+I don't have to mention that. It creates
+
+undefined • 01:41
+a mind map of the conversation we have
+
+undefined • 01:43
+when we have a strategy meeting. All
+
+undefined • 01:45
+this great stuff. And then oneclick
+
+undefined • 01:46
+share. Why is it better than using your
+
+undefined • 01:48
+phone? Oh my god your phone's microphone
+
+undefined • 01:50
+stinks. And you have to though clumsily
+
+undefined • 01:52
+go through your phone as opposed to beep
+
+undefined • 01:54
+one button you're ready to go.
+
+undefined • 01:56
+>> It's the contextual. It understands the
+
+undefined • 01:58
+conversation and really thinks about how
+
+undefined • 02:00
+to organize it for you. That's the
+
+undefined • 02:02
+really
+
+undefined • 02:02
+>> What's the offer? What's the offer? We
+
+undefined • 02:04
+have an offer.
+
+undefined • 02:04
+>> We do have an offer, Jason. Of course.
+
+undefined • 02:06
+So, you can check it out at
+
+undefined • 02:07
+plaude.ai/twist.
+
+undefined • 02:10
+And if you use the code twist, they're
+
+undefined • 02:12
+going to give you 10% off your new
+
+undefined • 02:14
+Plaude pin. That's pl Aud.ai/twist.
+
+undefined • 02:18
+And please, if you do have a good
+
+undefined • 02:19
+experience with it, share it on social
+
+undefined • 02:21
+and tell everybody you found out about
+
+undefined • 02:23
+it uh on this week in Startups on Twist.
+
+undefined • 02:25
+>> Appreciate it, please.
+
+undefined • 02:26
+>> All right, let's get started. We did our
+
+undefined • 02:28
+first thank you to our sponsors. Uh but
+
+undefined • 02:31
+we've got um a really great first guest.
+
+undefined • 02:34
+I'm excited about this one.
+
+undefined • 02:35
+>> I am I am excited. I I saw I saw some of
+
+undefined • 02:38
+their tweets going by. I read a little
+
+undefined • 02:39
+bit about the startup and I immediately
+
+undefined • 02:41
+pinged the team like let's let's get
+
+undefined • 02:42
+these guys on. I want I want to learn
+
+undefined • 02:44
+more about this. So, we've got Matt
+
+undefined • 02:46
+Gallich. He's the CEO and co-founder of
+
+undefined • 02:49
+Astroforge. They are a mining startup.
+
+undefined • 02:52
+They're developing uh spacecraft to go
+
+undefined • 02:55
+prospect and extract platinum group
+
+undefined • 02:57
+metals or PGMs from near Earth
+
+undefined • 02:59
+asteroids. Jason, that's the plan.
+
+undefined • 03:02
+>> So, literally science fiction is
+
+undefined • 03:04
+reality. Matt, welcome.
+
+undefined • 03:07
+>> There's a program before bad or is this
+
+undefined • 03:09
+your first?
+
+undefined • 03:10
+>> I talked to you maybe three years ago
+
+undefined • 03:11
+when we first. Yeah.
+
+undefined • 03:12
+>> Yeah. We first launched before we had
+
+undefined • 03:14
+ever launched our first spacecraft.
+
+undefined • 03:16
+>> Yeah. So, congratulations. Where are you
+
+undefined • 03:18
+at with mining
+
+undefined • 03:20
+asteroids?
+
+undefined • 03:23
+>> Look, this is a really hard thing to do.
+
+undefined • 03:24
+I mean, we are we're the first
+
+undefined • 03:26
+commercial company that really wants to
+
+undefined • 03:28
+go outside of the Earth moon system and
+
+undefined • 03:30
+explore the solar system, right? It's a
+
+undefined • 03:31
+totally big swing on space. We've seen a
+
+undefined • 03:33
+lot of a lot of venture dollars go into
+
+undefined • 03:35
+space, a lot of companies start up into
+
+undefined • 03:37
+space, and we're kind of that next step
+
+undefined • 03:39
+in what you can go do. Right now, we're
+
+undefined • 03:41
+building uh Deep Space 2. It's our next
+
+undefined • 03:43
+spacecraft. That's a 200 kg spacecraft
+
+undefined • 03:45
+that'll launch later this year on a
+
+undefined • 03:47
+Falcon 9 that goes to the moon and uh
+
+undefined • 03:49
+it'll attempt to go out and potentially
+
+undefined • 03:51
+land on an asteroid.
+
+undefined • 03:53
+>> I I want to jump in here with I I was
+
+undefined • 03:56
+doing a little research on this. When
+
+undefined • 03:57
+you say land on an asteroid, are we
+
+undefined • 03:59
+talking about like the rocket like ship
+
+undefined • 04:02
+comes down like in the sci-fi and it
+
+undefined • 04:04
+lands on the surface? It's more is there
+
+undefined • 04:06
+it's sort of like a docking procedure
+
+undefined • 04:07
+like with the International Space
+
+undefined • 04:09
+Station. Correct.
+
+undefined • 04:09
+>> It's much more like a docking procedure.
+
+undefined • 04:11
+I mean, we have to kind of like what
+
+undefined • 04:13
+what the movies tell you and what's
+
+undefined • 04:14
+actually out there are two very
+
+undefined • 04:16
+different things, right? We go to what
+
+undefined • 04:17
+are called near-Earth asteroids. They're
+
+undefined • 04:19
+pretty close to the planet. The one
+
+undefined • 04:20
+we're targeting right now is about 10
+
+undefined • 04:22
+million miles away. And these asteroids
+
+undefined • 04:24
+are around 200 meters in diameter. So,
+
+undefined • 04:26
+in the terms of space, these are very,
+
+undefined • 04:28
+very small things in space that we want
+
+undefined • 04:30
+to go land on. Now, we're also looking
+
+undefined • 04:32
+for a very specific type of asteroid.
+
+undefined • 04:34
+We're looking for an asteroid called a
+
+undefined • 04:35
+metal asteroid. And because of that,
+
+undefined • 04:37
+these asteroids are about 70% iron,
+
+undefined • 04:40
+somewhere in that range. iron nickel uh
+
+undefined • 04:42
+which means they're magnetic. So the way
+
+undefined • 04:43
+we land on them is simply with magnets.
+
+undefined • 04:45
+We stick to the asteroids
+
+undefined • 04:47
+>> because Armageddon, which is my big, uh,
+
+undefined • 04:49
+you know, cultural point for for landing
+
+undefined • 04:51
+on an asteroid. It's like they they
+
+undefined • 04:53
+they're they're crashing into the
+
+undefined • 04:54
+surface. Steve Bushmi is docking back
+
+undefined • 04:56
+and forth, but it's really it's it's
+
+undefined • 04:57
+more delicate.
+
+undefined • 04:58
+>> No Steve Bushi in this analogy. These
+
+undefined • 05:01
+are unmanned. You land, you take a
+
+undefined • 05:04
+sample, and then eventually, Matt, am I
+
+undefined • 05:07
+correct that you want to build like a
+
+undefined • 05:10
+more semi-permanent installation on one
+
+undefined • 05:13
+of those when it's in orbit or like what
+
+undefined • 05:15
+is the window for you to actually
+
+undefined • 05:18
+drill into an asteroid consistently and
+
+undefined • 05:21
+then get it back to Earth, right?
+
+undefined • 05:22
+Because that's the other piece. You want
+
+undefined • 05:23
+to get these back to Earth or do you
+
+undefined • 05:24
+want to use it for facilitating
+
+undefined • 05:26
+manufacturing in space?
+
+undefined • 05:29
+>> The problem right now is on the planet.
+
+undefined • 05:31
+The problem right now is not in space.
+
+undefined • 05:32
+While we'd love to supply the inspace
+
+undefined • 05:34
+economy, currently right now there isn't
+
+undefined • 05:35
+an inspace economy, right? I'm a firm
+
+undefined • 05:38
+believer that there is still a mass
+
+undefined • 05:39
+problem to space. Now, Elon has done
+
+undefined • 05:41
+tremendous things to lower the price of
+
+undefined • 05:42
+mass to get into the solar system. That
+
+undefined • 05:45
+all being said, you're still charged by
+
+undefined • 05:47
+the kilogram. That is still the
+
+undefined • 05:48
+underlying thing you pay for. So,
+
+undefined • 05:50
+building a small craft that can go do
+
+undefined • 05:51
+this is where we see the sweet spot to
+
+undefined • 05:54
+be. We also think about this at volume,
+
+undefined • 05:55
+JC Al. So, it's not about can you build
+
+undefined • 05:57
+one huge ship that goes and does this.
+
+undefined • 05:59
+is can you make hundreds if not
+
+undefined • 06:01
+thousands of them that are going to go
+
+undefined • 06:02
+out to these asteroids, mine them, and
+
+undefined • 06:04
+bring it back to Earth. But look guys,
+
+undefined • 06:06
+we got one planet. We got one habitable
+
+undefined • 06:08
+planet in the solar system as of today.
+
+undefined • 06:10
+We got to protect it. And mining is one
+
+undefined • 06:12
+of the most destructive things we do on
+
+undefined • 06:14
+this planet. There's no other way to
+
+undefined • 06:15
+have our way of life unless we go out in
+
+undefined • 06:17
+the cosmos and mine it for its
+
+undefined • 06:19
+resources.
+
+undefined • 06:19
+>> Walk us through this video we're seeing
+
+undefined • 06:20
+here.
+
+undefined • 06:21
+>> I think one thing that is always
+
+undefined • 06:22
+surprising to people, you talk about
+
+undefined • 06:23
+asteroids, everybody says like, "Oh,
+
+undefined • 06:24
+that's sci-fi. You can't mine an
+
+undefined • 06:25
+asteroid." This is literally a NASA
+
+undefined • 06:27
+mission that went out and mined an
+
+undefined • 06:28
+asteroid. This is Bennu. It was run by a
+
+undefined • 06:30
+guy named Dante Loretta. Worked on it
+
+undefined • 06:32
+for 22 years. Um he's an adviser to us
+
+undefined • 06:34
+and this went out to a different type of
+
+undefined • 06:36
+asteroid than we want to go to and took
+
+undefined • 06:38
+a sample of it and brought it back to
+
+undefined • 06:39
+Earth. This sample returned about I
+
+undefined • 06:41
+think about a year and a half ago. A
+
+undefined • 06:42
+couple members of the team are on our
+
+undefined • 06:44
+staff here. Um and they got a whole
+
+undefined • 06:46
+bunch of information about this
+
+undefined • 06:47
+asteroid. What's super important about
+
+undefined • 06:49
+that mission to us though is it updated
+
+undefined • 06:51
+the models for how we look at asteroids.
+
+undefined • 06:53
+So it helped us understand the types
+
+undefined • 06:55
+that are in the solar system.
+
+undefined • 06:56
+>> And uh what are we seeing here? What is
+
+undefined • 06:58
+that? um machine or satellite. Is that
+
+undefined • 07:00
+your actual minor that we see there?
+
+undefined • 07:03
+>> What you're seeing here is maybe look, I
+
+undefined • 07:05
+was uh in elementary school in the '90s.
+
+undefined • 07:07
+I don't know about all the listeners,
+
+undefined • 07:08
+right? But uh in the '90s, we heard
+
+undefined • 07:10
+about this asteroid belt and it's where
+
+undefined • 07:11
+all the asteroids were. Nobody had ever
+
+undefined • 07:13
+discovered any asteroids close to the
+
+undefined • 07:14
+Earth. In fact, at the turn of the
+
+undefined • 07:16
+century, there was about seven asteroids
+
+undefined • 07:18
+that were classified as near-Earth
+
+undefined • 07:19
+asteroids. As of today, we have over
+
+undefined • 07:21
+600,000 of them cataloged. So, what I'm
+
+undefined • 07:24
+actually showing you here is that what
+
+undefined • 07:25
+you were told 20 years ago was very
+
+undefined • 07:27
+different. There's a lot of objects
+
+undefined • 07:28
+really close to our home that we can go
+
+undefined • 07:30
+mine. Uh, and that makes this a much
+
+undefined • 07:32
+shorter mission and I think a much more
+
+undefined • 07:33
+viable mission to go do.
+
+undefined • 07:34
+>> All right. Amazing. And so, um, what is
+
+undefined • 07:38
+the actual minor look like? Do we have
+
+undefined • 07:41
+the actual minor and what it looks like
+
+undefined • 07:43
+and what it actually does? Like explain
+
+undefined • 07:46
+that.
+
+undefined • 07:46
+>> There there is a picture on Twitter that
+
+undefined • 07:48
+we just put up. Yeah, here it is. Of of
+
+undefined • 07:50
+one of the first phases of mining. Now,
+
+undefined • 07:52
+mining is one of the biggest IP things
+
+undefined • 07:53
+we have at the company. But I'll tell
+
+undefined • 07:54
+you guys in short how this works. It's a
+
+undefined • 07:56
+pretty simple way to think about it. We
+
+undefined • 07:57
+use directed energy, i.e. lasers to
+
+undefined • 07:59
+remove material from the asteroid and
+
+undefined • 08:01
+then we sort it out with magnetism.
+
+undefined • 08:03
+Platinum group metals are not magic uh
+
+undefined • 08:05
+are not magnetic. Iron nickel are and
+
+undefined • 08:07
+it's a very simple way to think about
+
+undefined • 08:08
+sorting out the material to bring it
+
+undefined • 08:10
+back.
+
+undefined • 08:10
+>> The spacecraft we have is designed to
+
+undefined • 08:12
+bring back up to a,000 kg of material
+
+undefined • 08:15
+which in today's dollars now this stuff
+
+undefined • 08:17
+look a commodity. It fluctuates all the
+
+undefined • 08:19
+time. As of today, it's worth about $105
+
+undefined • 08:20
+million per mission. So that's kind of
+
+undefined • 08:22
+the upper cost target. We got to be
+
+undefined • 08:24
+below to make this work. And the whole
+
+undefined • 08:26
+point of the company, JCL, is how do we
+
+undefined • 08:28
+turn that little knob of risk, right?
+
+undefined • 08:29
+How far can we turn that knob of risk to
+
+undefined • 08:31
+lower the cost to get the cheapest
+
+undefined • 08:32
+spacecraft in space to go mine that
+
+undefined • 08:34
+asteroid and go out?
+
+undefined • 08:36
+>> Now, Deep Space 2 in total, including
+
+undefined • 08:38
+the launch, is going to cost about $10.4
+
+undefined • 08:40
+million.
+
+undefined • 08:41
+>> That's a very different price point than
+
+undefined • 08:43
+anybody's ever tried to go into the
+
+undefined • 08:44
+solar system with before.
+
+undefined • 08:46
+>> So 10 million investment per mission
+
+undefined • 08:49
+with a potential return of a Hyundai.
+
+undefined • 08:53
+That's that's a lot. Now, if you just
+
+undefined • 08:56
+hit it, you know, being an angel
+
+undefined • 08:57
+investor and doing this for a living or
+
+undefined • 09:00
+a poker player, hey, you just need to
+
+undefined • 09:02
+have this happen one out of every 10
+
+undefined • 09:04
+times in order for you to break even.
+
+undefined • 09:06
+So, does is that mean it's a sure thing
+
+undefined • 09:09
+at this point? Do you feel confident
+
+undefined • 09:11
+it's a sure thing that you'll be able to
+
+undefined • 09:12
+get one in 10 back? I want to tell you
+
+undefined • 09:14
+about a product I'm obsessed with and
+
+undefined • 09:16
+everyone in tech seems to be obsessed
+
+undefined • 09:18
+with. It's called Whisper Flow. W I S PR
+
+undefined • 09:22
+Flow. You set it up and then you hit a
+
+undefined • 09:24
+key combination and you talk and it
+
+undefined • 09:26
+transcribes what you say. It does it
+
+undefined • 09:29
+more accurately and quicker and across
+
+undefined • 09:31
+all your platforms than any other
+
+undefined • 09:33
+speechtoext software I've ever used when
+
+undefined • 09:36
+you communicate all day long like I do.
+
+undefined • 09:38
+Even as a fast typist, it is going to be
+
+undefined • 09:41
+three, four, five times faster than you
+
+undefined • 09:43
+can type. And because it fixes all of
+
+undefined • 09:46
+your ums and your a's and your mistakes
+
+undefined • 09:49
+and cleans it up, all of the
+
+undefined • 09:50
+punctuation, all of the filler and
+
+undefined • 09:52
+unnecessary words being removed in real
+
+undefined • 09:54
+time. Whisper flow is already available
+
+undefined • 09:56
+everywhere. When I'm using it in
+
+undefined • 09:58
+superhuman, Gmail, Slack, Google Docs, I
+

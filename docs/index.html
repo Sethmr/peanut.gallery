@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0a0a0a">
     <title>Peanut Gallery — AI Sidebar for Live Podcasts</title>
-    <meta name="description" content="4 AI personas watch your podcast in real-time. A stern producer, a cynical troll, a chaos agent, and a joke writer — reacting live as the show happens.">
+    <meta name="description" content="4 AI personas inspired by the Howard Stern Show watch your podcast in real-time. A fact-checker, a sound effects guy, a comedy writer, and a cynical troll — reacting live.">
     <meta property="og:title" content="Peanut Gallery — AI Sidebar for Live Podcasts">
     <meta property="og:description" content="4 AI personas watching your podcast in real-time. Open source. Ship it.">
     <meta property="og:type" content="website">
@@ -334,8 +334,8 @@
         .persona-card.producer:hover { border-color: var(--accent-blue); }
         .persona-card.troll::before { background: var(--accent-red); }
         .persona-card.troll:hover { border-color: var(--accent-red); }
-        .persona-card.chaos::before { background: var(--accent-purple); }
-        .persona-card.chaos:hover { border-color: var(--accent-purple); }
+        .persona-card.soundfx::before { background: var(--accent-purple); }
+        .persona-card.soundfx:hover { border-color: var(--accent-purple); }
         .persona-card.joker::before { background: var(--accent-amber); }
         .persona-card.joker:hover { border-color: var(--accent-amber); }
 
@@ -371,7 +371,7 @@
 
         .persona-card.producer .persona-quote { border-left-color: var(--accent-blue); }
         .persona-card.troll .persona-quote { border-left-color: var(--accent-red); }
-        .persona-card.chaos .persona-quote { border-left-color: var(--accent-purple); }
+        .persona-card.soundfx .persona-quote { border-left-color: var(--accent-purple); }
         .persona-card.joker .persona-quote { border-left-color: var(--accent-amber); }
 
         /* ─── HOW IT WORKS ─── */
@@ -574,8 +574,8 @@
 
             <p class="hero-sub">
                 4 AI personas watch your live show and react in real-time.
-                A stern producer. A cynical troll. A chaos agent. A joke writer.
-                All streaming alongside the conversation as it happens.
+                A fact-checker. A sound effects guy. A comedy writer. A cynical troll.
+                Inspired by the Howard Stern Show. Streaming alongside the conversation as it happens.
             </p>
 
             <div class="hero-ctas">
@@ -605,39 +605,39 @@
     <!-- PERSONAS -->
     <section class="dark" id="personas">
         <div class="section-label">The Cast</div>
-        <h2 class="fade-in">4 personas. 4 perspectives. Zero filter.</h2>
-        <p class="section-sub fade-in">Each persona runs on a different AI model, tuned for their role. No single point of failure. Swap any model. Bring your own API keys.</p>
+        <h2 class="fade-in">4 personas. Inspired by the Howard Stern Show.</h2>
+        <p class="section-sub fade-in">Each persona mirrors a member of the Stern Show staff — the fact-checker, the sound guy, the comedy writer, the troll. Each runs on a different AI model. No single point of failure.</p>
 
         <div class="personas-grid">
             <div class="persona-card producer fade-in">
                 <div class="persona-icon">🎯</div>
-                <h3>The Stern Producer</h3>
-                <div class="persona-role">Powered by Claude Haiku</div>
-                <p>Keeps facts straight. Searches the web in real-time to verify claims. The AI version of a show producer who won't let anything slide.</p>
-                <div class="persona-quote">"Jason just said Uber was founded in 2007. It was 2009. Again."</div>
+                <h3>The Fact-Checker</h3>
+                <div class="persona-role">Gary Dell'Abate &middot; Claude Haiku + Brave Search</div>
+                <p>Monitors the conversation for factual claims and provides corrections or background data in real-time. Searches the web mid-show to verify statistics, dates, and attributions.</p>
+                <div class="persona-quote">[FACT CHECK] "Jason just said Uber was founded in 2007. It was 2009. Again."</div>
             </div>
 
             <div class="persona-card troll fade-in">
                 <div class="persona-icon">🔥</div>
                 <h3>The Cynical Troll</h3>
-                <div class="persona-role">Powered by Groq &middot; Llama 70B</div>
-                <p>Dunks on everything with internet-brain energy. Contrarian by default, occasionally right. Responds in 120ms because trolls don't deliberate.</p>
+                <div class="persona-role">Groq &middot; Llama 70B &middot; 120ms</div>
+                <p>The "chaotic or negative cynical" commentator. Says what the audience is thinking but won't type. Dunks with internet-brain energy.</p>
                 <div class="persona-quote">"Oh cool, another AI wrapper. Very 2024."</div>
             </div>
 
-            <div class="persona-card chaos fade-in">
-                <div class="persona-icon">🌀</div>
-                <h3>The Chaos Agent</h3>
-                <div class="persona-role">Powered by Groq &middot; Llama 8B</div>
-                <p>Derails, free-associates, says the thing no one was thinking. A smaller model makes the chaos feel more chaotic.</p>
-                <div class="persona-quote">"What if we replaced all VCs with a single pigeon trained on term sheets?"</div>
+            <div class="persona-card soundfx fade-in">
+                <div class="persona-icon">🎧</div>
+                <h3>Sound Effects Guy</h3>
+                <div class="persona-role">Fred Norris &middot; Groq &middot; Llama 8B</div>
+                <p>Supplies background context and sound effects. Communicates through precisely timed sound cues and the occasional razor-sharp one-liner.</p>
+                <div class="persona-quote">[record scratch] Fun fact: that company went bankrupt in 2023. [sad trombone]</div>
             </div>
 
             <div class="persona-card joker fade-in">
                 <div class="persona-icon">😂</div>
-                <h3>The Joke Writer</h3>
-                <div class="persona-role">Powered by Claude Haiku</div>
-                <p>Setup-punchline structure, callback humor, observational comedy. The one who makes you spit out your coffee mid-episode.</p>
+                <h3>The Comedy Writer</h3>
+                <div class="persona-role">Jackie Martling &middot; Claude Haiku</div>
+                <p>Generates one-liners and jokes related to the current discussion. Setup-punchline structure, callback humor, the one who makes you spit out your coffee.</p>
                 <div class="persona-quote">"Jason's investment thesis: if it has 'AI' in the name and the founder has a pulse, it's a yes."</div>
             </div>
         </div>
@@ -686,11 +686,11 @@
             </div>
             <div class="stack-item fade-in">
                 <div class="stack-name">Claude Haiku</div>
-                <div class="stack-role">Producer + Joke Writer</div>
+                <div class="stack-role">Fact-Checker + Comedy Writer</div>
             </div>
             <div class="stack-item fade-in">
                 <div class="stack-name">Groq + Llama</div>
-                <div class="stack-role">Troll + Chaos Agent</div>
+                <div class="stack-role">Troll + Sound Effects Guy</div>
             </div>
             <div class="stack-item fade-in">
                 <div class="stack-name">Brave Search</div>

@@ -20,6 +20,22 @@ interface PersonaColumnProps {
   badge?: string;
 }
 
+/** Sine wave bars — animated when speaking, idle otherwise */
+function SineWave({ color, active }: { color: string; active: boolean }) {
+  const barClass = active ? "sine-bar" : "sine-bar-idle";
+  return (
+    <div className="flex items-end gap-[2px] h-5">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <span
+          key={i}
+          className={barClass}
+          style={{ backgroundColor: color }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function PersonaColumn({
   name,
   emoji,
@@ -41,12 +57,24 @@ export default function PersonaColumn({
 
   return (
     <div className="flex flex-col h-full bg-bg-secondary rounded-xl border border-white/5 overflow-hidden">
-      {/* Header */}
+      {/* Header — Bubble style with avatar + sine wave */}
       <div
-        className="flex items-center gap-2 px-4 py-3 border-b border-white/5"
+        className="flex items-center gap-3 px-4 py-3 border-b border-white/5"
         style={{ borderBottomColor: `${color}30` }}
       >
-        <span className="text-xl">{emoji}</span>
+        {/* Avatar bubble */}
+        <div
+          className="persona-avatar"
+          style={{ backgroundColor: `${color}20` }}
+        >
+          <div
+            className={`persona-avatar-ring ${isStreaming ? "speaking" : ""}`}
+            style={{ "--ring-color": color } as React.CSSProperties}
+          />
+          <span>{emoji}</span>
+        </div>
+
+        {/* Name + Model */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3
@@ -64,22 +92,9 @@ export default function PersonaColumn({
           </div>
           <p className="text-[10px] text-white/30 font-mono">{model}</p>
         </div>
-        {isStreaming && (
-          <div className="flex gap-1">
-            <span
-              className="typing-dot w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-            <span
-              className="typing-dot w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-            <span
-              className="typing-dot w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-          </div>
-        )}
+
+        {/* Sine wave indicator */}
+        <SineWave color={color} active={isStreaming} />
       </div>
 
       {/* Messages */}

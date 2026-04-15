@@ -5,6 +5,7 @@
  * Usage:
  *   npx tsx scripts/test-personas.ts
  *   npx tsx scripts/test-personas.ts "Jason just said that Uber was founded in 2007"
+ *   npx tsx scripts/test-personas.ts --fixture   # Use real TWiST episode transcript
  *
  * Requires:
  *   - GROQ_API_KEY in .env.local (required)
@@ -34,7 +35,18 @@ Guest: But AI is genuinely transformational. This isn't like Web3 or crypto wher
 Jason: I agree it's transformational! I'm not an AI bear. We just invested in three AI companies through LAUNCH Fund 4. But there's a difference between "AI is important" and "every AI wrapper deserves a hundred million dollar valuation." That's what I'm pushing back on.
 `;
 
-const transcript = process.argv[2] || SAMPLE_TRANSCRIPT;
+import { readFileSync } from "fs";
+import { join } from "path";
+
+let transcript: string;
+if (process.argv[2] === "--fixture") {
+  transcript = readFileSync(
+    join(__dirname, "fixtures", "twist-episode-sample.txt"),
+    "utf-8"
+  ).slice(0, 3000); // Use first ~3000 chars of real episode
+} else {
+  transcript = process.argv[2] || SAMPLE_TRANSCRIPT;
+}
 
 const groqKey = process.env.GROQ_API_KEY;
 const anthropicKey = process.env.ANTHROPIC_API_KEY;

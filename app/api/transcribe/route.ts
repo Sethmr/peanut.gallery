@@ -19,11 +19,14 @@ import { PersonaEngine } from "@/lib/persona-engine";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+interface Session {
+  transcriber: TranscriptionManager;
+  paused: boolean;
+  pauseFiredCount: number; // how many times personas fired while paused (cap at 1)
+}
+
 // Active sessions (keyed by session ID)
-const sessions = new Map<
-  string,
-  { transcriber: TranscriptionManager; paused: boolean }
->();
+const sessions = new Map<string, Session>();
 
 export async function POST(req: NextRequest) {
   const { url: youtubeUrl } = await req.json();
@@ -50,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   const sessionId = Date.now().toString();
   const transcriber = new TranscriptionManager(deepgramKey);
-  const session = { transcriber, paused: false };
+  const session: Session = { transcriber, paused: false, pauseFiredCount: 0 };
   sessions.set(sessionId, session);
 
   const personaEngine = new PersonaEngine({
@@ -105,26 +108,46 @@ export async function POST(req: NextRequest) {
         sessions.delete(sessionId);
       });
 
-      // Persona trigger loop — skips when paused
+      // Persona trigger loop
+      // When paused: personas still fire but in "paused" mode (annoyed, meta-commentary)
+      // When playing: normal reactions to transcript
+      let personasFiring = false;
       const personaInterval = setInterval(async () => {
-        if (!session.paused && transcriber.shouldTriggerPersonas()) {
+        if (personasFiring) return; // don't overlap
+
+        const shouldFire = transcriber.shouldTriggerPersonas();
+        // Also fire once shortly after pause starts (so AIs react to it)
+        const justPaused = session.paused && session.pauseFiredCount === 0;
+
+        if (shouldFire || justPaused) {
+          personasFiring = true;
           const transcript = transcriber.transcript;
-          transcriber.resetNewTranscript();
+          if (!session.paused) {
+            transcriber.resetNewTranscript();
+          }
+          if (session.paused) {
+            session.pauseFiredCount++;
+          }
 
           send("status", { status: "personas_firing" });
 
-          await personaEngine.fireAll(transcript, (response) => {
-            if (response.done) {
-              send("persona_done", { personaId: response.personaId });
-            } else {
-              send("persona", {
-                personaId: response.personaId,
-                text: response.text,
-              });
-            }
-          });
+          await personaEngine.fireAll(
+            transcript,
+            (response) => {
+              if (response.done) {
+                send("persona_done", { personaId: response.personaId });
+              } else {
+                send("persona", {
+                  personaId: response.personaId,
+                  text: response.text,
+                });
+              }
+            },
+            session.paused
+          );
 
           send("status", { status: "personas_complete" });
+          personasFiring = false;
         }
       }, 5000); // Check every 5 seconds
 
@@ -169,12 +192,23 @@ export async function PATCH(req: NextRequest) {
 
   if (action === "pause") {
     session.paused = true;
+    session.pauseFiredCount = 0; // reset so personas fire once when paused
     return new Response(JSON.stringify({ paused: true }));
   }
 
   if (action === "resume") {
     session.paused = false;
+    session.pauseFiredCount = 0;
     return new Response(JSON.stringify({ paused: false }));
+  }
+
+  if (action === "force_fire") {
+    // Manual trigger — reset timing so next interval check fires immediately
+    session.transcriber.resetNewTranscript();
+    // Set lastTriggerTime to 0 so shouldTriggerPersonas() returns true on next check
+    // (the interval loop in the SSE stream checks every 5s)
+    session.transcriber.forceNextTrigger();
+    return new Response(JSON.stringify({ fired: true }));
   }
 
   return new Response(JSON.stringify({ error: "Invalid action" }), {

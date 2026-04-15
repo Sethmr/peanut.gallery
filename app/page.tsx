@@ -273,6 +273,21 @@ export default function Home() {
     }
   }, [isPaused, isLive]);
 
+  // Force-fire personas manually (debug + fallback)
+  const handleForceFire = useCallback(async () => {
+    const sid = sessionIdRef.current;
+    if (!sid) return;
+    try {
+      await fetch("/api/transcribe", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sid, action: "force_fire" }),
+      });
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Sync when user uses YouTube's native controls
   const handleVideoStateChange = useCallback(
     (isPlaying: boolean) => {
@@ -372,6 +387,15 @@ export default function Home() {
                 </button>
               )}
 
+              {/* Force Fire — manual trigger for personas */}
+              <button
+                onClick={handleForceFire}
+                className="px-3 py-2 bg-accent-amber/20 hover:bg-accent-amber/30 text-accent-amber text-sm font-medium rounded-lg transition-all"
+                title="Force the AI personas to react now"
+              >
+                🔥
+              </button>
+
               {/* Stop / End Session */}
               <button
                 onClick={handleStop}
@@ -426,7 +450,7 @@ export default function Home() {
       {/* ── MAIN CONTENT ── */}
       <main className="flex-1 flex gap-3 p-3 min-h-0">
         {/* Left: Video Player + Transcript */}
-        <div className="w-[420px] shrink-0 flex flex-col gap-3">
+        <div className="w-[560px] shrink-0 flex flex-col gap-3">
           {/* Video */}
           <div
             className={`bg-bg-secondary rounded-xl overflow-hidden border transition-colors ${

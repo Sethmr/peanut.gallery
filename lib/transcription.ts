@@ -99,7 +99,10 @@ export class TranscriptionManager extends EventEmitter {
   // Accumulator for triggering personas
   private newTranscriptSinceLastTrigger = "";
   private lastTriggerTime = 0;
-  private readonly TRIGGER_INTERVAL_MS = 90_000; // ~1.5 minutes
+  private triggerCount = 0;
+  // First trigger fires after 30s so user sees activity fast, then every 60s
+  private readonly FIRST_TRIGGER_MS = 30_000;
+  private readonly TRIGGER_INTERVAL_MS = 60_000;
 
   // Deepgram keepalive for live streams (prevents timeout on quiet segments)
   private keepaliveInterval: ReturnType<typeof setInterval> | null = null;
@@ -124,12 +127,31 @@ export class TranscriptionManager extends EventEmitter {
   resetNewTranscript(): void {
     this.newTranscriptSinceLastTrigger = "";
     this.lastTriggerTime = Date.now();
+    this.triggerCount++;
   }
 
   shouldTriggerPersonas(): boolean {
     const elapsed = Date.now() - this.lastTriggerTime;
-    const hasContent = this.newTranscriptSinceLastTrigger.trim().length > 50;
-    return elapsed >= this.TRIGGER_INTERVAL_MS && hasContent;
+    const interval = this.triggerCount === 0 ? this.FIRST_TRIGGER_MS : this.TRIGGER_INTERVAL_MS;
+    const hasContent = this.newTranscriptSinceLastTrigger.trim().length > 30;
+    return elapsed >= interval && hasContent;
+  }
+
+  /** Force-trigger personas immediately (for manual "fire" button) */
+  forceTrigger(): boolean {
+    if (this.newTranscriptSinceLastTrigger.trim().length > 10) {
+      return true;
+    }
+    return this.transcriptBuffer.length > 0;
+  }
+
+  /** Force the next trigger check to fire by resetting the timer to the past */
+  forceNextTrigger(): void {
+    this.lastTriggerTime = 0;
+    // Ensure there's enough content by using full transcript if new is empty
+    if (this.newTranscriptSinceLastTrigger.trim().length < 30) {
+      this.newTranscriptSinceLastTrigger = this.transcriptBuffer.slice(-10).join(" ");
+    }
   }
 
   async start(youtubeUrl: string): Promise<void> {

@@ -1,10 +1,10 @@
-# 🥜 Peanut Gallery
+# Peanut Gallery
 
 **Your podcast's AI writers' room.**
 
-4 AI personas watch your live show and react in real-time. A stern producer keeping facts straight. A cynical troll. A chaos agent. A joke writer. All streaming alongside the conversation as it happens.
+4 AI personas — inspired by the Howard Stern Show staff — watch your podcast in real-time and react through a streaming sidebar. A fact-checker keeping the host honest. A sound effects guy scoring every moment. A comedy writer dropping one-liners. A cynical troll saying what the audience is thinking.
 
-🌐 **[peanutgallery.live](https://peanutgallery.live)** &nbsp;|&nbsp; MIT Licensed &nbsp;|&nbsp; Open Source
+**[peanutgallery.live](https://peanutgallery.live)** | MIT Licensed | Open Source
 
 ---
 
@@ -16,41 +16,68 @@ Built in response to Jason Calacanis and Lon Harris's open bounty on [This Week 
 
 ---
 
-## 🚧 Status: Building in Public
-
-We're shipping this fast. Star the repo to get notified.
-
----
-
 ## The Cast
 
-### 🎯 The Stern Producer
-*Powered by Claude Haiku*
+Inspired by the Howard Stern Show staff, per Jason's spec.
 
-Keeps facts straight. Searches the web in real-time to verify claims made on air. The AI version of a show producer who won't let anything slide.
+### The Fact-Checker (Gary Dell'Abate)
+*Powered by Claude Haiku | Brave Search for live fact-checking*
 
-> "Jason just said Uber was founded in 2007. It was 2009. Again."
+Monitors the conversation for factual claims and provides corrections or background data in real-time. Searches the web mid-show to verify statistics, dates, and attributions. The AI version of a producer who won't let anything slide.
 
-### 🔥 The Cynical Troll
-*Powered by Groq · Llama 70B*
+> [FACT CHECK] "Jason just said Uber was founded in 2007. It was 2009. Again."
 
-Dunks on everything with internet-brain energy. Contrarian by default, occasionally right. Responds in 120ms because trolls don't deliberate.
+### The Cynical Troll
+*Powered by Groq Llama 70B (120ms response time)*
+
+The "chaotic or negative cynical" commentator. Dunks on everything with internet-brain energy. Contrarian by default, occasionally right. Says what the audience is thinking but won't type.
 
 > "Oh cool, another AI wrapper. Very 2024."
 
-### 🌀 The Chaos Agent
-*Powered by Groq · Llama 8B*
+### Sound Effects Guy (Fred Norris)
+*Powered by Groq Llama 8B*
 
-Derails, free-associates, says the thing no one was thinking. A smaller model makes the chaos feel more chaotic.
+Supplies background context and sound effects. Communicates through precisely timed sound cues and the occasional razor-sharp one-liner. Sets the mood for every moment.
 
-> "What if we replaced all VCs with a single pigeon trained on term sheets?"
+> [record scratch] Fun fact: that company went bankrupt in 2023. [sad trombone]
 
-### 😂 The Joke Writer
+### The Comedy Writer (Jackie Martling)
 *Powered by Claude Haiku*
 
-Setup-punchline structure, callback humor, observational comedy. The one who makes you spit out your coffee mid-episode.
+Generates one-liners and jokes related to the current discussion. Setup-punchline structure, callback humor, observational comedy. The one who makes you spit out your coffee.
 
 > "Jason's investment thesis: if it has 'AI' in the name and the founder has a pulse, it's a yes."
+
+---
+
+## Features
+
+**Implemented:**
+
+- Real-time transcription via Deepgram Nova-3 (sub-300ms latency)
+- Embedded YouTube player — watch the show inside the app
+- 4 AI personas fire in parallel every 30-60 seconds of new dialogue
+- Token-by-token streaming via Server-Sent Events
+- Live fact-checking with Brave Search (claim scoring + parallel queries)
+- Cross-persona awareness — AIs see and riff off each other's responses
+- Bubble UI with sine wave "speaking" indicators per Jason's spec
+- Live vs. Recorded mode detection with distinct UI/UX
+- Live mode: red theme, pulsing LIVE badge, no pause button, auto-reconnect
+- Recorded mode: synced pause/resume with video, blue theme
+- Pause makes AIs annoyed (they react in character), not silent
+- Manual fire button for instant persona triggering
+- Multi-provider LLM: Claude Haiku + Groq Llama (no single point of failure)
+- Desktop-first layout with video on left, 2x2 persona grid on right
+
+**Coming soon:**
+
+- Profile pictures for each persona bubble
+- Audio playback of sound effect cues (from Sound Effects Guy)
+- Chrome extension for tab audio capture
+- Two-stream output: regular show + enhanced version with AI sidebar
+- Custom persona builder
+- Voice mode (personas speak via ElevenLabs)
+- OBS overlay integration
 
 ---
 
@@ -60,41 +87,47 @@ Setup-punchline structure, callback humor, observational comedy. The one who mak
 ```bash
 npm run dev
 ```
-Open [localhost:3000](http://localhost:3000). You'll see the Peanut Gallery dashboard — 4 empty persona columns and a URL bar at the top.
+Open [localhost:3000](http://localhost:3000). You'll see the Peanut Gallery dashboard — a YouTube player on the left, 4 persona bubbles in a 2x2 grid on the right.
 
 **2. Pick a video**
 
 Grab any YouTube URL. Works with live streams and recorded videos. Some good ones to try:
 
-- Any [This Week in Startups](https://www.youtube.com/@ThisWeekInStartups) episode (the personas are tuned for Jason's vibe)
-- Any podcast or talk where someone makes bold claims (the Producer loves those)
-- A startup pitch video (the Troll and Chaos Agent go wild)
+- Any [This Week in Startups](https://www.youtube.com/@ThisWeekInStartups) episode
+- Any podcast where someone makes bold claims (the Fact-Checker loves those)
+- A startup pitch video (the Troll and Sound Effects Guy go wild)
 
 **3. Paste & Start**
 
 Paste the URL into the top bar and click **Start**. Three things happen:
 
-- 🔴 The **Live Transcript** bar at the bottom starts showing what's being said on the show
-- ⏳ After ~90 seconds of transcript accumulates, all **4 personas fire simultaneously**
-- 💬 Each persona's response **streams token-by-token** into its column
+- The **Live Transcript** starts showing what's being said on the show
+- After ~30 seconds of transcript, all **4 personas fire simultaneously**
+- Each persona's response **streams token-by-token** with a sine wave animation
 
 **4. Watch the gallery react**
 
-The personas fire again every ~90 seconds of new dialogue. Each one stays in character and remembers its last few responses for callbacks and continuity. The Producer also searches the web in real-time to fact-check claims.
+The personas fire every ~60 seconds of new dialogue. Each one stays in character and remembers recent responses for callbacks. The Fact-Checker searches the web in real-time. The Sound Effects Guy drops [air horns] and [sad trombones]. They riff off each other.
 
-**5. Stop anytime**
+**5. Use the controls**
 
-Click **Stop** to kill the pipeline. The transcript and persona responses stay on screen.
+- **Pause** (recorded mode): pauses video AND makes the AIs react to being paused in character
+- **Fire button** (the flame icon): force-triggers all personas immediately
+- **Stop / End Session**: kills the pipeline
 
 ---
 
-## How It Works Under the Hood
+## How It Works
 
 ```
-YouTube URL → yt-dlp → FFmpeg → Deepgram Nova-3 → 4 AI Personas → Streaming Sidebar UI
+YouTube URL -> yt-dlp -> FFmpeg -> Deepgram Nova-3 -> 4 AI Personas -> SSE -> Bubble UI
 ```
 
-The audio pipeline runs server-side: yt-dlp extracts the audio stream, FFmpeg converts it to PCM 16-bit/16kHz/mono, and Deepgram's Nova-3 model transcribes it over a WebSocket with sub-300ms latency. When enough new transcript accumulates (~90 seconds), the persona engine fans out to all 4 LLMs in parallel using `Promise.allSettled()` — so one slow or failed persona never blocks the others. Responses stream back to the browser via Server-Sent Events.
+The audio pipeline runs server-side: yt-dlp extracts the audio stream, FFmpeg converts it to PCM 16-bit/16kHz/mono, and Deepgram's Nova-3 model transcribes it over a WebSocket. When enough new transcript accumulates, the persona engine fans out to all 4 LLMs in parallel using `Promise.allSettled()` — one failure never blocks the others. Responses stream back to the browser via Server-Sent Events.
+
+For live streams: yt-dlp uses HLS MPEG-TS mode, Deepgram gets keepalive pings every 8s to prevent timeout on quiet segments, and the pipeline auto-reconnects with exponential backoff if the stream drops.
+
+The Fact-Checker has an extra step: it scores sentences against claim patterns (numbers, dates, attributions, comparisons), takes the top 3, and runs parallel Brave Search queries to cross-reference.
 
 ---
 
@@ -104,12 +137,11 @@ Multi-provider by design. No platform trap.
 
 | Layer | Tech | Why |
 |-------|------|-----|
-| Frontend | Next.js 15, Tailwind, shadcn/ui | App Router + SSE streaming |
-| Transcription | Deepgram Nova-3 | Sub-300ms, $0.46/hr, WebSocket native |
-| Smart Personas | Claude Haiku (Anthropic) | Reasoning + nuance for Producer & Joke Writer |
-| Fast Personas | Groq + Llama | 120ms TTFT for Troll & Chaos Agent |
+| Frontend | Next.js 15, Tailwind | App Router + SSE streaming |
+| Transcription | Deepgram Nova-3 | Sub-300ms, WebSocket native |
+| Fact-Checker + Comedy Writer | Claude Haiku (Anthropic) | Reasoning + nuance |
+| Troll + Sound Effects Guy | Groq + Llama 70B/8B | 120ms TTFT |
 | Fact-Checking | Brave Search API | Real-time claim verification |
-| Deployment | Vercel | One-click, free tier |
 
 **Cost per 2-hour episode: ~$1.15**
 
@@ -123,6 +155,7 @@ Multi-provider by design. No platform trap.
 git clone https://github.com/Sethmr/peanut.gallery.git
 cd peanut.gallery
 cp .env.example .env.local
+npm install
 ```
 
 Get your API keys (all have free tiers):
@@ -135,18 +168,10 @@ Get your API keys (all have free tiers):
 | Brave Search | [brave.com/search/api](https://brave.com/search/api/) | `BRAVE_SEARCH_API_KEY` |
 
 ```bash
-npm install
 npm run dev
 ```
 
 Open [localhost:3000](http://localhost:3000), paste a YouTube URL, hit Start.
-
-**Test individual pieces:**
-
-```bash
-npx tsx scripts/test-personas.ts                    # fire all 4 personas against a sample transcript
-npx tsx scripts/test-transcription.ts "YOUTUBE_URL" # test the audio → text pipeline standalone
-```
 
 ---
 
@@ -154,29 +179,16 @@ npx tsx scripts/test-transcription.ts "YOUTUBE_URL" # test the audio → text pi
 
 Give this prompt to Claude, Cursor, or any AI coding assistant with terminal access:
 
-> **Clone and set up the Peanut Gallery project from https://github.com/Sethmr/peanut.gallery.** Install all dependencies (Node.js, yt-dlp, ffmpeg). Create `.env.local` from `.env.example` and ask me for each API key. Read the `TWIST-AI-SIDEBAR-BUILD-PLAN.md` for full architecture context. Run `npm install`, then `npm run dev` and confirm the app loads at localhost:3000. Test the persona engine with `npx tsx scripts/test-personas.ts` and show me the output from all 4 personas.
-
----
-
-## Roadmap
-
-- [ ] Chrome extension for tab audio capture
-- [ ] Custom persona builder
-- [ ] Audience-facing mode (embed widget for viewers)
-- [ ] Auto-generated show notes with timestamps
-- [ ] Voice mode (personas speak via ElevenLabs)
-- [ ] Persona memory across episodes
-- [ ] OBS overlay integration
-- [ ] Multi-show support (any podcast, not just TWiST)
+> **Clone and set up the Peanut Gallery project from https://github.com/Sethmr/peanut.gallery.** Install all dependencies (Node.js, yt-dlp, ffmpeg). Create `.env.local` from `.env.example` and ask me for each API key. Read the `TWIST-AI-SIDEBAR-BUILD-PLAN.md` for full architecture context. Run `npm install`, then `npm run dev` and confirm the app loads at localhost:3000.
 
 ---
 
 ## Built By
 
-**[Seth Rininger](https://sethrininger.dev)** — iOS dev turned AI builder. 12+ years shipping apps at scale. Currently building at the intersection of AI, podcasting, and chaos.
+**[Seth Rininger](https://sethrininger.dev)** — iOS dev turned AI builder. 12+ years shipping apps at scale.
 
-Built for **[This Week in Startups](https://x.com/twistartups)** · Jason Calacanis & Lon Harris
+Built for **[This Week in Startups](https://x.com/twistartups)** | Jason Calacanis & Lon Harris
 
 ---
 
-MIT License · Fact-checking powered by Brave Search
+MIT License | Fact-checking powered by Brave Search

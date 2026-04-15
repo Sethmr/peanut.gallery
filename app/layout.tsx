@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Peanut Gallery — AI Podcast Sidebar",
   description:
-    "4 AI personas watch your live show and react in real-time. A stern producer, a cynical troll, a chaos agent, and a joke writer.",
+    "4 AI personas inspired by the Howard Stern Show watch your podcast in real-time. A fact-checker, a sound effects guy, a comedy writer, and a cynical troll.",
   openGraph: {
     title: "Peanut Gallery",
     description: "Your podcast's AI writers' room.",
