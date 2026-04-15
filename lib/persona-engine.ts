@@ -15,6 +15,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
+import { logPipeline, logTimed } from "./debug-logger";
 import {
   personas,
   buildPersonaContext,
@@ -81,6 +82,10 @@ export class PersonaEngine {
     onStream: StreamCallback,
     isPaused = false
   ): Promise<void> {
+    const doneAll = logTimed("personas_fire_all", "info", {
+      data: { transcriptLength: transcript.length, isPaused, personaCount: personas.length },
+    });
+
     // Start fact-check search in parallel (skip if paused — nothing new to check)
     const searchPromise = isPaused
       ? Promise.resolve(undefined)
@@ -120,10 +125,8 @@ export class PersonaEngine {
           isPaused
         );
       } catch (err) {
-        console.error(
-          `[${persona.id}] Error:`,
-          err instanceof Error ? err.message : err
-        );
+        const msg = err instanceof Error ? err.message : String(err);
+        logPipeline({ event: "persona_error", level: "error", personaId: persona.id, data: { error: msg } });
         onStream({
           personaId: persona.id,
           text: `[${persona.name} is having technical difficulties]`,
@@ -134,6 +137,7 @@ export class PersonaEngine {
 
     // Promise.allSettled — one failure doesn't block the others
     await Promise.allSettled(tasks);
+    doneAll({ completed: true });
   }
 
   private async firePersona(
@@ -144,6 +148,11 @@ export class PersonaEngine {
     otherPersonas: OtherPersonaResponse[] = [],
     isPaused = false
   ): Promise<void> {
+    const donePersona = logTimed("persona_fire", "info", {
+      personaId: persona.id,
+      data: { model: persona.model, hasSearchResults: !!searchResults, otherPersonaCount: otherPersonas.length },
+    });
+
     const previous = this.previousResponses.get(persona.id) || [];
     const context = buildPersonaContext(
       persona,
@@ -214,6 +223,8 @@ export class PersonaEngine {
       done: true,
     });
 
+    donePersona({ responseLength: fullResponse.length, preview: fullResponse.slice(0, 100) });
+
     // Store response for continuity
     this.storeResponse(persona.id, fullResponse);
   }
@@ -238,7 +249,10 @@ export class PersonaEngine {
   private async fetchSearchResults(
     transcript: string
   ): Promise<string | undefined> {
-    if (!this.braveApiKey) return undefined;
+    if (!this.braveApiKey) {
+      logPipeline({ event: "brave_search_skip", level: "debug", data: { reason: "no_api_key" } });
+      return undefined;
+    }
 
     try {
       // Focus on the most recent portion of the transcript

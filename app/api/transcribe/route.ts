@@ -15,6 +15,7 @@
 import { NextRequest } from "next/server";
 import { TranscriptionManager } from "@/lib/transcription";
 import { PersonaEngine } from "@/lib/persona-engine";
+import { createSessionLogger } from "@/lib/debug-logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,6 +53,9 @@ export async function POST(req: NextRequest) {
   }
 
   const sessionId = Date.now().toString();
+  const log = createSessionLogger(sessionId);
+  log.info("session_create", { url: youtubeUrl, hasAnthropic: !!anthropicKey, hasBrave: !!braveKey });
+
   const transcriber = new TranscriptionManager(deepgramKey);
   const session: Session = { transcriber, paused: false, pauseFiredCount: 0 };
   sessions.set(sessionId, session);
@@ -122,6 +126,12 @@ export async function POST(req: NextRequest) {
         if (shouldFire || justPaused) {
           personasFiring = true;
           const transcript = transcriber.transcript;
+          log.info("personas_trigger", {
+            reason: justPaused ? "just_paused" : "transcript_threshold",
+            transcriptLength: transcript.length,
+            isPaused: session.paused,
+          });
+
           if (!session.paused) {
             transcriber.resetNewTranscript();
           }
@@ -158,6 +168,7 @@ export async function POST(req: NextRequest) {
 
       // Cleanup on stream close
       const cleanup = () => {
+        log.info("session_cleanup", { reason: "client_disconnect" });
         clearInterval(personaInterval);
         transcriber.stop();
         sessions.delete(sessionId);

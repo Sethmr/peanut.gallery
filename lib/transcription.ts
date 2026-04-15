@@ -14,6 +14,7 @@
 import { spawn, execSync, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
 import WebSocket from "ws";
+import { logPipeline, logTimed } from "./debug-logger";
 
 export interface TranscriptEvent {
   text: string;
@@ -165,10 +166,14 @@ export class TranscriptionManager extends EventEmitter {
       const ytdlpBin = which("yt-dlp");
       const ffmpegBin = which("ffmpeg");
 
+      logPipeline({ event: "pipeline_start", level: "info", data: { url: youtubeUrl, ytdlpBin, ffmpegBin } });
+
       // Detect if this is a live stream
       this.emit("status_detail", "Checking if stream is live...");
+      const doneLiveDetect = logTimed("live_detection", "info");
       const liveResult = await detectLiveStream(ytdlpBin, youtubeUrl);
       this.isLive = liveResult === true;
+      doneLiveDetect({ isLive: this.isLive, rawResult: String(liveResult) });
       this.emit("status_detail", this.isLive ? "Live stream detected" : "Recorded video detected");
 
       // ────────────────────────────────────────────────
@@ -197,6 +202,8 @@ export class TranscriptionManager extends EventEmitter {
       }
 
       this.ytdlp = spawn(ytdlpBin, ytdlpArgs);
+
+      logPipeline({ event: "ytdlp_spawn", level: "info", data: { args: ytdlpArgs.filter(a => !a.startsWith("http")), isLive: this.isLive } });
 
       // ────────────────────────────────────────────────
       // Step 2: FFmpeg — convert to Deepgram format
@@ -370,6 +377,7 @@ export class TranscriptionManager extends EventEmitter {
 
       this.dgSocket.on("open", () => {
         this.reconnectAttempts = 0;
+        logPipeline({ event: "deepgram_connected", level: "info" });
         this.emit("deepgram_connected");
 
         // Keepalive: send empty frames every 8s to prevent Deepgram timeout
@@ -405,6 +413,17 @@ export class TranscriptionManager extends EventEmitter {
                 this.transcriptBuffer.push(text);
                 this.newTranscriptSinceLastTrigger += " " + text;
 
+                logPipeline({
+                  event: "transcript_final",
+                  level: "debug",
+                  data: {
+                    textLength: text.length,
+                    bufferSize: this.transcriptBuffer.length,
+                    newTranscriptLength: this.newTranscriptSinceLastTrigger.length,
+                    preview: text.slice(0, 80),
+                  },
+                });
+
                 // Keep buffer at max size
                 while (this.transcriptBuffer.length > this.MAX_BUFFER_LINES) {
                   this.transcriptBuffer.shift();
@@ -414,10 +433,10 @@ export class TranscriptionManager extends EventEmitter {
           } else if (data.type === "Error" || data.error) {
             // Surface Deepgram errors (e.g., invalid encoding, auth failures)
             const msg = data.message || data.error || JSON.stringify(data);
-            console.error("[Deepgram error]", msg);
+            logPipeline({ event: "deepgram_error", level: "error", data: { message: msg, raw: JSON.stringify(data).slice(0, 500) } });
             this.emit("error", new Error(`Deepgram: ${msg}`));
           } else if (data.type === "Metadata") {
-            console.log("[Deepgram metadata]", JSON.stringify(data).slice(0, 200));
+            logPipeline({ event: "deepgram_metadata", level: "debug", data: { raw: JSON.stringify(data).slice(0, 300) } });
           }
         } catch {
           // Non-JSON messages (binary keepalive responses, etc.)
