@@ -88,6 +88,14 @@ export async function POST(req: NextRequest) {
         send("status", { status: "deepgram_connected" });
       });
 
+      transcriber.on("live_status", (isLive: boolean) => {
+        send("status", { status: "live_detected", isLive });
+      });
+
+      transcriber.on("status_detail", (message: string) => {
+        send("status", { status: "detail", message });
+      });
+
       transcriber.on("error", (err) => {
         send("error", { message: err.message });
       });

@@ -30,6 +30,8 @@ export default function Home() {
   const [transcriptText, setTranscriptText] = useState("");
   const [interimText, setInterimText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState(false);
+  const [statusDetail, setStatusDetail] = useState<string | null>(null);
 
   const playerRef = useRef<YouTubePlayerHandle>(null);
 
@@ -62,6 +64,8 @@ export default function Home() {
     setError(null);
     setIsConnecting(true);
     setIsPaused(false);
+    setIsLive(false);
+    setStatusDetail(null);
 
     // Reset persona states
     setPersonaStates((prev) => {
@@ -190,6 +194,14 @@ export default function Home() {
                   if (data.status === "started" && data.sessionId) {
                     sessionIdRef.current = data.sessionId;
                   }
+                  if (data.status === "live_detected") {
+                    setIsLive(data.isLive);
+                  }
+                  if (data.status === "detail") {
+                    setStatusDetail(data.message);
+                    // Auto-clear status detail after 5 seconds
+                    setTimeout(() => setStatusDetail(null), 5000);
+                  }
                   if (data.status === "stopped") {
                     setIsRunning(false);
                   }
@@ -270,6 +282,14 @@ export default function Home() {
           <h1 className="font-display font-bold text-base text-white/90">
             Peanut Gallery
           </h1>
+          {isRunning && isLive && (
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-red-500/20 border border-red-500/30 rounded-full">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-[10px] font-mono text-red-400 uppercase tracking-wider">
+                Live
+              </span>
+            </span>
+          )}
         </div>
 
         <div className="flex-1 flex items-center gap-2 max-w-2xl mx-auto">
@@ -341,6 +361,13 @@ export default function Home() {
         </div>
       )}
 
+      {/* Status Detail */}
+      {statusDetail && (
+        <div className="bg-accent-blue/5 border-b border-accent-blue/10 px-4 py-1.5 text-[11px] text-accent-blue/70 font-mono">
+          {statusDetail}
+        </div>
+      )}
+
       {/* Main Content: Video + Personas */}
       <main className="flex-1 flex gap-3 p-3 min-h-0">
         {/* Left: Video Player */}
@@ -370,7 +397,7 @@ export default function Home() {
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm">📝</span>
               <span className="text-[10px] text-white/30 font-mono uppercase tracking-wider">
-                Live Transcript
+                {isLive ? "Live Transcript" : "Transcript"}
               </span>
               {isRunning && !isPaused && (
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />

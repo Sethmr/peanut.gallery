@@ -5,6 +5,12 @@
  * and streams responses back via callbacks.
  *
  * Multi-provider: Groq (Llama) for speed, Claude Haiku for nuance.
+ *
+ * FACT-CHECKING PIPELINE (for Producer persona):
+ * 1. Extract verifiable claims from recent transcript
+ * 2. Run parallel Brave Search queries for each claim
+ * 3. Inject search results into Producer's context
+ * 4. Producer cross-references and corrects in real-time
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -18,6 +24,22 @@ export interface PersonaResponse {
 }
 
 type StreamCallback = (response: PersonaResponse) => void;
+
+// Patterns that indicate a verifiable factual claim
+const CLAIM_PATTERNS = [
+  // Numbers, dates, statistics
+  /(?:founded|started|launched|created|began)\s+(?:in|around)\s+\d{4}/i,
+  /\$[\d.,]+\s*(?:billion|million|thousand|[BMK])/i,
+  /\d+[\d.,]*\s*(?:percent|%|billion|million|thousand|users|employees|customers)/i,
+  // Attributions and quotes
+  /(?:said|claimed|announced|reported|according to)\s/i,
+  // Comparisons and rankings
+  /(?:largest|biggest|first|fastest|most|only|world's|best)\s/i,
+  // Company/product facts
+  /(?:acquired|merged|IPO|went public|valuation|revenue|profit|raised)\s/i,
+  // Specific fact claims
+  /(?:is worth|was worth|valued at|market cap|founded by|CEO of|invented|created by)/i,
+];
 
 export class PersonaEngine {
   private anthropic: Anthropic;
@@ -51,21 +73,28 @@ export class PersonaEngine {
     transcript: string,
     onStream: StreamCallback
   ): Promise<void> {
-    // For the producer, fetch search results for fact-checking
-    const searchResults = await this.fetchSearchResults(transcript);
+    // Start fact-check search in parallel with persona calls
+    const searchPromise = this.fetchSearchResults(transcript);
 
-    const tasks = personas.map((persona) =>
-      this.firePersona(persona, transcript, searchResults, onStream).catch(
-        (err) => {
-          console.error(`[${persona.id}] Error:`, err.message);
-          onStream({
-            personaId: persona.id,
-            text: `[${persona.name} is having technical difficulties]`,
-            done: true,
-          });
-        }
-      )
-    );
+    const tasks = personas.map(async (persona) => {
+      try {
+        // Only wait for search results for the Producer
+        const searchResults =
+          persona.id === "producer" ? await searchPromise : undefined;
+
+        await this.firePersona(persona, transcript, searchResults, onStream);
+      } catch (err) {
+        console.error(
+          `[${persona.id}] Error:`,
+          err instanceof Error ? err.message : err
+        );
+        onStream({
+          personaId: persona.id,
+          text: `[${persona.name} is having technical difficulties]`,
+          done: true,
+        });
+      }
+    });
 
     // Promise.allSettled — one failure doesn't block the others
     await Promise.allSettled(tasks);
@@ -158,9 +187,13 @@ export class PersonaEngine {
     this.previousResponses.set(personaId, prev);
   }
 
+  // ──────────────────────────────────────────────────────
+  // FACT-CHECKING PIPELINE
+  // ──────────────────────────────────────────────────────
+
   /**
-   * Extract key claims from transcript and search Brave for fact-checking.
-   * Only used by the Producer persona.
+   * Extract verifiable claims from the transcript and search for each.
+   * Returns formatted search results for the Producer to cross-reference.
    */
   private async fetchSearchResults(
     transcript: string
@@ -168,31 +201,110 @@ export class PersonaEngine {
     if (!this.braveApiKey) return undefined;
 
     try {
-      // Extract the most recent substantial claim from the transcript
-      // Take the last ~500 chars and search for key factual claims
-      const recentText = transcript.slice(-500);
+      // Focus on the most recent portion of the transcript
+      const recentText = transcript.slice(-1500);
 
-      // Simple heuristic: search for the most specific/factual sentence
+      // Split into sentences
       const sentences = recentText
-        .split(/[.!?]/)
-        .filter((s) => s.trim().length > 20);
+        .split(/(?<=[.!?])\s+/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 15);
+
       if (sentences.length === 0) return undefined;
 
-      // Pick the sentence most likely to contain a verifiable claim
-      // (contains numbers, dates, names, or comparisons)
-      const claimSentence =
-        sentences.find(
-          (s) =>
-            /\d/.test(s) ||
-            /founded|started|launched|raised|worth|billion|million|percent/i.test(
-              s
-            )
-        ) || sentences[sentences.length - 1];
+      // Score each sentence by how likely it is to contain a verifiable claim
+      const scoredClaims = sentences
+        .map((sentence) => {
+          let score = 0;
+          for (const pattern of CLAIM_PATTERNS) {
+            if (pattern.test(sentence)) score++;
+          }
+          // Bonus for sentences with specific numbers
+          const numberMatches = sentence.match(/\d+/g);
+          if (numberMatches) score += Math.min(numberMatches.length, 2);
+          // Bonus for proper nouns (capitalized words mid-sentence)
+          const properNouns = sentence.match(/\s[A-Z][a-z]+/g);
+          if (properNouns) score += Math.min(properNouns.length, 2);
 
-      const query = claimSentence.trim().slice(0, 150);
+          return { sentence, score };
+        })
+        .filter((c) => c.score > 0)
+        .sort((a, b) => b.score - a.score);
 
+      if (scoredClaims.length === 0) return undefined;
+
+      // Take top 2-3 claims and search in parallel
+      const topClaims = scoredClaims.slice(0, 3);
+
+      const searchTasks = topClaims.map(async ({ sentence }) => {
+        // Build a focused search query from the claim
+        const query = this.buildSearchQuery(sentence);
+        return this.searchBrave(query);
+      });
+
+      const results = await Promise.allSettled(searchTasks);
+
+      // Combine all successful search results
+      const allResults: string[] = [];
+      results.forEach((result, i) => {
+        if (result.status === "fulfilled" && result.value) {
+          allResults.push(
+            `--- CLAIM: "${topClaims[i].sentence.slice(0, 100)}..." ---`
+          );
+          allResults.push(result.value);
+          allResults.push("");
+        }
+      });
+
+      return allResults.length > 0 ? allResults.join("\n") : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Build a focused search query from a claim sentence.
+   * Strips filler words and focuses on the verifiable core.
+   */
+  private buildSearchQuery(sentence: string): string {
+    // Remove common filler phrases
+    let query = sentence
+      .replace(
+        /^(I think|I believe|you know|like|so|well|basically|honestly|look|I mean)\s*/gi,
+        ""
+      )
+      .replace(/\s+(right|you know|like|basically)\s*/gi, " ")
+      .trim();
+
+    // If the claim mentions a company/person + a fact, build a targeted query
+    // e.g., "Uber was founded in 2007" → "Uber founding year"
+    const foundedMatch = query.match(
+      /(\w+)\s+(?:was|were)\s+(?:founded|started|created|launched)\s+(?:in\s+)?(\d{4})/i
+    );
+    if (foundedMatch) {
+      return `${foundedMatch[1]} founded year ${foundedMatch[2]}`;
+    }
+
+    // e.g., "Tesla is worth 800 billion" → "Tesla market cap valuation"
+    const valuationMatch = query.match(
+      /(\w+)\s+(?:is|was|are)\s+(?:worth|valued at)\s+(.+)/i
+    );
+    if (valuationMatch) {
+      return `${valuationMatch[1]} valuation market cap ${valuationMatch[2]}`;
+    }
+
+    // e.g., "They raised 50 million" → keep as-is but trim
+    // Default: use the first 120 chars of the claim
+    return query.slice(0, 120);
+  }
+
+  /**
+   * Execute a single Brave Search query and format results.
+   */
+  private async searchBrave(query: string): Promise<string | undefined> {
+    try {
       const response = await fetch(
-        `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=3`,
+        `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=3&freshness=py`,
         {
           headers: {
             Accept: "application/json",
@@ -212,7 +324,7 @@ export class PersonaEngine {
       return results
         .map(
           (r: { title: string; description: string; url: string }) =>
-            `[${r.title}] ${r.description} (${r.url})`
+            `• [${r.title}] ${r.description}`
         )
         .join("\n");
     } catch {
