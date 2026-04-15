@@ -7,7 +7,7 @@
  * Emits transcript events that the persona engine subscribes to.
  */
 
-import { spawn, ChildProcess } from "child_process";
+import { spawn, execSync, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
 import WebSocket from "ws";
 
@@ -15,6 +15,36 @@ export interface TranscriptEvent {
   text: string;
   isFinal: boolean;
   timestamp: number;
+}
+
+/**
+ * Resolve the full path to a CLI binary.
+ * Next.js server doesn't inherit the user's shell PATH,
+ * so Homebrew binaries like yt-dlp and ffmpeg aren't found by default.
+ */
+function which(bin: string): string {
+  // Common Homebrew + system paths that Node's spawn might miss
+  const searchPaths = [
+    `/opt/homebrew/bin/${bin}`,
+    `/usr/local/bin/${bin}`,
+    `/usr/bin/${bin}`,
+  ];
+
+  for (const p of searchPaths) {
+    try {
+      execSync(`test -x ${p}`, { stdio: "ignore" });
+      return p;
+    } catch {
+      // not found here, keep looking
+    }
+  }
+
+  // Fallback: try the shell's which
+  try {
+    return execSync(`which ${bin}`).toString().trim();
+  } catch {
+    return bin; // last resort — let spawn fail with a clear error
+  }
 }
 
 export class TranscriptionManager extends EventEmitter {
@@ -65,8 +95,11 @@ export class TranscriptionManager extends EventEmitter {
     this.lastTriggerTime = Date.now();
 
     try {
+      const ytdlpBin = which("yt-dlp");
+      const ffmpegBin = which("ffmpeg");
+
       // Step 1: Spawn yt-dlp to extract audio stream
-      this.ytdlp = spawn("yt-dlp", [
+      this.ytdlp = spawn(ytdlpBin, [
         "-f",
         "bestaudio",
         "--no-warnings",
@@ -76,7 +109,7 @@ export class TranscriptionManager extends EventEmitter {
       ]);
 
       // Step 2: Pipe through FFmpeg to convert to Deepgram-friendly format
-      this.ffmpeg = spawn("ffmpeg", [
+      this.ffmpeg = spawn(ffmpegBin, [
         "-i",
         "pipe:0", // read from stdin
         "-acodec",
