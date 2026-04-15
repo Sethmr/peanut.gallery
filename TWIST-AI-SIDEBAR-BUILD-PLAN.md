@@ -286,3 +286,5 @@ node scripts/test-personas.js "Jason just said that Uber was founded in 2007 and
 # Deploy
 vercel  # One command deploy
 ```
+
+> API keys moved to `.env.local` — never commit secrets to version control!
