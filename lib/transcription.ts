@@ -97,6 +97,12 @@ export class TranscriptionManager extends EventEmitter {
   private transcriptBuffer: string[] = [];
   private readonly MAX_BUFFER_LINES = 200;
 
+  // Pipeline data-flow tracking — shows exactly where data stalls
+  private ytdlpBytesReceived = 0;
+  private ffmpegBytesReceived = 0;
+  private deepgramMessagesReceived = 0;
+  private firstTranscriptTime: number | null = null;
+
   // Accumulator for triggering personas
   private newTranscriptSinceLastTrigger = "";
   private lastTriggerTime = 0;
@@ -166,6 +172,8 @@ export class TranscriptionManager extends EventEmitter {
       const ytdlpBin = which("yt-dlp");
       const ffmpegBin = which("ffmpeg");
 
+      console.log(`[PG] Pipeline starting — yt-dlp: ${ytdlpBin}, ffmpeg: ${ffmpegBin}`);
+      console.log(`[PG] URL: ${youtubeUrl}`);
       logPipeline({ event: "pipeline_start", level: "info", data: { url: youtubeUrl, ytdlpBin, ffmpegBin } });
 
       // Detect if this is a live stream
@@ -221,16 +229,39 @@ export class TranscriptionManager extends EventEmitter {
 
       this.ffmpeg = spawn(ffmpegBin, ffmpegArgs);
 
+      // Track yt-dlp stdout before piping to ffmpeg
+      this.ytdlp.stdout?.on("data", (chunk: Buffer) => {
+        const wasZero = this.ytdlpBytesReceived === 0;
+        this.ytdlpBytesReceived += chunk.length;
+        if (wasZero) {
+          console.log(`[PG] yt-dlp: first audio bytes received (${chunk.length} bytes)`);
+          logPipeline({ event: "ytdlp_first_bytes", level: "info", data: { bytes: chunk.length } });
+          this.emit("status_detail", "Audio stream connected — extracting audio...");
+        }
+      });
+
       // Connect yt-dlp stdout → ffmpeg stdin
       this.ytdlp.stdout?.pipe(this.ffmpeg.stdin!);
 
       // Handle yt-dlp stderr (progress + errors)
       let ytdlpStderrBuffer = "";
       this.ytdlp.stderr?.on("data", (data) => {
-        ytdlpStderrBuffer += data.toString();
-        // Only emit real errors, not progress lines
-        if (ytdlpStderrBuffer.includes("ERROR")) {
-          this.emit("error", new Error(`yt-dlp: ${ytdlpStderrBuffer.trim()}`));
+        const msg = data.toString();
+        ytdlpStderrBuffer += msg;
+
+        // Log all stderr for diagnostics (trimmed)
+        logPipeline({ event: "ytdlp_stderr", level: "debug", data: { text: msg.trim().slice(0, 200) } });
+
+        // Catch errors — yt-dlp uses "ERROR:" prefix, but also check for common failure patterns
+        if (
+          ytdlpStderrBuffer.includes("ERROR") ||
+          ytdlpStderrBuffer.includes("unable to download") ||
+          ytdlpStderrBuffer.includes("is not a valid URL") ||
+          ytdlpStderrBuffer.includes("Video unavailable")
+        ) {
+          const errorLine = ytdlpStderrBuffer.trim().split("\n").pop() || ytdlpStderrBuffer.trim();
+          console.error(`[PG] yt-dlp error: ${errorLine}`);
+          this.emit("error", new Error(`yt-dlp: ${errorLine}`));
           ytdlpStderrBuffer = "";
         }
         // Flush buffer periodically to avoid memory buildup
@@ -244,8 +275,15 @@ export class TranscriptionManager extends EventEmitter {
       // ────────────────────────────────────────────────
       await this.connectDeepgram();
 
-      // Pipe FFmpeg audio to Deepgram
+      // Pipe FFmpeg audio to Deepgram (with data-flow tracking)
       this.ffmpeg.stdout?.on("data", (chunk: Buffer) => {
+        const wasZero = this.ffmpegBytesReceived === 0;
+        this.ffmpegBytesReceived += chunk.length;
+        if (wasZero) {
+          console.log(`[PG] ffmpeg: first PCM output received (${chunk.length} bytes)`);
+          logPipeline({ event: "ffmpeg_first_bytes", level: "info", data: { bytes: chunk.length } });
+          this.emit("status_detail", "Audio converting — sending to Deepgram...");
+        }
         if (this.dgSocket && this.dgSocket.readyState === WebSocket.OPEN) {
           this.dgSocket.send(chunk);
         }
@@ -266,6 +304,8 @@ export class TranscriptionManager extends EventEmitter {
 
       // Handle process exits with live-aware restart logic
       this.ytdlp.on("close", (code) => {
+        console.log(`[PG] yt-dlp exited with code ${code} (sent ${this.ytdlpBytesReceived} bytes)`);
+        logPipeline({ event: "ytdlp_exit", level: code === 0 ? "info" : "warn", data: { code, bytesProduced: this.ytdlpBytesReceived } });
         if (code !== 0 && this.isRunning) {
           if (this.isLive) {
             // Live streams can drop and come back — retry
@@ -278,6 +318,8 @@ export class TranscriptionManager extends EventEmitter {
       });
 
       this.ffmpeg.on("close", (code) => {
+        console.log(`[PG] ffmpeg exited with code ${code} (produced ${this.ffmpegBytesReceived} bytes PCM)`);
+        logPipeline({ event: "ffmpeg_exit", level: code === 0 || code === null ? "info" : "warn", data: { code, bytesProduced: this.ffmpegBytesReceived } });
         if (code !== 0 && code !== null && this.isRunning) {
           this.emit("error", new Error(`ffmpeg exited with code ${code}`));
         }
@@ -377,8 +419,36 @@ export class TranscriptionManager extends EventEmitter {
 
       this.dgSocket.on("open", () => {
         this.reconnectAttempts = 0;
+        console.log("[PG] Deepgram: WebSocket connected");
         logPipeline({ event: "deepgram_connected", level: "info" });
         this.emit("deepgram_connected");
+
+        // Pipeline stall detector — warn if no transcript after 15 seconds
+        setTimeout(() => {
+          if (!this.firstTranscriptTime && this.isRunning) {
+            const diag = {
+              ytdlpBytes: this.ytdlpBytesReceived,
+              ffmpegBytes: this.ffmpegBytesReceived,
+              deepgramMessages: this.deepgramMessagesReceived,
+            };
+            console.warn("[PG] STALL DETECTED — No transcript after 15s.", diag);
+            logPipeline({ event: "pipeline_stall", level: "warn", data: diag });
+
+            // Surface a diagnostic message to the UI
+            if (diag.ytdlpBytes === 0) {
+              this.emit("status_detail", "⚠ yt-dlp hasn't produced any audio yet — check the YouTube URL");
+              this.emit("error", new Error("yt-dlp is not producing audio. The URL may be invalid, region-locked, or require authentication."));
+            } else if (diag.ffmpegBytes === 0) {
+              this.emit("status_detail", "⚠ ffmpeg hasn't produced any output — audio conversion may have failed");
+              this.emit("error", new Error("ffmpeg is not producing PCM output. Audio format may be unsupported."));
+            } else if (diag.deepgramMessages === 0) {
+              this.emit("status_detail", "⚠ Deepgram hasn't responded — check API key or network");
+              this.emit("error", new Error("Deepgram is not responding. Check your API key and network connection."));
+            } else {
+              this.emit("status_detail", "⚠ Audio is flowing but no transcript yet — Deepgram may need more audio");
+            }
+          }
+        }, 15_000);
 
         // Keepalive: send empty frames every 8s to prevent Deepgram timeout
         // Critical for live streams with quiet moments (ad breaks, pauses)
@@ -394,12 +464,21 @@ export class TranscriptionManager extends EventEmitter {
       this.dgSocket.on("message", (raw) => {
         try {
           const data = JSON.parse(raw.toString());
+          this.deepgramMessagesReceived++;
 
           if (data.type === "Results") {
             const alt = data.channel?.alternatives?.[0];
             if (alt && alt.transcript) {
               const isFinal = data.is_final === true;
               const text = alt.transcript;
+
+              // Track first transcript for diagnostics
+              if (!this.firstTranscriptTime) {
+                this.firstTranscriptTime = Date.now();
+                console.log(`[PG] Deepgram: first transcript received — "${text.slice(0, 60)}..."`);
+                logPipeline({ event: "deepgram_first_transcript", level: "info", data: { text: text.slice(0, 100), isFinal } });
+                this.emit("status_detail", "Transcript flowing!");
+              }
 
               const event: TranscriptEvent = {
                 text,

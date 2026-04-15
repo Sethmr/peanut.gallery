@@ -80,6 +80,55 @@ YouTube URL
 - **Fix:** Added explicit handling for `data.type === "Error"` and `data.error`, emitting them as error events.
 - **Lesson:** Always handle error message types from WebSocket APIs. Silent catch blocks are debugging poison.
 
+### ISSUE-006: Personas fire repeatedly while paused — no visible transcript
+- **Date:** 2026-04-15
+- **Symptom:** User pauses the video (recorded mode). The 4 AI personas keep triggering and generating responses every 60 seconds, but the transcript area shows nothing — it looks like they're talking about thin air.
+- **Root cause:** Two interacting bugs:
+  1. The YouTube player pauses, but the server-side audio pipeline (yt-dlp → FFmpeg → Deepgram) keeps running. Transcript keeps accumulating in `newTranscriptSinceLastTrigger` on the server.
+  2. The persona interval loop has two trigger paths: `shouldFire` (normal threshold) and `justPaused` (one-shot pause reaction). `shouldFire` doesn't check pause state, so it keeps returning true from the invisible accumulating transcript.
+  3. The route handler suppresses transcript events when paused (`if (!session.paused) { send(...) }`), so the UI shows nothing even though data is flowing server-side.
+- **Fix:** Changed the persona trigger condition in `route.ts` from `if (shouldFire || justPaused)` to `if ((shouldFire && !session.paused) || justPaused)`. Now when paused, only the one-shot `justPaused` path fires (capped by `pauseFiredCount`). Normal `shouldFire` is blocked during pause.
+- **Lesson:** When two systems are decoupled (YouTube player vs. server-side audio pipeline), pausing one doesn't pause the other. Any "paused" behavior needs explicit guards at every downstream consumer, not just the UI layer.
+- **How to verify:** Pause the video in recorded mode. Personas should fire exactly once (the in-character pause reaction), then stop until resume.
+
+### ISSUE-007: No transcript — pipeline running but no data flowing (silent stall)
+- **Date:** 2026-04-15
+- **Symptom:** Pipeline starts successfully (status events fire, "Recorded" badge shows, Deepgram connects), but transcript area stays on "Listening..." forever. No errors shown.
+- **Root cause:** Under investigation. The pipeline has zero visibility into data flow between stages. yt-dlp could fail to extract audio, ffmpeg could stall, or Deepgram could receive data but not produce transcript — and none of these would surface an error.
+- **Fix:** Added pipeline data-flow tracking:
+  1. **Byte counters** at each stage: `ytdlpBytesReceived`, `ffmpegBytesReceived`, `deepgramMessagesReceived`
+  2. **First-bytes indicators**: console.log + status events when each stage first produces output
+  3. **15-second stall detector**: if no transcript arrives within 15s of Deepgram connecting, diagnoses which stage stalled and surfaces it to the UI
+  4. **Always-on logging**: debug logger now writes info+ to `logs/pipeline-debug.jsonl` without needing `DEBUG_PIPELINE=true`
+  5. **UI pipeline stages**: transcript area shows pipeline progress messages instead of just "Listening..."
+- **Lesson:** Every pipe between two processes is a potential silent failure point. Always add "first bytes received" indicators and stall detection.
+- **How to verify:** Start a session. The terminal should show `[PG]` prefixed logs for each stage. The transcript area should show pipeline progress. After 15s with no transcript, a specific diagnostic error appears.
+
+---
+
+## Pipeline Data Flow Indicators
+
+After ISSUE-007, the pipeline now logs at every stage. Watch the terminal for these `[PG]` messages:
+
+```
+[PG] Pipeline starting — yt-dlp: /opt/homebrew/bin/yt-dlp, ffmpeg: /opt/homebrew/bin/ffmpeg
+[PG] URL: https://www.youtube.com/watch?v=...
+[PG] Deepgram: WebSocket connected
+[PG] yt-dlp: first audio bytes received (65536 bytes)
+[PG] ffmpeg: first PCM output received (32000 bytes)
+[PG] Deepgram: first transcript received — "Welcome back to This Week in..."
+```
+
+If it stalls, the last message that appears tells you exactly where:
+
+| Last message seen | Problem | Check |
+|-------------------|---------|-------|
+| `Pipeline starting` only | yt-dlp or ffmpeg binary not found | Run `which yt-dlp && which ffmpeg` |
+| `Deepgram: WebSocket connected` | yt-dlp not producing audio | Run `yt-dlp -f bestaudio -o - "URL" \| head -c 1024 \| wc -c` |
+| `yt-dlp: first audio bytes` | ffmpeg not converting | Check ffmpeg stderr in terminal |
+| `ffmpeg: first PCM output` | Deepgram not transcribing | Check API key, audio may be silence |
+| `STALL DETECTED` + diagnostics | Specific stage identified | Follow the error message |
+
 ---
 
 ## Diagnostic Checklist

@@ -17,7 +17,9 @@ import { join } from "path";
 
 const LOG_DIR = join(process.cwd(), "logs");
 const LOG_FILE = join(LOG_DIR, "pipeline-debug.jsonl");
-const ENABLED = process.env.DEBUG_PIPELINE === "true";
+// Always log info+ to file for post-mortem diagnosis.
+// DEBUG_PIPELINE=true also includes debug-level messages.
+const DEBUG_VERBOSE = process.env.DEBUG_PIPELINE === "true";
 
 // Ensure log directory exists on first use
 let dirCreated = false;
@@ -56,16 +58,23 @@ export interface PipelineEvent {
  * Never throws — logging failures must not break the pipeline.
  */
 export function logPipeline(event: PipelineEvent): void {
-  // Always log errors to console regardless of DEBUG_PIPELINE
+  // Always log errors and warnings to console
   if (event.level === "error") {
     console.error(
       `[PG:${event.event}]`,
       event.data?.message || event.data?.error || "",
       event.sessionId ? `(session: ${event.sessionId})` : ""
     );
+  } else if (event.level === "warn") {
+    console.warn(
+      `[PG:${event.event}]`,
+      event.data ? JSON.stringify(event.data) : "",
+      event.sessionId ? `(session: ${event.sessionId})` : ""
+    );
   }
 
-  if (!ENABLED) return;
+  // Skip debug-level messages unless DEBUG_PIPELINE=true
+  if (event.level === "debug" && !DEBUG_VERBOSE) return;
 
   try {
     ensureDir();

@@ -170,6 +170,12 @@ Next.js doesn't inherit shell PATH. **Fix:** `which()` function checks common pa
 ### 5. ws Native Deps Missing (ISSUE-003)
 **Fix:** Added `bufferutil` and `utf-8-validate` to package.json.
 
+### 6. Personas Fire Repeatedly While Paused (ISSUE-006)
+The audio pipeline (yt-dlp → FFmpeg → Deepgram) runs independently of the YouTube player. Pausing the video doesn't pause the pipeline, so transcript keeps accumulating server-side. The persona trigger loop didn't check pause state on the normal `shouldFire` path, so personas kept firing. **Fix:** Gated `shouldFire` on `!session.paused` — now only the one-shot "just paused" reaction fires.
+
+### 7. Pipeline Silent Stall — No Data Flow Visibility (ISSUE-007)
+Zero visibility into whether data was flowing between yt-dlp → FFmpeg → Deepgram. A stall at any stage produced no error. **Fix:** Added byte counters, first-bytes indicators, 15-second stall detector with stage-specific diagnostics, always-on logging (info+ to file), and pipeline progress display in the UI.
+
 ---
 
 ## Live vs Recorded Mode
@@ -349,6 +355,7 @@ npx tsx scripts/test-personas.ts --fixture
 3. **personas.ts is the creative soul of the project.** Any changes should preserve the deep character research and Howard Stern Show references.
 4. **Read `docs/DEBUGGING.md` before debugging any pipeline issues.** It has post-mortems, a diagnostic checklist, and a silent failure table.
 5. **The build plan (`TWIST-AI-SIDEBAR-BUILD-PLAN.md`) is partially outdated** — it still references "Chaos Agent" (now replaced by Fred/Sound Effects). Use this CONTEXT.md as the source of truth.
-6. **When testing, use `DEBUG_PIPELINE=true`** to get structured JSONL logs in `logs/pipeline-debug.jsonl`.
+6. **When testing, use `DEBUG_PIPELINE=true`** to get structured JSONL logs in `logs/pipeline-debug.jsonl`. Info+ level logs are always written to the file regardless.
 7. **The project uses `@/*` path aliases** (e.g., `@/lib/personas`) per tsconfig.json.
 8. **TranscriptBar.tsx exists but isn't used** — the transcript display is inlined in page.tsx.
+9. **Always end every message with a ready-to-paste git commit command.** Use the Jason Calacanis commit style from this repo — funny, punchy, lowercase, describes the "why" not the "what", with an emoji at the end. The sandbox can't run git (no identity), so provide it as a bash code block Seth can copy-paste locally. Format: `git add [files] && git commit -m "message"`. Include `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>` on a second line.

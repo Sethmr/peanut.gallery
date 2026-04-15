@@ -50,6 +50,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isLive, setIsLive] = useState(false);
   const [statusDetail, setStatusDetail] = useState<string | null>(null);
+  const [pipelineStages, setPipelineStages] = useState<string[]>([]);
 
   const playerRef = useRef<YouTubePlayerHandle>(null);
 
@@ -89,6 +90,7 @@ export default function Home() {
     setStatusDetail(null);
     setTranscriptText("");
     setInterimText("");
+    setPipelineStages([]);
 
     // Reset persona states
     setPersonaStates((prev) => {
@@ -215,6 +217,9 @@ export default function Home() {
                   }
                   if (data.status === "detail") {
                     setStatusDetail(data.message);
+                    // Accumulate pipeline stages so user can see progress
+                    setPipelineStages((prev) => [...prev.slice(-8), data.message]);
+                    // Clear the top-bar banner after 5s, but stages persist in transcript area
                     setTimeout(() => setStatusDetail(null), 5000);
                   }
                   if (data.status === "stopped") {
@@ -521,11 +526,23 @@ export default function Home() {
               )}
               {!transcriptText && !interimText && (
                 <span className="text-white/20">
-                  {isRunning
-                    ? isLive
-                      ? "Waiting for audio from live stream..."
-                      : "Listening..."
-                    : "Transcript will appear here..."}
+                  {isRunning ? (
+                    pipelineStages.length > 0 ? (
+                      <span className="flex flex-col gap-1">
+                        {pipelineStages.map((stage, i) => (
+                          <span key={i} className={i === pipelineStages.length - 1 ? "text-white/40" : "text-white/15"}>
+                            {stage}
+                          </span>
+                        ))}
+                      </span>
+                    ) : isLive ? (
+                      "Waiting for audio from live stream..."
+                    ) : (
+                      "Connecting to pipeline..."
+                    )
+                  ) : (
+                    "Transcript will appear here..."
+                  )}
                 </span>
               )}
             </p>
