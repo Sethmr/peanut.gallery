@@ -599,8 +599,8 @@ export default function Home() {
           />
         </div>
 
-        {/* Right: Mini Persona Cards (2x2, compact) */}
-        <div className="w-[280px] shrink-0 grid grid-cols-2 grid-rows-2 gap-2 min-h-0">
+        {/* Right: Mini Persona Cards (2x2) */}
+        <div className="w-[360px] shrink-0 grid grid-cols-2 grid-rows-2 gap-2 min-h-0">
           {personas.map((p) => {
             const isProducerLive = isLive && isRunning && p.id === "producer";
 
