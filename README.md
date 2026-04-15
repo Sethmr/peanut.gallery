@@ -112,7 +112,7 @@ The personas fire every ~60 seconds of new dialogue. Each one stays in character
 **5. Use the controls**
 
 - **Pause** (recorded mode): pauses video AND makes the AIs react to being paused in character
-- **Fire button** (the flame icon): force-triggers all personas immediately
+- **Fire button** (the flame icon): triggers the Director to pick 1-4 personas via cascade
 - **Stop / End Session**: kills the pipeline
 
 ---

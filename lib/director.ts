@@ -63,16 +63,25 @@ const PERSONA_PATTERNS: Record<string, { patterns: RegExp[]; keywords: RegExp[] 
   },
 
   // Fred: mood shifts, surprising moments, topic changes, quiet observations
+  // NOTE: Fred was firing too rarely. His patterns are intentionally broad because
+  // on the Stern Show, Fred reacts to EVERYTHING — he just does it with a sound
+  // effect instead of words. His triggers should be the most generous.
   soundfx: {
     patterns: [
       /\b(?:awkward|silence|pause|wait|hold on|actually|um|uh)\b/i,
-      /\b(?:wrong|mistake|oops|whoops|failed|bankrupt|shut down|dead)\b/i,
+      /\b(?:wrong|mistake|oops|whoops|failed|bankrupt|shut down|dead|killed|crashed|collapsed)\b/i,
       /\b(?:breaking|just announced|news|update|happening now)\b/i,
       /\b(?:fun fact|did you know|interesting|surprisingly|plot twist)\b/i,
+      /\b(?:wow|whoa|insane|crazy|wild|unbelievable|incredible|amazing)\b/i,
+      /\b(?:money|dollars|billion|million|profit|loss|cost|expensive|cheap|free)\b/i,
+      /\b(?:new|launch|release|ship|build|deploy|announce)\b/i,
+      /\b(?:but|however|although|except|unless|unfortunately)\b/i,
     ],
     keywords: [
       /\b(?:music|song|band|album|movie|film|show|culture|history|war|president|election)\b/i,
       /\b(?:science|physics|space|NASA|Mars|moon|quantum|nuclear)\b/i,
+      /\b(?:company|startup|founder|CEO|CTO|engineer|developer|team)\b/i,
+      /\b(?:Google|Apple|Microsoft|Amazon|Meta|OpenAI|Anthropic|Tesla|SpaceX)\b/i,
     ],
   },
 
@@ -242,9 +251,11 @@ export class Director {
       },
     });
 
-    // Track this firing
-    this.recentFirings.push(chain[0]);
-    if (this.recentFirings.length > this.RECENCY_WINDOW) {
+    // Track ALL personas in the chain (not just primary) to prevent domination
+    for (const id of chain) {
+      this.recentFirings.push(id);
+    }
+    while (this.recentFirings.length > this.RECENCY_WINDOW) {
       this.recentFirings.shift();
     }
 

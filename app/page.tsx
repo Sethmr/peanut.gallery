@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import PersonaColumn, { type PersonaMessage } from "@/components/PersonaColumn";
+import CombinedFeed, { type FeedEntry } from "@/components/CombinedFeed";
 import YouTubePlayer, {
   extractVideoId,
   type YouTubePlayerHandle,
@@ -65,9 +66,23 @@ export default function Home() {
     return initial;
   });
 
+  // Combined feed — all persona messages interleaved chronologically
+  const [combinedFeed, setCombinedFeed] = useState<FeedEntry[]>([]);
+
   const abortRef = useRef<AbortController | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const messageCountRef = useRef(0);
+
+  // Determine which persona is currently streaming (for combined feed)
+  const streamingPersona = useMemo(() => {
+    for (const p of personas) {
+      const state = personaStates[p.id];
+      if (state?.isStreaming && state.streamingText) {
+        return { id: p.id, name: p.name, emoji: p.emoji, color: p.color };
+      }
+    }
+    return null;
+  }, [personaStates]);
 
   // ──────────────────────────────────────────────────────
   // ACTIONS
@@ -91,6 +106,7 @@ export default function Home() {
     setTranscriptText("");
     setInterimText("");
     setPipelineStages([]);
+    setCombinedFeed([]);
 
     // Reset persona states
     setPersonaStates((prev) => {
@@ -178,10 +194,12 @@ export default function Home() {
                   const finalText = streamBuffers[pid] || "";
                   streamBuffers[pid] = "";
                   if (finalText.trim()) {
+                    const msgId = `${pid}-${messageCountRef.current++}`;
+                    const now = Date.now();
                     const msg: PersonaMessage = {
-                      id: `${pid}-${messageCountRef.current++}`,
+                      id: msgId,
                       text: finalText.trim(),
-                      timestamp: Date.now(),
+                      timestamp: now,
                     };
                     setPersonaStates((prev) => ({
                       ...prev,
@@ -191,6 +209,22 @@ export default function Home() {
                         streamingText: "",
                       },
                     }));
+                    // Also push to the combined feed
+                    const p = personas.find((p) => p.id === pid);
+                    if (p) {
+                      setCombinedFeed((prev) => [
+                        ...prev,
+                        {
+                          id: msgId,
+                          personaId: pid,
+                          personaName: p.name,
+                          personaEmoji: p.emoji,
+                          personaColor: p.color,
+                          text: finalText.trim(),
+                          timestamp: now,
+                        },
+                      ]);
+                    }
                   } else {
                     setPersonaStates((prev) => ({
                       ...prev,
@@ -454,8 +488,8 @@ export default function Home() {
 
       {/* ── MAIN CONTENT ── */}
       <main className="flex-1 flex gap-3 p-3 min-h-0">
-        {/* Left: Video Player + Transcript */}
-        <div className="w-[560px] shrink-0 flex flex-col gap-3">
+        {/* Left Column: Video + Transcript (compact) */}
+        <div className="w-[380px] shrink-0 flex flex-col gap-2">
           {/* Video */}
           <div
             className={`bg-bg-secondary rounded-xl overflow-hidden border transition-colors ${
@@ -549,10 +583,25 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Right: 2x2 Persona Grid */}
-        <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-3 min-h-0">
+        {/* Center: The Gallery — Combined Chronological Feed */}
+        <div className="flex-1 min-w-0 min-h-0">
+          <CombinedFeed
+            entries={combinedFeed}
+            streamingPersonaId={streamingPersona?.id ?? null}
+            streamingPersonaName={streamingPersona?.name ?? ""}
+            streamingPersonaEmoji={streamingPersona?.emoji ?? ""}
+            streamingPersonaColor={streamingPersona?.color ?? ""}
+            streamingText={
+              streamingPersona
+                ? personaStates[streamingPersona.id]?.streamingText || ""
+                : ""
+            }
+          />
+        </div>
+
+        {/* Right: Mini Persona Cards (2x2, compact) */}
+        <div className="w-[280px] shrink-0 grid grid-cols-2 grid-rows-2 gap-2 min-h-0">
           {personas.map((p) => {
-            // In live mode, give the Producer a special "FACT-CHECK" accent
             const isProducerLive = isLive && isRunning && p.id === "producer";
 
             return (
@@ -566,6 +615,7 @@ export default function Home() {
                 isStreaming={personaStates[p.id]?.isStreaming || false}
                 streamingText={personaStates[p.id]?.streamingText || ""}
                 badge={isProducerLive ? "LIVE FACT-CHECK" : undefined}
+                compact
               />
             );
           })}

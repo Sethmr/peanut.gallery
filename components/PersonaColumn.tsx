@@ -18,6 +18,8 @@ interface PersonaColumnProps {
   streamingText: string;
   /** Optional badge shown next to name (e.g., "LIVE FACT-CHECK") */
   badge?: string;
+  /** Compact mode for sidebar mini-cards */
+  compact?: boolean;
 }
 
 /** Sine wave bars — animated when speaking, idle otherwise */
@@ -45,6 +47,7 @@ export default function PersonaColumn({
   isStreaming,
   streamingText,
   badge,
+  compact = false,
 }: PersonaColumnProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -54,6 +57,64 @@ export default function PersonaColumn({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, streamingText]);
+
+  // Only show the most recent message in compact mode
+  const visibleMessages = compact ? messages.slice(-1) : messages;
+
+  if (compact) {
+    return (
+      <div className="flex flex-col h-full bg-bg-secondary rounded-lg border border-white/5 overflow-hidden">
+        {/* Compact Header */}
+        <div
+          className="flex items-center gap-2 px-2.5 py-2 border-b border-white/5"
+          style={{ borderBottomColor: `${color}20` }}
+        >
+          <span className="text-sm">{emoji}</span>
+          <div className="flex-1 min-w-0">
+            <h3
+              className="font-display font-semibold text-[11px] truncate"
+              style={{ color }}
+            >
+              {name}
+            </h3>
+          </div>
+          {isStreaming && (
+            <span
+              className="w-1.5 h-1.5 rounded-full animate-pulse"
+              style={{ backgroundColor: color }}
+            />
+          )}
+        </div>
+
+        {/* Latest message only */}
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto persona-scroll p-2"
+        >
+          {visibleMessages.length === 0 && !isStreaming ? (
+            <p className="text-white/20 text-[10px] text-center mt-3">
+              Waiting...
+            </p>
+          ) : (
+            visibleMessages.map((msg) => (
+              <p key={msg.id} className="text-[11px] text-white/60 leading-snug line-clamp-4">
+                {msg.text}
+              </p>
+            ))
+          )}
+          {isStreaming && streamingText && (
+            <p className="text-[11px] text-white/60 leading-snug line-clamp-4">
+              {streamingText}
+              <span
+                className="inline-block w-1 h-3 ml-0.5 animate-pulse"
+                style={{ backgroundColor: color }}
+              />
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-bg-secondary rounded-xl border border-white/5 overflow-hidden">
