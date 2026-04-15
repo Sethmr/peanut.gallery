@@ -19,8 +19,11 @@ import { PersonaEngine } from "@/lib/persona-engine";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Active sessions (keyed by a simple counter for now)
-const sessions = new Map<string, TranscriptionManager>();
+// Active sessions (keyed by session ID)
+const sessions = new Map<
+  string,
+  { transcriber: TranscriptionManager; paused: boolean }
+>();
 
 export async function POST(req: NextRequest) {
   const { url: youtubeUrl } = await req.json();
@@ -47,7 +50,8 @@ export async function POST(req: NextRequest) {
 
   const sessionId = Date.now().toString();
   const transcriber = new TranscriptionManager(deepgramKey);
-  sessions.set(sessionId, transcriber);
+  const session = { transcriber, paused: false };
+  sessions.set(sessionId, session);
 
   const personaEngine = new PersonaEngine({
     anthropicKey: anthropicKey || "",
@@ -71,7 +75,9 @@ export async function POST(req: NextRequest) {
 
       // Wire up transcript events
       transcriber.on("transcript", (event) => {
-        send("transcript", event);
+        if (!session.paused) {
+          send("transcript", event);
+        }
       });
 
       transcriber.on("started", () => {
@@ -91,9 +97,9 @@ export async function POST(req: NextRequest) {
         sessions.delete(sessionId);
       });
 
-      // Persona trigger loop
+      // Persona trigger loop — skips when paused
       const personaInterval = setInterval(async () => {
-        if (transcriber.shouldTriggerPersonas()) {
+        if (!session.paused && transcriber.shouldTriggerPersonas()) {
           const transcript = transcriber.transcript;
           transcriber.resetNewTranscript();
 
@@ -141,13 +147,41 @@ export async function POST(req: NextRequest) {
   });
 }
 
+// Pause / Resume / Stop
+export async function PATCH(req: NextRequest) {
+  const { sessionId, action } = await req.json();
+  const session = sessions.get(sessionId);
+
+  if (!session) {
+    return new Response(JSON.stringify({ error: "Session not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  if (action === "pause") {
+    session.paused = true;
+    return new Response(JSON.stringify({ paused: true }));
+  }
+
+  if (action === "resume") {
+    session.paused = false;
+    return new Response(JSON.stringify({ paused: false }));
+  }
+
+  return new Response(JSON.stringify({ error: "Invalid action" }), {
+    status: 400,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 // Stop endpoint
 export async function DELETE(req: NextRequest) {
   const { sessionId } = await req.json();
-  const transcriber = sessions.get(sessionId);
+  const session = sessions.get(sessionId);
 
-  if (transcriber) {
-    transcriber.stop();
+  if (session) {
+    session.transcriber.stop();
     sessions.delete(sessionId);
     return new Response(JSON.stringify({ stopped: true }));
   }

@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef } from "react";
 import PersonaColumn, { type PersonaMessage } from "@/components/PersonaColumn";
-import TranscriptBar from "@/components/TranscriptBar";
 import YouTubePlayer, {
   extractVideoId,
   type YouTubePlayerHandle,
@@ -46,6 +45,7 @@ export default function Home() {
   });
 
   const abortRef = useRef<AbortController | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
   const messageCountRef = useRef(0);
 
   const handleStart = useCallback(async () => {
@@ -187,6 +187,9 @@ export default function Home() {
                   break;
 
                 case "status":
+                  if (data.status === "started" && data.sessionId) {
+                    sessionIdRef.current = data.sessionId;
+                  }
                   if (data.status === "stopped") {
                     setIsRunning(false);
                   }
@@ -215,21 +218,47 @@ export default function Home() {
     setIsPaused(false);
   }, []);
 
-  const handlePauseResume = useCallback(() => {
+  const handlePauseResume = useCallback(async () => {
+    const sid = sessionIdRef.current;
     if (isPaused) {
-      // Resume
+      // Resume video + server pipeline
       playerRef.current?.play();
       setIsPaused(false);
+      if (sid) {
+        fetch("/api/transcribe", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: sid, action: "resume" }),
+        }).catch(() => {});
+      }
     } else {
-      // Pause
+      // Pause video + server pipeline
       playerRef.current?.pause();
       setIsPaused(true);
+      if (sid) {
+        fetch("/api/transcribe", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: sid, action: "pause" }),
+        }).catch(() => {});
+      }
     }
   }, [isPaused]);
 
   // Sync: when user pauses/plays the YouTube player directly via its controls
   const handleVideoStateChange = useCallback((isPlaying: boolean) => {
+    const sid = sessionIdRef.current;
     setIsPaused(!isPlaying);
+    if (sid) {
+      fetch("/api/transcribe", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: sid,
+          action: isPlaying ? "resume" : "pause",
+        }),
+      }).catch(() => {});
+    }
   }, []);
 
   return (
