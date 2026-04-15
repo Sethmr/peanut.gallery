@@ -22,7 +22,7 @@ export default function LandingPage() {
 
   return (
     <>
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .landing * { margin: 0; padding: 0; box-sizing: border-box; }
 
         .landing {
@@ -452,7 +452,7 @@ export default function LandingPage() {
         @media (prefers-reduced-motion: reduce) {
           .fade-in { opacity: 1; transform: none; }
         }
-      `}</style>
+      ` }} />
 
       <div className="landing">
         {/* NAV */}
