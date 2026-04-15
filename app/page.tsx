@@ -520,7 +520,7 @@ export default function Home() {
       {/* ── MAIN CONTENT ── */}
       <main className="flex-1 flex gap-3 p-3 min-h-0">
         {/* Left Column: Video + Transcript (compact) */}
-        <div className="w-[340px] shrink-0 flex flex-col gap-3">
+        <div className="w-[510px] shrink-0 flex flex-col gap-3">
           {/* Video */}
           <div
             className={`bg-bg-secondary rounded-xl overflow-hidden border transition-colors ${

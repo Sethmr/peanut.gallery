@@ -51,6 +51,44 @@ function which(bin: string): string {
 }
 
 /**
+ * Build common yt-dlp auth/cookie args.
+ *
+ * YouTube increasingly blocks audio extraction from headless servers.
+ * This function adds the right flags depending on the environment:
+ *
+ * 1. YT_DLP_COOKIES_FILE — path to a Netscape-format cookies.txt
+ *    (best for Docker / Railway — mount the file as a volume)
+ * 2. YT_DLP_COOKIE_BROWSER — browser name (chrome, firefox, etc.)
+ *    (only works locally where the browser is installed)
+ * 3. Fallback: --extractor-args to use YouTube's web client without
+ *    po_token, which works for many (not all) videos without cookies
+ */
+function buildYtdlpAuthArgs(): string[] {
+  const args: string[] = [];
+
+  const cookiesFile = process.env.YT_DLP_COOKIES_FILE?.trim();
+  const cookieBrowser = process.env.YT_DLP_COOKIE_BROWSER?.trim();
+
+  if (cookiesFile) {
+    args.push("--cookies", cookiesFile);
+    console.log(`[PG] yt-dlp: using cookies file ${cookiesFile}`);
+    logPipeline({ event: "ytdlp_cookies", level: "info", data: { source: "file", path: cookiesFile } });
+  } else if (cookieBrowser) {
+    args.push("--cookies-from-browser", cookieBrowser);
+    console.log(`[PG] yt-dlp: using cookies from ${cookieBrowser}`);
+    logPipeline({ event: "ytdlp_cookies", level: "info", data: { source: "browser", browser: cookieBrowser } });
+  }
+
+  // Always add extractor args for headless compatibility.
+  // Uses the 'mediaconnect' client which works better on servers.
+  args.push(
+    "--extractor-args", "youtube:player_client=mediaconnect",
+  );
+
+  return args;
+}
+
+/**
  * Detect if a YouTube URL is a live stream by checking with yt-dlp.
  * Returns true for live, false for recorded, null if detection fails.
  */
@@ -60,15 +98,12 @@ async function detectLiveStream(
 ): Promise<boolean | null> {
   return new Promise((resolve) => {
     const args = [
+      ...buildYtdlpAuthArgs(),
       "--print",
       "is_live",
       "--no-download",
       "--no-warnings",
     ];
-    const cookieBrowser = process.env.YT_DLP_COOKIE_BROWSER?.trim();
-    if (cookieBrowser) {
-      args.unshift("--cookies-from-browser", cookieBrowser);
-    }
     args.push(url);
     const proc = spawn(ytdlpBin, args);
 
@@ -195,16 +230,9 @@ export class TranscriptionManager extends EventEmitter {
       // ────────────────────────────────────────────────
       // Step 1: yt-dlp — flags differ for live vs recorded
       // ────────────────────────────────────────────────
-      const ytdlpArgs: string[] = [];
-
-      // YouTube increasingly requires cookies for audio extraction.
-      // Set YT_DLP_COOKIE_BROWSER=chrome (or firefox, safari, edge, brave) in .env.local
-      const cookieBrowser = process.env.YT_DLP_COOKIE_BROWSER?.trim();
-      if (cookieBrowser) {
-        ytdlpArgs.push("--cookies-from-browser", cookieBrowser);
-        console.log(`[PG] yt-dlp: using cookies from ${cookieBrowser}`);
-        logPipeline({ event: "ytdlp_cookies", level: "info", data: { browser: cookieBrowser } });
-      }
+      const ytdlpArgs: string[] = [
+        ...buildYtdlpAuthArgs(),
+      ];
 
       if (this.isLive) {
         ytdlpArgs.push(
@@ -371,11 +399,9 @@ export class TranscriptionManager extends EventEmitter {
 
       this.emit("status_detail", "Reconnecting to live stream...");
 
-      const reconnectArgs: string[] = [];
-      const cookieBrowser = process.env.YT_DLP_COOKIE_BROWSER?.trim();
-      if (cookieBrowser) {
-        reconnectArgs.push("--cookies-from-browser", cookieBrowser);
-      }
+      const reconnectArgs: string[] = [
+        ...buildYtdlpAuthArgs(),
+      ];
       reconnectArgs.push(
         "-f", "bestaudio/best",
         "--no-part",
@@ -460,10 +486,10 @@ export class TranscriptionManager extends EventEmitter {
 
             // Surface a diagnostic message to the UI
             if (diag.ytdlpBytes === 0) {
-              const hasCookies = !!process.env.YT_DLP_COOKIE_BROWSER?.trim();
+              const hasCookies = !!(process.env.YT_DLP_COOKIE_BROWSER?.trim() || process.env.YT_DLP_COOKIES_FILE?.trim());
               const cookieHint = hasCookies
-                ? " Cookies are configured but extraction still failed — try updating yt-dlp."
-                : " Try: 1) brew upgrade yt-dlp  2) Add YT_DLP_COOKIE_BROWSER=chrome to .env.local";
+                ? " Cookies are configured but extraction still failed — try updating yt-dlp or using a different video."
+                : " This video may require authentication. Try a different YouTube URL, or set YT_DLP_COOKIES_FILE to a cookies.txt path.";
               this.emit("status_detail", "⚠ yt-dlp hasn't produced any audio yet — check the YouTube URL");
               this.emit("error", new Error(`yt-dlp is not producing audio.${cookieHint}`));
             } else if (diag.ffmpegBytes === 0) {
