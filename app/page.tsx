@@ -489,7 +489,7 @@ export default function Home() {
       {/* ── MAIN CONTENT ── */}
       <main className="flex-1 flex gap-3 p-3 min-h-0">
         {/* Left Column: Video + Transcript (compact) */}
-        <div className="w-[380px] shrink-0 flex flex-col gap-2">
+        <div className="w-[340px] shrink-0 flex flex-col gap-3">
           {/* Video */}
           <div
             className={`bg-bg-secondary rounded-xl overflow-hidden border transition-colors ${
@@ -599,8 +599,8 @@ export default function Home() {
           />
         </div>
 
-        {/* Right: Mini Persona Cards (2x2) */}
-        <div className="w-[360px] shrink-0 grid grid-cols-2 grid-rows-2 gap-2 min-h-0">
+        {/* Right: Persona Cards (2x2) */}
+        <div className="w-[520px] shrink-0 grid grid-cols-2 grid-rows-2 gap-3 min-h-0">
           {personas.map((p) => {
             const isProducerLive = isLive && isRunning && p.id === "producer";
 

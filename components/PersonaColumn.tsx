@@ -58,52 +58,50 @@ export default function PersonaColumn({
     }
   }, [messages, streamingText]);
 
-  // Only show the most recent message in compact mode
-  const visibleMessages = compact ? messages.slice(-1) : messages;
+  // Show recent messages in compact mode (scrollable, no truncation)
+  const visibleMessages = compact ? messages.slice(-3) : messages;
 
   if (compact) {
     return (
-      <div className="flex flex-col h-full bg-bg-secondary rounded-lg border border-white/5 overflow-hidden">
+      <div className="flex flex-col h-full bg-bg-secondary rounded-xl border border-white/5 overflow-hidden">
         {/* Compact Header */}
         <div
-          className="flex items-center gap-2 px-2.5 py-2 border-b border-white/5"
+          className="flex items-center gap-2 px-3 py-2 border-b border-white/5"
           style={{ borderBottomColor: `${color}20` }}
         >
           <span className="text-sm">{emoji}</span>
-          <div className="flex-1 min-w-0">
-            <h3
-              className="font-display font-semibold text-[11px] truncate"
-              style={{ color }}
-            >
-              {name}
-            </h3>
-          </div>
+          <h3
+            className="font-display font-semibold text-xs flex-1 min-w-0"
+            style={{ color }}
+          >
+            {name}
+          </h3>
           {isStreaming && (
             <span
-              className="w-1.5 h-1.5 rounded-full animate-pulse"
+              className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0"
               style={{ backgroundColor: color }}
             />
           )}
         </div>
 
-        {/* Latest message only */}
+        {/* Messages — scrollable, no truncation */}
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto persona-scroll p-2"
+          className="flex-1 overflow-y-auto persona-scroll p-3 space-y-2"
         >
           {visibleMessages.length === 0 && !isStreaming ? (
-            <p className="text-white/20 text-[10px] text-center mt-3">
+            <p className="text-white/20 text-[11px] text-center mt-3">
               Waiting...
             </p>
           ) : (
             visibleMessages.map((msg) => (
-              <p key={msg.id} className="text-[11px] text-white/60 leading-snug line-clamp-4">
+              <p key={msg.id} className="text-xs text-white/60 leading-relaxed">
                 {msg.text}
               </p>
             ))
           )}
           {isStreaming && streamingText && (
-            <p className="text-[11px] text-white/60 leading-snug line-clamp-4">
+            <p className="text-xs text-white/60 leading-relaxed">
               {streamingText}
               <span
                 className="inline-block w-1 h-3 ml-0.5 animate-pulse"
