@@ -372,6 +372,25 @@ export default function Home() {
   );
 
   // ──────────────────────────────────────────────────────
+  // RESPONSIVE LAYOUT
+  // ──────────────────────────────────────────────────────
+
+  type LayoutMode = "wide" | "compact" | "mobile";
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>("wide");
+
+  useEffect(() => {
+    function updateLayout() {
+      const w = window.innerWidth;
+      if (w < 768) setLayoutMode("mobile");
+      else if (w < 1400) setLayoutMode("compact");
+      else setLayoutMode("wide");
+    }
+    updateLayout();
+    window.addEventListener("resize", updateLayout);
+    return () => window.removeEventListener("resize", updateLayout);
+  }, []);
+
+  // ──────────────────────────────────────────────────────
   // RENDER
   // ──────────────────────────────────────────────────────
 
@@ -382,18 +401,22 @@ export default function Home() {
     <div className="h-screen flex flex-col">
       {/* ── TOP BAR ── */}
       <header
-        className={`flex items-center gap-4 px-4 py-3 bg-bg-secondary border-b transition-colors ${
+        className={`flex items-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 sm:py-3 bg-bg-secondary border-b transition-colors ${
           isLive && isRunning
             ? "border-red-500/20"
             : "border-white/5"
         }`}
       >
         {/* Logo + Live Badge */}
-        <div className="flex items-center gap-2">
-          <span className="text-xl">🥜</span>
-          <h1 className="font-display font-bold text-base text-white/90">
-            Peanut Gallery
-          </h1>
+        <div className="flex items-center gap-2 shrink-0">
+          <a href="/" className="flex items-center gap-1.5 sm:gap-2 hover:opacity-80 transition-opacity">
+            <span className="text-lg sm:text-xl">🥜</span>
+            {layoutMode !== "mobile" && (
+              <h1 className="font-display font-bold text-base text-white/90">
+                Peanut Gallery
+              </h1>
+            )}
+          </a>
           {isRunning && isLive && (
             <span className="live-badge flex items-center gap-1.5 px-2.5 py-1 bg-red-500/15 border border-red-500/30 rounded-full">
               <span className="w-2 h-2 rounded-full bg-red-500 live-pulse" />
@@ -518,140 +541,176 @@ export default function Home() {
       )}
 
       {/* ── MAIN CONTENT ── */}
-      <main className="flex-1 flex gap-3 p-3 min-h-0">
-        {/* Left Column: Video + Transcript (compact) */}
-        <div className="w-[510px] shrink-0 flex flex-col gap-3">
-          {/* Video */}
-          <div
-            className={`bg-bg-secondary rounded-xl overflow-hidden border transition-colors ${
-              isLive && isRunning
-                ? "border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.08)]"
-                : "border-white/5"
-            }`}
-          >
-            {videoId ? (
-              <YouTubePlayer
-                ref={playerRef}
-                videoId={videoId}
-                onStateChange={handleVideoStateChange}
-              />
-            ) : (
-              <div
-                className="flex items-center justify-center bg-black/50 text-white/20 text-sm"
-                style={{ aspectRatio: "16/9" }}
-              >
-                <div className="text-center">
-                  <span className="text-3xl block mb-2">📺</span>
-                  Paste a URL and hit Start
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Transcript */}
-          <div
-            className={`flex-1 bg-bg-secondary rounded-xl border p-3 overflow-y-auto persona-scroll transition-colors ${
-              isLive && isRunning
-                ? "border-red-500/10"
-                : "border-white/5"
-            }`}
-          >
-            {/* Transcript Header */}
-            <div className="flex items-center gap-2 mb-2">
-              {isLive && isRunning ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-red-500 live-pulse" />
-                  <span className="text-[10px] text-red-400/80 font-mono uppercase tracking-widest font-semibold">
-                    Live Transcript
-                  </span>
-                </>
+      {layoutMode === "wide" ? (
+        /* ═══ WIDE LAYOUT (≥1400px) ═══ */
+        <main className="flex-1 flex gap-3 p-3 min-h-0">
+          {/* Left Column: Video + Transcript */}
+          <div className="w-[510px] shrink-0 flex flex-col gap-3">
+            <div
+              className={`bg-bg-secondary rounded-xl overflow-hidden border transition-colors ${
+                isLive && isRunning
+                  ? "border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.08)]"
+                  : "border-white/5"
+              }`}
+            >
+              {videoId ? (
+                <YouTubePlayer ref={playerRef} videoId={videoId} onStateChange={handleVideoStateChange} />
               ) : (
-                <>
-                  <span className="text-sm">📝</span>
-                  <span className="text-[10px] text-white/30 font-mono uppercase tracking-wider">
-                    Transcript
-                  </span>
-                  {isRunning && !isPaused && (
-                    <span className="w-2 h-2 rounded-full bg-accent-blue animate-pulse" />
-                  )}
-                  {isPaused && (
-                    <span className="text-[10px] text-accent-amber font-mono uppercase tracking-wider">
-                      Paused
-                    </span>
-                  )}
-                </>
+                <div className="flex items-center justify-center bg-black/50 text-white/20 text-sm" style={{ aspectRatio: "16/9" }}>
+                  <div className="text-center"><span className="text-3xl block mb-2">📺</span>Paste a URL and hit Start</div>
+                </div>
               )}
             </div>
-
-            {/* Transcript Content */}
-            <p className="text-sm text-white/50 leading-relaxed">
-              {transcriptText && <span>{transcriptText} </span>}
-              {interimText && (
-                <span className="text-white/30 italic">{interimText}</span>
-              )}
-              {!transcriptText && !interimText && (
-                <span className="text-white/20">
-                  {isRunning ? (
-                    pipelineStages.length > 0 ? (
-                      <span className="flex flex-col gap-1">
-                        {pipelineStages.map((stage, i) => (
-                          <span key={i} className={i === pipelineStages.length - 1 ? "text-white/40" : "text-white/15"}>
-                            {stage}
-                          </span>
-                        ))}
-                      </span>
-                    ) : isLive ? (
-                      "Waiting for audio from live stream..."
-                    ) : (
-                      "Connecting to pipeline..."
-                    )
-                  ) : (
-                    "Transcript will appear here..."
-                  )}
-                </span>
-              )}
-            </p>
+            <div className={`flex-1 bg-bg-secondary rounded-xl border p-3 overflow-y-auto persona-scroll transition-colors ${isLive && isRunning ? "border-red-500/10" : "border-white/5"}`}>
+              <div className="flex items-center gap-2 mb-2">
+                {isLive && isRunning ? (
+                  <><span className="w-2 h-2 rounded-full bg-red-500 live-pulse" /><span className="text-[10px] text-red-400/80 font-mono uppercase tracking-widest font-semibold">Live Transcript</span></>
+                ) : (
+                  <><span className="text-sm">📝</span><span className="text-[10px] text-white/30 font-mono uppercase tracking-wider">Transcript</span>{isRunning && !isPaused && <span className="w-2 h-2 rounded-full bg-accent-blue animate-pulse" />}{isPaused && <span className="text-[10px] text-accent-amber font-mono uppercase tracking-wider">Paused</span>}</>
+                )}
+              </div>
+              <p className="text-sm text-white/50 leading-relaxed">
+                {transcriptText && <span>{transcriptText} </span>}
+                {interimText && <span className="text-white/30 italic">{interimText}</span>}
+                {!transcriptText && !interimText && (
+                  <span className="text-white/20">
+                    {isRunning ? (pipelineStages.length > 0 ? <span className="flex flex-col gap-1">{pipelineStages.map((stage, i) => <span key={i} className={i === pipelineStages.length - 1 ? "text-white/40" : "text-white/15"}>{stage}</span>)}</span> : isLive ? "Waiting for audio from live stream..." : "Connecting to pipeline...") : "Transcript will appear here..."}
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* Center: The Gallery — Combined Chronological Feed */}
-        <div className="flex-1 min-w-0 min-h-0">
-          <CombinedFeed
-            entries={combinedFeed}
-            streamingPersonaId={streamingPersona?.id ?? null}
-            streamingPersonaName={streamingPersona?.name ?? ""}
-            streamingPersonaEmoji={streamingPersona?.emoji ?? ""}
-            streamingPersonaColor={streamingPersona?.color ?? ""}
-            streamingText={
-              streamingPersona
-                ? personaStates[streamingPersona.id]?.streamingText || ""
-                : ""
-            }
-          />
-        </div>
+          {/* Center: The Gallery */}
+          <div className="flex-1 min-w-0 min-h-0">
+            <CombinedFeed entries={combinedFeed} streamingPersonaId={streamingPersona?.id ?? null} streamingPersonaName={streamingPersona?.name ?? ""} streamingPersonaEmoji={streamingPersona?.emoji ?? ""} streamingPersonaColor={streamingPersona?.color ?? ""} streamingText={streamingPersona ? personaStates[streamingPersona.id]?.streamingText || "" : ""} />
+          </div>
 
-        {/* Right: Persona Cards (2x2) */}
-        <div className="w-[520px] shrink-0 grid grid-cols-2 grid-rows-2 gap-3 min-h-0">
-          {personas.map((p) => {
-            const isProducerLive = isLive && isRunning && p.id === "producer";
+          {/* Right: Persona Cards (2x2) */}
+          <div className="w-[520px] shrink-0 grid grid-cols-2 grid-rows-2 gap-3 min-h-0">
+            {personas.map((p) => (
+              <PersonaColumn key={p.id} name={p.name} emoji={p.emoji} color={p.color} model={modelDisplay[p.model] || p.model} messages={personaStates[p.id]?.messages || []} isStreaming={personaStates[p.id]?.isStreaming || false} streamingText={personaStates[p.id]?.streamingText || ""} badge={isLive && isRunning && p.id === "producer" ? "LIVE FACT-CHECK" : undefined} compact />
+            ))}
+          </div>
+        </main>
+      ) : layoutMode === "compact" ? (
+        /* ═══ COMPACT / SIDEBAR MODE (768–1399px) ═══ */
+        <main className="flex-1 flex flex-col min-h-0 p-3 gap-3">
+          {/* Top: Persona status strip — 4 mini cards in a row */}
+          <div className="flex gap-2 shrink-0">
+            {personas.map((p) => {
+              const ps = personaStates[p.id];
+              const active = ps?.isStreaming;
+              return (
+                <div
+                  key={p.id}
+                  className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+                    active
+                      ? "bg-bg-secondary border-white/15"
+                      : "bg-bg-secondary/50 border-white/5"
+                  }`}
+                >
+                  <span className="text-lg">{p.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-white/80 truncate">{p.name}</div>
+                    <div className="text-[10px] text-white/30 truncate">{modelDisplay[p.model] || p.model}</div>
+                  </div>
+                  {active && (
+                    <div className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: p.color, animationDelay: "0ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: p.color, animationDelay: "150ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: p.color, animationDelay: "300ms" }} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
 
-            return (
-              <PersonaColumn
-                key={p.id}
-                name={p.name}
-                emoji={p.emoji}
-                color={p.color}
-                model={modelDisplay[p.model] || p.model}
-                messages={personaStates[p.id]?.messages || []}
-                isStreaming={personaStates[p.id]?.isStreaming || false}
-                streamingText={personaStates[p.id]?.streamingText || ""}
-                badge={isProducerLive ? "LIVE FACT-CHECK" : undefined}
-                compact
-              />
-            );
-          })}
-        </div>
-      </main>
+          {/* Main area: Video (small) + Gallery feed */}
+          <div className="flex-1 flex gap-3 min-h-0">
+            {/* Small video sidebar */}
+            <div className="w-[320px] shrink-0 flex flex-col gap-3">
+              <div className={`bg-bg-secondary rounded-xl overflow-hidden border transition-colors ${isLive && isRunning ? "border-red-500/20" : "border-white/5"}`}>
+                {videoId ? (
+                  <YouTubePlayer ref={playerRef} videoId={videoId} onStateChange={handleVideoStateChange} />
+                ) : (
+                  <div className="flex items-center justify-center bg-black/50 text-white/20 text-xs" style={{ aspectRatio: "16/9" }}>
+                    <div className="text-center"><span className="text-2xl block mb-1">📺</span>Paste a URL</div>
+                  </div>
+                )}
+              </div>
+              {/* Compact transcript */}
+              <div className={`flex-1 bg-bg-secondary rounded-xl border p-2 overflow-y-auto persona-scroll transition-colors ${isLive && isRunning ? "border-red-500/10" : "border-white/5"}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  {isLive && isRunning ? (
+                    <><span className="w-1.5 h-1.5 rounded-full bg-red-500 live-pulse" /><span className="text-[9px] text-red-400/80 font-mono uppercase tracking-widest font-semibold">Live</span></>
+                  ) : (
+                    <><span className="text-xs">📝</span><span className="text-[9px] text-white/30 font-mono uppercase tracking-wider">Transcript</span>{isRunning && !isPaused && <span className="w-1.5 h-1.5 rounded-full bg-accent-blue animate-pulse" />}</>
+                  )}
+                </div>
+                <p className="text-xs text-white/40 leading-relaxed">
+                  {transcriptText && <span>{transcriptText} </span>}
+                  {interimText && <span className="text-white/25 italic">{interimText}</span>}
+                  {!transcriptText && !interimText && <span className="text-white/15">{isRunning ? "Listening..." : "Transcript..."}</span>}
+                </p>
+              </div>
+            </div>
+
+            {/* The Gallery feed — takes most of the space */}
+            <div className="flex-1 min-w-0 min-h-0">
+              <CombinedFeed entries={combinedFeed} streamingPersonaId={streamingPersona?.id ?? null} streamingPersonaName={streamingPersona?.name ?? ""} streamingPersonaEmoji={streamingPersona?.emoji ?? ""} streamingPersonaColor={streamingPersona?.color ?? ""} streamingText={streamingPersona ? personaStates[streamingPersona.id]?.streamingText || "" : ""} />
+            </div>
+          </div>
+        </main>
+      ) : (
+        /* ═══ MOBILE LAYOUT (<768px) ═══ */
+        <main className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+          {/* Video at top */}
+          <div className="shrink-0 p-2">
+            <div className={`bg-bg-secondary rounded-xl overflow-hidden border transition-colors ${isLive && isRunning ? "border-red-500/20" : "border-white/5"}`}>
+              {videoId ? (
+                <YouTubePlayer ref={playerRef} videoId={videoId} onStateChange={handleVideoStateChange} />
+              ) : (
+                <div className="flex items-center justify-center bg-black/50 text-white/20 text-sm" style={{ aspectRatio: "16/9" }}>
+                  <div className="text-center"><span className="text-2xl block mb-1">📺</span>Paste a URL</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Persona status row — compact */}
+          <div className="shrink-0 flex gap-1.5 px-2 pb-2 overflow-x-auto">
+            {personas.map((p) => {
+              const ps = personaStates[p.id];
+              const active = ps?.isStreaming;
+              return (
+                <div
+                  key={p.id}
+                  className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border whitespace-nowrap transition-all ${
+                    active ? "bg-bg-secondary border-white/15" : "bg-bg-secondary/50 border-white/5"
+                  }`}
+                >
+                  <span className="text-sm">{p.emoji}</span>
+                  <span className="text-[10px] font-semibold text-white/70">{p.name}</span>
+                  {active && (
+                    <div className="flex items-center gap-0.5">
+                      <span className="w-1 h-1 rounded-full animate-bounce" style={{ backgroundColor: p.color, animationDelay: "0ms" }} />
+                      <span className="w-1 h-1 rounded-full animate-bounce" style={{ backgroundColor: p.color, animationDelay: "150ms" }} />
+                      <span className="w-1 h-1 rounded-full animate-bounce" style={{ backgroundColor: p.color, animationDelay: "300ms" }} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* The Gallery feed — takes remaining space */}
+          <div className="flex-1 min-h-0 px-2 pb-2">
+            <CombinedFeed entries={combinedFeed} streamingPersonaId={streamingPersona?.id ?? null} streamingPersonaName={streamingPersona?.name ?? ""} streamingPersonaEmoji={streamingPersona?.emoji ?? ""} streamingPersonaColor={streamingPersona?.color ?? ""} streamingText={streamingPersona ? personaStates[streamingPersona.id]?.streamingText || "" : ""} />
+          </div>
+        </main>
+      )}
 
       {/* ── FOOTER ── */}
       <footer

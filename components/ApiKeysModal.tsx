@@ -117,7 +117,7 @@ export default function ApiKeysModal({ open, onClose, onSave }: Props) {
           </div>
         </div>
 
-        <div className="space-y-3">
+        <form autoComplete="off" onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-3">
           {fields.map((f) => (
             <div key={f.key}>
               <div className="flex items-center gap-2 mb-1">
@@ -129,11 +129,17 @@ export default function ApiKeysModal({ open, onClose, onSave }: Props) {
               </div>
               <div className="flex gap-2">
                 <input
-                  type="password"
+                  type="text"
+                  autoComplete="off"
+                  data-1p-ignore
+                  data-lpignore="true"
+                  data-form-type="other"
+                  spellCheck={false}
                   value={keys[f.key]}
                   onChange={(e) => setKeys((prev) => ({ ...prev, [f.key]: e.target.value.trim() }))}
                   placeholder={`Paste your ${f.label} key`}
                   className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:border-white/30"
+                  style={{ WebkitTextSecurity: "disc" } as React.CSSProperties}
                 />
                 <a
                   href={f.url}
@@ -146,7 +152,7 @@ export default function ApiKeysModal({ open, onClose, onSave }: Props) {
               </div>
             </div>
           ))}
-        </div>
+        </form>
 
         <div className="flex items-center justify-between mt-5">
           <span className="text-[10px] text-white/20">
