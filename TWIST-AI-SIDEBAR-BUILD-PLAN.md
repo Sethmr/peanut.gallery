@@ -1,8 +1,11 @@
-# TWiST AI Sidebar — Speed Build Plan
+# Peanut Gallery — Speed Build Plan
 
 **Project:** Live AI sidebar with 4 personas watching This Week in Startups in real-time
 **Goal:** Win the $5,000 bounty + guest spot on TWiST
-**Repo name:** `twist-sidebar` (or something punchier — we'll name it last)
+**Name:** Peanut Gallery
+**Repo:** `peanut-gallery` (GitHub)
+**Domain:** peanutgallery.live
+**URL:** https://peanutgallery.live
 
 ---
 

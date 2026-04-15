@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0a0a0a">
+    <title>Peanut Gallery — AI Sidebar for Live Podcasts</title>
+    <meta name="description" content="4 AI personas watch your podcast in real-time. A stern producer, a cynical troll, a chaos agent, and a joke writer — reacting live as the show happens.">
+    <meta property="og:title" content="Peanut Gallery — AI Sidebar for Live Podcasts">
+    <meta property="og:description" content="4 AI personas watching your podcast in real-time. Open source. Ship it.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://peanutgallery.live">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #252525;
+            --text-primary: #e5e5e5;
+            --text-secondary: #b0b0b0;
+            --accent-blue: #3b82f6;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #a855f7;
+            --accent-green: #22c55e;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        /* Noise texture overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 99998;
+            pointer-events: none;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            background-repeat: repeat;
+            background-size: 256px 256px;
+            mix-blend-mode: overlay;
+        }
+
+        /* ─── NAV ─── */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background-color: rgba(10, 10, 10, 0.95);
+            border-bottom: 1px solid rgba(229, 229, 229, 0.1);
+            padding: 1rem 2rem;
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .nav-brand span { font-size: 1.4rem; }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.2s ease;
+            text-decoration: none;
+        }
+
+        .nav-links a:hover { color: var(--accent-blue); }
+
+        .nav-cta {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white !important;
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none !important;
+            transition: var(--transition);
+        }
+
+        .nav-cta:hover {
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            transform: translateY(-1px);
+        }
+
+        /* ─── HERO ─── */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6rem 2rem 4rem;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(245, 158, 11, 0.05) 100%);
+        }
+
+        .hero-content {
+            max-width: 900px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 50px;
+            padding: 0.4rem 1.2rem;
+            font-size: 0.85rem;
+            color: var(--accent-blue);
+            font-weight: 500;
+            margin-bottom: 2rem;
+        }
+
+        .hero-badge .pulse {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-amber);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.5); }
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+        }
+
+        .hero h1 .gradient-text {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-amber));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-sub {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 650px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.7;
+        }
+
+        .hero-ctas {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 3rem;
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 2.5rem;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-amber));
+            color: #000;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: var(--transition);
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 2.5rem;
+            background: transparent;
+            color: var(--text-primary);
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: var(--transition);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* ─── VIDEO CLIP ─── */
+        .video-section {
+            max-width: 480px;
+            margin: 0 auto 2rem;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .video-section video {
+            width: 100%;
+            display: block;
+        }
+
+        .video-caption {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .video-caption a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        .video-caption a:hover { text-decoration: underline; }
+
+        /* ─── PERSONAS SECTION ─── */
+        section { padding: 6rem 2rem; max-width: 1200px; margin: 0 auto; }
+
+        section.dark {
+            background-color: var(--bg-secondary);
+            max-width: 100%;
+            padding-left: calc(max(2rem, (100vw - 1200px) / 2 + 2rem));
+            padding-right: calc(max(2rem, (100vw - 1200px) / 2 + 2rem));
+        }
+
+        .section-label {
+            font-size: 0.85rem;
+            color: var(--accent-blue);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-sub {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin-bottom: 3rem;
+            line-height: 1.7;
+        }
+
+        .personas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .persona-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .persona-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .persona-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+
+        .persona-card.producer::before { background: var(--accent-blue); }
+        .persona-card.producer:hover { border-color: var(--accent-blue); }
+        .persona-card.troll::before { background: var(--accent-red); }
+        .persona-card.troll:hover { border-color: var(--accent-red); }
+        .persona-card.chaos::before { background: var(--accent-purple); }
+        .persona-card.chaos:hover { border-color: var(--accent-purple); }
+        .persona-card.joker::before { background: var(--accent-amber); }
+        .persona-card.joker:hover { border-color: var(--accent-amber); }
+
+        .persona-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+
+        .persona-card h3 { font-size: 1.3rem; margin-bottom: 0.5rem; }
+
+        .persona-role {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .persona-card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .persona-quote {
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 2px solid var(--border-color);
+            padding: 0.75rem 1rem;
+            font-style: italic;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            border-radius: 0 8px 8px 0;
+        }
+
+        .persona-card.producer .persona-quote { border-left-color: var(--accent-blue); }
+        .persona-card.troll .persona-quote { border-left-color: var(--accent-red); }
+        .persona-card.chaos .persona-quote { border-left-color: var(--accent-purple); }
+        .persona-card.joker .persona-quote { border-left-color: var(--accent-amber); }
+
+        /* ─── HOW IT WORKS ─── */
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 2rem;
+            counter-reset: step;
+        }
+
+        .step {
+            position: relative;
+            padding: 2rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            counter-increment: step;
+        }
+
+        .step::before {
+            content: counter(step);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-amber));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .step h3 { font-size: 1.15rem; margin-bottom: 0.75rem; }
+        .step p { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
+
+        /* ─── TECH STACK ─── */
+        .stack-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .stack-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.25rem;
+            text-align: center;
+            transition: var(--transition);
+        }
+
+        .stack-item:hover { border-color: var(--accent-blue); }
+        .stack-item .stack-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem; }
+        .stack-item .stack-role { font-size: 0.8rem; color: var(--text-secondary); }
+
+        /* ─── ORIGIN STORY ─── */
+        .origin-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 3rem;
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .origin-box h2 { font-size: 2rem; margin-bottom: 1rem; }
+
+        .origin-box p {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+
+        .origin-box .shoutout {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 50px;
+            padding: 0.5rem 1.25rem;
+            font-size: 0.9rem;
+            color: var(--accent-blue);
+            font-weight: 500;
+            margin-top: 1rem;
+        }
+
+        .shoutout a {
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .shoutout a:hover { text-decoration: underline; }
+
+        /* ─── STATUS BANNER ─── */
+        .status-banner {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(245, 158, 11, 0.1));
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            max-width: 700px;
+            margin: 3rem auto 0;
+        }
+
+        .status-banner h3 {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent-amber);
+        }
+
+        .status-banner p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* ─── FOOTER ─── */
+        footer {
+            text-align: center;
+            padding: 3rem 2rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        footer a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        footer a:hover { text-decoration: underline; }
+
+        .footer-links {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 768px) {
+            nav { padding: 0.75rem 1rem; }
+            .nav-links { display: none; }
+            .hero h1 { font-size: 2.2rem; }
+            .hero-sub { font-size: 1.05rem; }
+            h2 { font-size: 1.8rem; }
+            .personas-grid { grid-template-columns: 1fr; }
+            .steps-grid { grid-template-columns: 1fr; }
+            .hero-ctas { flex-direction: column; align-items: center; }
+            .origin-box { padding: 2rem 1.5rem; }
+        }
+
+        /* ─── ANIMATIONS ─── */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+            .fade-in { opacity: 1; transform: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAV -->
+    <nav>
+        <a href="#" class="nav-brand"><span>🥜</span> Peanut Gallery</a>
+        <ul class="nav-links">
+            <li><a href="#personas">Personas</a></li>
+            <li><a href="#how">How It Works</a></li>
+            <li><a href="#stack">Stack</a></li>
+            <li><a href="https://github.com/sethrininger/peanut-gallery" class="nav-cta">View on GitHub</a></li>
+        </ul>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-badge">
+                <div class="pulse"></div>
+                Work in Progress — Shipping Soon
+            </div>
+
+            <h1>Your podcast's<br><span class="gradient-text">AI writers' room.</span></h1>
+
+            <p class="hero-sub">
+                4 AI personas watch your live show and react in real-time.
+                A stern producer. A cynical troll. A chaos agent. A joke writer.
+                All streaming alongside the conversation as it happens.
+            </p>
+
+            <div class="hero-ctas">
+                <a href="https://github.com/sethrininger/peanut-gallery" class="btn-primary">
+                    Star on GitHub
+                </a>
+                <a href="#how" class="btn-secondary">
+                    See How It Works
+                </a>
+            </div>
+
+            <!-- VIDEO CLIP -->
+            <div class="video-section">
+                <video autoplay loop muted playsinline>
+                    <source src="assets/twist-clip.mp4" type="video/mp4">
+                </video>
+            </div>
+            <p class="video-caption">
+                The challenge, straight from
+                <a href="https://x.com/jason" target="_blank" rel="noopener">@jason</a> &amp;
+                <a href="https://x.com/lonharris" target="_blank" rel="noopener">@lonharris</a>
+                on <a href="https://x.com/twistartups" target="_blank" rel="noopener">This Week in Startups</a>
+            </p>
+        </div>
+    </section>
+
+    <!-- PERSONAS -->
+    <section class="dark" id="personas">
+        <div class="section-label">The Cast</div>
+        <h2 class="fade-in">4 personas. 4 perspectives. Zero filter.</h2>
+        <p class="section-sub fade-in">Each persona runs on a different AI model, tuned for their role. No single point of failure. Swap any model. Bring your own API keys.</p>
+
+        <div class="personas-grid">
+            <div class="persona-card producer fade-in">
+                <div class="persona-icon">🎯</div>
+                <h3>The Stern Producer</h3>
+                <div class="persona-role">Powered by Claude Haiku</div>
+                <p>Keeps facts straight. Searches the web in real-time to verify claims. The AI version of a show producer who won't let anything slide.</p>
+                <div class="persona-quote">"Jason just said Uber was founded in 2007. It was 2009. Again."</div>
+            </div>
+
+            <div class="persona-card troll fade-in">
+                <div class="persona-icon">🔥</div>
+                <h3>The Cynical Troll</h3>
+                <div class="persona-role">Powered by Groq &middot; Llama 70B</div>
+                <p>Dunks on everything with internet-brain energy. Contrarian by default, occasionally right. Responds in 120ms because trolls don't deliberate.</p>
+                <div class="persona-quote">"Oh cool, another AI wrapper. Very 2024."</div>
+            </div>
+
+            <div class="persona-card chaos fade-in">
+                <div class="persona-icon">🌀</div>
+                <h3>The Chaos Agent</h3>
+                <div class="persona-role">Powered by Groq &middot; Llama 8B</div>
+                <p>Derails, free-associates, says the thing no one was thinking. A smaller model makes the chaos feel more chaotic.</p>
+                <div class="persona-quote">"What if we replaced all VCs with a single pigeon trained on term sheets?"</div>
+            </div>
+
+            <div class="persona-card joker fade-in">
+                <div class="persona-icon">😂</div>
+                <h3>The Joke Writer</h3>
+                <div class="persona-role">Powered by Claude Haiku</div>
+                <p>Setup-punchline structure, callback humor, observational comedy. The one who makes you spit out your coffee mid-episode.</p>
+                <div class="persona-quote">"Jason's investment thesis: if it has 'AI' in the name and the founder has a pulse, it's a yes."</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section id="how">
+        <div class="section-label">Architecture</div>
+        <h2 class="fade-in">Paste a URL. Watch it react.</h2>
+        <p class="section-sub fade-in">No setup wizards. No config files. Just a YouTube link and four AI personas fighting for the best take.</p>
+
+        <div class="steps-grid">
+            <div class="step fade-in">
+                <h3>Live Audio Capture</h3>
+                <p>Paste any YouTube live stream or video URL. Audio is extracted in real-time via yt-dlp and piped through FFmpeg.</p>
+            </div>
+            <div class="step fade-in">
+                <h3>Real-Time Transcription</h3>
+                <p>Audio streams to Deepgram's Nova-3 model over WebSocket. Sub-300ms latency. Punctuated, accurate, instant.</p>
+            </div>
+            <div class="step fade-in">
+                <h3>Persona Engine</h3>
+                <p>Every 2 minutes of new dialogue, all 4 personas fire in parallel. Each gets rolling context + their own memory for continuity.</p>
+            </div>
+            <div class="step fade-in">
+                <h3>Streaming Sidebar</h3>
+                <p>Responses stream token-by-token via SSE into a 4-column UI. Dark theme. Auto-scroll. Live transcript at the bottom.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- TECH STACK -->
+    <section class="dark" id="stack">
+        <div class="section-label">No Platform Trap</div>
+        <h2 class="fade-in">Multi-provider by design.</h2>
+        <p class="section-sub fade-in">Two LLM providers. Swap any model. No single dependency. Open source, MIT licensed.</p>
+
+        <div class="stack-grid">
+            <div class="stack-item fade-in">
+                <div class="stack-name">Next.js 15</div>
+                <div class="stack-role">App Router + SSE</div>
+            </div>
+            <div class="stack-item fade-in">
+                <div class="stack-name">Deepgram Nova-3</div>
+                <div class="stack-role">Real-time transcription</div>
+            </div>
+            <div class="stack-item fade-in">
+                <div class="stack-name">Claude Haiku</div>
+                <div class="stack-role">Producer + Joke Writer</div>
+            </div>
+            <div class="stack-item fade-in">
+                <div class="stack-name">Groq + Llama</div>
+                <div class="stack-role">Troll + Chaos Agent</div>
+            </div>
+            <div class="stack-item fade-in">
+                <div class="stack-name">Brave Search</div>
+                <div class="stack-role">Live fact-checking</div>
+            </div>
+            <div class="stack-item fade-in">
+                <div class="stack-name">Tailwind + shadcn</div>
+                <div class="stack-role">UI components</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ORIGIN -->
+    <section>
+        <div class="origin-box fade-in">
+            <h2>Built for a bounty.</h2>
+            <p>
+                Jason Calacanis and Lon Harris put out a challenge on This Week in Startups:
+                $5,000 + a guest spot to whoever builds a live AI sidebar with 4 personas
+                watching the pod in real-time. Open source. Ship it.
+            </p>
+            <p>
+                So we're shipping it.
+            </p>
+            <div class="shoutout">
+                Built by <a href="https://sethrininger.dev" target="_blank" rel="noopener">Seth Rininger</a>&nbsp; for
+                <a href="https://x.com/twistartups" target="_blank" rel="noopener">@TWiStartups</a>
+            </div>
+
+            <div class="status-banner">
+                <h3>🚧 Currently Building</h3>
+                <p>Star the repo to get notified when we ship. It won't be long.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-links">
+            <a href="https://github.com/sethrininger/peanut-gallery">GitHub</a>
+            <a href="https://sethrininger.dev">Seth Rininger</a>
+            <a href="https://x.com/twistartups">TWiST</a>
+        </div>
+        <p>MIT Licensed. Fact-checking powered by Brave Search.</p>
+    </footer>
+
+    <!-- SCROLL ANIMATIONS -->
+    <script>
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+        document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+    </script>
+
+</body>
+</html>
