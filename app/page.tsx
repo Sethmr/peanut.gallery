@@ -1,684 +1,699 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo, useEffect } from "react";
-import PersonaColumn, { type PersonaMessage } from "@/components/PersonaColumn";
-import CombinedFeed, { type FeedEntry } from "@/components/CombinedFeed";
-import ApiKeysModal, { type ApiKeys, loadApiKeys, hasRequiredKeys } from "@/components/ApiKeysModal";
-import YouTubePlayer, {
-  extractVideoId,
-  type YouTubePlayerHandle,
-} from "@/components/YouTubePlayer";
-import { personas } from "@/lib/personas";
+import { useEffect } from "react";
+import Link from "next/link";
 
-// ──────────────────────────────────────────────────────
-// MODE RULES
-//
-// LIVE MODE:
-//   - No pause button (you can't pause a live show)
-//   - No YouTube player controls override — video stays at live edge
-//   - Red accent theme, pulsing "LIVE" badge, urgency cues
-//   - "End Session" instead of "Stop"
-//   - Transcript header: "LIVE TRANSCRIPT" with red pulse dot
-//   - Producer gets "LIVE FACT-CHECK" label
-//
-// RECORDED MODE:
-//   - Pause/Resume button syncs video + pipeline
-//   - YouTube player has full controls
-//   - Blue accent theme, calmer feel
-//   - "Stop" button
-//   - Transcript header: "TRANSCRIPT" with blue dot
-// ──────────────────────────────────────────────────────
-
-const modelDisplay: Record<string, string> = {
-  "claude-haiku": "Claude Haiku",
-  "groq-llama-70b": "Groq · Llama 70B",
-  "groq-llama-8b": "Groq · Llama 8B",
-};
-
-interface PersonaState {
-  messages: PersonaMessage[];
-  isStreaming: boolean;
-  streamingText: string;
-}
-
-export default function Home() {
-  const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [videoId, setVideoId] = useState<string | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [transcriptText, setTranscriptText] = useState("");
-  const [interimText, setInterimText] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isLive, setIsLive] = useState(false);
-  const [statusDetail, setStatusDetail] = useState<string | null>(null);
-  const [pipelineStages, setPipelineStages] = useState<string[]>([]);
-  const [showKeysModal, setShowKeysModal] = useState(false);
-  const [apiKeys, setApiKeys] = useState<ApiKeys>({ deepgram: "", anthropic: "", groq: "", brave: "" });
-
-  const playerRef = useRef<YouTubePlayerHandle>(null);
-
-  // Load keys from localStorage on mount
+export default function LandingPage() {
   useEffect(() => {
-    const saved = loadApiKeys();
-    setApiKeys(saved);
-    // Auto-open modal if no keys configured
-    if (!hasRequiredKeys(saved)) setShowKeysModal(true);
-  }, []);
-
-  // Per-persona state
-  const [personaStates, setPersonaStates] = useState<
-    Record<string, PersonaState>
-  >(() => {
-    const initial: Record<string, PersonaState> = {};
-    for (const p of personas) {
-      initial[p.id] = { messages: [], isStreaming: false, streamingText: "" };
-    }
-    return initial;
-  });
-
-  // Combined feed — all persona messages interleaved chronologically
-  const [combinedFeed, setCombinedFeed] = useState<FeedEntry[]>([]);
-
-  const abortRef = useRef<AbortController | null>(null);
-  const sessionIdRef = useRef<string | null>(null);
-  const messageCountRef = useRef(0);
-
-  // Determine which persona is currently streaming (for combined feed)
-  const streamingPersona = useMemo(() => {
-    for (const p of personas) {
-      const state = personaStates[p.id];
-      if (state?.isStreaming && state.streamingText) {
-        return { id: p.id, name: p.name, emoji: p.emoji, color: p.color };
-      }
-    }
-    return null;
-  }, [personaStates]);
-
-  // ──────────────────────────────────────────────────────
-  // ACTIONS
-  // ──────────────────────────────────────────────────────
-
-  const handleStart = useCallback(async () => {
-    if (!youtubeUrl.trim()) return;
-
-    const vid = extractVideoId(youtubeUrl);
-    if (!vid) {
-      setError("Couldn't parse a YouTube video ID from that URL");
-      return;
-    }
-    setVideoId(vid);
-
-    setError(null);
-    setIsConnecting(true);
-    setIsPaused(false);
-    setIsLive(false);
-    setStatusDetail(null);
-    setTranscriptText("");
-    setInterimText("");
-    setPipelineStages([]);
-    setCombinedFeed([]);
-
-    // Reset persona states
-    setPersonaStates((prev) => {
-      const reset: Record<string, PersonaState> = {};
-      for (const id of Object.keys(prev)) {
-        reset[id] = { messages: [], isStreaming: false, streamingText: "" };
-      }
-      return reset;
-    });
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    try {
-      if (!hasRequiredKeys(apiKeys)) {
-        setShowKeysModal(true);
-        setIsConnecting(false);
-        return;
-      }
-
-      const response = await fetch("/api/transcribe", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Deepgram-Key": apiKeys.deepgram,
-          "X-Anthropic-Key": apiKeys.anthropic,
-          "X-Groq-Key": apiKeys.groq,
-          "X-Brave-Key": apiKeys.brave,
-        },
-        body: JSON.stringify({ url: youtubeUrl }),
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Failed to start");
-      }
-
-      setIsRunning(true);
-      setIsConnecting(false);
-
-      // Auto-play the video once pipeline is connected
-      setTimeout(() => playerRef.current?.play(), 500);
-
-      // SSE stream reader
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      const streamBuffers: Record<string, string> = {};
-
-      while (reader) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        let eventType = "";
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            eventType = line.slice(7).trim();
-          } else if (line.startsWith("data: ")) {
-            const dataStr = line.slice(6);
-            try {
-              const data = JSON.parse(dataStr);
-
-              switch (eventType) {
-                case "transcript":
-                  if (data.isFinal) {
-                    setTranscriptText((prev) =>
-                      (prev + " " + data.text).trim().slice(-500)
-                    );
-                    setInterimText("");
-                  } else {
-                    setInterimText(data.text);
-                  }
-                  break;
-
-                case "persona": {
-                  const pid = data.personaId;
-                  if (!streamBuffers[pid]) streamBuffers[pid] = "";
-                  streamBuffers[pid] += data.text;
-                  setPersonaStates((prev) => ({
-                    ...prev,
-                    [pid]: {
-                      ...prev[pid],
-                      isStreaming: true,
-                      streamingText: streamBuffers[pid],
-                    },
-                  }));
-                  break;
-                }
-
-                case "persona_done": {
-                  const pid = data.personaId;
-                  const finalText = streamBuffers[pid] || "";
-                  streamBuffers[pid] = "";
-                  if (finalText.trim()) {
-                    const msgId = `${pid}-${messageCountRef.current++}`;
-                    const now = Date.now();
-                    const msg: PersonaMessage = {
-                      id: msgId,
-                      text: finalText.trim(),
-                      timestamp: now,
-                    };
-                    setPersonaStates((prev) => ({
-                      ...prev,
-                      [pid]: {
-                        messages: [...prev[pid].messages, msg],
-                        isStreaming: false,
-                        streamingText: "",
-                      },
-                    }));
-                    // Also push to the combined feed
-                    const p = personas.find((p) => p.id === pid);
-                    if (p) {
-                      setCombinedFeed((prev) => [
-                        ...prev,
-                        {
-                          id: msgId,
-                          personaId: pid,
-                          personaName: p.name,
-                          personaEmoji: p.emoji,
-                          personaColor: p.color,
-                          text: finalText.trim(),
-                          timestamp: now,
-                        },
-                      ]);
-                    }
-                  } else {
-                    setPersonaStates((prev) => ({
-                      ...prev,
-                      [pid]: {
-                        ...prev[pid],
-                        isStreaming: false,
-                        streamingText: "",
-                      },
-                    }));
-                  }
-                  break;
-                }
-
-                case "error":
-                  setError(data.message);
-                  break;
-
-                case "status":
-                  if (data.status === "started" && data.sessionId) {
-                    sessionIdRef.current = data.sessionId;
-                  }
-                  if (data.status === "live_detected") {
-                    setIsLive(data.isLive);
-                  }
-                  if (data.status === "detail") {
-                    setStatusDetail(data.message);
-                    // Accumulate pipeline stages so user can see progress
-                    setPipelineStages((prev) => [...prev.slice(-8), data.message]);
-                    // Clear the top-bar banner after 5s, but stages persist in transcript area
-                    setTimeout(() => setStatusDetail(null), 5000);
-                  }
-                  if (data.status === "stopped") {
-                    setIsRunning(false);
-                  }
-                  break;
-              }
-            } catch {
-              // Ignore malformed JSON
-            }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("visible");
+            observer.unobserve(entry.target);
           }
-        }
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name !== "AbortError") {
-        setError(err.message);
-      }
-    } finally {
-      setIsRunning(false);
-      setIsConnecting(false);
-    }
-  }, [youtubeUrl]);
-
-  const handleStop = useCallback(() => {
-    abortRef.current?.abort();
-    playerRef.current?.pause();
-    setIsRunning(false);
-    setIsPaused(false);
+        });
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -40px 0px" }
+    );
+    document.querySelectorAll(".fade-in").forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
   }, []);
-
-  // RECORDED MODE ONLY — pause/resume video + pipeline
-  const handlePauseResume = useCallback(async () => {
-    if (isLive) return; // never pause live
-
-    const sid = sessionIdRef.current;
-    if (isPaused) {
-      playerRef.current?.play();
-      setIsPaused(false);
-      if (sid) {
-        fetch("/api/transcribe", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId: sid, action: "resume" }),
-        }).catch(() => {});
-      }
-    } else {
-      playerRef.current?.pause();
-      setIsPaused(true);
-      if (sid) {
-        fetch("/api/transcribe", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId: sid, action: "pause" }),
-        }).catch(() => {});
-      }
-    }
-  }, [isPaused, isLive]);
-
-  // Force-fire personas manually (debug + fallback)
-  const handleForceFire = useCallback(async () => {
-    const sid = sessionIdRef.current;
-    if (!sid) return;
-    try {
-      await fetch("/api/transcribe", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: sid, action: "force_fire" }),
-      });
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  // Sync when user uses YouTube's native controls
-  const handleVideoStateChange = useCallback(
-    (isPlaying: boolean) => {
-      if (isLive) return; // ignore in live mode — video stays at edge
-
-      const sid = sessionIdRef.current;
-      setIsPaused(!isPlaying);
-      if (sid) {
-        fetch("/api/transcribe", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId: sid,
-            action: isPlaying ? "resume" : "pause",
-          }),
-        }).catch(() => {});
-      }
-    },
-    [isLive]
-  );
-
-  // ──────────────────────────────────────────────────────
-  // RENDER
-  // ──────────────────────────────────────────────────────
-
-  // Mode-aware accent color
-  const modeAccent = isLive && isRunning ? "red" : "blue";
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* ── TOP BAR ── */}
-      <header
-        className={`flex items-center gap-4 px-4 py-3 bg-bg-secondary border-b transition-colors ${
-          isLive && isRunning
-            ? "border-red-500/20"
-            : "border-white/5"
-        }`}
-      >
-        {/* Logo + Live Badge */}
-        <div className="flex items-center gap-2">
-          <span className="text-xl">🥜</span>
-          <h1 className="font-display font-bold text-base text-white/90">
-            Peanut Gallery
-          </h1>
-          {isRunning && isLive && (
-            <span className="live-badge flex items-center gap-1.5 px-2.5 py-1 bg-red-500/15 border border-red-500/30 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-red-500 live-pulse" />
-              <span className="text-[10px] font-mono text-red-400 uppercase tracking-widest font-semibold">
-                Live
-              </span>
-            </span>
-          )}
-          {isRunning && !isLive && (
-            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-accent-blue/10 border border-accent-blue/20 rounded-full">
-              <span className="text-[10px] font-mono text-accent-blue/70 uppercase tracking-wider">
-                Recorded
-              </span>
-            </span>
-          )}
-        </div>
+    <>
+      <style jsx global>{`
+        .landing * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        {/* URL Input + Controls */}
-        <div className="flex-1 flex items-center gap-2 max-w-2xl mx-auto">
-          <input
-            type="text"
-            value={youtubeUrl}
-            onChange={(e) => setYoutubeUrl(e.target.value)}
-            placeholder="Paste YouTube URL (live or recorded)..."
-            className="flex-1 bg-bg-tertiary border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:border-white/20 transition-colors"
-            disabled={isRunning}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !isRunning) handleStart();
-            }}
-          />
+        .landing {
+          font-family: 'Inter', sans-serif;
+          background-color: #0a0a0a;
+          color: #e5e5e5;
+          line-height: 1.6;
+          overflow-x: hidden;
+        }
 
-          {!isRunning ? (
-            <button
-              onClick={handleStart}
-              disabled={isConnecting || !youtubeUrl.trim()}
-              className="px-4 py-2 bg-accent-blue text-white text-sm font-medium rounded-lg hover:bg-accent-blue/80 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            >
-              {isConnecting ? "Connecting..." : "Start"}
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              {/* RECORDED ONLY: Pause / Resume */}
-              {!isLive && (
-                <button
-                  onClick={handlePauseResume}
-                  className={`px-4 py-2 text-white text-sm font-medium rounded-lg transition-all ${
-                    isPaused
-                      ? "bg-accent-amber hover:bg-accent-amber/80"
-                      : "bg-white/10 hover:bg-white/15"
-                  }`}
-                >
-                  {isPaused ? "▶ Resume" : "⏸ Pause"}
-                </button>
-              )}
+        .landing h1, .landing h2, .landing h3, .landing h4 {
+          font-family: 'Space Grotesk', sans-serif;
+          font-weight: 700;
+          letter-spacing: -0.02em;
+        }
 
-              {/* Force Fire — manual trigger for personas */}
-              <button
-                onClick={handleForceFire}
-                className="px-3 py-2 bg-accent-amber/20 hover:bg-accent-amber/30 text-accent-amber text-sm font-medium rounded-lg transition-all"
-                title="Force the AI personas to react now"
-              >
-                🔥
-              </button>
+        .landing nav {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          z-index: 1000;
+          background-color: rgba(10, 10, 10, 0.95);
+          border-bottom: 1px solid rgba(229, 229, 229, 0.1);
+          padding: 1rem 2rem;
+          backdrop-filter: blur(10px);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
 
-              {/* Stop / End Session */}
-              <button
-                onClick={handleStop}
-                className={`px-4 py-2 text-white text-sm font-medium rounded-lg transition-all ${
-                  isLive
-                    ? "bg-red-600 hover:bg-red-500"
-                    : "bg-accent-red hover:bg-accent-red/80"
-                }`}
-              >
-                {isLive ? "End Session" : "Stop"}
-              </button>
-            </div>
-          )}
-        </div>
+        .nav-brand {
+          font-family: 'Space Grotesk', sans-serif;
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: #e5e5e5;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          text-decoration: none;
+        }
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowKeysModal(true)}
-            className="text-white/30 hover:text-white/60 text-xs transition-colors"
-          >
-            {hasRequiredKeys(apiKeys) ? "API Keys" : "Set API Keys"}
-          </button>
-          <a
-            href="https://github.com/Sethmr/peanut.gallery"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-white/30 hover:text-white/60 text-xs transition-colors"
-          >
-            GitHub ↗
+        .nav-links {
+          display: flex;
+          gap: 2rem;
+          list-style: none;
+          align-items: center;
+        }
+
+        .nav-links a {
+          color: #b0b0b0;
+          font-size: 0.95rem;
+          font-weight: 500;
+          transition: color 0.2s ease;
+          text-decoration: none;
+        }
+
+        .nav-links a:hover { color: #3b82f6; }
+
+        .nav-cta {
+          background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+          color: white !important;
+          padding: 0.5rem 1.25rem;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          text-decoration: none !important;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .nav-cta:hover {
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+          transform: translateY(-1px);
+        }
+
+        .hero {
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 6rem 2rem 4rem;
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(245, 158, 11, 0.05) 100%);
+        }
+
+        .hero-content {
+          max-width: 900px;
+          width: 100%;
+          text-align: center;
+        }
+
+        .hero-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          background: rgba(34, 197, 94, 0.1);
+          border: 1px solid rgba(34, 197, 94, 0.2);
+          border-radius: 50px;
+          padding: 0.4rem 1.2rem;
+          font-size: 0.85rem;
+          color: #22c55e;
+          font-weight: 500;
+          margin-bottom: 2rem;
+        }
+
+        .hero-badge .pulse {
+          width: 8px;
+          height: 8px;
+          background: #22c55e;
+          border-radius: 50%;
+          animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.5); }
+        }
+
+        .hero h1 {
+          font-size: clamp(2.5rem, 6vw, 4.5rem);
+          line-height: 1.1;
+          margin-bottom: 1.5rem;
+        }
+
+        .gradient-text {
+          background: linear-gradient(135deg, #3b82f6, #f59e0b);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+
+        .hero-sub {
+          font-size: 1.25rem;
+          color: #b0b0b0;
+          max-width: 650px;
+          margin: 0 auto 2.5rem;
+          line-height: 1.7;
+        }
+
+        .hero-ctas {
+          display: flex;
+          gap: 1rem;
+          justify-content: center;
+          flex-wrap: wrap;
+          margin-bottom: 3rem;
+        }
+
+        .btn-primary {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 1rem 2.5rem;
+          background: linear-gradient(135deg, #3b82f6, #f59e0b);
+          color: #000;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 1rem;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          border: none;
+          cursor: pointer;
+        }
+
+        .btn-primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-secondary {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 1rem 2.5rem;
+          background: transparent;
+          color: #e5e5e5;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 1rem;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          cursor: pointer;
+        }
+
+        .btn-secondary:hover {
+          border-color: #3b82f6;
+          background: rgba(59, 130, 246, 0.05);
+        }
+
+        .landing section.content-section {
+          padding: 6rem 2rem;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+
+        .landing section.dark {
+          background-color: #1a1a1a;
+          max-width: 100%;
+          padding: 6rem calc(max(2rem, (100vw - 1200px) / 2 + 2rem));
+        }
+
+        .section-label {
+          font-size: 0.85rem;
+          color: #3b82f6;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          margin-bottom: 1rem;
+        }
+
+        .landing h2 { font-size: 2.5rem; margin-bottom: 1.5rem; }
+
+        .section-sub {
+          font-size: 1.1rem;
+          color: #b0b0b0;
+          max-width: 600px;
+          margin-bottom: 3rem;
+          line-height: 1.7;
+        }
+
+        .personas-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+          gap: 1.5rem;
+        }
+
+        .persona-card {
+          background-color: #1a1a1a;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          padding: 2rem;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .persona-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .persona-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+        }
+
+        .persona-card.producer::before { background: #ef4444; }
+        .persona-card.producer:hover { border-color: #ef4444; }
+        .persona-card.troll::before { background: #f97316; }
+        .persona-card.troll:hover { border-color: #f97316; }
+        .persona-card.fred::before { background: #22c55e; }
+        .persona-card.fred:hover { border-color: #22c55e; }
+        .persona-card.joker::before { background: #eab308; }
+        .persona-card.joker:hover { border-color: #eab308; }
+
+        .persona-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+        .persona-card h3 { font-size: 1.3rem; margin-bottom: 0.5rem; }
+
+        .persona-role {
+          font-size: 0.8rem;
+          color: #b0b0b0;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          font-weight: 600;
+          margin-bottom: 1rem;
+        }
+
+        .persona-card p {
+          color: #b0b0b0;
+          font-size: 0.95rem;
+          line-height: 1.6;
+          margin-bottom: 1rem;
+        }
+
+        .persona-quote {
+          background: rgba(255, 255, 255, 0.03);
+          border-left: 2px solid rgba(255, 255, 255, 0.1);
+          padding: 0.75rem 1rem;
+          font-style: italic;
+          font-size: 0.9rem;
+          color: #b0b0b0;
+          border-radius: 0 8px 8px 0;
+        }
+
+        .persona-card.producer .persona-quote { border-left-color: #ef4444; }
+        .persona-card.troll .persona-quote { border-left-color: #f97316; }
+        .persona-card.fred .persona-quote { border-left-color: #22c55e; }
+        .persona-card.joker .persona-quote { border-left-color: #eab308; }
+
+        .steps-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 2rem;
+          counter-reset: step;
+        }
+
+        .step {
+          position: relative;
+          padding: 2rem;
+          background: #252525;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          counter-increment: step;
+        }
+
+        .step::before {
+          content: counter(step);
+          font-family: 'Space Grotesk', sans-serif;
+          font-size: 3rem;
+          font-weight: 700;
+          background: linear-gradient(135deg, #3b82f6, #f59e0b);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          line-height: 1;
+          margin-bottom: 1rem;
+          display: block;
+        }
+
+        .step h3 { font-size: 1.15rem; margin-bottom: 0.75rem; }
+        .step p { color: #b0b0b0; font-size: 0.9rem; line-height: 1.6; }
+
+        .stack-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1rem;
+        }
+
+        .stack-item {
+          background: #1a1a1a;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+          padding: 1.25rem;
+          text-align: center;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .stack-item:hover { border-color: #3b82f6; }
+        .stack-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem; }
+        .stack-role { font-size: 0.8rem; color: #b0b0b0; }
+
+        .origin-box {
+          background: #1a1a1a;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 16px;
+          padding: 3rem;
+          max-width: 800px;
+          margin: 0 auto;
+          text-align: center;
+        }
+
+        .origin-box h2 { font-size: 2rem; margin-bottom: 1rem; }
+
+        .origin-box p {
+          color: #b0b0b0;
+          font-size: 1.05rem;
+          line-height: 1.8;
+          margin-bottom: 1rem;
+        }
+
+        .shoutout {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          background: rgba(59, 130, 246, 0.08);
+          border: 1px solid rgba(59, 130, 246, 0.15);
+          border-radius: 50px;
+          padding: 0.5rem 1.25rem;
+          font-size: 0.9rem;
+          color: #3b82f6;
+          font-weight: 500;
+          margin-top: 1rem;
+        }
+
+        .shoutout a {
+          color: #3b82f6;
+          text-decoration: none;
+          font-weight: 600;
+        }
+
+        .shoutout a:hover { text-decoration: underline; }
+
+        .landing footer {
+          text-align: center;
+          padding: 3rem 2rem;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          color: #b0b0b0;
+          font-size: 0.85rem;
+        }
+
+        .landing footer a { color: #3b82f6; text-decoration: none; }
+        .landing footer a:hover { text-decoration: underline; }
+
+        .footer-links {
+          display: flex;
+          gap: 2rem;
+          justify-content: center;
+          margin-bottom: 1rem;
+        }
+
+        .fade-in {
+          opacity: 0;
+          transform: translateY(20px);
+          transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .fade-in.visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        @media (max-width: 768px) {
+          .landing nav { padding: 0.75rem 1rem; }
+          .nav-links { display: none !important; }
+          .hero h1 { font-size: 2.2rem; }
+          .hero-sub { font-size: 1.05rem; }
+          .landing h2 { font-size: 1.8rem; }
+          .personas-grid { grid-template-columns: 1fr; }
+          .steps-grid { grid-template-columns: 1fr; }
+          .hero-ctas { flex-direction: column; align-items: center; }
+          .origin-box { padding: 2rem 1.5rem; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .fade-in { opacity: 1; transform: none; }
+        }
+      `}</style>
+
+      <div className="landing">
+        {/* NAV */}
+        <nav>
+          <a href="#" className="nav-brand">
+            <span>🥜</span> Peanut Gallery
           </a>
-        </div>
-      </header>
+          <ul className="nav-links">
+            <li><a href="#personas">Personas</a></li>
+            <li><a href="#how">How It Works</a></li>
+            <li><a href="#stack">Stack</a></li>
+            <li>
+              <Link href="/app" className="nav-cta">
+                Launch App
+              </Link>
+            </li>
+          </ul>
+        </nav>
 
-      {/* ── ERROR BANNER ── */}
-      {error && (
-        <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2 text-sm text-red-400">
-          {error}
-          <button
-            onClick={() => setError(null)}
-            className="ml-3 text-red-500 hover:text-red-300"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* ── STATUS DETAIL ── */}
-      {statusDetail && (
-        <div
-          className={`border-b px-4 py-1.5 text-[11px] font-mono transition-colors ${
-            isLive
-              ? "bg-red-500/5 border-red-500/10 text-red-400/70"
-              : "bg-accent-blue/5 border-accent-blue/10 text-accent-blue/70"
-          }`}
-        >
-          {statusDetail}
-        </div>
-      )}
-
-      {/* ── MAIN CONTENT ── */}
-      <main className="flex-1 flex gap-3 p-3 min-h-0">
-        {/* Left Column: Video + Transcript (compact) */}
-        <div className="w-[510px] shrink-0 flex flex-col gap-3">
-          {/* Video */}
-          <div
-            className={`bg-bg-secondary rounded-xl overflow-hidden border transition-colors ${
-              isLive && isRunning
-                ? "border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.08)]"
-                : "border-white/5"
-            }`}
-          >
-            {videoId ? (
-              <YouTubePlayer
-                ref={playerRef}
-                videoId={videoId}
-                onStateChange={handleVideoStateChange}
-              />
-            ) : (
-              <div
-                className="flex items-center justify-center bg-black/50 text-white/20 text-sm"
-                style={{ aspectRatio: "16/9" }}
-              >
-                <div className="text-center">
-                  <span className="text-3xl block mb-2">📺</span>
-                  Paste a URL and hit Start
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Transcript */}
-          <div
-            className={`flex-1 bg-bg-secondary rounded-xl border p-3 overflow-y-auto persona-scroll transition-colors ${
-              isLive && isRunning
-                ? "border-red-500/10"
-                : "border-white/5"
-            }`}
-          >
-            {/* Transcript Header */}
-            <div className="flex items-center gap-2 mb-2">
-              {isLive && isRunning ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-red-500 live-pulse" />
-                  <span className="text-[10px] text-red-400/80 font-mono uppercase tracking-widest font-semibold">
-                    Live Transcript
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="text-sm">📝</span>
-                  <span className="text-[10px] text-white/30 font-mono uppercase tracking-wider">
-                    Transcript
-                  </span>
-                  {isRunning && !isPaused && (
-                    <span className="w-2 h-2 rounded-full bg-accent-blue animate-pulse" />
-                  )}
-                  {isPaused && (
-                    <span className="text-[10px] text-accent-amber font-mono uppercase tracking-wider">
-                      Paused
-                    </span>
-                  )}
-                </>
-              )}
+        {/* HERO */}
+        <section className="hero">
+          <div className="hero-content">
+            <div className="hero-badge">
+              <div className="pulse"></div>
+              Live Now — Try It Free
             </div>
 
-            {/* Transcript Content */}
-            <p className="text-sm text-white/50 leading-relaxed">
-              {transcriptText && <span>{transcriptText} </span>}
-              {interimText && (
-                <span className="text-white/30 italic">{interimText}</span>
-              )}
-              {!transcriptText && !interimText && (
-                <span className="text-white/20">
-                  {isRunning ? (
-                    pipelineStages.length > 0 ? (
-                      <span className="flex flex-col gap-1">
-                        {pipelineStages.map((stage, i) => (
-                          <span key={i} className={i === pipelineStages.length - 1 ? "text-white/40" : "text-white/15"}>
-                            {stage}
-                          </span>
-                        ))}
-                      </span>
-                    ) : isLive ? (
-                      "Waiting for audio from live stream..."
-                    ) : (
-                      "Connecting to pipeline..."
-                    )
-                  ) : (
-                    "Transcript will appear here..."
-                  )}
-                </span>
-              )}
+            <h1>
+              Your podcast&apos;s
+              <br />
+              <span className="gradient-text">AI writers&apos; room.</span>
+            </h1>
+
+            <p className="hero-sub">
+              4 AI personas watch your podcast and react in real-time.
+              A fact-checker keeping the host honest. A cynical troll. A sound effects guy.
+              A comedy writer. All streaming alongside the conversation as it happens.
             </p>
+
+            <div className="hero-ctas">
+              <Link href="/app" className="btn-primary">
+                Try It Now — Free
+              </Link>
+              <a
+                href="https://github.com/Sethmr/peanut.gallery"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary"
+              >
+                View on GitHub
+              </a>
+            </div>
           </div>
-        </div>
+        </section>
 
-        {/* Center: The Gallery — Combined Chronological Feed */}
-        <div className="flex-1 min-w-0 min-h-0">
-          <CombinedFeed
-            entries={combinedFeed}
-            streamingPersonaId={streamingPersona?.id ?? null}
-            streamingPersonaName={streamingPersona?.name ?? ""}
-            streamingPersonaEmoji={streamingPersona?.emoji ?? ""}
-            streamingPersonaColor={streamingPersona?.color ?? ""}
-            streamingText={
-              streamingPersona
-                ? personaStates[streamingPersona.id]?.streamingText || ""
-                : ""
-            }
-          />
-        </div>
+        {/* PERSONAS */}
+        <section className="dark" id="personas">
+          <div className="section-label">The Cast</div>
+          <h2 className="fade-in">4 personas. 4 perspectives. Zero filter.</h2>
+          <p className="section-sub fade-in">
+            Inspired by the Howard Stern Show staff. Each persona runs on a different AI model.
+            Open source. Bring your own API keys.
+          </p>
 
-        {/* Right: Persona Cards (2x2) */}
-        <div className="w-[520px] shrink-0 grid grid-cols-2 grid-rows-2 gap-3 min-h-0">
-          {personas.map((p) => {
-            const isProducerLive = isLive && isRunning && p.id === "producer";
+          <div className="personas-grid">
+            <div className="persona-card producer fade-in">
+              <div className="persona-icon">🎯</div>
+              <h3>Baba Booey (Gary Dell&apos;Abate)</h3>
+              <div className="persona-role">Fact-Checker &middot; Claude Haiku + Brave Search</div>
+              <p>
+                Monitors the conversation for factual claims and provides corrections
+                or background data in real-time. Searches the web mid-show to verify
+                statistics, dates, and attributions.
+              </p>
+              <div className="persona-quote">
+                &ldquo;Jason just said Uber was founded in 2007. It was 2009. Again.&rdquo;
+              </div>
+            </div>
 
-            return (
-              <PersonaColumn
-                key={p.id}
-                name={p.name}
-                emoji={p.emoji}
-                color={p.color}
-                model={modelDisplay[p.model] || p.model}
-                messages={personaStates[p.id]?.messages || []}
-                isStreaming={personaStates[p.id]?.isStreaming || false}
-                streamingText={personaStates[p.id]?.streamingText || ""}
-                badge={isProducerLive ? "LIVE FACT-CHECK" : undefined}
-                compact
-              />
-            );
-          })}
-        </div>
-      </main>
+            <div className="persona-card troll fade-in">
+              <div className="persona-icon">🔥</div>
+              <h3>The Cynical Troll</h3>
+              <div className="persona-role">Commentary &middot; Groq &middot; Llama 70B</div>
+              <p>
+                Dunks on everything with internet-brain energy. Contrarian by default,
+                occasionally right. Responds in 120ms because trolls don&apos;t deliberate.
+              </p>
+              <div className="persona-quote">
+                &ldquo;Oh cool, another AI wrapper. Very 2024.&rdquo;
+              </div>
+            </div>
 
-      {/* ── FOOTER ── */}
-      <footer
-        className={`px-4 py-2 text-center border-t transition-colors ${
-          isLive && isRunning ? "border-red-500/10" : "border-white/5"
-        }`}
-      >
-        <p className="text-[10px] text-white/20">
-          Powered by Deepgram · Claude Haiku · Groq · Brave Search
-          {" · "}
-          <a
-            href="https://github.com/Sethmr/peanut.gallery"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-white/30 hover:text-white/50 underline"
-          >
-            Open source — self-host for full privacy
-          </a>
-        </p>
-      </footer>
+            <div className="persona-card fred fade-in">
+              <div className="persona-icon">🎧</div>
+              <h3>Fred Norris</h3>
+              <div className="persona-role">Sound Effects &middot; Groq &middot; Llama 8B</div>
+              <p>
+                Background context and sound effect cues. Precisely timed drops
+                and the occasional razor-sharp one-liner.
+              </p>
+              <div className="persona-quote">
+                &ldquo;[record scratch] Fun fact: that company went bankrupt in 2023. [sad trombone]&rdquo;
+              </div>
+            </div>
 
-      {/* ── API KEYS MODAL ── */}
-      <ApiKeysModal
-        open={showKeysModal}
-        onClose={() => setShowKeysModal(false)}
-        onSave={setApiKeys}
-      />
-    </div>
+            <div className="persona-card joker fade-in">
+              <div className="persona-icon">🤣</div>
+              <h3>Jackie Martling</h3>
+              <div className="persona-role">Comedy Writer &middot; Claude Haiku</div>
+              <p>
+                Setup-punchline structure, callback humor, observational comedy.
+                The one who makes you spit out your coffee mid-episode.
+              </p>
+              <div className="persona-quote">
+                &ldquo;Jason&apos;s investment thesis: if it has &apos;AI&apos; in the name and the founder has a pulse, it&apos;s a yes.&rdquo;
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* HOW IT WORKS */}
+        <section className="content-section" id="how">
+          <div className="section-label">Architecture</div>
+          <h2 className="fade-in">Paste a URL. Watch it react.</h2>
+          <p className="section-sub fade-in">
+            No setup wizards. No config files. Just a YouTube link and four AI personas
+            fighting for the best take.
+          </p>
+
+          <div className="steps-grid">
+            <div className="step fade-in">
+              <h3>Live Audio Capture</h3>
+              <p>
+                Paste any YouTube live stream or video URL. Audio is extracted in
+                real-time via yt-dlp and piped through FFmpeg.
+              </p>
+            </div>
+            <div className="step fade-in">
+              <h3>Real-Time Transcription</h3>
+              <p>
+                Audio streams to Deepgram&apos;s Nova-3 model over WebSocket. Sub-300ms
+                latency. Punctuated, accurate, instant.
+              </p>
+            </div>
+            <div className="step fade-in">
+              <h3>Director + Cascade</h3>
+              <p>
+                A rule-based Director picks the best persona for each moment, then
+                cascades to others with decreasing probability and staggered timing.
+              </p>
+            </div>
+            <div className="step fade-in">
+              <h3>Streaming Sidebar</h3>
+              <p>
+                Responses stream token-by-token via SSE into a 3-column UI with
+                combined feed and individual persona views. Dark theme. Auto-scroll.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* TECH STACK */}
+        <section className="dark" id="stack">
+          <div className="section-label">No Platform Trap</div>
+          <h2 className="fade-in">Multi-provider by design.</h2>
+          <p className="section-sub fade-in">
+            Two LLM providers. Swap any model. No single dependency. Open source, MIT licensed.
+            Cost: ~$1.15 per 2-hour episode.
+          </p>
+
+          <div className="stack-grid">
+            <div className="stack-item fade-in">
+              <div className="stack-name">Next.js 15</div>
+              <div className="stack-role">App Router + SSE</div>
+            </div>
+            <div className="stack-item fade-in">
+              <div className="stack-name">Deepgram Nova-3</div>
+              <div className="stack-role">Real-time transcription</div>
+            </div>
+            <div className="stack-item fade-in">
+              <div className="stack-name">Claude Haiku</div>
+              <div className="stack-role">Baba Booey + Jackie</div>
+            </div>
+            <div className="stack-item fade-in">
+              <div className="stack-name">Groq + Llama</div>
+              <div className="stack-role">Troll + Fred (120ms TTFT)</div>
+            </div>
+            <div className="stack-item fade-in">
+              <div className="stack-name">Brave Search</div>
+              <div className="stack-role">Live fact-checking</div>
+            </div>
+            <div className="stack-item fade-in">
+              <div className="stack-name">Docker + Railway</div>
+              <div className="stack-role">One-command deploy</div>
+            </div>
+          </div>
+        </section>
+
+        {/* ORIGIN */}
+        <section className="content-section">
+          <div className="origin-box fade-in">
+            <h2>Built for a bounty.</h2>
+            <p>
+              Jason Calacanis and Lon Harris put out a challenge on This Week in Startups:
+              $5,000 + a guest spot to whoever builds a live AI sidebar with 4 personas
+              watching the pod in real-time. Open source. Ship it.
+            </p>
+            <p>So we shipped it.</p>
+            <div className="shoutout">
+              Built by{" "}
+              <a href="https://sethrininger.dev" target="_blank" rel="noopener noreferrer">
+                Seth Rininger
+              </a>
+              &nbsp; for{" "}
+              <a href="https://x.com/twistartups" target="_blank" rel="noopener noreferrer">
+                @TWiStartups
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* FOOTER */}
+        <footer>
+          <div className="footer-links">
+            <a href="https://github.com/Sethmr/peanut.gallery" target="_blank" rel="noopener noreferrer">
+              GitHub
+            </a>
+            <a href="https://sethrininger.dev" target="_blank" rel="noopener noreferrer">
+              Seth Rininger
+            </a>
+            <a href="https://x.com/twistartups" target="_blank" rel="noopener noreferrer">
+              TWiST
+            </a>
+            <Link href="/app">Launch App</Link>
+          </div>
+          <p>
+            MIT Licensed. Open source — self-host for full privacy.
+            Fact-checking powered by Brave Search.
+          </p>
+        </footer>
+      </div>
+    </>
   );
 }
