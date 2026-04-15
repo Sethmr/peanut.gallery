@@ -59,13 +59,18 @@ async function detectLiveStream(
   url: string
 ): Promise<boolean | null> {
   return new Promise((resolve) => {
-    const proc = spawn(ytdlpBin, [
+    const args = [
       "--print",
       "is_live",
       "--no-download",
       "--no-warnings",
-      url,
-    ]);
+    ];
+    const cookieBrowser = process.env.YT_DLP_COOKIE_BROWSER?.trim();
+    if (cookieBrowser) {
+      args.unshift("--cookies-from-browser", cookieBrowser);
+    }
+    args.push(url);
+    const proc = spawn(ytdlpBin, args);
 
     let output = "";
     proc.stdout?.on("data", (d) => (output += d.toString()));
@@ -188,6 +193,15 @@ export class TranscriptionManager extends EventEmitter {
       // Step 1: yt-dlp — flags differ for live vs recorded
       // ────────────────────────────────────────────────
       const ytdlpArgs: string[] = [];
+
+      // YouTube increasingly requires cookies for audio extraction.
+      // Set YT_DLP_COOKIE_BROWSER=chrome (or firefox, safari, edge, brave) in .env.local
+      const cookieBrowser = process.env.YT_DLP_COOKIE_BROWSER?.trim();
+      if (cookieBrowser) {
+        ytdlpArgs.push("--cookies-from-browser", cookieBrowser);
+        console.log(`[PG] yt-dlp: using cookies from ${cookieBrowser}`);
+        logPipeline({ event: "ytdlp_cookies", level: "info", data: { browser: cookieBrowser } });
+      }
 
       if (this.isLive) {
         ytdlpArgs.push(
@@ -354,7 +368,12 @@ export class TranscriptionManager extends EventEmitter {
 
       this.emit("status_detail", "Reconnecting to live stream...");
 
-      this.ytdlp = spawn(ytdlpBin, [
+      const reconnectArgs: string[] = [];
+      const cookieBrowser = process.env.YT_DLP_COOKIE_BROWSER?.trim();
+      if (cookieBrowser) {
+        reconnectArgs.push("--cookies-from-browser", cookieBrowser);
+      }
+      reconnectArgs.push(
         "-f", "bestaudio/best",
         "--no-part",
         "--no-warnings",
@@ -363,7 +382,9 @@ export class TranscriptionManager extends EventEmitter {
         "--hls-use-mpegts",
         "-o", "-",
         url,
-      ]);
+      );
+
+      this.ytdlp = spawn(ytdlpBin, reconnectArgs);
 
       this.ffmpeg = spawn(ffmpegBin, [
         "-i", "pipe:0",
@@ -436,8 +457,12 @@ export class TranscriptionManager extends EventEmitter {
 
             // Surface a diagnostic message to the UI
             if (diag.ytdlpBytes === 0) {
+              const hasCookies = !!process.env.YT_DLP_COOKIE_BROWSER?.trim();
+              const cookieHint = hasCookies
+                ? " Cookies are configured but extraction still failed — try updating yt-dlp."
+                : " Try: 1) brew upgrade yt-dlp  2) Add YT_DLP_COOKIE_BROWSER=chrome to .env.local";
               this.emit("status_detail", "⚠ yt-dlp hasn't produced any audio yet — check the YouTube URL");
-              this.emit("error", new Error("yt-dlp is not producing audio. The URL may be invalid, region-locked, or require authentication."));
+              this.emit("error", new Error(`yt-dlp is not producing audio.${cookieHint}`));
             } else if (diag.ffmpegBytes === 0) {
               this.emit("status_detail", "⚠ ffmpeg hasn't produced any output — audio conversion may have failed");
               this.emit("error", new Error("ffmpeg is not producing PCM output. Audio format may be unsupported."));

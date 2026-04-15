@@ -104,6 +104,15 @@ YouTube URL
 - **Lesson:** Every pipe between two processes is a potential silent failure point. Always add "first bytes received" indicators and stall detection.
 - **How to verify:** Start a session. The terminal should show `[PG]` prefixed logs for each stage. The transcript area should show pipeline progress. After 15s with no transcript, a specific diagnostic error appears.
 
+### ISSUE-008: yt-dlp produces zero bytes — YouTube requires cookies
+- **Date:** 2026-04-15
+- **Symptom:** Pipeline starts, Deepgram connects, but yt-dlp produces 0 bytes. Stall detector fires after 15s with "yt-dlp is not producing audio." Video plays fine in the YouTube iframe embed.
+- **Root cause:** YouTube increasingly requires authentication for audio stream extraction. The iframe embed works because it uses YouTube's own player with the user's browser session. yt-dlp runs server-side with no authentication, so YouTube blocks the extraction.
+- **Fix (immediate):** Update yt-dlp: `brew upgrade yt-dlp` or `yt-dlp -U`. This often fixes it because new yt-dlp versions include updated extraction logic.
+- **Fix (persistent):** Add `YT_DLP_COOKIE_BROWSER=chrome` to `.env.local`. This tells yt-dlp to use cookies from the user's browser, authenticating with YouTube. Supported values: `chrome`, `firefox`, `safari`, `edge`, `brave`.
+- **Lesson:** YouTube's extraction landscape changes constantly. Always keep yt-dlp updated, and cookie auth is increasingly mandatory, not optional.
+- **How to verify:** Run `yt-dlp --cookies-from-browser chrome -f bestaudio -o - "URL" | head -c 1024 | wc -c` — should output `1024`.
+
 ---
 
 ## Pipeline Data Flow Indicators
