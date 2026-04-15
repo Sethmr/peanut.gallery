@@ -3,6 +3,10 @@
 import { useState, useCallback, useRef } from "react";
 import PersonaColumn, { type PersonaMessage } from "@/components/PersonaColumn";
 import TranscriptBar from "@/components/TranscriptBar";
+import YouTubePlayer, {
+  extractVideoId,
+  type YouTubePlayerHandle,
+} from "@/components/YouTubePlayer";
 import { personas } from "@/lib/personas";
 
 // Map persona model names to display strings
@@ -20,11 +24,15 @@ interface PersonaState {
 
 export default function Home() {
   const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [videoId, setVideoId] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [transcriptText, setTranscriptText] = useState("");
   const [interimText, setInterimText] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  const playerRef = useRef<YouTubePlayerHandle>(null);
 
   // Per-persona state
   const [personaStates, setPersonaStates] = useState<
@@ -43,8 +51,17 @@ export default function Home() {
   const handleStart = useCallback(async () => {
     if (!youtubeUrl.trim()) return;
 
+    // Extract and set video ID for the player
+    const vid = extractVideoId(youtubeUrl);
+    if (!vid) {
+      setError("Couldn't parse a YouTube video ID from that URL");
+      return;
+    }
+    setVideoId(vid);
+
     setError(null);
     setIsConnecting(true);
+    setIsPaused(false);
 
     // Reset persona states
     setPersonaStates((prev) => {
@@ -73,6 +90,9 @@ export default function Home() {
 
       setIsRunning(true);
       setIsConnecting(false);
+
+      // Auto-play the video once pipeline is connected
+      setTimeout(() => playerRef.current?.play(), 500);
 
       // Read SSE stream
       const reader = response.body?.getReader();
@@ -190,7 +210,26 @@ export default function Home() {
 
   const handleStop = useCallback(() => {
     abortRef.current?.abort();
+    playerRef.current?.pause();
     setIsRunning(false);
+    setIsPaused(false);
+  }, []);
+
+  const handlePauseResume = useCallback(() => {
+    if (isPaused) {
+      // Resume
+      playerRef.current?.play();
+      setIsPaused(false);
+    } else {
+      // Pause
+      playerRef.current?.pause();
+      setIsPaused(true);
+    }
+  }, [isPaused]);
+
+  // Sync: when user pauses/plays the YouTube player directly via its controls
+  const handleVideoStateChange = useCallback((isPlaying: boolean) => {
+    setIsPaused(!isPlaying);
   }, []);
 
   return (
@@ -226,12 +265,27 @@ export default function Home() {
               {isConnecting ? "Connecting..." : "Start"}
             </button>
           ) : (
-            <button
-              onClick={handleStop}
-              className="px-4 py-2 bg-accent-red text-white text-sm font-medium rounded-lg hover:bg-accent-red/80 transition-all"
-            >
-              Stop
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Pause / Resume */}
+              <button
+                onClick={handlePauseResume}
+                className={`px-4 py-2 text-white text-sm font-medium rounded-lg transition-all ${
+                  isPaused
+                    ? "bg-accent-amber hover:bg-accent-amber/80"
+                    : "bg-white/10 hover:bg-white/15"
+                }`}
+              >
+                {isPaused ? "▶ Resume" : "⏸ Pause"}
+              </button>
+
+              {/* Stop */}
+              <button
+                onClick={handleStop}
+                className="px-4 py-2 bg-accent-red text-white text-sm font-medium rounded-lg hover:bg-accent-red/80 transition-all"
+              >
+                Stop
+              </button>
+            </div>
           )}
         </div>
 
@@ -258,33 +312,84 @@ export default function Home() {
         </div>
       )}
 
-      {/* 4-Column Persona Grid */}
-      <main className="flex-1 grid grid-cols-4 gap-3 p-3 min-h-0">
-        {personas.map((p) => (
-          <PersonaColumn
-            key={p.id}
-            name={p.name}
-            emoji={p.emoji}
-            color={p.color}
-            model={modelDisplay[p.model] || p.model}
-            messages={personaStates[p.id]?.messages || []}
-            isStreaming={personaStates[p.id]?.isStreaming || false}
-            streamingText={personaStates[p.id]?.streamingText || ""}
-          />
-        ))}
-      </main>
+      {/* Main Content: Video + Personas */}
+      <main className="flex-1 flex gap-3 p-3 min-h-0">
+        {/* Left: Video Player */}
+        <div className="w-[420px] shrink-0 flex flex-col gap-3">
+          <div className="bg-bg-secondary rounded-xl border border-white/5 overflow-hidden">
+            {videoId ? (
+              <YouTubePlayer
+                ref={playerRef}
+                videoId={videoId}
+                onStateChange={handleVideoStateChange}
+              />
+            ) : (
+              <div
+                className="flex items-center justify-center bg-black/50 text-white/20 text-sm"
+                style={{ aspectRatio: "16/9" }}
+              >
+                <div className="text-center">
+                  <span className="text-3xl block mb-2">📺</span>
+                  Paste a URL and hit Start
+                </div>
+              </div>
+            )}
+          </div>
 
-      {/* Transcript Bar */}
-      <TranscriptBar
-        text={transcriptText}
-        interimText={interimText}
-        isActive={isRunning}
-      />
+          {/* Transcript below video */}
+          <div className="flex-1 bg-bg-secondary rounded-xl border border-white/5 p-3 overflow-y-auto persona-scroll">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm">📝</span>
+              <span className="text-[10px] text-white/30 font-mono uppercase tracking-wider">
+                Live Transcript
+              </span>
+              {isRunning && !isPaused && (
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              )}
+              {isPaused && (
+                <span className="text-[10px] text-accent-amber font-mono uppercase tracking-wider">
+                  Paused
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-white/50 leading-relaxed">
+              {transcriptText && <span>{transcriptText} </span>}
+              {interimText && (
+                <span className="text-white/30 italic">{interimText}</span>
+              )}
+              {!transcriptText && !interimText && (
+                <span className="text-white/20">
+                  {isRunning
+                    ? "Listening..."
+                    : "Transcript will appear here..."}
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* Right: 2x2 Persona Grid */}
+        <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-3 min-h-0">
+          {personas.map((p) => (
+            <PersonaColumn
+              key={p.id}
+              name={p.name}
+              emoji={p.emoji}
+              color={p.color}
+              model={modelDisplay[p.model] || p.model}
+              messages={personaStates[p.id]?.messages || []}
+              isStreaming={personaStates[p.id]?.isStreaming || false}
+              streamingText={personaStates[p.id]?.streamingText || ""}
+            />
+          ))}
+        </div>
+      </main>
 
       {/* Footer */}
       <footer className="px-4 py-2 text-center border-t border-white/5">
         <p className="text-[10px] text-white/20">
-          Powered by Deepgram · Claude Haiku · Groq · Brave Search — Multi-provider, no platform trap
+          Powered by Deepgram · Claude Haiku · Groq · Brave Search —
+          Multi-provider, no platform trap
         </p>
       </footer>
     </div>
