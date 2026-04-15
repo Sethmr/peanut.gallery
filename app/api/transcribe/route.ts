@@ -123,7 +123,11 @@ export async function POST(req: NextRequest) {
         // Also fire once shortly after pause starts (so AIs react to it)
         const justPaused = session.paused && session.pauseFiredCount === 0;
 
-        if (shouldFire || justPaused) {
+        // When paused, ONLY allow the one-shot "just paused" reaction.
+        // Don't let shouldFire trigger — the audio pipeline keeps running
+        // even when the YouTube player is paused, so transcript accumulates
+        // behind the scenes and would cause personas to fire repeatedly.
+        if ((shouldFire && !session.paused) || justPaused) {
           personasFiring = true;
           const transcript = transcriber.transcript;
           log.info("personas_trigger", {
