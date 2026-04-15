@@ -206,7 +206,7 @@ export class TranscriptionManager extends EventEmitter {
         "-acodec", "pcm_s16le",
         "-ar", "16000",
         "-ac", "1",
-        "-f", "wav",
+        "-f", "s16le",   // Raw PCM — no WAV header. Deepgram expects linear16.
         // For live streams: reduce buffering for lower latency
         ...(this.isLive ? ["-fflags", "+nobuffer+flush_packets", "-flags", "+low_delay"] : []),
         "pipe:1",
@@ -321,7 +321,7 @@ export class TranscriptionManager extends EventEmitter {
         "-acodec", "pcm_s16le",
         "-ar", "16000",
         "-ac", "1",
-        "-f", "wav",
+        "-f", "s16le",   // Raw PCM — no WAV header
         "-fflags", "+nobuffer+flush_packets",
         "-flags", "+low_delay",
         "pipe:1",
@@ -411,9 +411,16 @@ export class TranscriptionManager extends EventEmitter {
                 }
               }
             }
+          } else if (data.type === "Error" || data.error) {
+            // Surface Deepgram errors (e.g., invalid encoding, auth failures)
+            const msg = data.message || data.error || JSON.stringify(data);
+            console.error("[Deepgram error]", msg);
+            this.emit("error", new Error(`Deepgram: ${msg}`));
+          } else if (data.type === "Metadata") {
+            console.log("[Deepgram metadata]", JSON.stringify(data).slice(0, 200));
           }
         } catch {
-          // Ignore parse errors on non-JSON messages
+          // Non-JSON messages (binary keepalive responses, etc.)
         }
       });
 

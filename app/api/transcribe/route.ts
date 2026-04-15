@@ -203,10 +203,8 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (action === "force_fire") {
-    // Manual trigger — reset timing so next interval check fires immediately
-    session.transcriber.resetNewTranscript();
-    // Set lastTriggerTime to 0 so shouldTriggerPersonas() returns true on next check
-    // (the interval loop in the SSE stream checks every 5s)
+    // Manual trigger — populate buffer first, THEN reset timing
+    // (forceNextTrigger fills newTranscript from full buffer if needed)
     session.transcriber.forceNextTrigger();
     return new Response(JSON.stringify({ fired: true }));
   }
