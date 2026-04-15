@@ -48,16 +48,17 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Validate environment
-  const deepgramKey = process.env.DEEPGRAM_API_KEY;
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const groqKey = process.env.GROQ_API_KEY;
-  const braveKey = process.env.BRAVE_SEARCH_API_KEY;
+  // Read API keys from request headers (user provides their own keys)
+  // Falls back to server env vars for local dev
+  const deepgramKey = req.headers.get("X-Deepgram-Key") || process.env.DEEPGRAM_API_KEY;
+  const anthropicKey = req.headers.get("X-Anthropic-Key") || process.env.ANTHROPIC_API_KEY;
+  const groqKey = req.headers.get("X-Groq-Key") || process.env.GROQ_API_KEY;
+  const braveKey = req.headers.get("X-Brave-Key") || process.env.BRAVE_SEARCH_API_KEY;
 
   if (!deepgramKey || !groqKey) {
     return new Response(
-      JSON.stringify({ error: "Missing required API keys (DEEPGRAM, GROQ)" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({ error: "Missing required API keys. Click 'API Keys' to add your Deepgram and Groq keys." }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
 

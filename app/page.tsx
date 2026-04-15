@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import PersonaColumn, { type PersonaMessage } from "@/components/PersonaColumn";
 import CombinedFeed, { type FeedEntry } from "@/components/CombinedFeed";
+import ApiKeysModal, { type ApiKeys, loadApiKeys, hasRequiredKeys } from "@/components/ApiKeysModal";
 import YouTubePlayer, {
   extractVideoId,
   type YouTubePlayerHandle,
@@ -52,8 +53,18 @@ export default function Home() {
   const [isLive, setIsLive] = useState(false);
   const [statusDetail, setStatusDetail] = useState<string | null>(null);
   const [pipelineStages, setPipelineStages] = useState<string[]>([]);
+  const [showKeysModal, setShowKeysModal] = useState(false);
+  const [apiKeys, setApiKeys] = useState<ApiKeys>({ deepgram: "", anthropic: "", groq: "", brave: "" });
 
   const playerRef = useRef<YouTubePlayerHandle>(null);
+
+  // Load keys from localStorage on mount
+  useEffect(() => {
+    const saved = loadApiKeys();
+    setApiKeys(saved);
+    // Auto-open modal if no keys configured
+    if (!hasRequiredKeys(saved)) setShowKeysModal(true);
+  }, []);
 
   // Per-persona state
   const [personaStates, setPersonaStates] = useState<
@@ -121,9 +132,21 @@ export default function Home() {
     abortRef.current = controller;
 
     try {
+      if (!hasRequiredKeys(apiKeys)) {
+        setShowKeysModal(true);
+        setIsConnecting(false);
+        return;
+      }
+
       const response = await fetch("/api/transcribe", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Deepgram-Key": apiKeys.deepgram,
+          "X-Anthropic-Key": apiKeys.anthropic,
+          "X-Groq-Key": apiKeys.groq,
+          "X-Brave-Key": apiKeys.brave,
+        },
         body: JSON.stringify({ url: youtubeUrl }),
         signal: controller.signal,
       });
@@ -450,14 +473,22 @@ export default function Home() {
           )}
         </div>
 
-        <a
-          href="https://github.com/Sethmr/peanut.gallery"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-white/30 hover:text-white/60 text-xs transition-colors"
-        >
-          GitHub ↗
-        </a>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowKeysModal(true)}
+            className="text-white/30 hover:text-white/60 text-xs transition-colors"
+          >
+            {hasRequiredKeys(apiKeys) ? "API Keys" : "Set API Keys"}
+          </button>
+          <a
+            href="https://github.com/Sethmr/peanut.gallery"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white/30 hover:text-white/60 text-xs transition-colors"
+          >
+            GitHub ↗
+          </a>
+        </div>
       </header>
 
       {/* ── ERROR BANNER ── */}
@@ -633,6 +664,13 @@ export default function Home() {
           Multi-provider, no platform trap
         </p>
       </footer>
+
+      {/* ── API KEYS MODAL ── */}
+      <ApiKeysModal
+        open={showKeysModal}
+        onClose={() => setShowKeysModal(false)}
+        onSave={setApiKeys}
+      />
     </div>
   );
 }
