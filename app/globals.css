@@ -65,3 +65,38 @@ body {
 .message-enter {
   animation: fadeInUp 0.3s ease-out;
 }
+
+/* ── LIVE MODE ── */
+
+/* Live pulse dot — distinct from generic animate-pulse */
+@keyframes livePulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+  }
+}
+
+.live-pulse {
+  animation: livePulse 1.5s ease-in-out infinite;
+}
+
+/* Live badge shimmer */
+@keyframes badgeShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.live-badge {
+  background: linear-gradient(
+    90deg,
+    rgba(239, 68, 68, 0.08) 0%,
+    rgba(239, 68, 68, 0.15) 50%,
+    rgba(239, 68, 68, 0.08) 100%
+  );
+  background-size: 200% 100%;
+  animation: badgeShimmer 3s ease-in-out infinite;
+}

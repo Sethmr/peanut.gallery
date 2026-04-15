@@ -16,6 +16,8 @@ interface PersonaColumnProps {
   messages: PersonaMessage[];
   isStreaming: boolean;
   streamingText: string;
+  /** Optional badge shown next to name (e.g., "LIVE FACT-CHECK") */
+  badge?: string;
 }
 
 export default function PersonaColumn({
@@ -26,6 +28,7 @@ export default function PersonaColumn({
   messages,
   isStreaming,
   streamingText,
+  badge,
 }: PersonaColumnProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -45,12 +48,20 @@ export default function PersonaColumn({
       >
         <span className="text-xl">{emoji}</span>
         <div className="flex-1 min-w-0">
-          <h3
-            className="font-display font-semibold text-sm truncate"
-            style={{ color }}
-          >
-            {name}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3
+              className="font-display font-semibold text-sm truncate"
+              style={{ color }}
+            >
+              {name}
+            </h3>
+            {badge && (
+              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-red-500/15 border border-red-500/25 rounded text-[9px] font-mono text-red-400 uppercase tracking-wider whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 live-pulse" />
+                {badge}
+              </span>
+            )}
+          </div>
           <p className="text-[10px] text-white/30 font-mono">{model}</p>
         </div>
         {isStreaming && (
@@ -72,7 +83,10 @@ export default function PersonaColumn({
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto persona-scroll p-3 space-y-3">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto persona-scroll p-3 space-y-3"
+      >
         {messages.length === 0 && !isStreaming && (
           <p className="text-white/20 text-xs text-center mt-8">
             Waiting for transcript...
