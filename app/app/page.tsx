@@ -589,39 +589,54 @@ export default function Home() {
           {/* Right: Persona Cards (2x2) */}
           <div className="w-[520px] shrink-0 grid grid-cols-2 grid-rows-2 gap-3 min-h-0">
             {personas.map((p) => (
-              <PersonaColumn key={p.id} name={p.name} emoji={p.emoji} color={p.color} model={modelDisplay[p.model] || p.model} messages={personaStates[p.id]?.messages || []} isStreaming={personaStates[p.id]?.isStreaming || false} streamingText={personaStates[p.id]?.streamingText || ""} badge={isLive && isRunning && p.id === "producer" ? "LIVE FACT-CHECK" : undefined} compact />
+              <PersonaColumn key={p.id} name={p.name} role={p.role} emoji={p.emoji} color={p.color} model={modelDisplay[p.model] || p.model} messages={personaStates[p.id]?.messages || []} isStreaming={personaStates[p.id]?.isStreaming || false} streamingText={personaStates[p.id]?.streamingText || ""} badge={isLive && isRunning && p.id === "producer" ? "LIVE FACT-CHECK" : undefined} compact />
             ))}
           </div>
         </main>
       ) : layoutMode === "compact" ? (
         /* ═══ COMPACT / SIDEBAR MODE (768–1399px) ═══ */
         <main className="flex-1 flex flex-col min-h-0 p-3 gap-3">
-          {/* Top: Persona status strip — 4 mini cards in a row */}
-          <div className="flex gap-2 shrink-0">
+          {/* Top: Persona bubbles — centered horizontally */}
+          <div className="flex justify-center gap-4 shrink-0 py-1">
             {personas.map((p) => {
               const ps = personaStates[p.id];
               const active = ps?.isStreaming;
               return (
                 <div
                   key={p.id}
-                  className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
-                    active
-                      ? "bg-bg-secondary border-white/15"
-                      : "bg-bg-secondary/50 border-white/5"
-                  }`}
+                  className="flex flex-col items-center gap-1 w-[100px]"
                 >
-                  <span className="text-lg">{p.emoji}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-semibold text-white/80 truncate">{p.name}</div>
-                    <div className="text-[10px] text-white/30 truncate">{modelDisplay[p.model] || p.model}</div>
-                  </div>
-                  {active && (
-                    <div className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: p.color, animationDelay: "0ms" }} />
-                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: p.color, animationDelay: "150ms" }} />
-                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: p.color, animationDelay: "300ms" }} />
+                  {/* Avatar bubble */}
+                  <div className="relative">
+                    <div
+                      className="persona-avatar"
+                      style={{ backgroundColor: `${p.color}20`, width: 36, height: 36, fontSize: "1rem" }}
+                    >
+                      <div
+                        className={`persona-avatar-ring ${active ? "speaking" : ""}`}
+                        style={{ "--ring-color": p.color } as React.CSSProperties}
+                      />
+                      <span>{p.emoji}</span>
                     </div>
-                  )}
+                    {/* Sine wave when speaking */}
+                    {active && (
+                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-end gap-[1px] h-2.5">
+                        {[0, 1, 2, 3, 4].map((i) => (
+                          <span
+                            key={i}
+                            className="sine-bar"
+                            style={{ backgroundColor: p.color, width: 2, height: `${[6, 9, 5, 10, 6][i]}px` }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Info */}
+                  <div className="text-center min-w-0 w-full">
+                    <div className="text-[10px] font-semibold truncate" style={{ color: p.color }}>{p.name}</div>
+                    <div className="text-[8px] text-white/30 truncate">{p.role}</div>
+                    <div className="text-[7px] text-white/15 font-mono truncate">{modelDisplay[p.model] || p.model}</div>
+                  </div>
                 </div>
               );
             })}
@@ -679,27 +694,40 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Persona status row — compact */}
-          <div className="shrink-0 flex gap-1.5 px-2 pb-2 overflow-x-auto">
+          {/* Persona bubbles — horizontal scroll on mobile */}
+          <div className="shrink-0 flex justify-center gap-3 px-2 pb-2 overflow-x-auto">
             {personas.map((p) => {
               const ps = personaStates[p.id];
               const active = ps?.isStreaming;
               return (
                 <div
                   key={p.id}
-                  className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border whitespace-nowrap transition-all ${
-                    active ? "bg-bg-secondary border-white/15" : "bg-bg-secondary/50 border-white/5"
-                  }`}
+                  className="flex flex-col items-center gap-0.5 min-w-[64px]"
                 >
-                  <span className="text-sm">{p.emoji}</span>
-                  <span className="text-[10px] font-semibold text-white/70">{p.name}</span>
-                  {active && (
-                    <div className="flex items-center gap-0.5">
-                      <span className="w-1 h-1 rounded-full animate-bounce" style={{ backgroundColor: p.color, animationDelay: "0ms" }} />
-                      <span className="w-1 h-1 rounded-full animate-bounce" style={{ backgroundColor: p.color, animationDelay: "150ms" }} />
-                      <span className="w-1 h-1 rounded-full animate-bounce" style={{ backgroundColor: p.color, animationDelay: "300ms" }} />
+                  <div className="relative">
+                    <div
+                      className="persona-avatar"
+                      style={{ backgroundColor: `${p.color}20`, width: 32, height: 32, fontSize: "0.9rem" }}
+                    >
+                      <div
+                        className={`persona-avatar-ring ${active ? "speaking" : ""}`}
+                        style={{ "--ring-color": p.color } as React.CSSProperties}
+                      />
+                      <span>{p.emoji}</span>
                     </div>
-                  )}
+                    {active && (
+                      <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 flex items-end gap-[1px] h-2">
+                        {[0, 1, 2, 3, 4].map((i) => (
+                          <span
+                            key={i}
+                            className="sine-bar"
+                            style={{ backgroundColor: p.color, width: 1.5, height: `${[5, 7, 4, 8, 5][i]}px` }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[9px] font-semibold truncate max-w-[72px]" style={{ color: p.color }}>{p.name}</span>
                 </div>
               );
             })}

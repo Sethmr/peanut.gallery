@@ -19,6 +19,7 @@
 export interface Persona {
   id: string;
   name: string;
+  role: string;
   emoji: string;
   color: string;
   model: "groq-llama-70b" | "groq-llama-8b" | "claude-haiku";
@@ -43,6 +44,7 @@ export const personas: Persona[] = [
   {
     id: "producer",
     name: "Baba Booey",
+    role: "The Fact-Checker",
     emoji: "🎯",
     color: "#3b82f6",
     model: "claude-haiku",
@@ -104,6 +106,7 @@ FORMAT:
   {
     id: "troll",
     name: "The Troll",
+    role: "Cynical Commentator",
     emoji: "🔥",
     color: "#ef4444",
     model: "groq-llama-70b",
@@ -168,6 +171,7 @@ FORMAT:
   {
     id: "soundfx",
     name: "Fred",
+    role: "Sound Effects & Context",
     emoji: "🎧",
     color: "#a855f7",
     model: "groq-llama-8b",
@@ -242,6 +246,7 @@ FORMAT:
   {
     id: "joker",
     name: "Jackie",
+    role: "The Comedy Writer",
     emoji: "😂",
     color: "#f59e0b",
     model: "claude-haiku",

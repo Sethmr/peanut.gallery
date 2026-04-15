@@ -10,6 +10,7 @@ export interface PersonaMessage {
 
 interface PersonaColumnProps {
   name: string;
+  role: string;
   emoji: string;
   color: string;
   model: string;
@@ -23,15 +24,19 @@ interface PersonaColumnProps {
 }
 
 /** Sine wave bars — animated when speaking, idle otherwise */
-function SineWave({ color, active }: { color: string; active: boolean }) {
+function SineWave({ color, active, small }: { color: string; active: boolean; small?: boolean }) {
   const barClass = active ? "sine-bar" : "sine-bar-idle";
   return (
-    <div className="flex items-end gap-[2px] h-5">
+    <div className={`flex items-end gap-[2px] ${small ? "h-3" : "h-5"}`}>
       {[0, 1, 2, 3, 4].map((i) => (
         <span
           key={i}
-          className={barClass}
-          style={{ backgroundColor: color }}
+          className={`${barClass}${small ? " !w-[2px]" : ""}`}
+          style={{
+            backgroundColor: color,
+            ...(small && !active ? { height: `${[3, 4, 3, 4, 3][i]}px` } : {}),
+            ...(small && active ? { height: `${[8, 11, 7, 12, 8][i]}px` } : {}),
+          }}
         />
       ))}
     </div>
@@ -40,6 +45,7 @@ function SineWave({ color, active }: { color: string; active: boolean }) {
 
 export default function PersonaColumn({
   name,
+  role,
   emoji,
   color,
   model,
@@ -64,33 +70,52 @@ export default function PersonaColumn({
   if (compact) {
     return (
       <div className="flex flex-col h-full bg-bg-secondary rounded-xl border border-white/5 overflow-hidden">
-        {/* Compact Header */}
-        <div
-          className="flex items-center gap-2 px-3 py-2 border-b border-white/5"
-          style={{ borderBottomColor: `${color}20` }}
-        >
-          <span className="text-sm">{emoji}</span>
-          <h3
-            className="font-display font-semibold text-xs flex-1 min-w-0"
-            style={{ color }}
-          >
-            {name}
-          </h3>
-          {isStreaming && (
-            <span
-              className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0"
-              style={{ backgroundColor: color }}
-            />
+        {/* Compact Header — Centered bubble with info */}
+        <div className="flex flex-col items-center gap-1.5 px-3 pt-3 pb-2">
+          {/* Avatar bubble with ring */}
+          <div className="relative">
+            <div
+              className="persona-avatar"
+              style={{ backgroundColor: `${color}20`, width: 40, height: 40, fontSize: "1.1rem" }}
+            >
+              <div
+                className={`persona-avatar-ring ${isStreaming ? "speaking" : ""}`}
+                style={{ "--ring-color": color } as React.CSSProperties}
+              />
+              <span>{emoji}</span>
+            </div>
+            {/* Sine wave overlaid at bottom of avatar when speaking */}
+            {isStreaming && (
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2">
+                <SineWave color={color} active={true} small />
+              </div>
+            )}
+          </div>
+          <div className="text-center min-w-0 w-full">
+            <h3
+              className="font-display font-semibold text-xs truncate"
+              style={{ color }}
+            >
+              {name}
+            </h3>
+            <p className="text-[9px] text-white/30 truncate">{role}</p>
+            <p className="text-[8px] text-white/20 font-mono truncate">{model}</p>
+          </div>
+          {badge && (
+            <span className="flex items-center gap-1 px-1.5 py-0.5 bg-red-500/15 border border-red-500/25 rounded text-[8px] font-mono text-red-400 uppercase tracking-wider whitespace-nowrap">
+              <span className="w-1 h-1 rounded-full bg-red-500 live-pulse" />
+              {badge}
+            </span>
           )}
         </div>
 
         {/* Messages — scrollable, no truncation */}
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto persona-scroll p-3 space-y-2"
+          className="flex-1 overflow-y-auto persona-scroll px-3 pb-3 space-y-2"
         >
           {visibleMessages.length === 0 && !isStreaming ? (
-            <p className="text-white/20 text-[11px] text-center mt-3">
+            <p className="text-white/20 text-[11px] text-center mt-2">
               Waiting...
             </p>
           ) : (
@@ -114,30 +139,37 @@ export default function PersonaColumn({
     );
   }
 
+  // ── FULL / WIDE MODE ──
   return (
     <div className="flex flex-col h-full bg-bg-secondary rounded-xl border border-white/5 overflow-hidden">
-      {/* Header — Bubble style with avatar + sine wave */}
+      {/* Header — Centered profile bubble with sine wave + full info */}
       <div
-        className="flex items-center gap-3 px-4 py-3 border-b border-white/5"
+        className="flex flex-col items-center gap-2 px-4 py-4 border-b border-white/5"
         style={{ borderBottomColor: `${color}30` }}
       >
-        {/* Avatar bubble */}
-        <div
-          className="persona-avatar"
-          style={{ backgroundColor: `${color}20` }}
-        >
+        {/* Avatar bubble with pulsing ring */}
+        <div className="relative">
           <div
-            className={`persona-avatar-ring ${isStreaming ? "speaking" : ""}`}
-            style={{ "--ring-color": color } as React.CSSProperties}
-          />
-          <span>{emoji}</span>
+            className="persona-avatar"
+            style={{ backgroundColor: `${color}20` }}
+          >
+            <div
+              className={`persona-avatar-ring ${isStreaming ? "speaking" : ""}`}
+              style={{ "--ring-color": color } as React.CSSProperties}
+            />
+            <span>{emoji}</span>
+          </div>
+          {/* Sine wave indicator underneath avatar */}
+          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2">
+            <SineWave color={color} active={isStreaming} small />
+          </div>
         </div>
 
-        {/* Name + Model */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+        {/* Name + Role + Model */}
+        <div className="text-center min-w-0 w-full mt-1">
+          <div className="flex items-center justify-center gap-2">
             <h3
-              className="font-display font-semibold text-sm truncate"
+              className="font-display font-semibold text-sm"
               style={{ color }}
             >
               {name}
@@ -149,11 +181,9 @@ export default function PersonaColumn({
               </span>
             )}
           </div>
-          <p className="text-[10px] text-white/30 font-mono">{model}</p>
+          <p className="text-[10px] text-white/40 mt-0.5">{role}</p>
+          <p className="text-[9px] text-white/20 font-mono mt-0.5">{model}</p>
         </div>
-
-        {/* Sine wave indicator */}
-        <SineWave color={color} active={isStreaming} />
       </div>
 
       {/* Messages */}
