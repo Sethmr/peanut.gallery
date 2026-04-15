@@ -660,8 +660,16 @@ export default function Home() {
         }`}
       >
         <p className="text-[10px] text-white/20">
-          Powered by Deepgram · Claude Haiku · Groq · Brave Search —
-          Multi-provider, no platform trap
+          Powered by Deepgram · Claude Haiku · Groq · Brave Search
+          {" · "}
+          <a
+            href="https://github.com/Sethmr/peanut.gallery"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white/30 hover:text-white/50 underline"
+          >
+            Open source — self-host for full privacy
+          </a>
         </p>
       </footer>
 

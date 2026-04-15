@@ -38,6 +38,7 @@ interface Props {
 
 export default function ApiKeysModal({ open, onClose, onSave }: Props) {
   const [keys, setKeys] = useState<ApiKeys>(EMPTY_KEYS);
+  const [showTrust, setShowTrust] = useState(false);
 
   useEffect(() => {
     if (open) setKeys(loadApiKeys());
@@ -60,15 +61,61 @@ export default function ApiKeysModal({ open, onClose, onSave }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="bg-bg-secondary border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-bg-secondary border border-white/10 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-3">
           <h2 className="font-display font-bold text-lg text-white">API Keys</h2>
           <button onClick={onClose} className="text-white/40 hover:text-white/70 text-lg">✕</button>
         </div>
 
-        <p className="text-xs text-white/40 mb-4 leading-relaxed">
-          Your keys stay in your browser. They&apos;re sent directly to each API — never stored on our server.
-        </p>
+        {/* Trust / Transparency Banner */}
+        <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg px-3 py-2.5 mb-4">
+          <div className="flex items-start gap-2">
+            <span className="text-sm mt-0.5">🔒</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-amber-200/80 leading-relaxed">
+                <strong>Your keys are sent to this server</strong> to run the
+                transcription pipeline. They&apos;re used for your session only and
+                never saved.{" "}
+                <button
+                  onClick={() => setShowTrust(!showTrust)}
+                  className="underline text-amber-300/80 hover:text-amber-200"
+                >
+                  {showTrust ? "Less detail" : "How does this work?"}
+                </button>
+              </p>
+
+              {showTrust && (
+                <div className="mt-2 text-[11px] text-amber-200/60 leading-relaxed space-y-1.5">
+                  <p>
+                    Your keys are stored in your browser&apos;s localStorage and sent
+                    via request headers when you start a session. The server
+                    passes them directly to Deepgram, Groq, Anthropic, and Brave — then
+                    discards them when the session ends.
+                  </p>
+                  <p>
+                    This app is{" "}
+                    <a
+                      href="https://github.com/Sethmr/peanut.gallery"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline text-amber-300/70 hover:text-amber-200"
+                    >
+                      fully open source
+                    </a>
+                    {" "}— you can audit exactly what happens with your keys.
+                  </p>
+                  <p className="text-amber-300/80 font-semibold">
+                    For maximum security, we recommend self-hosting. It takes
+                    under 2 minutes:
+                  </p>
+                  <div className="bg-black/30 rounded px-2 py-1.5 font-mono text-[10px] text-white/50 select-all">
+                    git clone https://github.com/Sethmr/peanut.gallery && cd peanut.gallery && ./setup.sh
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         <div className="space-y-3">
           {fields.map((f) => (
