@@ -10,6 +10,9 @@ export const metadata: Metadata = {
     description: "Your podcast's AI writers' room.",
     url: "https://peanutgallery.live",
   },
+  verification: {
+    google: "tPDn6BgEArjAwga6-gCNYdRt55OjqtLKERkr66-WpZc",
+  },
 };
 
 export default function RootLayout({
@@ -20,6 +23,17 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-3R9CK4LRGF" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-3R9CK4LRGF');
+            `,
+          }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
