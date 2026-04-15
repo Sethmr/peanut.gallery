@@ -112,9 +112,12 @@ export class TranscriptionManager extends EventEmitter {
   private newTranscriptSinceLastTrigger = "";
   private lastTriggerTime = 0;
   private triggerCount = 0;
-  // First trigger fires after 30s so user sees activity fast, then every 60s
-  private readonly FIRST_TRIGGER_MS = 30_000;
-  private readonly TRIGGER_INTERVAL_MS = 60_000;
+  // First trigger fires after 15s so user sees activity fast.
+  // Subsequent triggers every 20-25s — the Director picks ONE persona per trigger
+  // and cascades to others with decreasing probability, so shorter intervals
+  // feel natural (you're getting 1-2 responses per trigger, not 4).
+  private readonly FIRST_TRIGGER_MS = 15_000;
+  private readonly TRIGGER_INTERVAL_MS = 22_000;
 
   // Deepgram keepalive for live streams (prevents timeout on quiet segments)
   private keepaliveInterval: ReturnType<typeof setInterval> | null = null;

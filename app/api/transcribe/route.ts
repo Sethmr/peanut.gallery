@@ -4,6 +4,13 @@
  * Accepts a YouTube URL, starts the transcription pipeline,
  * and streams transcript events + persona responses to the client.
  *
+ * TRIGGER MODEL (Director + Cascade):
+ * Instead of all 4 personas firing simultaneously every 60 seconds,
+ * the Director picks ONE persona per trigger, then cascades to others
+ * with decreasing probability and staggered timing. The result:
+ * some moments get 1 response, some get 2-3, and occasionally all 4
+ * pile on — just like the real Stern Show.
+ *
  * Event types:
  *   transcript    — real-time transcript text
  *   persona       — persona response (streaming tokens)
@@ -15,6 +22,8 @@
 import { NextRequest } from "next/server";
 import { TranscriptionManager } from "@/lib/transcription";
 import { PersonaEngine } from "@/lib/persona-engine";
+import { Director } from "@/lib/director";
+import { personas } from "@/lib/personas";
 import { createSessionLogger } from "@/lib/debug-logger";
 
 export const runtime = "nodejs";
@@ -23,7 +32,7 @@ export const dynamic = "force-dynamic";
 interface Session {
   transcriber: TranscriptionManager;
   paused: boolean;
-  pauseFiredCount: number; // how many times personas fired while paused (cap at 1)
+  pauseFiredCount: number;
 }
 
 // Active sessions (keyed by session ID)
@@ -65,6 +74,8 @@ export async function POST(req: NextRequest) {
     groqKey: groqKey,
     braveSearchKey: braveKey || "",
   });
+
+  const director = new Director();
 
   // Create SSE stream
   const encoder = new TextEncoder();
@@ -112,27 +123,35 @@ export async function POST(req: NextRequest) {
         sessions.delete(sessionId);
       });
 
-      // Persona trigger loop
-      // When paused: personas still fire but in "paused" mode (annoyed, meta-commentary)
-      // When playing: normal reactions to transcript
+      // ──────────────────────────────────────────────────────
+      // PERSONA TRIGGER LOOP (Director + Cascade)
+      //
+      // Instead of firing all 4 simultaneously, the Director:
+      // 1. Picks the best persona for the current content
+      // 2. That persona fires and streams its response
+      // 3. Cascade: with decreasing probability, other personas
+      //    react to the first response, staggered by 2-4 seconds
+      //
+      // Result: natural conversation, not a wall of text
+      // ──────────────────────────────────────────────────────
       let personasFiring = false;
+
       const personaInterval = setInterval(async () => {
         if (personasFiring) return; // don't overlap
 
         const shouldFire = transcriber.shouldTriggerPersonas();
-        // Also fire once shortly after pause starts (so AIs react to it)
         const justPaused = session.paused && session.pauseFiredCount === 0;
 
-        // When paused, ONLY allow the one-shot "just paused" reaction.
-        // Don't let shouldFire trigger — the audio pipeline keeps running
-        // even when the YouTube player is paused, so transcript accumulates
-        // behind the scenes and would cause personas to fire repeatedly.
+        // When paused, only allow the one-shot pause reaction
         if ((shouldFire && !session.paused) || justPaused) {
           personasFiring = true;
           const transcript = transcriber.transcript;
+          const recentTranscript = transcriber.newTranscript;
+
           log.info("personas_trigger", {
             reason: justPaused ? "just_paused" : "transcript_threshold",
             transcriptLength: transcript.length,
+            recentLength: recentTranscript.length,
             isPaused: session.paused,
           });
 
@@ -143,22 +162,68 @@ export async function POST(req: NextRequest) {
             session.pauseFiredCount++;
           }
 
-          send("status", { status: "personas_firing" });
-
-          await personaEngine.fireAll(
-            transcript,
-            (response) => {
-              if (response.done) {
-                send("persona_done", { personaId: response.personaId });
-              } else {
-                send("persona", {
-                  personaId: response.personaId,
-                  text: response.text,
-                });
-              }
-            },
+          // Ask the Director who should speak
+          const decision = director.decide(
+            recentTranscript || transcript.slice(-500),
             session.paused
           );
+
+          log.info("director_decision", {
+            chain: decision.personaIds.join(" → "),
+            reason: decision.reason,
+            cascadeCount: decision.personaIds.length,
+          });
+
+          const streamCallback = (response: { personaId: string; text: string; done: boolean }) => {
+            if (response.done) {
+              send("persona_done", { personaId: response.personaId });
+            } else {
+              send("persona", {
+                personaId: response.personaId,
+                text: response.text,
+              });
+            }
+          };
+
+          // Fire the cascade chain with staggered delays
+          let lastResponse = "";
+          let lastPersonaId = "";
+
+          for (let i = 0; i < decision.personaIds.length; i++) {
+            const personaId = decision.personaIds[i];
+            const delay = decision.delays[i];
+
+            // Wait for the cascade delay (first persona has 0 delay)
+            if (delay > 0) {
+              await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+
+            // Don't fire if session was stopped or paused mid-cascade
+            if (!session.transcriber || (session.paused && !justPaused)) {
+              break;
+            }
+
+            send("status", { status: "personas_firing", personaId });
+
+            // Build cascade context from previous persona's response
+            const cascadeFrom = i > 0 && lastResponse
+              ? (() => {
+                  const p = personas.find((p) => p.id === lastPersonaId);
+                  return p ? { personaId: lastPersonaId, name: p.name, emoji: p.emoji, text: lastResponse } : undefined;
+                })()
+              : undefined;
+
+            const response = await personaEngine.fireSingle(
+              personaId,
+              transcript,
+              streamCallback,
+              session.paused,
+              cascadeFrom
+            );
+
+            lastResponse = response;
+            lastPersonaId = personaId;
+          }
 
           send("status", { status: "personas_complete" });
           personasFiring = false;
@@ -207,7 +272,7 @@ export async function PATCH(req: NextRequest) {
 
   if (action === "pause") {
     session.paused = true;
-    session.pauseFiredCount = 0; // reset so personas fire once when paused
+    session.pauseFiredCount = 0;
     return new Response(JSON.stringify({ paused: true }));
   }
 
@@ -218,8 +283,6 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (action === "force_fire") {
-    // Manual trigger — populate buffer first, THEN reset timing
-    // (forceNextTrigger fills newTranscript from full buffer if needed)
     session.transcriber.forceNextTrigger();
     return new Response(JSON.stringify({ fired: true }));
   }

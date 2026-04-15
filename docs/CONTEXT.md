@@ -71,12 +71,32 @@ YouTube URL
  4 Persona Columns (UI)     -- PersonaColumn.tsx with bubble avatars + sine wave animation
 ```
 
+### Trigger Model: Director + Cascade
+Instead of all 4 personas firing simultaneously, a **Director** (rule-based, no LLM) picks the best persona for each moment, then cascades to others with decreasing probability:
+
+1. Director scores recent transcript against each persona's specialty patterns
+2. Highest-scoring persona fires first (always)
+3. 50% chance → a random second persona reacts to the first's response
+4. 35% chance → a third chimes in
+5. 20% chance → the fourth gets the last word
+6. 2-4 second delays between cascade responses
+7. Recency tracking prevents the same persona from dominating
+
+Result: some moments get 1 response, some get 2-3, occasionally all 4 pile on. Pauses are capped at max 2 responses.
+
 ### Trigger Timing
-- First persona fire: **30 seconds** after transcript starts (so user sees activity fast)
-- Subsequent fires: every **60 seconds** of new transcript
+- First persona fire: **15 seconds** after transcript starts
+- Subsequent fires: every **~22 seconds** of new transcript
 - Minimum content threshold: **30 characters** of new transcript
 - Manual fire button (fire emoji) available for instant trigger
 - Persona interval checks every **5 seconds**
+
+### Key Files for Director System
+| File | Purpose |
+|------|---------|
+| `lib/director.ts` | Content scoring, persona selection, cascade probability, stagger timing |
+| `lib/persona-engine.ts` | `fireSingle()` for individual persona firing, `fireAll()` kept as legacy |
+| `app/api/transcribe/route.ts` | Trigger loop uses Director for cascaded, staggered responses |
 
 ---
 
@@ -88,7 +108,8 @@ YouTube URL
 | `lib/transcription.ts` | Audio pipeline: yt-dlp → FFmpeg → Deepgram WebSocket. Handles live detection, keepalive, auto-reconnect, binary path resolution |
 | `lib/persona-engine.ts` | Multi-provider LLM orchestrator. Fires 4 personas in parallel, streams responses. Includes Brave Search fact-checking pipeline |
 | `lib/personas.ts` | All 4 persona definitions with deep Howard Stern character research. Exports `personas[]`, `buildPersonaContext()`, types |
-| `lib/debug-logger.ts` | Structured JSONL logger. Writes to `logs/pipeline-debug.jsonl` when `DEBUG_PIPELINE=true` |
+| `lib/director.ts` | The "booth producer" — scores transcript against persona specialties, picks who speaks, manages cascade chain with staggered timing |
+| `lib/debug-logger.ts` | Structured JSONL logger. Always writes info+ to `logs/pipeline-debug.jsonl`. `DEBUG_PIPELINE=true` adds debug-level messages |
 
 ### API Routes
 | File | Purpose |

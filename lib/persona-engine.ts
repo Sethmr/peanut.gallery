@@ -72,8 +72,90 @@ export class PersonaEngine {
   }
 
   /**
+   * Fire a SINGLE persona against the current transcript.
+   * Used by the Director for natural staggered conversation.
+   *
+   * @param personaId - Which persona to fire
+   * @param transcript - Current transcript text
+   * @param onStream - Streaming callback
+   * @param isPaused - If true, persona reacts to the pause
+   * @param cascadeFrom - If this is a cascade, the previous persona's response to riff on
+   * @returns The full response text (for feeding into the next cascade)
+   */
+  async fireSingle(
+    personaId: string,
+    transcript: string,
+    onStream: StreamCallback,
+    isPaused = false,
+    cascadeFrom?: { personaId: string; name: string; emoji: string; text: string }
+  ): Promise<string> {
+    const persona = personas.find((p) => p.id === personaId);
+    if (!persona) {
+      logPipeline({ event: "persona_not_found", level: "error", data: { personaId } });
+      return "";
+    }
+
+    // Build cross-persona context: other personas' LAST responses + cascade source
+    const otherPersonas: OtherPersonaResponse[] = [];
+    for (const op of personas) {
+      if (op.id === persona.id) continue;
+      const prev = this.previousResponses.get(op.id) || [];
+      if (prev.length > 0) {
+        otherPersonas.push({
+          name: op.name,
+          emoji: op.emoji,
+          text: prev[prev.length - 1],
+        });
+      }
+    }
+
+    // If this is a cascade, make the triggering response the FIRST thing they see
+    if (cascadeFrom) {
+      // Move the cascade source to the front so this persona reacts to it
+      const idx = otherPersonas.findIndex(
+        (op) => op.name === cascadeFrom.name
+      );
+      if (idx !== -1) {
+        otherPersonas[idx].text = cascadeFrom.text; // update with latest
+        const [source] = otherPersonas.splice(idx, 1);
+        otherPersonas.unshift(source);
+      }
+    }
+
+    // Fetch search results for producer
+    const searchResults =
+      persona.id === "producer" && !isPaused
+        ? await this.fetchSearchResults(transcript)
+        : undefined;
+
+    try {
+      await this.firePersona(
+        persona,
+        transcript,
+        searchResults,
+        onStream,
+        otherPersonas,
+        isPaused
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logPipeline({ event: "persona_error", level: "error", personaId: persona.id, data: { error: msg } });
+      onStream({
+        personaId: persona.id,
+        text: `[${persona.name} is having technical difficulties]`,
+        done: true,
+      });
+    }
+
+    // Return the full response for cascade feeding
+    const prev = this.previousResponses.get(personaId) || [];
+    return prev.length > 0 ? prev[prev.length - 1] : "";
+  }
+
+  /**
    * Fire all 4 personas in parallel against the current transcript.
-   * Streams each persona's response token-by-token via the callback.
+   * LEGACY — kept for backwards compatibility but the Director + fireSingle
+   * cascade is the preferred path for natural conversation flow.
    *
    * @param isPaused - If true, personas react to the pause instead of the show
    */
