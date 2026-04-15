@@ -1,27 +1,10 @@
-"use client";
-
-import { useEffect } from "react";
 import Link from "next/link";
+import FadeInObserver from "@/components/FadeInObserver";
 
 export default function LandingPage() {
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("visible");
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.15, rootMargin: "0px 0px -40px 0px" }
-    );
-    document.querySelectorAll(".fade-in").forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, []);
-
   return (
     <>
+      <FadeInObserver />
       <style dangerouslySetInnerHTML={{ __html: `
         .landing * { margin: 0; padding: 0; box-sizing: border-box; }
 
