@@ -104,21 +104,34 @@ export function useAudioCapture(
     try {
       onStatusDetail("Requesting tab audio access...");
 
-      // Request tab audio capture
-      const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-        audio: true,
-        video: true, // Required for the dialog to appear
-        // @ts-expect-error — Chrome-specific API for preferring current tab
-        selfBrowserSurface: "include",
-        preferCurrentTab: true,
-      });
-
-      // We only need the audio track — discard video immediately
-      mediaStream.getVideoTracks().forEach((track) => track.stop());
+      // Request tab audio capture.
+      // Try audio-only first (cleaner UX — no screen/window picker).
+      // Fall back to video+audio if the browser requires it.
+      let mediaStream: MediaStream;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        mediaStream = await (navigator.mediaDevices as any).getDisplayMedia({
+          audio: true,
+          video: false,
+          preferCurrentTab: true,
+        });
+      } catch {
+        // Fallback: some browsers require video. Use preferCurrentTab to
+        // auto-select current tab and minimize the picker.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        mediaStream = await (navigator.mediaDevices as any).getDisplayMedia({
+          audio: true,
+          video: true,
+          selfBrowserSurface: "include",
+          preferCurrentTab: true,
+        });
+        // Discard the video track immediately
+        mediaStream.getVideoTracks().forEach((track: MediaStreamTrack) => track.stop());
+      }
 
       const audioTracks = mediaStream.getAudioTracks();
       if (audioTracks.length === 0) {
-        onError("No audio track captured. Make sure to check 'Share tab audio' in the browser dialog.");
+        onError("No audio track. Enable Screen & System Audio Recording for your browser in System Settings → Privacy & Security.");
         return;
       }
 
@@ -160,7 +173,7 @@ export function useAudioCapture(
       };
     } catch (err) {
       if (err instanceof DOMException && err.name === "NotAllowedError") {
-        onError("Tab audio permission denied. Click Start and select your tab with 'Share tab audio' checked.");
+        onError("Audio permission denied. Enable Screen & System Audio Recording for your browser in System Settings → Privacy & Security, then try again.");
       } else {
         onError(`Audio capture failed: ${err instanceof Error ? err.message : String(err)}`);
       }

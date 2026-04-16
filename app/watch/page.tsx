@@ -55,7 +55,6 @@ export default function Home() {
   const [statusDetail, setStatusDetail] = useState<string | null>(null);
   const [pipelineStages, setPipelineStages] = useState<string[]>([]);
   const [showKeysModal, setShowKeysModal] = useState(false);
-  const [showAudioGuide, setShowAudioGuide] = useState(false);
   const [apiKeys, setApiKeys] = useState<ApiKeys>({ deepgram: "", anthropic: "", groq: "", brave: "" });
 
   const playerRef = useRef<YouTubePlayerHandle>(null);
@@ -109,8 +108,7 @@ export default function Home() {
   // ACTIONS
   // ──────────────────────────────────────────────────────
 
-  // Step 1: User clicks "Start" → validate URL, check keys, show audio guide
-  const handleStart = useCallback(() => {
+  const handleStart = useCallback(async () => {
     if (!youtubeUrl.trim()) return;
 
     const vid = extractVideoId(youtubeUrl);
@@ -126,14 +124,6 @@ export default function Home() {
 
     setVideoId(vid);
     setError(null);
-    // Show the audio sharing guide
-    setShowAudioGuide(true);
-  }, [youtubeUrl, apiKeys]);
-
-  // Step 2: User clicks "Share Audio" in the guide → this is the real user gesture
-  // that triggers getDisplayMedia + starts the pipeline
-  const handleStartWithAudio = useCallback(async () => {
-    setShowAudioGuide(false);
     setIsConnecting(true);
     setIsPaused(false);
     setIsLive(false);
@@ -320,7 +310,7 @@ export default function Home() {
       setIsRunning(false);
       setIsConnecting(false);
     }
-  }, [apiKeys, audioCapture]);
+  }, [youtubeUrl, apiKeys, audioCapture]);
 
   const handleStop = useCallback(() => {
     audioCapture.stop();
@@ -826,45 +816,6 @@ export default function Home() {
         onSave={setApiKeys}
       />
 
-      {/* ── AUDIO SHARING GUIDE ── */}
-      {showAudioGuide && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-bg-secondary border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <h2 className="font-display font-bold text-lg text-white mb-3">Share Tab Audio</h2>
-            <p className="text-sm text-white/60 mb-4">
-              A browser dialog will appear next. Here&apos;s what to do:
-            </p>
-            <div className="space-y-3 mb-5">
-              <div className="flex items-start gap-3">
-                <span className="shrink-0 w-6 h-6 rounded-full bg-accent-blue/20 text-accent-blue text-xs font-bold flex items-center justify-center">1</span>
-                <p className="text-sm text-white/80">Select the <strong className="text-white">&quot;Chrome Tab&quot;</strong> option at the top (not Window or Screen)</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="shrink-0 w-6 h-6 rounded-full bg-accent-blue/20 text-accent-blue text-xs font-bold flex items-center justify-center">2</span>
-                <p className="text-sm text-white/80">Pick <strong className="text-white">this tab</strong> — the one playing the YouTube video</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="shrink-0 w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold flex items-center justify-center">!</span>
-                <p className="text-sm text-white/80">Make sure <strong className="text-white">&quot;Share tab audio&quot;</strong> is checked at the bottom — this is how we hear the podcast</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowAudioGuide(false)}
-                className="flex-1 px-4 py-2.5 border border-white/10 text-white/50 hover:text-white/70 text-sm rounded-lg transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleStartWithAudio}
-                className="flex-1 px-4 py-2.5 bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-medium rounded-lg transition-all"
-              >
-                Share Audio →
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
