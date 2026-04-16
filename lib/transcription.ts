@@ -218,6 +218,61 @@ export class TranscriptionManager extends EventEmitter {
     }
   }
 
+  // ──────────────────────────────────────────────────────
+  // BROWSER AUDIO MODE
+  //
+  // Instead of yt-dlp + ffmpeg, audio comes from the user's
+  // browser via tab audio capture (getDisplayMedia).
+  // The browser sends PCM 16-bit 16kHz mono chunks via HTTP.
+  // No bot detection, no cookies, works everywhere.
+  // ──────────────────────────────────────────────────────
+
+  private browserMode = false;
+  private browserAudioBytesReceived = 0;
+
+  /** Start in browser audio mode — just connect Deepgram, no yt-dlp/ffmpeg */
+  async startBrowser(isLive = false): Promise<void> {
+    if (this.isRunning) {
+      throw new Error("Transcription already running");
+    }
+    this.isRunning = true;
+    this.browserMode = true;
+    this.isLive = isLive;
+    this.lastTriggerTime = Date.now();
+
+    console.log("[PG] Starting in BROWSER AUDIO mode — no yt-dlp/ffmpeg");
+    logPipeline({ event: "pipeline_start_browser", level: "info", data: { isLive } });
+
+    this.emit("status_detail", "Connecting to Deepgram...");
+    await this.connectDeepgram();
+
+    this.emit("started");
+    this.emit("live_status", isLive);
+    this.emit("status_detail", "Ready — waiting for browser audio...");
+  }
+
+  /** Feed raw PCM audio from the browser (16-bit, 16kHz, mono) */
+  feedAudio(chunk: Buffer): void {
+    if (!this.isRunning || !this.dgSocket) return;
+
+    const wasZero = this.browserAudioBytesReceived === 0;
+    this.browserAudioBytesReceived += chunk.length;
+
+    if (wasZero) {
+      console.log(`[PG] Browser audio: first chunk received (${chunk.length} bytes)`);
+      logPipeline({ event: "browser_audio_first_bytes", level: "info", data: { bytes: chunk.length } });
+      this.emit("status_detail", "Browser audio streaming — sending to Deepgram...");
+    }
+
+    if (this.dgSocket.readyState === WebSocket.OPEN) {
+      this.dgSocket.send(chunk);
+    }
+  }
+
+  get isBrowserMode(): boolean {
+    return this.browserMode;
+  }
+
   async start(youtubeUrl: string): Promise<void> {
     if (this.isRunning) {
       throw new Error("Transcription already running");

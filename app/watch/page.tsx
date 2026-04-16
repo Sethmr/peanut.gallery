@@ -9,6 +9,7 @@ import YouTubePlayer, {
   type YouTubePlayerHandle,
 } from "@/components/YouTubePlayer";
 import { personas } from "@/lib/personas";
+import { useAudioCapture } from "@/components/AudioCapture";
 
 // ──────────────────────────────────────────────────────
 // MODE RULES
@@ -84,6 +85,14 @@ export default function Home() {
   const sessionIdRef = useRef<string | null>(null);
   const messageCountRef = useRef(0);
 
+  // Browser audio capture (replaces yt-dlp/ffmpeg pipeline)
+  const audioCapture = useAudioCapture(
+    sessionIdRef,
+    apiKeys,
+    (err) => setError(err),
+    (msg) => setStatusDetail(msg)
+  );
+
   // Determine which persona is currently streaming (for combined feed)
   const streamingPersona = useMemo(() => {
     for (const p of personas) {
@@ -147,7 +156,7 @@ export default function Home() {
           "X-Groq-Key": apiKeys.groq,
           "X-Brave-Key": apiKeys.brave,
         },
-        body: JSON.stringify({ url: youtubeUrl }),
+        body: JSON.stringify({ url: youtubeUrl, mode: "browser" }),
         signal: controller.signal,
       });
 
@@ -268,6 +277,10 @@ export default function Home() {
                 case "status":
                   if (data.status === "started" && data.sessionId) {
                     sessionIdRef.current = data.sessionId;
+                    // Start browser audio capture now that session is live
+                    audioCapture.start().catch((err) => {
+                      setError(`Audio capture failed: ${err instanceof Error ? err.message : String(err)}`);
+                    });
                   }
                   if (data.status === "live_detected") {
                     setIsLive(data.isLive);
@@ -298,14 +311,15 @@ export default function Home() {
       setIsRunning(false);
       setIsConnecting(false);
     }
-  }, [youtubeUrl]);
+  }, [youtubeUrl, apiKeys, audioCapture]);
 
   const handleStop = useCallback(() => {
+    audioCapture.stop();
     abortRef.current?.abort();
     playerRef.current?.pause();
     setIsRunning(false);
     setIsPaused(false);
-  }, []);
+  }, [audioCapture]);
 
   // RECORDED MODE ONLY — pause/resume video + pipeline
   const handlePauseResume = useCallback(async () => {
