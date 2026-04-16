@@ -148,8 +148,15 @@ export function useAudioCapture(
         chunkBufferRef.current.push(new Float32Array(inputData));
       };
 
+      // Connect processor to the audio graph (required for onaudioprocess to fire)
+      // but route through a zero-gain node to prevent feedback loop —
+      // without this, captured audio plays back into the tab, Chrome recaptures
+      // it, and kills the stream within ~1 second.
+      const silencer = audioContext.createGain();
+      silencer.gain.value = 0;
       source.connect(processor);
-      processor.connect(audioContext.destination);
+      processor.connect(silencer);
+      silencer.connect(audioContext.destination);
 
       // Start sending chunks at regular intervals
       intervalRef.current = setInterval(sendChunks, CHUNK_INTERVAL_MS);
