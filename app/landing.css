@@ -257,6 +257,8 @@
 }
 
 .persona-card {
+  display: flex;
+  flex-direction: column;
   background-color: #1a1a1a;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -305,13 +307,14 @@
   color: #b0b0b0;
   font-size: 0.95rem;
   line-height: 1.6;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .persona-quote {
   background: rgba(255, 255, 255, 0.03);
   border-left: 2px solid rgba(255, 255, 255, 0.1);
   padding: 0.75rem 1rem;
+  margin-top: auto;
   font-style: italic;
   font-size: 0.9rem;
   color: #b0b0b0;
