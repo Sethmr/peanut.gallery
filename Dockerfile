@@ -49,8 +49,15 @@ COPY --from=builder /app/public/ ./public/
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# YouTube cookies for yt-dlp (bypasses bot detection on data center IPs).
+# Option 1: Set YT_COOKIES_BASE64 env var in Railway (base64-encoded cookies.txt)
+# Option 2: Mount cookies.txt as a volume at /app/cookies.txt
+# Generate cookies via "Get cookies.txt LOCALLY" Chrome extension on youtube.com.
+ENV YT_DLP_COOKIES_FILE=/app/cookies.txt
+
 USER nextjs
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+# At startup: if YT_COOKIES_BASE64 is set, decode it to cookies.txt
+CMD if [ -n "$YT_COOKIES_BASE64" ]; then echo "$YT_COOKIES_BASE64" | base64 -d > /app/cookies.txt; echo "[PG] Wrote cookies.txt from YT_COOKIES_BASE64"; fi && node server.js
