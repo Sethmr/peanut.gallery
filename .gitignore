@@ -16,7 +16,9 @@
 
 # misc
 .DS_Store
+**/.DS_Store
 *.pem
+cookies.txt
 
 # debug
 /logs/

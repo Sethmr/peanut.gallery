@@ -152,8 +152,8 @@ export default function LandingPage() {
             <div className="step fade-in">
               <h3>Live Audio Capture</h3>
               <p>
-                Paste any YouTube live stream or video URL. Audio is extracted in
-                real-time via yt-dlp and piped through FFmpeg.
+                Paste any YouTube live stream or video URL. Audio is captured
+                directly from your browser tab — no downloads, no extensions.
               </p>
             </div>
             <div className="step fade-in">

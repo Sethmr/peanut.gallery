@@ -30,14 +30,6 @@ if ! command -v npm &>/dev/null; then
   missing+=("npm (comes with node)")
 fi
 
-if ! command -v yt-dlp &>/dev/null; then
-  missing+=("yt-dlp (brew install yt-dlp)")
-fi
-
-if ! command -v ffmpeg &>/dev/null; then
-  missing+=("ffmpeg (brew install ffmpeg)")
-fi
-
 if [ ${#missing[@]} -gt 0 ]; then
   echo -e "${RED}Missing dependencies:${RESET}"
   for dep in "${missing[@]}"; do
@@ -48,7 +40,7 @@ if [ ${#missing[@]} -gt 0 ]; then
   exit 1
 fi
 
-echo -e "${GREEN}✓${RESET} Dependencies OK (node $(node -v), yt-dlp, ffmpeg)"
+echo -e "${GREEN}✓${RESET} Dependencies OK (node $(node -v))"
 
 # ── Install packages ──
 if [ ! -d "node_modules" ]; then

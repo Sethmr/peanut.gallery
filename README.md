@@ -30,14 +30,9 @@ cd peanut.gallery
 ./setup.sh
 ```
 
-The setup script checks for dependencies (Node.js 18+, yt-dlp, ffmpeg), walks you through entering your API keys, and launches the app at `localhost:3000`. Keys are stored in `.env.local` on your machine — git-ignored, never uploaded anywhere.
+The setup script checks for Node.js 18+, walks you through entering your API keys, and launches the app at `localhost:3000`. Keys are stored in `.env.local` on your machine — git-ignored, never uploaded anywhere.
 
-**Prerequisites:** [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [FFmpeg](https://ffmpeg.org/). Install both with:
-
-```bash
-brew install yt-dlp ffmpeg    # macOS
-sudo apt install yt-dlp ffmpeg # Ubuntu/Debian
-```
+**Prerequisites:** Node.js 18+ only. No external tools required — audio is captured directly from your browser tab.
 
 ### Option B: Use the Hosted Version
 
@@ -86,12 +81,16 @@ One-liners and jokes. Setup-punchline structure, callback humor, observational c
 ## How It Works
 
 ```
-YouTube URL → yt-dlp → FFmpeg → Deepgram Nova-3 → Director → AI Personas → SSE → UI
+YouTube Tab → Browser Audio Capture → Deepgram Nova-3 → Director → AI Personas → SSE → UI
 ```
 
-The audio pipeline runs server-side: yt-dlp extracts the audio stream, FFmpeg converts to PCM, and Deepgram's Nova-3 transcribes over WebSocket. The Director (a rule-based booth producer) reads each chunk and picks the best persona to respond — then cascades to others with decreasing probability and staggered timing. Some moments get 1 response, some get 2-3, and occasionally all 4 pile on.
+When you click Start, your browser asks you to share your tab's audio. The app captures it via the Web Audio API, downsamples to 16kHz mono PCM, and streams it to the server — which pipes it straight to Deepgram's Nova-3 for real-time transcription. No yt-dlp, no ffmpeg, no server-side downloads, no YouTube bot detection issues.
+
+The Director (a rule-based booth producer) reads each transcript chunk and picks the best persona to respond — then cascades to others with decreasing probability and staggered timing. Some moments get 1 response, some get 2-3, and occasionally all 4 pile on.
 
 The Fact-Checker has an extra step: it scores sentences for factual claims and runs parallel Brave Search queries to cross-reference.
+
+**Note:** On macOS, Screen & System Audio Recording must be enabled for your browser in System Settings → Privacy & Security.
 
 ---
 
@@ -126,7 +125,7 @@ All services have free tiers:
 
 ## Deploy Your Own
 
-Want to host your own instance? The app includes a Dockerfile with yt-dlp and ffmpeg pre-installed.
+Want to host your own instance? The app includes a minimal Dockerfile — no system-level dependencies beyond Node.js.
 
 ```bash
 # Railway (recommended)
@@ -139,7 +138,7 @@ docker build -t peanut-gallery .
 docker run -p 3000:3000 peanut-gallery
 ```
 
-No server-side env vars needed — users provide their own keys through the UI.
+No server-side env vars needed — users provide their own keys through the UI. Audio capture happens in the user's browser, so the server is just a thin relay.
 
 ---
 
