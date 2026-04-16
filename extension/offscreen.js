@@ -1,12 +1,10 @@
 /**
  * Peanut Gallery — Offscreen Audio Processor
  *
- * Runs in an offscreen document (invisible page) so we can use AudioContext,
- * which service workers can't do. Captures tab audio via getUserMedia with
- * the stream ID from chrome.tabCapture, downsamples to 16kHz PCM, and
- * streams base64-encoded chunks to the Peanut Gallery server every 250ms.
- *
- * Also manages the SSE connection to the server for the session lifecycle.
+ * Invisible page that handles:
+ * 1. Audio capture via getUserMedia (service workers can't use AudioContext)
+ * 2. Downsampling to 16kHz PCM + streaming to server
+ * 3. SSE stream parsing — forwards transcript/persona events to side panel
  */
 
 let audioContext = null;
@@ -19,16 +17,15 @@ let serverUrl = "";
 let sessionId = "";
 let sseAbortController = null;
 
-// Listen for messages — only handle ones targeted at us
+// ── Message handler ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Only process messages meant for the offscreen document
   if (message.target !== "offscreen") return false;
 
   if (message.type === "START_RECORDING") {
     startRecording(message)
       .then(() => sendResponse({ ok: true }))
       .catch((err) => sendResponse({ error: err.message }));
-    return true; // async
+    return true;
   }
 
   if (message.type === "STOP_RECORDING") {
@@ -45,19 +42,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 async function startRecording(config) {
   if (capturing) {
-    console.log("[PG Extension] Already capturing, stopping first...");
+    console.log("[PG] Already capturing, stopping first...");
     stopRecording();
   }
 
   serverUrl = config.serverUrl.replace(/\/$/, "");
+  console.log(`[PG] Starting capture → ${serverUrl}`);
 
-  console.log(`[PG Extension] Starting capture...`);
-  console.log(`[PG Extension] Server: ${serverUrl}`);
-
-  // Step 1: Create a session on the Peanut Gallery server
+  // Step 1: Create server session (SSE)
   const headers = { "Content-Type": "application/json" };
   if (config.apiKeys?.deepgram) headers["X-Deepgram-Key"] = config.apiKeys.deepgram;
   if (config.apiKeys?.groq) headers["X-Groq-Key"] = config.apiKeys.groq;
+  if (config.apiKeys?.anthropic) headers["X-Anthropic-Key"] = config.apiKeys.anthropic;
+  if (config.apiKeys?.brave) headers["X-Brave-Key"] = config.apiKeys.brave;
 
   sseAbortController = new AbortController();
 
@@ -78,19 +75,18 @@ async function startRecording(config) {
   }
 
   sessionId = res.headers.get("X-Session-Id");
-  if (!sessionId) {
-    throw new Error("No session ID returned from server");
-  }
+  if (!sessionId) throw new Error("No session ID returned from server");
 
-  console.log(`[PG Extension] Session created: ${sessionId}`);
-
-  // Save session ID
+  console.log(`[PG] Session created: ${sessionId}`);
   chrome.storage.local.set({ sessionId });
 
-  // Read SSE stream in background (keeps connection alive)
+  // Broadcast session start to side panel
+  broadcast({ type: "SSE_EVENT", event: "status", data: { status: "started", sessionId } });
+
+  // Parse SSE stream and forward events to side panel
   readSSE(res.body);
 
-  // Step 2: Get the actual MediaStream from the tab capture stream ID
+  // Step 2: Capture tab audio
   mediaStream = await navigator.mediaDevices.getUserMedia({
     audio: {
       mandatory: {
@@ -104,69 +100,43 @@ async function startRecording(config) {
     throw new Error("No audio track in captured stream");
   }
 
-  console.log(`[PG Extension] Got audio stream: ${mediaStream.getAudioTracks()[0].label}`);
+  console.log(`[PG] Got audio: ${mediaStream.getAudioTracks()[0].label}`);
 
-  // Set up AudioContext for processing
+  // Audio processing pipeline
   audioContext = new AudioContext({ sampleRate: 48000 });
   const source = audioContext.createMediaStreamSource(mediaStream);
-
-  // ScriptProcessorNode to intercept raw audio frames
   processor = audioContext.createScriptProcessor(4096, 1, 1);
 
   processor.onaudioprocess = (event) => {
     if (!capturing) return;
-    const inputData = event.inputBuffer.getChannelData(0);
-    chunkBuffer.push(new Float32Array(inputData));
+    chunkBuffer.push(new Float32Array(event.inputBuffer.getChannelData(0)));
   };
 
-  // Connect: source → processor → destination (must connect for onaudioprocess to fire)
-  // The offscreen document is invisible, so audio goes nowhere audible
+  // source → processor → destination
+  // Connecting to destination keeps audio audible in the captured tab
   source.connect(processor);
   processor.connect(audioContext.destination);
 
   capturing = true;
   chunkBuffer = [];
-
-  // Send accumulated audio to server every 250ms
   sendInterval = setInterval(flushAudio, 250);
 
-  console.log("[PG Extension] Audio capture started successfully");
+  console.log("[PG] Audio capture started");
 }
 
 function stopRecording() {
-  console.log("[PG Extension] Stopping capture...");
+  console.log("[PG] Stopping capture...");
   capturing = false;
 
-  if (sendInterval) {
-    clearInterval(sendInterval);
-    sendInterval = null;
-  }
-
-  // Flush any remaining audio
+  if (sendInterval) { clearInterval(sendInterval); sendInterval = null; }
   flushAudio();
 
-  if (processor) {
-    processor.disconnect();
-    processor = null;
-  }
+  if (processor) { processor.disconnect(); processor = null; }
+  if (audioContext) { audioContext.close().catch(() => {}); audioContext = null; }
+  if (mediaStream) { mediaStream.getTracks().forEach((t) => t.stop()); mediaStream = null; }
+  if (sseAbortController) { sseAbortController.abort(); sseAbortController = null; }
 
-  if (audioContext) {
-    audioContext.close().catch(() => {});
-    audioContext = null;
-  }
-
-  if (mediaStream) {
-    mediaStream.getTracks().forEach((t) => t.stop());
-    mediaStream = null;
-  }
-
-  // Stop SSE connection
-  if (sseAbortController) {
-    sseAbortController.abort();
-    sseAbortController = null;
-  }
-
-  // Tell server to stop the session
+  // Tell server to stop
   if (serverUrl && sessionId) {
     fetch(`${serverUrl}/api/transcribe`, {
       method: "DELETE",
@@ -175,44 +145,65 @@ function stopRecording() {
     }).catch(() => {});
   }
 
+  broadcast({ type: "SSE_EVENT", event: "status", data: { status: "stopped" } });
+
   chunkBuffer = [];
   sessionId = "";
-  console.log("[PG Extension] Capture stopped");
+  console.log("[PG] Capture stopped");
+}
+
+/** Broadcast a message to all extension contexts (side panel, background, etc.) */
+function broadcast(msg) {
+  // chrome.runtime.sendMessage delivers to all listeners in the extension
+  // (side panel, background, etc.) — no target needed
+  chrome.runtime.sendMessage(msg).catch(() => {
+    // No listeners yet (side panel may not be open) — that's fine
+  });
 }
 
 /**
- * Read the SSE stream to keep the server session alive.
- * We don't need to process the events here — the web UI does that.
- * But the fetch body must be consumed to keep the connection open.
+ * Parse SSE stream from server and forward each event to the side panel.
  */
 async function readSSE(body) {
   if (!body) return;
 
   const reader = body.getReader();
   const decoder = new TextDecoder();
+  let buffer = "";
 
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      // Log SSE events for debugging
-      const text = decoder.decode(value, { stream: true });
-      if (text.includes("event: error")) {
-        console.warn("[PG Extension] SSE error:", text);
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      let eventType = "";
+      for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith("data: ") && eventType) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            broadcast({ type: "SSE_EVENT", event: eventType, data });
+          } catch {
+            // Malformed JSON — skip
+          }
+          eventType = "";
+        }
       }
     }
   } catch (err) {
     if (err.name !== "AbortError") {
-      console.error("[PG Extension] SSE read error:", err);
+      console.error("[PG] SSE read error:", err);
     }
   }
 }
 
 /**
- * Flush accumulated audio chunks to the server.
- * Merges all buffered Float32 frames, downsamples from 48kHz to 16kHz,
- * converts to Int16 PCM, base64-encodes, and sends via PATCH.
+ * Flush buffered audio → downsample → PCM → base64 → server PATCH
  */
 function flushAudio() {
   if (chunkBuffer.length === 0 || !serverUrl || !sessionId) return;
@@ -220,52 +211,37 @@ function flushAudio() {
   const chunks = chunkBuffer;
   chunkBuffer = [];
 
-  // Merge all chunks into one Float32Array
+  // Merge
   const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
   const merged = new Float32Array(totalLength);
   let offset = 0;
-  for (const chunk of chunks) {
-    merged.set(chunk, offset);
-    offset += chunk.length;
-  }
+  for (const chunk of chunks) { merged.set(chunk, offset); offset += chunk.length; }
 
-  // Downsample from 48kHz to 16kHz (ratio 3:1)
-  const sourceSampleRate = audioContext?.sampleRate || 48000;
-  const targetSampleRate = 16000;
-  const ratio = sourceSampleRate / targetSampleRate;
+  // Downsample 48kHz → 16kHz
+  const ratio = (audioContext?.sampleRate || 48000) / 16000;
   const downsampled = new Float32Array(Math.floor(merged.length / ratio));
-
   for (let i = 0; i < downsampled.length; i++) {
     downsampled[i] = merged[Math.floor(i * ratio)];
   }
 
-  // Convert Float32 (-1.0 to 1.0) to Int16 PCM
+  // Float32 → Int16 PCM
   const pcm = new Int16Array(downsampled.length);
   for (let i = 0; i < downsampled.length; i++) {
     const s = Math.max(-1, Math.min(1, downsampled[i]));
     pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
   }
 
-  // Base64-encode the PCM data
+  // Base64
   const bytes = new Uint8Array(pcm.buffer);
   let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
   const base64 = btoa(binary);
 
-  // Send to server
   if (base64.length > 0) {
     fetch(`${serverUrl}/api/transcribe`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId,
-        action: "audio_chunk",
-        audio: base64,
-      }),
-    }).catch((err) => {
-      console.debug("[PG Extension] Audio send failed:", err.message);
-    });
+      body: JSON.stringify({ sessionId, action: "audio_chunk", audio: base64 }),
+    }).catch(() => {});
   }
 }

@@ -1,13 +1,18 @@
 /**
  * Peanut Gallery — Chrome Extension Service Worker
  *
- * Orchestrates tab audio capture via chrome.tabCapture API.
- * Audio processing happens in an offscreen document (service workers can't use AudioContext).
+ * Orchestrates:
+ * 1. Side panel — opens when extension icon is clicked
+ * 2. Tab audio capture — via chrome.tabCapture → offscreen document
+ * 3. Message routing between side panel, offscreen doc, and popup
  */
 
 let offscreenReady = false;
 
-// Create offscreen document for audio processing
+// ── Extension icon click → open side panel ──
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+
+// ── Offscreen document management ──
 async function ensureOffscreen() {
   if (offscreenReady) return;
 
@@ -29,34 +34,50 @@ async function ensureOffscreen() {
   offscreenReady = true;
 }
 
-// Listen for messages from popup
+// ── Message routing ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // START_CAPTURE: from side panel → get tabCapture stream → forward to offscreen
   if (message.type === "START_CAPTURE") {
     handleStartCapture(message).then(sendResponse).catch((err) => {
       sendResponse({ error: err.message });
     });
-    return true; // async response
+    return true;
   }
 
+  // STOP_CAPTURE: from side panel → forward to offscreen
   if (message.type === "STOP_CAPTURE") {
-    // Forward to offscreen document only (not back to ourselves)
     sendToOffscreen({ type: "STOP_RECORDING" });
     sendResponse({ ok: true });
-    return false;
+    return true;
   }
 
+  // GET_STATUS: from side panel → ask offscreen
   if (message.type === "GET_STATUS") {
     sendToOffscreen({ type: "QUERY_STATUS" }, (response) => {
       sendResponse(response || { capturing: false });
     });
     return true;
   }
+
+  // GET_TAB_INFO: side panel needs the current tab's URL
+  if (message.type === "GET_TAB_INFO") {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs?.[0];
+      sendResponse({
+        url: tab?.url || "",
+        title: tab?.title || "",
+        tabId: tab?.id || null,
+      });
+    });
+    return true;
+  }
+
+  // SSE_EVENT: offscreen doc forwards parsed SSE events → side panel picks them up
+  // Background doesn't need to handle these — just ignore
+  if (message.type === "SSE_EVENT") return false;
 });
 
-/** Send a message specifically to the offscreen document via its port or targeted messaging */
 function sendToOffscreen(msg, callback) {
-  // Use chrome.runtime.sendMessage — the offscreen doc listens on the same channel.
-  // We differentiate by having the offscreen doc check message.target === "offscreen"
   chrome.runtime.sendMessage({ ...msg, target: "offscreen" }, callback);
 }
 
@@ -75,11 +96,9 @@ async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl }) {
     });
   });
 
-  // Ensure offscreen document exists
   await ensureOffscreen();
 
-  // Tell offscreen document to start recording with this stream ID
-  // The offscreen doc will create the server session and start streaming audio
+  // Tell offscreen doc to start recording + create server session
   sendToOffscreen({
     type: "START_RECORDING",
     streamId,

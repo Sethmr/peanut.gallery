@@ -1,6 +1,6 @@
 # Peanut Gallery Chrome Extension
 
-Companion Chrome extension that captures tab audio for real-time AI commentary. Uses the `chrome.tabCapture` API — no screen share picker, no interference with YouTube playback.
+AI podcast sidebar that lives right next to your YouTube video. Uses `chrome.tabCapture` for silent audio capture and `chrome.sidePanel` for the gallery UI — no screen share picker, no interference with playback, no second tab needed.
 
 ## Install (Developer Mode)
 
@@ -11,27 +11,33 @@ Companion Chrome extension that captures tab audio for real-time AI commentary. 
 
 ## Usage
 
-1. Start Peanut Gallery (`npm run dev` or visit peanut.gallery)
-2. Open a YouTube video in another tab
-3. Click the 🥜 extension icon on the YouTube tab
-4. Set your server URL (default: `http://localhost:3000`)
-5. Click **Start Capturing This Tab**
+1. Start the Peanut Gallery server (`npm run dev`)
+2. Open a YouTube video
+3. Click the 🥜 extension icon — the side panel opens
+4. Set your server URL + API keys (saved between sessions)
+5. Click **Start Listening**
 
-The extension silently captures the tab's audio and streams it to your Peanut Gallery server. No screen share dialog, no interference with video playback.
+The four AI personas (Baba Booey, The Troll, Fred, Jackie) react in real-time in the sidebar while you watch.
 
-## How It Works
+## Architecture
 
-- **Service Worker** (`background.js`) — Gets a `tabCapture` stream ID when you click Start
-- **Offscreen Document** (`offscreen.js`) — Processes audio (getUserMedia → AudioContext → PCM 16kHz → base64 → HTTP PATCH)
-- **Popup** (`popup.html/js`) — Start/stop UI, settings persistence
+```
+YouTube Tab                    Extension Side Panel
+    │                               │
+    │ chrome.tabCapture             │ Shows transcript +
+    │ (silent, no picker)           │ persona reactions
+    ▼                               │
+┌──────────┐                        │
+│ Offscreen │── SSE events ────────▶│
+│ Document  │                       │
+│           │── PCM audio ──────▶ Server ──▶ Deepgram ──▶ AI Personas
+└──────────┘
+```
 
-The extension creates a server session, captures tab audio, downsamples to 16kHz mono PCM, and streams chunks to the Peanut Gallery server every 250ms. The server passes them straight to Deepgram for real-time transcription.
+- **Background** (`background.js`) — Service worker. Opens side panel on click, gets `tabCapture` stream ID, manages offscreen document.
+- **Offscreen** (`offscreen.js`) — Invisible page. Captures audio via `getUserMedia`, downsamples to 16kHz PCM, streams to server every 250ms. Parses SSE events and broadcasts to side panel.
+- **Side Panel** (`sidepanel.html/js`) — The gallery UI. Shows persona avatars, transcript, and a feed of AI reactions. Click a persona to make them react.
 
-## Why a Chrome Extension?
+## Why Chrome Extension?
 
-Every production real-time transcription tool (Otter.ai, Fireflies, Recall.ai, Tactiq) uses `chrome.tabCapture` because it's the only API that:
-
-- Captures tab audio without a permission picker dialog
-- Doesn't interfere with YouTube playback (unlike `getDisplayMedia` tab capture)
-- Works identically on localhost and deployed servers
-- Requires only a single click to activate
+Every production transcription tool (Otter.ai, Fireflies, Recall.ai, Tactiq) uses `chrome.tabCapture` because it's the only API that captures tab audio without a permission picker and without YouTube detecting it. The Side Panel API makes the experience feel native — it's literally a sidebar next to the video.

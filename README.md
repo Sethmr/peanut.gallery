@@ -85,13 +85,30 @@ One-liners and jokes. Setup-punchline structure, callback humor, observational c
 
 ## How It Works
 
+Two audio capture modes depending on your setup:
+
+**Self-hosted (yt-dlp):**
 ```
 YouTube URL → yt-dlp → FFmpeg → Deepgram Nova-3 → Director → AI Personas → SSE → UI
 ```
 
-The audio pipeline runs server-side: yt-dlp extracts the audio stream, FFmpeg converts to PCM, and Deepgram's Nova-3 transcribes over WebSocket. The Director (a rule-based booth producer) reads each chunk and picks the best persona to respond — then cascades to others with decreasing probability and staggered timing. Some moments get 1 response, some get 2-3, and occasionally all 4 pile on.
+**Chrome Extension (recommended):**
+```
+YouTube Tab → chrome.tabCapture → PCM 16kHz → Server → Deepgram Nova-3 → Director → AI Personas → Side Panel
+```
+
+The Chrome extension captures tab audio silently via `chrome.tabCapture` — no screen share picker, no interference with YouTube playback. The gallery UI lives in a Chrome Side Panel right next to your video. This is the same approach used by Otter.ai, Fireflies, and Recall.ai.
+
+In both modes, the Director (a rule-based booth producer) reads each transcript chunk and picks the best persona to respond — then cascades to others with decreasing probability and staggered timing. Some moments get 1 response, some get 2-3, and occasionally all 4 pile on.
 
 The Fact-Checker has an extra step: it scores sentences for factual claims and runs parallel Brave Search queries to cross-reference.
+
+### Chrome Extension Install
+
+1. Open `chrome://extensions`
+2. Enable **Developer mode** (toggle in top right)
+3. Click **Load unpacked** → select the `extension/` folder in this repo
+4. Open a YouTube video → click the 🥜 extension icon → Start Listening
 
 ---
 
@@ -148,6 +165,23 @@ No server-side env vars needed — users provide their own keys through the UI.
 **[Seth Rininger](https://sethrininger.dev)** — iOS dev turned AI builder. 12+ years shipping apps at scale.
 
 Built for **[This Week in Startups](https://x.com/twistartups)** | Jason Calacanis & Lon Harris
+
+---
+
+## Contributing
+
+**Always commit after finishing a workload worth pushing to test.** Don't let changes pile up across multiple features — commit after each logical unit of work so it can be tested, reviewed, and reverted independently if needed.
+
+Commit message format: `type: short description — the witty why`
+
+Types: `feat`, `fix`, `chore`, `debug`, `test`, `docs`
+
+Examples:
+```
+feat: Chrome extension for tab audio capture — YouTube can't block what it can't see
+fix: stall detector now handles browser audio mode correctly
+chore: clean repo for open-source release
+```
 
 ---
 
