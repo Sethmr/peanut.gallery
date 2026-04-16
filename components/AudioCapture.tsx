@@ -104,30 +104,19 @@ export function useAudioCapture(
     try {
       onStatusDetail("Requesting tab audio access...");
 
-      // Request tab audio capture.
-      // Try audio-only first (cleaner UX — no screen/window picker).
-      // Fall back to video+audio if the browser requires it.
-      let mediaStream: MediaStream;
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        mediaStream = await (navigator.mediaDevices as any).getDisplayMedia({
-          audio: true,
-          video: false,
-          preferCurrentTab: true,
-        });
-      } catch {
-        // Fallback: some browsers require video. Use preferCurrentTab to
-        // auto-select current tab and minimize the picker.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        mediaStream = await (navigator.mediaDevices as any).getDisplayMedia({
-          audio: true,
-          video: true,
-          selfBrowserSurface: "include",
-          preferCurrentTab: true,
-        });
-        // Discard the video track immediately
-        mediaStream.getVideoTracks().forEach((track: MediaStreamTrack) => track.stop());
-      }
+      // Request tab audio capture via getDisplayMedia.
+      // video:true is required by the spec — we discard the video track immediately.
+      // preferCurrentTab auto-selects this tab so the user just clicks "Share".
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mediaStream = await (navigator.mediaDevices as any).getDisplayMedia({
+        audio: true,
+        video: true,
+        selfBrowserSurface: "include",
+        preferCurrentTab: true,
+      });
+
+      // Discard the video track immediately — we only need audio
+      mediaStream.getVideoTracks().forEach((track: MediaStreamTrack) => track.stop());
 
       const audioTracks = mediaStream.getAudioTracks();
       if (audioTracks.length === 0) {
