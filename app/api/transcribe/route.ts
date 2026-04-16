@@ -33,6 +33,7 @@ interface Session {
   transcriber: TranscriptionManager;
   paused: boolean;
   pauseFiredCount: number;
+  forcedPersonaId?: string; // When set, next trigger fires this specific persona
 }
 
 // Active sessions (keyed by session ID)
@@ -142,15 +143,21 @@ export async function POST(req: NextRequest) {
 
         const shouldFire = transcriber.shouldTriggerPersonas();
         const justPaused = session.paused && session.pauseFiredCount === 0;
+        const forcedPersona = session.forcedPersonaId;
 
-        // When paused, only allow the one-shot pause reaction
-        if ((shouldFire && !session.paused) || justPaused) {
+        // Clear forced persona immediately so it doesn't re-fire
+        if (forcedPersona) {
+          session.forcedPersonaId = undefined;
+        }
+
+        // When paused, only allow the one-shot pause reaction (or forced persona tap)
+        if ((shouldFire && !session.paused) || justPaused || forcedPersona) {
           personasFiring = true;
           const transcript = transcriber.transcript;
           const recentTranscript = transcriber.newTranscript;
 
           log.info("personas_trigger", {
-            reason: justPaused ? "just_paused" : "transcript_threshold",
+            reason: forcedPersona ? `forced_${forcedPersona}` : justPaused ? "just_paused" : "transcript_threshold",
             transcriptLength: transcript.length,
             recentLength: recentTranscript.length,
             isPaused: session.paused,
@@ -159,21 +166,9 @@ export async function POST(req: NextRequest) {
           if (!session.paused) {
             transcriber.resetNewTranscript();
           }
-          if (session.paused) {
+          if (session.paused && !forcedPersona) {
             session.pauseFiredCount++;
           }
-
-          // Ask the Director who should speak
-          const decision = director.decide(
-            recentTranscript || transcript.slice(-500),
-            session.paused
-          );
-
-          log.info("director_decision", {
-            chain: decision.personaIds.join(" → "),
-            reason: decision.reason,
-            cascadeCount: decision.personaIds.length,
-          });
 
           const streamCallback = (response: { personaId: string; text: string; done: boolean }) => {
             if (response.done) {
@@ -185,6 +180,35 @@ export async function POST(req: NextRequest) {
               });
             }
           };
+
+          // ── FORCED SINGLE PERSONA (emoji tap) ──
+          if (forcedPersona) {
+            send("status", { status: "personas_firing", personaId: forcedPersona });
+
+            await personaEngine.fireSingle(
+              forcedPersona,
+              transcript,
+              streamCallback,
+              session.paused
+            );
+
+            send("status", { status: "personas_complete" });
+            personasFiring = false;
+            return;
+          }
+
+          // ── NORMAL DIRECTOR-DRIVEN CASCADE ──
+          // Ask the Director who should speak
+          const decision = director.decide(
+            recentTranscript || transcript.slice(-500),
+            session.paused
+          );
+
+          log.info("director_decision", {
+            chain: decision.personaIds.join(" → "),
+            reason: decision.reason,
+            cascadeCount: decision.personaIds.length,
+          });
 
           // Fire the cascade chain with staggered delays
           let lastResponse = "";
@@ -261,7 +285,7 @@ export async function POST(req: NextRequest) {
 
 // Pause / Resume / Stop
 export async function PATCH(req: NextRequest) {
-  const { sessionId, action } = await req.json();
+  const { sessionId, action, personaId: targetPersonaId } = await req.json();
   const session = sessions.get(sessionId);
 
   if (!session) {
@@ -286,6 +310,21 @@ export async function PATCH(req: NextRequest) {
   if (action === "force_fire") {
     session.transcriber.forceNextTrigger();
     return new Response(JSON.stringify({ fired: true }));
+  }
+
+  // Fire a SINGLE specific persona on demand (emoji tap)
+  if (action === "fire_persona") {
+    if (!targetPersonaId) {
+      return new Response(JSON.stringify({ error: "personaId required" }), { status: 400 });
+    }
+    const persona = personas.find((p) => p.id === targetPersonaId);
+    if (!persona) {
+      return new Response(JSON.stringify({ error: "Unknown persona" }), { status: 404 });
+    }
+    // Queue this persona to be fired on the next interval tick
+    session.forcedPersonaId = targetPersonaId;
+    session.transcriber.forceNextTrigger();
+    return new Response(JSON.stringify({ fired: true, personaId: targetPersonaId }));
   }
 
   return new Response(JSON.stringify({ error: "Invalid action" }), {

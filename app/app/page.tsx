@@ -350,6 +350,21 @@ export default function Home() {
     }
   }, []);
 
+  // Fire a SINGLE persona on demand (emoji tap)
+  const handleFirePersona = useCallback(async (personaId: string) => {
+    const sid = sessionIdRef.current;
+    if (!sid) return;
+    try {
+      await fetch("/api/transcribe", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sid, action: "fire_persona", personaId }),
+      });
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Sync when user uses YouTube's native controls
   const handleVideoStateChange = useCallback(
     (isPlaying: boolean) => {
@@ -476,9 +491,9 @@ export default function Home() {
               <button
                 onClick={handleForceFire}
                 className="px-3 py-2 bg-accent-amber/20 hover:bg-accent-amber/30 text-accent-amber text-sm font-medium rounded-lg transition-all"
-                title="Force the AI personas to react now"
+                title="Force all personas to react to the latest transcript now"
               >
-                🔥
+                🔥 React
               </button>
 
               {/* Stop / End Session */}
@@ -589,7 +604,7 @@ export default function Home() {
           {/* Right: Persona Cards (2x2) */}
           <div className="w-[520px] shrink-0 grid grid-cols-2 grid-rows-2 gap-3 min-h-0">
             {personas.map((p) => (
-              <PersonaColumn key={p.id} name={p.name} role={p.role} emoji={p.emoji} color={p.color} model={modelDisplay[p.model] || p.model} messages={personaStates[p.id]?.messages || []} isStreaming={personaStates[p.id]?.isStreaming || false} streamingText={personaStates[p.id]?.streamingText || ""} badge={isLive && isRunning && p.id === "producer" ? "LIVE FACT-CHECK" : undefined} compact />
+              <PersonaColumn key={p.id} name={p.name} role={p.role} emoji={p.emoji} color={p.color} model={modelDisplay[p.model] || p.model} messages={personaStates[p.id]?.messages || []} isStreaming={personaStates[p.id]?.isStreaming || false} streamingText={personaStates[p.id]?.streamingText || ""} badge={isLive && isRunning && p.id === "producer" ? "LIVE FACT-CHECK" : undefined} compact onAvatarClick={() => handleFirePersona(p.id)} />
             ))}
           </div>
         </main>
@@ -606,10 +621,15 @@ export default function Home() {
                   key={p.id}
                   className="flex flex-col items-center gap-1 w-[100px]"
                 >
-                  {/* Avatar bubble */}
-                  <div className="relative">
+                  {/* Avatar bubble — clickable to fire this persona */}
+                  <div
+                    className="relative group cursor-pointer"
+                    onClick={() => handleFirePersona(p.id)}
+                    role="button"
+                    title={`Make ${p.name} react now`}
+                  >
                     <div
-                      className="persona-avatar"
+                      className="persona-avatar transition-transform group-hover:scale-110 group-active:scale-95"
                       style={{ backgroundColor: `${p.color}20`, width: 36, height: 36, fontSize: "1rem" }}
                     >
                       <div
@@ -704,9 +724,15 @@ export default function Home() {
                   key={p.id}
                   className="flex flex-col items-center gap-0.5 min-w-[64px]"
                 >
-                  <div className="relative">
+                  {/* Avatar — clickable to fire this persona */}
+                  <div
+                    className="relative group cursor-pointer"
+                    onClick={() => handleFirePersona(p.id)}
+                    role="button"
+                    title={`Make ${p.name} react now`}
+                  >
                     <div
-                      className="persona-avatar"
+                      className="persona-avatar transition-transform group-hover:scale-110 group-active:scale-95"
                       style={{ backgroundColor: `${p.color}20`, width: 32, height: 32, fontSize: "0.9rem" }}
                     >
                       <div

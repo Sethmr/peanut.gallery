@@ -21,6 +21,8 @@ interface PersonaColumnProps {
   badge?: string;
   /** Compact mode for sidebar mini-cards */
   compact?: boolean;
+  /** Callback when the avatar emoji is tapped — fires this persona on demand */
+  onAvatarClick?: () => void;
 }
 
 /** Sine wave bars — animated when speaking, idle otherwise */
@@ -54,6 +56,7 @@ export default function PersonaColumn({
   streamingText,
   badge,
   compact = false,
+  onAvatarClick,
 }: PersonaColumnProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -72,10 +75,16 @@ export default function PersonaColumn({
       <div className="flex flex-col h-full bg-bg-secondary rounded-xl border border-white/5 overflow-hidden">
         {/* Compact Header — Centered bubble with info */}
         <div className="flex flex-col items-center gap-1.5 px-3 pt-3 pb-2">
-          {/* Avatar bubble with ring */}
-          <div className="relative">
+          {/* Avatar bubble with ring — clickable to fire this persona */}
+          <div
+            className="relative group"
+            onClick={onAvatarClick}
+            role={onAvatarClick ? "button" : undefined}
+            title={onAvatarClick ? `Make ${name} react now` : undefined}
+            style={{ cursor: onAvatarClick ? "pointer" : "default" }}
+          >
             <div
-              className="persona-avatar"
+              className={`persona-avatar transition-transform ${onAvatarClick ? "group-hover:scale-110 group-active:scale-95" : ""}`}
               style={{ backgroundColor: `${color}20`, width: 40, height: 40, fontSize: "1.1rem" }}
             >
               <div
@@ -147,10 +156,16 @@ export default function PersonaColumn({
         className="flex flex-col items-center gap-2 px-4 py-4 border-b border-white/5"
         style={{ borderBottomColor: `${color}30` }}
       >
-        {/* Avatar bubble with pulsing ring */}
-        <div className="relative">
+        {/* Avatar bubble with pulsing ring — clickable to fire this persona */}
+        <div
+          className="relative group"
+          onClick={onAvatarClick}
+          role={onAvatarClick ? "button" : undefined}
+          title={onAvatarClick ? `Make ${name} react now` : undefined}
+          style={{ cursor: onAvatarClick ? "pointer" : "default" }}
+        >
           <div
-            className="persona-avatar"
+            className={`persona-avatar transition-transform ${onAvatarClick ? "group-hover:scale-110 group-active:scale-95" : ""}`}
             style={{ backgroundColor: `${color}20` }}
           >
             <div
