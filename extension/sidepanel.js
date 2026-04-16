@@ -50,6 +50,7 @@ loadSettings();
 buildPersonaAvatars();
 checkStatus();
 detectCurrentTab();
+checkStreamReady();
 
 // Detect the current tab and show its title
 function detectCurrentTab() {
@@ -57,9 +58,31 @@ function detectCurrentTab() {
     if (chrome.runtime.lastError || !response) return;
     const detectedTab = document.getElementById("detectedTab");
     const detectedTitle = document.getElementById("detectedTitle");
-    if (response.title && response.url?.includes("youtube.com")) {
+    if (response.title) {
       detectedTitle.textContent = response.title;
       detectedTab.style.display = "block";
+    }
+    // Show error if tabCapture failed on icon click
+    if (response.error) {
+      showError(response.error);
+      startBtn.disabled = true;
+      startBtn.textContent = "Reopen panel to retry";
+    }
+  });
+}
+
+// Check if background has a stream ID ready from the icon click
+function checkStreamReady() {
+  chrome.runtime.sendMessage({ type: "GET_STREAM_STATUS" }, (response) => {
+    if (chrome.runtime.lastError) return;
+    if (response?.error) {
+      showError(response.error);
+      startBtn.disabled = true;
+      startBtn.textContent = "Reopen panel to retry";
+    } else if (!response?.hasStreamId) {
+      // No stream ID — user may have opened panel without clicking icon
+      startBtn.disabled = true;
+      startBtn.textContent = "Click 🥜 icon first";
     }
   });
 }

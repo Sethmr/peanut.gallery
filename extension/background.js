@@ -1,16 +1,47 @@
 /**
  * Peanut Gallery — Chrome Extension Service Worker
  *
- * Orchestrates:
- * 1. Side panel — opens when extension icon is clicked
- * 2. Tab audio capture — via chrome.tabCapture → offscreen document
- * 3. Message routing between side panel, offscreen doc, and popup
+ * Key insight: chrome.tabCapture.getMediaStreamId() requires a user gesture.
+ * Side panels don't grant activeTab, so we capture the stream ID immediately
+ * on icon click (which IS a user gesture), store it, then let the side panel
+ * use it when the user clicks "Start Listening".
  */
 
 let offscreenReady = false;
+let pendingStreamId = null;  // Stream ID captured on icon click
+let pendingTabInfo = null;   // Tab info from the icon click
 
-// ── Extension icon click → open side panel ──
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+// ── Extension icon click: capture stream ID FIRST, then open side panel ──
+// Do NOT use openPanelOnActionClick — we need the click handler for tabCapture
+chrome.action.onClicked.addListener(async (tab) => {
+  if (!tab?.id) return;
+
+  try {
+    // Capture stream ID immediately — this has user gesture context
+    const streamId = await new Promise((resolve, reject) => {
+      chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id }, (id) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve(id);
+      });
+    });
+
+    pendingStreamId = streamId;
+    pendingTabInfo = { url: tab.url, title: tab.title, tabId: tab.id };
+
+    console.log("[PG] Stream ID captured on icon click:", streamId?.slice(0, 20) + "...");
+  } catch (err) {
+    console.error("[PG] Failed to get stream ID on click:", err.message);
+    // Still open the panel — it'll show an error when user tries to start
+    pendingStreamId = null;
+    pendingTabInfo = { url: tab.url, title: tab.title, tabId: tab.id, error: err.message };
+  }
+
+  // Now open the side panel
+  chrome.sidePanel.open({ windowId: tab.windowId });
+});
 
 // ── Offscreen document management ──
 async function ensureOffscreen() {
@@ -36,7 +67,7 @@ async function ensureOffscreen() {
 
 // ── Message routing ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // START_CAPTURE: from side panel → get tabCapture stream → forward to offscreen
+  // START_CAPTURE: side panel is ready to start — use the stored stream ID
   if (message.type === "START_CAPTURE") {
     handleStartCapture(message).then(sendResponse).catch((err) => {
       sendResponse({ error: err.message });
@@ -44,14 +75,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // STOP_CAPTURE: from side panel → forward to offscreen
+  // STOP_CAPTURE: forward to offscreen
   if (message.type === "STOP_CAPTURE") {
     sendToOffscreen({ type: "STOP_RECORDING" });
+    pendingStreamId = null;
     sendResponse({ ok: true });
     return true;
   }
 
-  // GET_STATUS: from side panel → ask offscreen
+  // GET_STATUS: ask offscreen
   if (message.type === "GET_STATUS") {
     sendToOffscreen({ type: "QUERY_STATUS" }, (response) => {
       sendResponse(response || { capturing: false });
@@ -59,21 +91,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // GET_TAB_INFO: side panel needs the current tab's URL
+  // GET_TAB_INFO: return the tab info captured on icon click
   if (message.type === "GET_TAB_INFO") {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const tab = tabs?.[0];
-      sendResponse({
-        url: tab?.url || "",
-        title: tab?.title || "",
-        tabId: tab?.id || null,
+    if (pendingTabInfo) {
+      sendResponse(pendingTabInfo);
+    } else {
+      // Fallback: query the active tab
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const tab = tabs?.[0];
+        sendResponse({
+          url: tab?.url || "",
+          title: tab?.title || "",
+          tabId: tab?.id || null,
+        });
       });
-    });
+    }
     return true;
   }
 
-  // SSE_EVENT: offscreen doc forwards parsed SSE events → side panel picks them up
-  // Background doesn't need to handle these — just ignore
+  // GET_STREAM_STATUS: side panel checks if we have a stream ID ready
+  if (message.type === "GET_STREAM_STATUS") {
+    sendResponse({
+      hasStreamId: !!pendingStreamId,
+      error: pendingTabInfo?.error || null,
+    });
+    return false;
+  }
+
+  // SSE_EVENT: offscreen forwards these to side panel — ignore here
   if (message.type === "SSE_EVENT") return false;
 });
 
@@ -82,19 +127,15 @@ function sendToOffscreen(msg, callback) {
 }
 
 async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl }) {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id) throw new Error("No active tab found");
+  if (!pendingStreamId) {
+    throw new Error(
+      "No audio stream available. Close and reopen the side panel by clicking the 🥜 icon on the YouTube tab."
+    );
+  }
 
-  // Get a media stream ID for this tab
-  const streamId = await new Promise((resolve, reject) => {
-    chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id }, (id) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-        return;
-      }
-      resolve(id);
-    });
-  });
+  const streamId = pendingStreamId;
+  const tabInfo = pendingTabInfo;
+  pendingStreamId = null; // Consume it — stream IDs are single-use
 
   await ensureOffscreen();
 
@@ -104,9 +145,9 @@ async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl }) {
     streamId,
     serverUrl,
     apiKeys,
-    youtubeUrl: youtubeUrl || tab.url || "",
-    tabTitle: tab.title || "Unknown tab",
+    youtubeUrl: youtubeUrl || tabInfo?.url || "",
+    tabTitle: tabInfo?.title || "Unknown tab",
   });
 
-  return { ok: true, tabId: tab.id, tabTitle: tab.title };
+  return { ok: true, tabId: tabInfo?.tabId, tabTitle: tabInfo?.title };
 }
