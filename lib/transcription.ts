@@ -562,6 +562,8 @@ export class TranscriptionManager extends EventEmitter {
         setTimeout(() => {
           if (!this.firstTranscriptTime && this.isRunning) {
             const diag = {
+              browserMode: this.browserMode,
+              browserAudioBytes: this.browserAudioBytesReceived,
               ytdlpBytes: this.ytdlpBytesReceived,
               ffmpegBytes: this.ffmpegBytesReceived,
               deepgramMessages: this.deepgramMessagesReceived,
@@ -570,21 +572,35 @@ export class TranscriptionManager extends EventEmitter {
             logPipeline({ event: "pipeline_stall", level: "warn", data: diag });
 
             // Surface a diagnostic message to the UI
-            if (diag.ytdlpBytes === 0) {
-              const hasCookies = !!(process.env.YT_DLP_COOKIE_BROWSER?.trim() || process.env.YT_DLP_COOKIES_FILE?.trim());
-              const cookieHint = hasCookies
-                ? " Cookies are configured but extraction still failed — try updating yt-dlp or using a different video."
-                : " This video may require authentication. Try a different YouTube URL, or set YT_DLP_COOKIES_FILE to a cookies.txt path.";
-              this.emit("status_detail", "⚠ yt-dlp hasn't produced any audio yet — check the YouTube URL");
-              this.emit("error", new Error(`yt-dlp is not producing audio.${cookieHint}`));
-            } else if (diag.ffmpegBytes === 0) {
-              this.emit("status_detail", "⚠ ffmpeg hasn't produced any output — audio conversion may have failed");
-              this.emit("error", new Error("ffmpeg is not producing PCM output. Audio format may be unsupported."));
-            } else if (diag.deepgramMessages === 0) {
-              this.emit("status_detail", "⚠ Deepgram hasn't responded — check API key or network");
-              this.emit("error", new Error("Deepgram is not responding. Check your API key and network connection."));
+            if (this.browserMode) {
+              // Browser audio mode — different diagnostics
+              if (diag.browserAudioBytes === 0) {
+                this.emit("status_detail", "⚠ No audio received from browser yet — make sure the video is playing");
+                this.emit("error", new Error("No audio received from your browser. Make sure the YouTube video is playing and you shared the correct tab."));
+              } else if (diag.deepgramMessages === 0) {
+                this.emit("status_detail", "⚠ Deepgram hasn't responded — check API key or network");
+                this.emit("error", new Error("Deepgram is not responding. Check your API key and network connection."));
+              } else {
+                this.emit("status_detail", "⚠ Audio is flowing but no transcript yet — Deepgram may need more audio");
+              }
             } else {
-              this.emit("status_detail", "⚠ Audio is flowing but no transcript yet — Deepgram may need more audio");
+              // Server-side yt-dlp mode
+              if (diag.ytdlpBytes === 0) {
+                const hasCookies = !!(process.env.YT_DLP_COOKIE_BROWSER?.trim() || process.env.YT_DLP_COOKIES_FILE?.trim());
+                const cookieHint = hasCookies
+                  ? " Cookies are configured but extraction still failed — try updating yt-dlp or using a different video."
+                  : " This video may require authentication. Try a different YouTube URL, or set YT_DLP_COOKIES_FILE to a cookies.txt path.";
+                this.emit("status_detail", "⚠ yt-dlp hasn't produced any audio yet — check the YouTube URL");
+                this.emit("error", new Error(`yt-dlp is not producing audio.${cookieHint}`));
+              } else if (diag.ffmpegBytes === 0) {
+                this.emit("status_detail", "⚠ ffmpeg hasn't produced any output — audio conversion may have failed");
+                this.emit("error", new Error("ffmpeg is not producing PCM output. Audio format may be unsupported."));
+              } else if (diag.deepgramMessages === 0) {
+                this.emit("status_detail", "⚠ Deepgram hasn't responded — check API key or network");
+                this.emit("error", new Error("Deepgram is not responding. Check your API key and network connection."));
+              } else {
+                this.emit("status_detail", "⚠ Audio is flowing but no transcript yet — Deepgram may need more audio");
+              }
             }
           }
         }, 15_000);
