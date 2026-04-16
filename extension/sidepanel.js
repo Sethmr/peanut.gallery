@@ -245,8 +245,32 @@ function finalizeStreamingEntry() {
   if (el) el.remove();
 }
 
-// ── SSE Event Handler ──
+// ── Message Handler (SSE events + stream ready notifications) ──
 chrome.runtime.onMessage.addListener((message) => {
+  // Background notifies us that a stream ID was captured on icon click
+  if (message.type === "STREAM_READY") {
+    startBtn.disabled = false;
+    startBtn.textContent = "Start Listening";
+    // Update detected tab info
+    if (message.tabInfo) {
+      const detectedTab = document.getElementById("detectedTab");
+      const detectedTitle = document.getElementById("detectedTitle");
+      if (message.tabInfo.title) {
+        detectedTitle.textContent = message.tabInfo.title;
+        detectedTab.style.display = "block";
+      }
+    }
+    errorBanner.classList.remove("visible");
+    return;
+  }
+
+  if (message.type === "STREAM_ERROR") {
+    showError(message.error);
+    startBtn.disabled = true;
+    startBtn.textContent = "Click 🥜 icon to retry";
+    return;
+  }
+
   if (message.type !== "SSE_EVENT") return;
 
   const { event, data } = message;

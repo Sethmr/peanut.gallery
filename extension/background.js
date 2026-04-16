@@ -32,14 +32,24 @@ chrome.action.onClicked.addListener(async (tab) => {
     pendingTabInfo = { url: tab.url, title: tab.title, tabId: tab.id };
 
     console.log("[PG] Stream ID captured on icon click:", streamId?.slice(0, 20) + "...");
+
+    // Notify the side panel (if already open) that stream is ready
+    chrome.runtime.sendMessage({
+      type: "STREAM_READY",
+      tabInfo: pendingTabInfo,
+    }).catch(() => {}); // Side panel may not be open yet — that's fine
   } catch (err) {
     console.error("[PG] Failed to get stream ID on click:", err.message);
-    // Still open the panel — it'll show an error when user tries to start
     pendingStreamId = null;
     pendingTabInfo = { url: tab.url, title: tab.title, tabId: tab.id, error: err.message };
+
+    chrome.runtime.sendMessage({
+      type: "STREAM_ERROR",
+      error: err.message,
+    }).catch(() => {});
   }
 
-  // Now open the side panel
+  // Open the side panel (or bring it to focus if already open)
   chrome.sidePanel.open({ windowId: tab.windowId });
 });
 
