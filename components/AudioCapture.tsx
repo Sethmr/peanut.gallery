@@ -164,6 +164,8 @@ export function useAudioCapture(
       } else {
         onError(`Audio capture failed: ${err instanceof Error ? err.message : String(err)}`);
       }
+      // Re-throw so callers know audio capture failed and can abort the pipeline
+      throw err;
     }
   }, [onError, onStatusDetail, sendChunks]);
 

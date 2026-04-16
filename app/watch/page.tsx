@@ -147,6 +147,12 @@ export default function Home() {
         return;
       }
 
+      // IMPORTANT: getDisplayMedia must be called from a user gesture handler.
+      // We call it here (inside the click handler's synchronous-ish chain) before
+      // any awaits that would break the gesture context. The hook buffers audio
+      // until sessionIdRef is set by the SSE stream below.
+      await audioCapture.start();
+
       const response = await fetch("/api/transcribe", {
         method: "POST",
         headers: {
@@ -277,10 +283,6 @@ export default function Home() {
                 case "status":
                   if (data.status === "started" && data.sessionId) {
                     sessionIdRef.current = data.sessionId;
-                    // Start browser audio capture now that session is live
-                    audioCapture.start().catch((err) => {
-                      setError(`Audio capture failed: ${err instanceof Error ? err.message : String(err)}`);
-                    });
                   }
                   if (data.status === "live_detected") {
                     setIsLive(data.isLive);
