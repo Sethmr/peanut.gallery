@@ -40,7 +40,7 @@ interface Session {
 const sessions = new Map<string, Session>();
 
 export async function POST(req: NextRequest) {
-  const { url: youtubeUrl } = await req.json();
+  const { url: youtubeUrl, mode, isLive: clientIsLive } = await req.json();
 
   if (!youtubeUrl) {
     return new Response(JSON.stringify({ error: "Missing YouTube URL" }), {
@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json" },
     });
   }
+
+  const browserMode = mode === "browser";
 
   // Read API keys from request headers (user provides their own keys)
   // Falls back to server env vars for local dev
@@ -256,9 +258,17 @@ export async function POST(req: NextRequest) {
       }, 5000); // Check every 5 seconds
 
       // Start the pipeline
-      transcriber.start(youtubeUrl).catch((err) => {
-        send("error", { message: `Failed to start: ${err.message}` });
-      });
+      if (browserMode) {
+        // Browser mode: just connect Deepgram, audio will come via PATCH
+        transcriber.startBrowser(!!clientIsLive).catch((err) => {
+          send("error", { message: `Failed to start: ${err.message}` });
+        });
+      } else {
+        // Server mode: yt-dlp + ffmpeg pipeline
+        transcriber.start(youtubeUrl).catch((err) => {
+          send("error", { message: `Failed to start: ${err.message}` });
+        });
+      }
 
       // Cleanup on stream close
       const cleanup = () => {
@@ -283,9 +293,9 @@ export async function POST(req: NextRequest) {
   });
 }
 
-// Pause / Resume / Stop
+// Pause / Resume / Stop / Audio chunks
 export async function PATCH(req: NextRequest) {
-  const { sessionId, action, personaId: targetPersonaId } = await req.json();
+  const { sessionId, action, personaId: targetPersonaId, audio } = await req.json();
   const session = sessions.get(sessionId);
 
   if (!session) {
@@ -293,6 +303,16 @@ export async function PATCH(req: NextRequest) {
       status: 404,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  // Browser audio mode: receive PCM chunks from the client / extension
+  if (action === "audio_chunk") {
+    if (!audio) {
+      return new Response(JSON.stringify({ error: "Missing audio data" }), { status: 400 });
+    }
+    const chunk = Buffer.from(audio, "base64");
+    session.transcriber.feedAudio(chunk);
+    return new Response(JSON.stringify({ ok: true }));
   }
 
   if (action === "pause") {

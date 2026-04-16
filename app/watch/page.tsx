@@ -56,14 +56,32 @@ export default function Home() {
   const [showKeysModal, setShowKeysModal] = useState(false);
   const [apiKeys, setApiKeys] = useState<ApiKeys>({ deepgram: "", anthropic: "", groq: "", brave: "" });
 
+  // Audio capture mode: "server" = yt-dlp, "extension" = Chrome extension tab capture
+  const [captureMode, setCaptureMode] = useState<"server" | "extension">("server");
+  const [serverHasYtdlp, setServerHasYtdlp] = useState<boolean | null>(null);
+
   const playerRef = useRef<YouTubePlayerHandle>(null);
 
-  // Load keys from localStorage on mount
+  // Load keys from localStorage on mount + check server capabilities
   useEffect(() => {
     const saved = loadApiKeys();
     setApiKeys(saved);
     // Auto-open modal if no keys configured
     if (!hasRequiredKeys(saved)) setShowKeysModal(true);
+
+    // Check if server has yt-dlp available
+    fetch("/api/health")
+      .then((r) => r.json())
+      .then((data) => {
+        const hasYtdlp = data.binaries?.["yt-dlp"]?.found === true;
+        setServerHasYtdlp(hasYtdlp);
+        // Default to extension mode if yt-dlp not available
+        if (!hasYtdlp) setCaptureMode("extension");
+      })
+      .catch(() => {
+        setServerHasYtdlp(false);
+        setCaptureMode("extension");
+      });
   }, []);
 
   // Per-persona state
@@ -147,7 +165,10 @@ export default function Home() {
           "X-Groq-Key": apiKeys.groq,
           "X-Brave-Key": apiKeys.brave,
         },
-        body: JSON.stringify({ url: youtubeUrl }),
+        body: JSON.stringify({
+          url: youtubeUrl,
+          mode: captureMode === "extension" ? "browser" : undefined,
+        }),
         signal: controller.signal,
       });
 
@@ -268,6 +289,14 @@ export default function Home() {
                 case "status":
                   if (data.status === "started" && data.sessionId) {
                     sessionIdRef.current = data.sessionId;
+                    // Expose session ID to Chrome extension via DOM bridge
+                    const bridge = document.getElementById("pg-extension-bridge");
+                    if (bridge) {
+                      bridge.dataset.session = JSON.stringify({
+                        sessionId: data.sessionId,
+                        serverUrl: window.location.origin,
+                      });
+                    }
                   }
                   if (data.status === "live_detected") {
                     setIsLive(data.isLive);
@@ -414,6 +443,9 @@ export default function Home() {
 
   return (
     <div className="h-screen flex flex-col">
+      {/* DOM bridge for Chrome extension */}
+      <div id="pg-extension-bridge" style={{ display: "none" }} />
+
       {/* ── TOP BAR ── */}
       <header
         className={`flex items-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 sm:py-3 bg-bg-secondary border-b transition-colors ${
@@ -512,6 +544,33 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Mode toggle */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setCaptureMode("server")}
+              disabled={isRunning}
+              className={`px-2 py-1 text-[10px] rounded transition-all ${
+                captureMode === "server"
+                  ? "bg-white/10 text-white/70"
+                  : "text-white/25 hover:text-white/40"
+              } ${!serverHasYtdlp ? "opacity-30" : ""}`}
+              title={serverHasYtdlp ? "Server-side audio (yt-dlp)" : "yt-dlp not available on this server"}
+            >
+              Server
+            </button>
+            <button
+              onClick={() => setCaptureMode("extension")}
+              disabled={isRunning}
+              className={`px-2 py-1 text-[10px] rounded transition-all ${
+                captureMode === "extension"
+                  ? "bg-white/10 text-white/70"
+                  : "text-white/25 hover:text-white/40"
+              }`}
+              title="Chrome extension tab capture"
+            >
+              Extension
+            </button>
+          </div>
           <button
             onClick={() => setShowKeysModal(true)}
             className="text-white/30 hover:text-white/60 text-xs transition-colors"
@@ -539,6 +598,17 @@ export default function Home() {
           >
             ✕
           </button>
+        </div>
+      )}
+
+      {/* ── EXTENSION MODE BANNER ── */}
+      {isRunning && captureMode === "extension" && !transcriptText && (
+        <div className="bg-accent-blue/5 border-b border-accent-blue/10 px-4 py-2 text-xs text-accent-blue/70 flex items-center gap-2">
+          <span>🧩</span>
+          <span>
+            Session <strong className="font-mono text-white/50">{sessionIdRef.current || "..."}</strong> ready —{" "}
+            click the <strong>Peanut Gallery extension</strong> on your YouTube tab to start audio capture
+          </span>
         </div>
       )}
 

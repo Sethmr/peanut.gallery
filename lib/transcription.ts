@@ -79,10 +79,24 @@ function buildYtdlpAuthArgs(): string[] {
     logPipeline({ event: "ytdlp_cookies", level: "info", data: { source: "browser", browser: cookieBrowser } });
   }
 
-  // Always add extractor args for headless compatibility.
-  // Uses the 'mediaconnect' client which works better on servers.
+  // Player client strategy for headless servers.
+  // YouTube aggressively blocks data center IPs (2025-2026 "Great Wall").
+  // web_music,web has the best success rate on headless servers as of 2026.
+  // mediaconnect was blocked in early 2026.
+  const playerClient = process.env.YT_DLP_PLAYER_CLIENT?.trim() || "web_music,web";
   args.push(
-    "--extractor-args", "youtube:player_client=mediaconnect",
+    "--extractor-args", `youtube:player_client=${playerClient}`,
+  );
+
+  // Spoof a real browser User-Agent to reduce bot detection
+  args.push(
+    "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  );
+
+  // Retry strategy for rate limiting
+  args.push(
+    "--retries", "3",
+    "--extractor-retries", "3",
   );
 
   return args;
@@ -202,6 +216,61 @@ export class TranscriptionManager extends EventEmitter {
     if (this.newTranscriptSinceLastTrigger.trim().length < 30) {
       this.newTranscriptSinceLastTrigger = this.transcriptBuffer.slice(-10).join(" ");
     }
+  }
+
+  // ──────────────────────────────────────────────────
+  // BROWSER AUDIO MODE
+  //
+  // Instead of yt-dlp + ffmpeg, audio comes from the user's
+  // browser via Chrome extension tab capture.
+  // The extension sends PCM 16-bit 16kHz mono chunks via HTTP.
+  // No bot detection, no cookies, works everywhere.
+  // ──────────────────────────────────────────────────
+
+  private browserMode = false;
+  private browserAudioBytesReceived = 0;
+
+  /** Start in browser audio mode — just connect Deepgram, no yt-dlp/ffmpeg */
+  async startBrowser(isLive = false): Promise<void> {
+    if (this.isRunning) {
+      throw new Error("Transcription already running");
+    }
+    this.isRunning = true;
+    this.browserMode = true;
+    this.isLive = isLive;
+    this.lastTriggerTime = Date.now();
+
+    console.log("[PG] Starting in BROWSER AUDIO mode — no yt-dlp/ffmpeg");
+    logPipeline({ event: "pipeline_start_browser", level: "info", data: { isLive } });
+
+    this.emit("status_detail", "Connecting to Deepgram...");
+    await this.connectDeepgram();
+
+    this.emit("started");
+    this.emit("live_status", isLive);
+    this.emit("status_detail", "Ready — waiting for browser audio...");
+  }
+
+  /** Feed raw PCM audio from the browser (16-bit, 16kHz, mono) */
+  feedAudio(chunk: Buffer): void {
+    if (!this.isRunning || !this.dgSocket) return;
+
+    const wasZero = this.browserAudioBytesReceived === 0;
+    this.browserAudioBytesReceived += chunk.length;
+
+    if (wasZero) {
+      console.log(`[PG] Browser audio: first chunk received (${chunk.length} bytes)`);
+      logPipeline({ event: "browser_audio_first_bytes", level: "info", data: { bytes: chunk.length } });
+      this.emit("status_detail", "Browser audio streaming — sending to Deepgram...");
+    }
+
+    if (this.dgSocket.readyState === WebSocket.OPEN) {
+      this.dgSocket.send(chunk);
+    }
+  }
+
+  get isBrowserMode(): boolean {
+    return this.browserMode;
   }
 
   async start(youtubeUrl: string): Promise<void> {
@@ -356,6 +425,12 @@ export class TranscriptionManager extends EventEmitter {
             // Live streams can drop and come back — retry
             this.emit("error", new Error(`yt-dlp exited (code ${code}). Live stream may have ended or buffered. Retrying...`));
             this.restartAudioPipeline(youtubeUrl, ytdlpBin, ffmpegBin);
+          } else if (this.ytdlpBytesReceived === 0) {
+            // yt-dlp failed to extract any audio — likely bot detection
+            this.emit("error", new Error(
+              "YouTube blocked audio extraction (bot detection on this server's IP). " +
+              "Fix: add a cookies.txt file via the YT_DLP_COOKIES_FILE env var."
+            ));
           } else {
             this.emit("error", new Error(`yt-dlp exited with code ${code}`));
           }
@@ -366,7 +441,17 @@ export class TranscriptionManager extends EventEmitter {
         console.log(`[PG] ffmpeg exited with code ${code} (produced ${this.ffmpegBytesReceived} bytes PCM)`);
         logPipeline({ event: "ffmpeg_exit", level: code === 0 || code === null ? "info" : "warn", data: { code, bytesProduced: this.ffmpegBytesReceived } });
         if (code !== 0 && code !== null && this.isRunning) {
-          this.emit("error", new Error(`ffmpeg exited with code ${code}`));
+          // If ffmpeg failed because yt-dlp gave it nothing, surface the REAL error
+          if (this.ytdlpBytesReceived === 0) {
+            this.emit("error", new Error(
+              "YouTube blocked the audio download (bot detection). " +
+              "This is a known issue with data center servers. " +
+              "To fix: set YT_DLP_COOKIES_FILE env var with a cookies.txt from a logged-in browser session. " +
+              "See the GitHub README for setup instructions."
+            ));
+          } else {
+            this.emit("error", new Error(`ffmpeg exited with code ${code}`));
+          }
         }
       });
 
@@ -477,6 +562,8 @@ export class TranscriptionManager extends EventEmitter {
         setTimeout(() => {
           if (!this.firstTranscriptTime && this.isRunning) {
             const diag = {
+              browserMode: this.browserMode,
+              browserAudioBytes: this.browserAudioBytesReceived,
               ytdlpBytes: this.ytdlpBytesReceived,
               ffmpegBytes: this.ffmpegBytesReceived,
               deepgramMessages: this.deepgramMessagesReceived,
@@ -485,21 +572,35 @@ export class TranscriptionManager extends EventEmitter {
             logPipeline({ event: "pipeline_stall", level: "warn", data: diag });
 
             // Surface a diagnostic message to the UI
-            if (diag.ytdlpBytes === 0) {
-              const hasCookies = !!(process.env.YT_DLP_COOKIE_BROWSER?.trim() || process.env.YT_DLP_COOKIES_FILE?.trim());
-              const cookieHint = hasCookies
-                ? " Cookies are configured but extraction still failed — try updating yt-dlp or using a different video."
-                : " This video may require authentication. Try a different YouTube URL, or set YT_DLP_COOKIES_FILE to a cookies.txt path.";
-              this.emit("status_detail", "⚠ yt-dlp hasn't produced any audio yet — check the YouTube URL");
-              this.emit("error", new Error(`yt-dlp is not producing audio.${cookieHint}`));
-            } else if (diag.ffmpegBytes === 0) {
-              this.emit("status_detail", "⚠ ffmpeg hasn't produced any output — audio conversion may have failed");
-              this.emit("error", new Error("ffmpeg is not producing PCM output. Audio format may be unsupported."));
-            } else if (diag.deepgramMessages === 0) {
-              this.emit("status_detail", "⚠ Deepgram hasn't responded — check API key or network");
-              this.emit("error", new Error("Deepgram is not responding. Check your API key and network connection."));
+            if (this.browserMode) {
+              // Browser audio mode — different diagnostics
+              if (diag.browserAudioBytes === 0) {
+                this.emit("status_detail", "⚠ No audio received from browser yet — make sure the video is playing");
+                this.emit("error", new Error("No audio received from your browser. Make sure the YouTube video is playing and the Peanut Gallery extension is active."));
+              } else if (diag.deepgramMessages === 0) {
+                this.emit("status_detail", "⚠ Deepgram hasn't responded — check API key or network");
+                this.emit("error", new Error("Deepgram is not responding. Check your API key and network connection."));
+              } else {
+                this.emit("status_detail", "⚠ Audio is flowing but no transcript yet — Deepgram may need more audio");
+              }
             } else {
-              this.emit("status_detail", "⚠ Audio is flowing but no transcript yet — Deepgram may need more audio");
+              // Server-side yt-dlp mode
+              if (diag.ytdlpBytes === 0) {
+                const hasCookies = !!(process.env.YT_DLP_COOKIE_BROWSER?.trim() || process.env.YT_DLP_COOKIES_FILE?.trim());
+                const cookieHint = hasCookies
+                  ? " Cookies are configured but extraction still failed — try updating yt-dlp or using a different video."
+                  : " This video may require authentication. Try a different YouTube URL, or set YT_DLP_COOKIES_FILE to a cookies.txt path.";
+                this.emit("status_detail", "⚠ yt-dlp hasn't produced any audio yet — check the YouTube URL");
+                this.emit("error", new Error(`yt-dlp is not producing audio.${cookieHint}`));
+              } else if (diag.ffmpegBytes === 0) {
+                this.emit("status_detail", "⚠ ffmpeg hasn't produced any output — audio conversion may have failed");
+                this.emit("error", new Error("ffmpeg is not producing PCM output. Audio format may be unsupported."));
+              } else if (diag.deepgramMessages === 0) {
+                this.emit("status_detail", "⚠ Deepgram hasn't responded — check API key or network");
+                this.emit("error", new Error("Deepgram is not responding. Check your API key and network connection."));
+              } else {
+                this.emit("status_detail", "⚠ Audio is flowing but no transcript yet — Deepgram may need more audio");
+              }
             }
           }
         }, 15_000);
