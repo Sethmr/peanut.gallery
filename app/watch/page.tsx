@@ -327,6 +327,7 @@ export default function Home() {
 
     const sid = sessionIdRef.current;
     if (isPaused) {
+      audioCapture.resume();
       playerRef.current?.play();
       setIsPaused(false);
       if (sid) {
@@ -337,6 +338,7 @@ export default function Home() {
         }).catch(() => {});
       }
     } else {
+      audioCapture.suspend();
       playerRef.current?.pause();
       setIsPaused(true);
       if (sid) {
@@ -347,7 +349,7 @@ export default function Home() {
         }).catch(() => {});
       }
     }
-  }, [isPaused, isLive]);
+  }, [isPaused, isLive, audioCapture]);
 
   // Force-fire personas manually (debug + fallback)
   const handleForceFire = useCallback(async () => {
@@ -386,6 +388,14 @@ export default function Home() {
 
       const sid = sessionIdRef.current;
       setIsPaused(!isPlaying);
+
+      // Suspend/resume browser audio capture to match video state
+      if (isPlaying) {
+        audioCapture.resume();
+      } else {
+        audioCapture.suspend();
+      }
+
       if (sid) {
         fetch("/api/transcribe", {
           method: "PATCH",
@@ -397,7 +407,7 @@ export default function Home() {
         }).catch(() => {});
       }
     },
-    [isLive]
+    [isLive, audioCapture]
   );
 
   // ──────────────────────────────────────────────────────

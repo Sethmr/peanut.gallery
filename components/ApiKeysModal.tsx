@@ -117,6 +117,36 @@ export default function ApiKeysModal({ open, onClose, onSave }: Props) {
           </div>
         </div>
 
+        {/* Screen Audio Permission Reminder */}
+        <div className="bg-blue-500/5 border border-blue-500/15 rounded-lg px-3 py-2.5 mb-4">
+          <div className="flex items-start gap-2">
+            <span className="text-sm mt-0.5">🎙️</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-blue-200/80 leading-relaxed">
+                <strong>Screen &amp; System Audio recording</strong> is required.
+                When you hit Start, your browser will ask to share a tab&apos;s
+                audio — that&apos;s how we capture the podcast.
+              </p>
+              <p className="text-[11px] text-blue-200/50 mt-1 leading-relaxed">
+                On macOS, System Audio Recording must be enabled for your browser
+                in{" "}
+                <button
+                  onClick={() => {
+                    try {
+                      window.open("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture", "_blank");
+                    } catch {
+                      window.open("x-apple.systempreferences:com.apple.preference.security", "_blank");
+                    }
+                  }}
+                  className="underline text-blue-300/70 hover:text-blue-200 inline-flex items-center gap-0.5"
+                >
+                  System Settings → Privacy → Screen &amp; System Audio Recording
+                </button>.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <form autoComplete="off" onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-3">
           {fields.map((f) => (
             <div key={f.key}>

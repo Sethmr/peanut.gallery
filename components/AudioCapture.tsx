@@ -17,6 +17,8 @@ const CHUNK_INTERVAL_MS = 250; // Send audio every 250ms
 interface AudioCaptureHandle {
   start: () => Promise<void>;
   stop: () => void;
+  suspend: () => void;
+  resume: () => void;
 }
 
 export function useAudioCapture(
@@ -192,5 +194,17 @@ export function useAudioCapture(
     }
   }, [sendChunks]);
 
-  return { start, stop };
+  const suspend = useCallback(() => {
+    if (audioContextRef.current && audioContextRef.current.state === "running") {
+      audioContextRef.current.suspend().catch(() => {});
+    }
+  }, []);
+
+  const resume = useCallback(() => {
+    if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+      audioContextRef.current.resume().catch(() => {});
+    }
+  }, []);
+
+  return { start, stop, suspend, resume };
 }
