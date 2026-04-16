@@ -79,10 +79,24 @@ function buildYtdlpAuthArgs(): string[] {
     logPipeline({ event: "ytdlp_cookies", level: "info", data: { source: "browser", browser: cookieBrowser } });
   }
 
-  // Always add extractor args for headless compatibility.
-  // Uses the 'mediaconnect' client which works better on servers.
+  // Player client strategy for headless servers.
+  // YouTube aggressively blocks data center IPs (2025-2026 "Great Wall").
+  // web_music,web has the best success rate on headless servers as of 2026.
+  // mediaconnect was blocked in early 2026.
+  const playerClient = process.env.YT_DLP_PLAYER_CLIENT?.trim() || "web_music,web";
   args.push(
-    "--extractor-args", "youtube:player_client=mediaconnect",
+    "--extractor-args", `youtube:player_client=${playerClient}`,
+  );
+
+  // Spoof a real browser User-Agent to reduce bot detection
+  args.push(
+    "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  );
+
+  // Retry strategy for rate limiting
+  args.push(
+    "--retries", "3",
+    "--extractor-retries", "3",
   );
 
   return args;
@@ -356,6 +370,12 @@ export class TranscriptionManager extends EventEmitter {
             // Live streams can drop and come back — retry
             this.emit("error", new Error(`yt-dlp exited (code ${code}). Live stream may have ended or buffered. Retrying...`));
             this.restartAudioPipeline(youtubeUrl, ytdlpBin, ffmpegBin);
+          } else if (this.ytdlpBytesReceived === 0) {
+            // yt-dlp failed to extract any audio — likely bot detection
+            this.emit("error", new Error(
+              "YouTube blocked audio extraction (bot detection on this server's IP). " +
+              "Fix: add a cookies.txt file via the YT_DLP_COOKIES_FILE env var."
+            ));
           } else {
             this.emit("error", new Error(`yt-dlp exited with code ${code}`));
           }
@@ -366,7 +386,17 @@ export class TranscriptionManager extends EventEmitter {
         console.log(`[PG] ffmpeg exited with code ${code} (produced ${this.ffmpegBytesReceived} bytes PCM)`);
         logPipeline({ event: "ffmpeg_exit", level: code === 0 || code === null ? "info" : "warn", data: { code, bytesProduced: this.ffmpegBytesReceived } });
         if (code !== 0 && code !== null && this.isRunning) {
-          this.emit("error", new Error(`ffmpeg exited with code ${code}`));
+          // If ffmpeg failed because yt-dlp gave it nothing, surface the REAL error
+          if (this.ytdlpBytesReceived === 0) {
+            this.emit("error", new Error(
+              "YouTube blocked the audio download (bot detection). " +
+              "This is a known issue with data center servers. " +
+              "To fix: set YT_DLP_COOKIES_FILE env var with a cookies.txt from a logged-in browser session. " +
+              "See the GitHub README for setup instructions."
+            ));
+          } else {
+            this.emit("error", new Error(`ffmpeg exited with code ${code}`));
+          }
         }
       });
 
