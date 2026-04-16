@@ -115,8 +115,9 @@ export function useAudioCapture(
         preferCurrentTab: true,
       });
 
-      // Discard the video track immediately — we only need audio
-      mediaStream.getVideoTracks().forEach((track: MediaStreamTrack) => track.stop());
+      // Note: do NOT stop video tracks here. Stopping them kills the entire
+      // getDisplayMedia session in Chrome, which also ends audio capture.
+      // The video tracks consume negligible resources when not rendered.
 
       const audioTracks = mediaStream.getAudioTracks();
       if (audioTracks.length === 0) {
