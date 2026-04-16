@@ -144,6 +144,39 @@
   margin-bottom: 3rem;
 }
 
+/* ─── VIDEO CLIP ─── */
+.video-section {
+  max-width: 480px;
+  margin: 0 auto 1rem;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.video-section video {
+  width: 100%;
+  display: block;
+}
+
+.video-caption {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+}
+
+.video-caption a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.video-caption a:hover {
+  text-decoration: underline;
+}
+
 .btn-primary {
   display: inline-flex;
   align-items: center;

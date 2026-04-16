@@ -58,6 +58,19 @@ export default function LandingPage() {
                 View on GitHub
               </a>
             </div>
+
+            {/* VIDEO CLIP — Jason's $5k bounty announcement */}
+            <div className="video-section">
+              <video autoPlay loop playsInline controls>
+                <source src="/twist-clip.mp4" type="video/mp4" />
+              </video>
+            </div>
+            <p className="video-caption">
+              The challenge, straight from{" "}
+              <a href="https://x.com/jason" target="_blank" rel="noopener noreferrer">@jason</a> &amp;{" "}
+              <a href="https://x.com/lonharris" target="_blank" rel="noopener noreferrer">@lonharris</a>
+              {" "}on <a href="https://x.com/twistartups" target="_blank" rel="noopener noreferrer">This Week in Startups</a>
+            </p>
           </div>
         </section>
 
