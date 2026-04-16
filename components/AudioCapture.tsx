@@ -121,8 +121,11 @@ export function useAudioCapture(
 
       const audioTracks = mediaStream.getAudioTracks();
       if (audioTracks.length === 0) {
-        onError("No audio track. Enable Screen & System Audio Recording for your browser in System Settings → Privacy & Security.");
-        return;
+        // Clean up the dangling stream before bailing
+        mediaStream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+        const noAudioError = new Error("No audio track. Enable Screen & System Audio Recording for your browser in System Settings → Privacy & Security.");
+        onError(noAudioError.message);
+        throw noAudioError;
       }
 
       streamRef.current = mediaStream;

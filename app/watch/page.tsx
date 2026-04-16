@@ -384,6 +384,7 @@ export default function Home() {
   const handleVideoStateChange = useCallback(
     (isPlaying: boolean) => {
       if (isLive) return; // ignore in live mode — video stays at edge
+      if (!isRunning) return; // ignore before pipeline is started
 
       const sid = sessionIdRef.current;
       setIsPaused(!isPlaying);
@@ -406,7 +407,7 @@ export default function Home() {
         }).catch(() => {});
       }
     },
-    [isLive, audioCapture]
+    [isLive, isRunning, audioCapture]
   );
 
   // ──────────────────────────────────────────────────────
