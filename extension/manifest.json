@@ -17,6 +17,7 @@
     "https://*.peanut.gallery/*"
   ],
   "action": {
+    "default_title": "Peanut Gallery — click to capture this tab's audio",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
