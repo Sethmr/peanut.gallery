@@ -318,30 +318,19 @@ startBtn.addEventListener("click", async () => {
     // on; otherwise fall back to the active tab in this window.
     const tabInfo = await resolveCaptureTab();
     if (!tabInfo?.tabId) {
-      throw new Error("Couldn't find a tab to capture. Open a YouTube tab and try again.");
+      throw new Error(
+        "Couldn't find a tab to capture. Click the peanut icon in the toolbar on a YouTube tab, then try again."
+      );
     }
 
-    // ── This is the critical bit: getMediaStreamId requires a user gesture.
-    // The click on this button IS one, in the side panel's document context.
-    const streamId = await new Promise((resolve, reject) => {
-      chrome.tabCapture.getMediaStreamId({ targetTabId: tabInfo.tabId }, (id) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-          return;
-        }
-        if (!id) {
-          reject(new Error("tabCapture returned no stream ID"));
-          return;
-        }
-        resolve(id);
-      });
-    });
-
+    // Hand off to the service worker. The SW calls
+    // chrome.tabCapture.getMediaStreamId() — that's where Chrome honours the
+    // activeTab grant from the earlier toolbar-icon click. Side panel
+    // documents don't receive activeTab the same way popups do.
     const result = await new Promise((resolve) => {
       chrome.runtime.sendMessage({
         type: "START_CAPTURE",
         serverUrl,
-        streamId,
         tabId: tabInfo.tabId,
         tabTitle: tabInfo.title || "",
         youtubeUrl: tabInfo.url || "",

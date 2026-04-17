@@ -2,17 +2,20 @@
  * Peanut Gallery — Chrome Extension Service Worker
  *
  * Flow:
- *   1. User clicks the extension icon (or row in the 🧩 menu) → side panel opens.
- *      We remember which tab they were on so the panel can default to it.
- *   2. User clicks "Start Listening" in the side panel. The side panel calls
- *      chrome.tabCapture.getMediaStreamId() itself — that button click IS a
- *      user gesture inside the panel's document, which is what tabCapture
- *      requires. It forwards the streamId here as part of START_CAPTURE.
- *   3. We spin up the offscreen document and hand it the streamId + config.
- *
- * This avoids depending on chrome.action.onClicked firing reliably (which
- * was flaky when the user invoked the extension from the Extensions dropdown
- * rather than a pinned icon).
+ *   1. User clicks the extension icon on a YouTube tab. That click fires
+ *      chrome.action.onClicked, which Chrome treats as "invoking" the
+ *      extension on that tab — activeTab is granted. We remember the tab
+ *      and open the side panel.
+ *   2. User clicks "Start Listening" in the side panel. The panel messages
+ *      START_CAPTURE to this service worker.
+ *   3. We call chrome.tabCapture.getMediaStreamId({ targetTabId }) HERE, in
+ *      the service worker (supported since Chrome 116). This consumes the
+ *      activeTab grant from step 1. Doing it in the side panel document
+ *      is unreliable — side panels don't receive activeTab the way popups
+ *      do (crbug/40916430).
+ *   4. We spin up an offscreen document and hand it the streamId + config.
+ *      The offscreen doc does getUserMedia with the streamId and streams
+ *      PCM to the server.
  */
 
 let offscreenReady = false;
@@ -65,7 +68,7 @@ async function ensureOffscreen() {
 
 // ── Message routing ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // START_CAPTURE: the side panel has a streamId from its own user gesture
+  // START_CAPTURE: side panel asked us to begin; we resolve the streamId
   if (message.type === "START_CAPTURE") {
     handleStartCapture(message)
       .then(sendResponse)
@@ -134,15 +137,42 @@ async function handleStartCapture({
   serverUrl,
   apiKeys,
   youtubeUrl,
-  streamId,
   tabTitle,
   tabId,
 }) {
-  if (!streamId) {
+  // Prefer the tabId the panel sent; fall back to the one we stored on icon
+  // click. Either way, activeTab was granted when the user clicked the
+  // extension icon on that tab — that grant lives on the extension, not on
+  // any particular document, so the service worker can consume it here.
+  const targetTabId = tabId || lastTabInfo?.tabId;
+  if (!targetTabId) {
     throw new Error(
-      "No audio stream available. Make sure you're on a YouTube tab, then click Start Listening again."
+      "No target tab. Click the peanut icon in the toolbar on a YouTube tab first."
     );
   }
+
+  // Get the stream ID from the service worker. Chrome 116+ supports this.
+  // activeTab must be granted on the target tab; it is, because the user
+  // clicked the extension's action icon (that's what fired our
+  // chrome.action.onClicked handler which opened this panel in the first
+  // place). If the grant lapsed (nav or tab close), surface a clear message.
+  const streamId = await new Promise((resolve, reject) => {
+    chrome.tabCapture.getMediaStreamId({ targetTabId }, (id) => {
+      const err = chrome.runtime.lastError;
+      if (err) {
+        const msg = /invoked|activeTab/i.test(err.message)
+          ? "Chrome hasn't granted access to this tab. Click the peanut icon in the toolbar on this YouTube tab, then press Start Listening again."
+          : err.message;
+        reject(new Error(msg));
+        return;
+      }
+      if (!id) {
+        reject(new Error("tabCapture returned no stream ID."));
+        return;
+      }
+      resolve(id);
+    });
+  });
 
   await ensureOffscreen();
 
@@ -156,5 +186,5 @@ async function handleStartCapture({
     tabTitle: tabTitle || "Unknown tab",
   });
 
-  return { ok: true, tabId, tabTitle };
+  return { ok: true, tabId: targetTabId, tabTitle };
 }
