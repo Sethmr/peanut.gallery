@@ -239,10 +239,10 @@ export default function PrivacyPage() {
           </a>{" "}
           or email{" "}
           <a
-            href="mailto:sethr@hey.com"
+            href="mailto:seth@manugames.com"
             className="text-[#3b82f6] hover:underline"
           >
-            sethr@hey.com
+            seth@manugames.com
           </a>
           .
         </p>
