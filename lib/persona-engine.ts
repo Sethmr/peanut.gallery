@@ -71,11 +71,14 @@ export class PersonaEngine {
   private readonly MAX_PREVIOUS = 3;
 
   // Unified, ordered conversation log: video transcript snapshots interleaved
-  // with persona responses. Every persona sees a recent window of this so they
-  // can build on the discussion instead of repeating themselves.
+  // with persona responses. Every persona sees a SMALL recent window of this
+  // so they can self-check for duplication — but the TRANSCRIPT is the main
+  // signal. Window is intentionally small: we saw personas anchoring to old
+  // chatter (repeating "$2.4 million house" 8 messages in a row) when the
+  // window was 20. Short window forces the model to follow the video.
   private conversationLog: LogEntry[] = [];
-  private readonly LOG_WINDOW = 20; // most-recent N entries shown to each persona
-  private readonly LOG_MAX = 60; // hard cap to keep memory bounded
+  private readonly LOG_WINDOW = 10; // just enough to catch "did I just say this"
+  private readonly LOG_MAX = 40; // hard cap to keep memory bounded
   // Remember the last snippet of video we logged so we only push NEW transcript
   private lastTranscriptLength = 0;
 
@@ -101,9 +104,10 @@ export class PersonaEngine {
     if (transcript.length <= this.lastTranscriptLength) return;
     const delta = transcript.slice(this.lastTranscriptLength).trim();
     if (delta.length >= 20) {
-      // Keep each snapshot digestible — ~200 chars is enough for the model
-      // to see the current topic without flooding context.
-      const snippet = delta.length > 280 ? "…" + delta.slice(-260) : delta;
+      // Keep each snapshot tight — the FULL transcript is shown separately as
+      // the primary signal. These log snippets are just "what moment was being
+      // discussed when each persona spoke", for anti-repeat bookkeeping.
+      const snippet = delta.length > 160 ? "…" + delta.slice(-150) : delta;
       this.conversationLog.push({
         personaId: null,
         text: snippet,

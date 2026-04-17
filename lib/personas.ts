@@ -429,73 +429,78 @@ export function buildPersonaContext(
 ): string {
   let context = `${persona.systemPrompt}\n\n`;
 
-  // ── ANTI-REPETITION GUARDRAIL ──
-  // Put this up front so the model reads it before producing anything.
-  // It applies to every persona and is especially important for Baba Booey,
-  // who was fact-checking the same claim twice in a row.
-  context += `--- CRITICAL: DON'T REPEAT YOURSELF ---\n`;
-  context += `You speak in a sidebar with 3 other personas on a live show. The audience sees every line you've ever said scroll by.\n`;
-  context += `Before you write anything, scan the conversation log below and ask:\n`;
-  context += `  1. Did I (or anyone else) already make this exact point? If yes, say something NEW — advance the thread.\n`;
-  context += `  2. Am I about to say the same joke/fact/correction in slightly different words? If yes, STOP and pick a different angle.\n`;
-  context += `  3. Is the topic still the same as 30 seconds ago? Then BUILD on what was said — add the next fact, the next joke, the next dunk — don't restart the conversation.\n`;
-  context += `If you have nothing new to add, it is PERFECTLY FINE to produce exactly this single character: -\n`;
-  context += `A dash means "pass — nothing new from me this round." The director will route to someone else. Silence is a feature, not a bug.\n\n`;
+  // ── PRIMARY SIGNAL: THE LIVE TRANSCRIPT ──
+  // The transcript is the main thing the persona is reacting to. Put it first
+  // and most prominent so the model anchors here, not to stale sidebar chatter.
+  context += `--- LIVE TRANSCRIPT (what the video is saying right now) ---\n${transcript}\n\n`;
 
-  context += `--- LIVE TRANSCRIPT (last ~2 minutes of the video) ---\n${transcript}\n\n`;
+  // ── ONE SHORT RULE ABOUT RE-QUOTING SPECIFICS ──
+  // This is the fix for personas that re-quoted "$2.4 million house" across 8
+  // straight turns. Kept deliberately short so it doesn't dominate the prompt
+  // or override a persona's voice — some chats land fine riffing on each other.
+  context += `--- DON'T RE-QUOTE SPECIFICS ---\n`;
+  context += `Once a subject has been named in the sidebar (e.g. "$2.4M house", "Series B round"), refer to it briefly — "the house", "that round". Don't re-quote the full literal across multiple turns. That's the main thing to avoid.\n`;
+  context += `Your character tics and verbal fingerprints (Baba's "Technically…", Jackie's hyena laugh, Fred's [sound cues], etc.) are CHARACTER, not repetition — keep them.\n\n`;
 
-  // NEW: interleaved conversation log is the richest signal — show who said
-  // what, in order, so the model understands the actual discussion flow.
+  // ── THIN SELF-CHECK LOG ──
+  // Show only the persona's own last 2 lines + the other personas' single
+  // most recent line each. That's enough to avoid literal duplication without
+  // anchoring the model to old chatter.
+  const myRecentLines: string[] = [];
+  const otherRecentSummary: Array<{ emoji: string; name: string; text: string }> = [];
   if (conversationLog && conversationLog.length > 0) {
-    context += `--- CONVERSATION LOG (video + sidebar, in order — most recent last) ---\n`;
-    for (const entry of conversationLog) {
-      if (entry.personaName) {
-        // A persona line
-        const selfTag = entry.personaName === persona.name ? " [YOU]" : "";
-        context += `${entry.personaEmoji} ${entry.personaName}${selfTag}: ${entry.text}\n`;
-      } else {
-        // A transcript snippet from the video
-        context += `🎬 (video): ${entry.text}\n`;
-      }
+    // Walk backwards, collect my last ~2 lines
+    for (let i = conversationLog.length - 1; i >= 0 && myRecentLines.length < 2; i--) {
+      const entry = conversationLog[i];
+      if (entry.personaName === persona.name) myRecentLines.push(entry.text);
     }
-    context += `\n`;
-  } else if (previousResponses.length > 0) {
-    // Legacy fallback: if the caller didn't provide a conversationLog, at
-    // least show this persona's own recent history so they can self-check.
-    context += `--- YOUR RECENT LINES (do NOT repeat these) ---\n`;
-    previousResponses.forEach((r, i) => {
-      context += `[${i + 1}] ${r}\n`;
-    });
-    context += `\n`;
+  }
+  if (otherPersonas && otherPersonas.length > 0) {
+    for (const op of otherPersonas) {
+      otherRecentSummary.push({ emoji: op.emoji, name: op.name, text: op.text });
+    }
+  } else if (previousResponses.length > 0 && myRecentLines.length === 0) {
+    // Legacy fallback: no conversationLog provided, surface per-persona history
+    myRecentLines.push(...previousResponses.slice(-2).reverse());
   }
 
-  // Cross-persona awareness: show what the other personas most recently said
-  // (kept in addition to the log because cascades need the "who triggered me" signal)
-  if (otherPersonas && otherPersonas.length > 0) {
-    context += `--- MOST RECENT LINES FROM THE OTHER PERSONAS ---\n`;
-    context += `(You share this sidebar with 3 other AI personas — like the Stern Show staff sitting together. You can riff off them, agree, disagree, roast them, or build on what they said. But keep YOUR voice. DO NOT re-state what they just said in your own words — that's repetition.)\n`;
-    otherPersonas.forEach((op) => {
-      context += `${op.emoji} ${op.name}: "${op.text}"\n`;
-    });
-    context += `\n`;
+  if (myRecentLines.length > 0 || otherRecentSummary.length > 0) {
+    context += `--- RECENT SIDEBAR LINES (so you don't repeat word-for-word) ---\n`;
+    if (myRecentLines.length > 0) {
+      context += `YOU just said:\n`;
+      // Oldest-first for readability
+      myRecentLines
+        .slice()
+        .reverse()
+        .forEach((line, i) => {
+          context += `  ${i + 1}. ${line}\n`;
+        });
+    }
+    if (otherRecentSummary.length > 0) {
+      context += `Others' most recent line (one each):\n`;
+      otherRecentSummary.forEach((op) => {
+        context += `  ${op.emoji} ${op.name}: ${op.text}\n`;
+      });
+    }
+    context += `If what you're about to say is a near-duplicate of any of the above, pick a different angle or output a single "-" to pass.\n\n`;
   }
 
   if (searchResults && persona.id === "producer") {
     context += `--- SEARCH RESULTS (use for fact-checking) ---\n${searchResults}\n\n`;
-    context += `IMPORTANT: If you already fact-checked this exact claim in the conversation log above, do NOT repeat the correction. Either add a NEW angle (different stat, later context, second-order implication) or pass with just "-".\n\n`;
+    context += `If you already fact-checked this claim in your recent lines, either add a NEW angle or pass with "-".\n\n`;
   }
 
   // Pause behavior: the show is paused, but the personas are still aware
   if (isPaused) {
     context += `--- THE VIEWER HAS PAUSED THE VIDEO ---\n`;
-    context += `The show is paused. React to being paused IN CHARACTER:\n`;
+    context += `The show is paused. React IN CHARACTER:\n`;
     context += `- Baba Booey: flustered, uses the pause to double-check something, "Okay while we're paused, I actually want to look that up..."\n`;
     context += `- The Troll: annoyed, impatient, "Oh great, they paused us. We were just getting to the good part."\n`;
     context += `- Fred: [elevator music] or [hold music] — maybe a dry "...we'll be right back."\n`;
     context += `- Jackie: makes a joke about being paused, "I had a great line ready and now the moment's gone."\n\n`;
     context += `React to the pause. Stay in character. One sentence max.`;
   } else {
-    context += `Now react to what was just said in the video. Stay in character. MAX 1-2 sentences — viewers are watching a video and can't read walls of text. If you'd just be repeating yourself or the others, output a single "-" and pass.`;
+    context += `Now react. Stay in character. MAX 1-2 sentences. React mostly to the transcript above — that's where the show is right now. Riffing on another persona is fine when it's natural, as long as you're not re-quoting the same specifics from earlier turns. If you'd just be repeating a recent sidebar line word-for-word, output a single "-" and pass.`;
   }
 
   return context;

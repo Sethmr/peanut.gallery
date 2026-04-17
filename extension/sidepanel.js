@@ -518,10 +518,24 @@ startBtn.addEventListener("click", async () => {
 
     if (result?.error) throw new Error(result.error);
 
-    showCapturing();
-    statusText.textContent = "Connecting to server...";
-    statusBar.classList.add("active");
+    // {ok:true} from background now means offscreen setup fully succeeded
+    // (SSE live + getUserMedia got audio + AudioContext running). The
+    // offscreen doc already broadcast status:"started" which flipped the
+    // UI to capturing mode and set statusText to "Waiting for audio..." —
+    // don't regress that by overwriting with "Connecting to server...".
+    // If we beat the status broadcast (rare), just ensure the UI is in
+    // capturing state.
+    if (!capturing) {
+      showCapturing();
+      statusText.textContent = "Waiting for audio...";
+      statusBar.classList.add("active");
+    }
   } catch (err) {
+    // If a status event already flipped the UI into capturing mode and
+    // THEN setup failed (e.g. the offscreen's late cleanup on a race), pull
+    // the UI back to idle so the user isn't stranded in a dead "capturing"
+    // view. showIdle clears all the session state and shows the setup form.
+    if (capturing) showIdle();
     showError(err.message || String(err));
   } finally {
     startBtn.disabled = false;

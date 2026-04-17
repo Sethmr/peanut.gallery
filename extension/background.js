@@ -274,15 +274,31 @@ async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle, au
 
   await ensureOffscreen();
 
-  sendToOffscreen({
-    type: "START_RECORDING",
-    streamId,
-    serverUrl,
-    apiKeys,
-    audio, // { passthrough, outputDeviceId } — optional; offscreen defaults to pre-v1.1 behavior
-    youtubeUrl: youtubeUrl || lastTab?.url || "",
-    tabTitle: tabTitle || lastTab?.title || "Unknown tab",
+  // Await the offscreen response so errors mid-setup (stale streamId, SSE
+  // failure, no audio track) propagate back to the side panel. Previously
+  // this was fire-and-forget — the panel would flip to "capturing" on
+  // {ok:true} from background even when offscreen silently failed, which
+  // forced users into a Stop → Start dance to reset. The offscreen doc's
+  // response only resolves AFTER getUserMedia + AudioContext are live,
+  // so {ok:true} now means capture is truly running.
+  const response = await new Promise((resolve) => {
+    sendToOffscreen(
+      {
+        type: "START_RECORDING",
+        streamId,
+        serverUrl,
+        apiKeys,
+        audio, // { passthrough, outputDeviceId } — optional; offscreen defaults to pre-v1.1 behavior
+        youtubeUrl: youtubeUrl || lastTab?.url || "",
+        tabTitle: tabTitle || lastTab?.title || "Unknown tab",
+      },
+      (r) => resolve(r || { error: "Offscreen did not respond" })
+    );
   });
+
+  if (response?.error) {
+    throw new Error(response.error);
+  }
 
   return { ok: true, tabTitle: tabTitle || lastTab?.title };
 }

@@ -36,13 +36,13 @@ export default function LandingPage() {
             </div>
 
             <h1>
-              Your podcast&apos;s
+              An AI writers&apos; room for
               <br />
-              <span className="gradient-text">AI writers&apos; room.</span>
+              <span className="gradient-text">any YouTube video.</span>
             </h1>
 
             <p className="hero-sub">
-              A Chrome extension that sits next to any YouTube video and reacts in real-time.
+              Peanut Gallery is a free Chrome extension that sits next to any YouTube video and reacts in real-time.
               4 AI personas — a fact-checker, a sound effects guy, a comedy writer, a cynical troll —
               watch the show with you through a native Chrome side panel. No tab switching.
               No screen-share picker. Audio captured silently while you watch.

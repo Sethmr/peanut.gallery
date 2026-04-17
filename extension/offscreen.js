@@ -90,110 +90,131 @@ async function startRecording(config) {
   serverUrl = raw;
   console.log(`[PG] Starting capture → ${serverUrl}`);
 
-  // Step 1: Create server session (SSE)
-  const headers = { "Content-Type": "application/json" };
-  if (config.apiKeys?.deepgram) headers["X-Deepgram-Key"] = config.apiKeys.deepgram;
-  if (config.apiKeys?.groq) headers["X-Groq-Key"] = config.apiKeys.groq;
-  if (config.apiKeys?.anthropic) headers["X-Anthropic-Key"] = config.apiKeys.anthropic;
-  if (config.apiKeys?.brave) headers["X-Brave-Key"] = config.apiKeys.brave;
-
-  sseAbortController = new AbortController();
-
-  const res = await fetch(`${serverUrl}/api/transcribe`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      url: config.youtubeUrl || "",
-      mode: "browser",
-      isLive: false,
-    }),
-    signal: sseAbortController.signal,
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Server error" }));
-    throw new Error(err.error || `Server returned ${res.status}`);
-  }
-
-  sessionId = res.headers.get("X-Session-Id");
-  if (!sessionId) throw new Error("No session ID returned from server");
-
-  console.log(`[PG] Session created: ${sessionId}`);
-  // NOTE: chrome.storage is not available in offscreen documents (only
-  // chrome.runtime + DOM APIs). The side panel receives sessionId via the
-  // SSE "status" event broadcast below, so persisting here was redundant.
-
-  // Broadcast session start to side panel
-  broadcast({ type: "SSE_EVENT", event: "status", data: { status: "started", sessionId } });
-
-  // Parse SSE stream and forward events to side panel
-  readSSE(res.body);
-
-  // Step 2: Capture tab audio
+  // We wrap the whole setup in a try/catch so that if ANY step fails after
+  // partial state (SSE open, server session created, AudioContext built,
+  // etc.), we clean up before throwing. Without this, an error mid-setup
+  // leaves an orphan SSE stream on the server + the side panel stuck in a
+  // half-started state. Root cause of the "tap stop and start again"
+  // workaround users were hitting.
   try {
-    mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        mandatory: {
-          chromeMediaSource: "tab",
-          chromeMediaSourceId: config.streamId,
-        },
-      },
+    // Step 1: Create server session (SSE)
+    const headers = { "Content-Type": "application/json" };
+    if (config.apiKeys?.deepgram) headers["X-Deepgram-Key"] = config.apiKeys.deepgram;
+    if (config.apiKeys?.groq) headers["X-Groq-Key"] = config.apiKeys.groq;
+    if (config.apiKeys?.anthropic) headers["X-Anthropic-Key"] = config.apiKeys.anthropic;
+    if (config.apiKeys?.brave) headers["X-Brave-Key"] = config.apiKeys.brave;
+
+    sseAbortController = new AbortController();
+
+    const res = await fetch(`${serverUrl}/api/transcribe`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        url: config.youtubeUrl || "",
+        mode: "browser",
+        isLive: false,
+      }),
+      signal: sseAbortController.signal,
     });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Server error" }));
+      throw new Error(err.error || `Server returned ${res.status}`);
+    }
+
+    sessionId = res.headers.get("X-Session-Id");
+    if (!sessionId) throw new Error("No session ID returned from server");
+
+    console.log(`[PG] Session created: ${sessionId}`);
+
+    // Start reading the SSE body — we'll forward events once the pipeline is
+    // actually live. Reading now so we don't miss any early events.
+    readSSE(res.body);
+
+    // Step 2: Capture tab audio
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          mandatory: {
+            chromeMediaSource: "tab",
+            chromeMediaSourceId: config.streamId,
+          },
+        },
+      });
+    } catch (err) {
+      // Chrome's "Error starting tab capture" almost always means the streamId
+      // was stale (SW evicted, extension reloaded, tab navigated, or just
+      // expired). Translate into something the user can act on.
+      const msg = /tab capture/i.test(err.message)
+        ? "Capture token expired. Click the 🥜 icon on this YouTube tab again, then Start Listening within 60 seconds."
+        : err.message;
+      throw new Error(msg);
+    }
+
+    if (!mediaStream.getAudioTracks().length) {
+      throw new Error("No audio track in captured stream");
+    }
+
+    console.log(`[PG] Got audio: ${mediaStream.getAudioTracks()[0].label}`);
+
+    // Audio processing pipeline
+    audioContext = new AudioContext({ sampleRate: 48000 });
+    const source = audioContext.createMediaStreamSource(mediaStream);
+    processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+    processor.onaudioprocess = (event) => {
+      const input = event.inputBuffer.getChannelData(0);
+      // Always pass audio through the processor's output buffer — the
+      // passthroughGain node downstream controls whether the user hears it.
+      // Tab capture mutes the tab by default; this restores it when gain=1.
+      event.outputBuffer.getChannelData(0).set(input);
+      // Also buffer a copy for upload to the server.
+      if (capturing) chunkBuffer.push(new Float32Array(input));
+    };
+
+    // Routing: source → processor → passthroughGain → destination.
+    // The processor MUST have a path to destination or onaudioprocess won't
+    // fire. passthroughGain stays connected always (at gain=0 when
+    // passthrough is disabled) so onaudioprocess keeps firing — muting the
+    // gain silences the user's ears without breaking capture.
+    passthroughGain = audioContext.createGain();
+    passthroughGain.gain.value = passthrough ? 1 : 0;
+    source.connect(processor);
+    processor.connect(passthroughGain);
+    passthroughGain.connect(audioContext.destination);
+
+    // Apply initial output device selection. Swallow failures: setSinkId is
+    // only available in Chrome 110+ and some environments reject non-default
+    // sinks with an unknown-device error. If it fails, we fall back silently
+    // to the system default — the user still hears audio.
+    if (outputDeviceId && outputDeviceId !== "default") {
+      await trySetSinkId(outputDeviceId);
+    }
+
+    capturing = true;
+    chunkBuffer = [];
+    sendInterval = setInterval(flushAudio, 250);
+
+    // ONLY now tell the side panel that capture is truly live. Previously
+    // this fired right after SSE open, which made the panel flip to
+    // "Waiting for audio..." even when getUserMedia subsequently failed and
+    // the pipeline was dead.
+    broadcast({
+      type: "SSE_EVENT",
+      event: "status",
+      data: { status: "started", sessionId },
+    });
+
+    console.log("[PG] Audio capture started");
   } catch (err) {
-    // Chrome's "Error starting tab capture" almost always means the streamId
-    // was stale (SW evicted, extension reloaded, tab navigated, or just
-    // expired). Translate into something the user can act on.
-    const msg = /tab capture/i.test(err.message)
-      ? "Capture token expired. Click the 🥜 icon on this YouTube tab again, then Start Listening within 60 seconds."
-      : err.message;
-    throw new Error(msg);
+    // Partial setup — tear it all down so the next attempt starts clean and
+    // we don't leak an SSE stream / server session. stopRecording handles
+    // nulls correctly so it's safe to call even if only half of the state
+    // was populated.
+    console.error("[PG:off] startRecording failed mid-setup, cleaning up:", err.message);
+    stopRecording();
+    throw err;
   }
-
-  if (!mediaStream.getAudioTracks().length) {
-    throw new Error("No audio track in captured stream");
-  }
-
-  console.log(`[PG] Got audio: ${mediaStream.getAudioTracks()[0].label}`);
-
-  // Audio processing pipeline
-  audioContext = new AudioContext({ sampleRate: 48000 });
-  const source = audioContext.createMediaStreamSource(mediaStream);
-  processor = audioContext.createScriptProcessor(4096, 1, 1);
-
-  processor.onaudioprocess = (event) => {
-    const input = event.inputBuffer.getChannelData(0);
-    // Always pass audio through the processor's output buffer — the
-    // passthroughGain node downstream controls whether the user hears it.
-    // Tab capture mutes the tab by default; this restores it when gain=1.
-    event.outputBuffer.getChannelData(0).set(input);
-    // Also buffer a copy for upload to the server.
-    if (capturing) chunkBuffer.push(new Float32Array(input));
-  };
-
-  // Routing: source → processor → passthroughGain → destination.
-  // The processor MUST have a path to destination or onaudioprocess won't
-  // fire. passthroughGain stays connected always (at gain=0 when
-  // passthrough is disabled) so onaudioprocess keeps firing — muting the
-  // gain silences the user's ears without breaking capture.
-  passthroughGain = audioContext.createGain();
-  passthroughGain.gain.value = passthrough ? 1 : 0;
-  source.connect(processor);
-  processor.connect(passthroughGain);
-  passthroughGain.connect(audioContext.destination);
-
-  // Apply initial output device selection. Swallow failures: setSinkId is
-  // only available in Chrome 110+ and some environments reject non-default
-  // sinks with an unknown-device error. If it fails, we fall back silently
-  // to the system default — the user still hears audio.
-  if (outputDeviceId && outputDeviceId !== "default") {
-    await trySetSinkId(outputDeviceId);
-  }
-
-  capturing = true;
-  chunkBuffer = [];
-  sendInterval = setInterval(flushAudio, 250);
-
-  console.log("[PG] Audio capture started");
 }
 
 function stopRecording() {
