@@ -20,6 +20,22 @@
 
 let offscreenReady = false;
 
+// ── Force icon click to fire onClicked (not auto-open the panel) ──
+// With a side_panel declared, some Chrome versions default to auto-opening
+// the panel on icon click, which SKIPS our onClicked handler entirely. Set
+// this explicitly to false so we always get the click event.
+function ensurePanelBehavior() {
+  return chrome.sidePanel
+    .setPanelBehavior({ openPanelOnActionClick: false })
+    .then(() => console.log("[PG:bg] setPanelBehavior: openPanelOnActionClick=false"))
+    .catch((err) => console.error("[PG:bg] setPanelBehavior failed:", err.message));
+}
+chrome.runtime.onInstalled.addListener(ensurePanelBehavior);
+chrome.runtime.onStartup.addListener(ensurePanelBehavior);
+// Also call it at SW boot, so reloads of the unpacked extension pick it up
+// without needing a browser restart.
+ensurePanelBehavior();
+
 // ── storage helpers ──
 // Session storage persists for the browser session but clears on restart.
 // Survives service-worker eviction. Perfect for single-use stream IDs.
