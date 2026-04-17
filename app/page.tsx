@@ -32,7 +32,7 @@ export default function LandingPage() {
           <div className="hero-content">
             <div className="hero-badge">
               <div className="pulse"></div>
-              In Chrome Web Store review — shipping soon
+              Live on the Chrome Web Store
             </div>
 
             <h1>
@@ -49,8 +49,13 @@ export default function LandingPage() {
             </p>
 
             <div className="hero-ctas">
-              <a href="#install" className="btn-primary">
-                Install the Extension
+              <a
+                href="https://chromewebstore.google.com/detail/peanut-gallery/jjlpinlhfiheegiddmddkgfialcknagh"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary"
+              >
+                Add to Chrome &rarr;
               </a>
               <a
                 href="https://github.com/Sethmr/peanut.gallery"
@@ -103,10 +108,46 @@ export default function LandingPage() {
         {/* INSTALL */}
         <section className="content-section" id="install">
           <div className="section-label">Install</div>
-          <h2 className="fade-in">Running on your machine in 4 steps.</h2>
+          <h2 className="fade-in">One click from the Chrome Web Store.</h2>
           <p className="section-sub fade-in">
-            The Chrome Web Store listing is submitted and under review — it&apos;ll ship there soon.
-            Until then, install it in Developer mode straight from the GitHub repo. Takes about a minute.
+            The extension is live — add it to Chrome, open any YouTube video, click the 🥜 icon,
+            and hit <strong>Start Listening</strong>. No API keys required (bring your own if you want).
+          </p>
+
+          <div className="hero-ctas fade-in" style={{ marginTop: "2rem", marginBottom: "3rem" }}>
+            <a
+              href="https://chromewebstore.google.com/detail/peanut-gallery/jjlpinlhfiheegiddmddkgfialcknagh"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary"
+            >
+              Add to Chrome &rarr;
+            </a>
+            <a
+              href="https://github.com/Sethmr/peanut.gallery"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary"
+            >
+              View on GitHub
+            </a>
+          </div>
+
+          <div className="status-banner fade-in">
+            <h3 style={{ color: "#22c55e" }}>✓ Working product</h3>
+            <p>
+              Tab audio is captured silently via{" "}
+              <code className="inline-code">chrome.tabCapture</code> — the same API Otter.ai and
+              Fireflies use. No permission picker, no interference with playback. You hear the video;
+              the AI hears it too.
+            </p>
+          </div>
+
+          <div className="section-label" style={{ marginTop: "4rem" }}>Self-host</div>
+          <h2 className="fade-in" style={{ fontSize: "1.75rem" }}>Prefer to run it yourself? 4 steps.</h2>
+          <p className="section-sub fade-in">
+            It&apos;s MIT-licensed and fully open source. Run your own backend for full privacy,
+            or to swap out providers. Takes about a minute.
           </p>
 
           <div className="steps-grid">
@@ -132,22 +173,13 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="step fade-in">
-              <h3>Click the peanut</h3>
+              <h3>Point at localhost</h3>
               <p>
-                Open any YouTube video, click the 🥜 icon in the toolbar, and hit{" "}
-                <strong>Start Listening</strong>. The gallery opens in a native Chrome side panel.
+                In the Peanut Gallery side panel, change the Backend server field to{" "}
+                <code className="inline-code">http://localhost:3000</code>, then hit{" "}
+                <strong>Start Listening</strong>.
               </p>
             </div>
-          </div>
-
-          <div className="status-banner fade-in" style={{ marginTop: "3rem" }}>
-            <h3 style={{ color: "#22c55e" }}>✓ Working product</h3>
-            <p>
-              Tab audio is captured silently via{" "}
-              <code className="inline-code">chrome.tabCapture</code> — the same API Otter.ai and
-              Fireflies use. No permission picker, no interference with playback. You hear the video;
-              the AI hears it too.
-            </p>
           </div>
         </section>
 
