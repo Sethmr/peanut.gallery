@@ -174,6 +174,21 @@
   display: block;
 }
 
+/* Wide (landscape) demo variant — 16:9 */
+.video-section--demo {
+  max-width: 960px;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  margin: 2rem auto 0;
+}
+
+.video-section--demo iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
 .video-caption {
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.4);

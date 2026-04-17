@@ -14,6 +14,7 @@ export default function LandingPage() {
             <span>🥜</span> Peanut Gallery
           </a>
           <ul className="nav-links">
+            <li><a href="#demo">Demo</a></li>
             <li><a href="#install">Install</a></li>
             <li><a href="#personas">Personas</a></li>
             <li><a href="#how">How It Works</a></li>
@@ -80,6 +81,25 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* DEMO — the actual product in action */}
+        <section className="content-section" id="demo">
+          <div className="section-label">See it in action</div>
+          <h2 className="fade-in">Two minutes with Peanut Gallery.</h2>
+          <p className="section-sub fade-in">
+            The extension follows a YouTube video in real-time — four personas
+            reacting to the audio as it plays, all from Chrome&apos;s native side panel.
+          </p>
+          <div className="video-section video-section--demo fade-in">
+            <iframe
+              src="https://www.youtube.com/embed/UcpUBcp8TRc?rel=0&modestbranding=1"
+              title="Peanut Gallery — product demo"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allowFullScreen
+            />
+          </div>
+        </section>
+
         {/* INSTALL */}
         <section className="content-section" id="install">
           <div className="section-label">Install</div>
@@ -93,7 +113,7 @@ export default function LandingPage() {
             <div className="step fade-in">
               <h3>Clone the repo</h3>
               <p>
-                <code className="inline-code">git clone github.com/Sethmr/peanut.gallery</code>
+                <code className="inline-code">git clone https://github.com/Sethmr/peanut.gallery.git</code>
               </p>
             </div>
             <div className="step fade-in">
