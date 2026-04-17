@@ -1,8 +1,8 @@
 # Peanut Gallery — Full Project Context
 
-> **Read this file first when resuming work on this project.**
-> It contains everything an AI assistant needs to pick up where the last session left off.
-> Last updated: 2026-04-15
+> **Canonical project context.** Start here, then read [`docs/SESSION-NOTES-2026-04-16.md`](SESSION-NOTES-2026-04-16.md) for the most recent handoff and the permissions guardrails that must not be overwritten.
+> For a full docs map, see [`docs/INDEX.md`](INDEX.md).
+> Last updated: 2026-04-16
 
 ---
 
@@ -146,11 +146,30 @@ Result: some moments get 1 response, some get 2-3, occasionally all 4 pile on. P
 ### Documentation
 | File | Purpose |
 |------|---------|
+| `docs/INDEX.md` | Top-level index — reading order + what lives where |
 | `README.md` | Public-facing project README with setup instructions |
-| `TWIST-AI-SIDEBAR-BUILD-PLAN.md` | Original build plan with 5 phases. Partially outdated (still references "Chaos Agent" persona) |
-| `docs/DEBUGGING.md` | Canonical debugging reference with post-mortems, diagnostic checklist, silent failure table |
 | `docs/CONTEXT.md` | THIS FILE — full project context for AI assistants |
+| `docs/SESSION-NOTES-2026-04-16.md` | Most recent handoff: permissions guardrails, finish-strong checklist, gotchas |
+| `docs/DEBUGGING.md` | Canonical debugging reference with post-mortems (ISSUE-001..008), diagnostic checklist, silent failure table |
+| `extension/README.md` | Chrome extension install + architecture overview |
+| `TWIST-AI-SIDEBAR-BUILD-PLAN.md` | ARCHIVED — original pre-build plan. Do not trust; kept for history only. |
 | `docs/index.html` | Landing page for peanutgallery.live (GitHub Pages) |
+
+---
+
+## Chrome Extension
+
+The primary capture path for live TWiST episodes. Lives in [`extension/`](../extension). The yt-dlp pipeline still works for local dev and recorded videos, but gets bot-detected on headless servers, so the extension is the submission path.
+
+| File | Purpose |
+|------|---------|
+| `extension/manifest.json` | MV3 manifest. Permissions: `tabCapture`, `offscreen`, `activeTab`, `storage`, `sidePanel`. No `default_popup` — icon click routes to the service worker. |
+| `extension/background.js` | Service worker. Handles `chrome.action.onClicked`, opens the side panel, manages the offscreen doc lifecycle. |
+| `extension/offscreen.js` | Invisible page that holds the `AudioContext` (service workers can't). Downsamples 48 → 16kHz PCM, streams to `/api/transcribe` every 250ms, parses SSE and broadcasts to the side panel. |
+| `extension/sidepanel.html/js` | The gallery UI — persona avatars, transcript, reaction feed. Saves server URL + API keys to `chrome.storage.local`. |
+| `extension/content.js` | Content script scoped ONLY to `localhost` and `*.peanut.gallery`. Do not widen this. |
+
+The known-good permissions/gesture setup is documented in [`docs/SESSION-NOTES-2026-04-16.md §3`](SESSION-NOTES-2026-04-16.md). That section is explicitly marked immutable — read it before touching the extension.
 
 ---
 
@@ -269,16 +288,28 @@ The `/api/transcribe` endpoint streams these events:
 ## Git History (Most Recent First)
 
 ```
+9decbbc fix: move tabCapture out of the side panel so YouTube actually works
+2c306bb fix: stop DMing a ghost every time the side panel opens
+145c17f add updates
+61a8750 fix: add missing extension icons so toolbar button appears
+3df1317 fix: broadcast STREAM_READY to side panel when icon is clicked while panel is already open
+4dc7fdd fix: capture tabCapture stream ID on icon click, not in side panel message handler
+a44eab5 feat: Chrome Side Panel + fix tabCapture permissions — the gallery lives next to the video now
+48ebbae feat: Chrome extension for tab audio capture — YouTube can't block what it can't see
+c51165b fix: restore fade-in animations + align persona card quotes to bottom padding
+bc4e371 feat: restore Jason's bounty video to landing page hero
+d27e363 fix: rename /app to /watch — app/app/ directory was colliding with Next.js app router
+400e0ad feat: tap persona emoji to trigger individual reactions + label fire button
+e8290e7 Redesign persona cards: centered bubbles with profile pics, sine waves, roles, full info
+e34e049 feat: responsive layout (sidebar + mobile), fix password save, add home link
+c024d9c feat: SEO overhaul + restore landing page at /, move app to /app
+2a5fe08 fix: yt-dlp headless server support — mediaconnect player client + cookies file option
+4e794d1 fix: Dockerfile public dir COPY failure, switch Railway to Dockerfile builder
+7e4b3eb feat: trust-first BYOK — transparency banner, setup.sh, self-host docs
+4178b88 feat: BYOK — users bring their own API keys via browser settings
 a31a9f3 Deep persona rewrite + transcript pipeline fix + debug infrastructure
-7e09860 add pipeline black box recorder — every bug now leaves a paper trail
 04f79c1 fix: the transcript was silently screaming into the void — WAV header was poisoning Deepgram
 4a5e091 Howard Stern called, he wants his show staff back — now with Fred Norris and sine waves
-572e1c2 live mode and recorded mode are now two different products
-db306ee the fact-checker just got a lot harder to argue with
-8972667 the AI now pauses when you pause — because even robots need a bathroom break
-1148923 now you can actually watch the show while the AI roasts it
-5635e66 fix: teach the server where Homebrew hides its binaries
-bd1104d README so good even a VC could follow the setup instructions
 c30b011 ship the whole damn MVP in one commit — this is how hustlers do it
 ```
 
@@ -316,9 +347,17 @@ From Jason's X post (@twistartups), the spec calls for:
 - Health check endpoint
 - Landing page (docs/index.html)
 - Test scripts for pipeline and personas
+- Chrome extension built (background + offscreen + side panel + icons)
+- Railway deploy live at peanutgallery.live
+- BYOK flow — users bring their own API keys via the side panel
 
-### Not Done / Coming Soon
-- Chrome extension input (capture tab audio directly, no CLI dependency)
+### Not Done / Blocking the Bounty
+- **First successful E2E run of the Chrome extension** — icon click → stream ID → side panel → Start Listening → Deepgram → personas in feed. See [`SESSION-NOTES-2026-04-16.md §5`](SESSION-NOTES-2026-04-16.md) for the prioritized finish-strong checklist.
+- Demo video (60 sec, lead with a real fact-check)
+- Reply to Jason's bounty tweet with demo + repo link
+- Chrome Web Store submission (gated on E2E working)
+
+### Coming Soon / Nice to Have
 - Custom persona builder (let podcasters define their own characters)
 - Audience mode (viewers see sidebar alongside live stream)
 - Highlights reel (auto-generate timestamped clips)
@@ -328,11 +367,7 @@ From Jason's X post (@twistartups), the spec calls for:
 - Persona memory across episodes
 - Docker deployment
 - Mobile responsive design
-
-### Needs Verification
-- End-to-end transcript pipeline working after the `-f s16le` fix (Seth was testing locally)
-- Persona personality quality after the deep character rewrite
-- Whether the 30s/60s trigger timing feels right in practice
+- Swap `ScriptProcessorNode` → `AudioWorkletNode` (post-bounty cleanup)
 
 ---
 
@@ -371,12 +406,14 @@ npx tsx scripts/test-personas.ts --fixture
 
 ## Notes for AI Assistants
 
-1. **Never use `-f wav` in FFmpeg when piping to Deepgram.** Use `-f s16le`. This is the single most important lesson from this project.
-2. **The sandbox cannot run git commands** (no identity configured, can't delete lock files). Provide Seth with git commands to run locally.
-3. **personas.ts is the creative soul of the project.** Any changes should preserve the deep character research and Howard Stern Show references.
-4. **Read `docs/DEBUGGING.md` before debugging any pipeline issues.** It has post-mortems, a diagnostic checklist, and a silent failure table.
-5. **The build plan (`TWIST-AI-SIDEBAR-BUILD-PLAN.md`) is partially outdated** — it still references "Chaos Agent" (now replaced by Fred/Sound Effects). Use this CONTEXT.md as the source of truth.
-6. **When testing, use `DEBUG_PIPELINE=true`** to get structured JSONL logs in `logs/pipeline-debug.jsonl`. Info+ level logs are always written to the file regardless.
-7. **The project uses `@/*` path aliases** (e.g., `@/lib/personas`) per tsconfig.json.
-8. **TranscriptBar.tsx exists but isn't used** — the transcript display is inlined in page.tsx.
-9. **Always end every message with a ready-to-paste git commit command.** Use the Jason Calacanis commit style from this repo — funny, punchy, lowercase, describes the "why" not the "what", with an emoji at the end. The sandbox can't run git (no identity), so provide it as a bash code block Seth can copy-paste locally. Format: `git add [files] && git commit -m "message"`. Include `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>` on a second line.
+1. **Read [`SESSION-NOTES-2026-04-16.md`](SESSION-NOTES-2026-04-16.md) before touching the Chrome extension.** §3 (permissions setup) is explicitly immutable — the current `manifest.json` + `background.js` `chrome.action.onClicked` gesture flow is the version that survived the permissions fights. Do not re-derive it from blog posts.
+2. **Never use `-f wav` in FFmpeg when piping to Deepgram.** Use `-f s16le`. This is the single most important lesson from this project (ISSUE-001).
+3. **`chrome.tabCapture.getMediaStreamId` must be called synchronously inside `chrome.action.onClicked`** — NOT deferred to a side-panel message handler. Deferring loses the user-gesture context and the call rejects. Stream IDs are single-use.
+4. **The sandbox cannot run git commands** (no identity configured). Provide Seth with copy-paste commands to run locally.
+5. **personas.ts is the creative soul of the project.** Any changes should preserve the deep character research and Howard Stern Show references.
+6. **Read `docs/DEBUGGING.md` before debugging any pipeline issues.** It has post-mortems (ISSUE-001..008), a diagnostic checklist, and a silent failure table.
+7. **`TWIST-AI-SIDEBAR-BUILD-PLAN.md` is archived.** Use this file + SESSION-NOTES as the source of truth.
+8. **When testing, use `DEBUG_PIPELINE=true`** to get structured JSONL logs in `logs/pipeline-debug.jsonl`. Info+ level logs are always written to the file regardless.
+9. **The project uses `@/*` path aliases** (e.g., `@/lib/personas`) per tsconfig.json.
+10. **TranscriptBar.tsx exists but isn't used** — the transcript display is inlined in page.tsx.
+11. **Always end every message with a ready-to-paste git commit command.** Jason Calacanis house style: lowercase, punchy, describes the "why" not the "what", emoji at the end. Provide it as a bash code block so Seth can copy-paste locally. If the commit message contains double quotes, wrap it in single quotes or a heredoc to avoid shell quoting errors. Include `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>` on a second line.

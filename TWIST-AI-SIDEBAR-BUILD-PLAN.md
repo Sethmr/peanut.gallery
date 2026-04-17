@@ -1,9 +1,18 @@
 # Peanut Gallery — Speed Build Plan
 
+> ⚠️ **ARCHIVED — DO NOT USE AS SOURCE OF TRUTH.**
+> This is the original pre-build plan from 2026-04-15. It is kept for historical reference only.
+> **Known stale in this file:** "Chaos Agent" persona (replaced by Fred Norris / Sound Effects), Vercel (deploy is Railway), `twist-sidebar` repo name (actual repo is `peanut.gallery`), FFmpeg `-f wav` (fixed to `-f s16le` — see ISSUE-001).
+> **For the current state of the project, read in this order:**
+> 1. [`docs/INDEX.md`](docs/INDEX.md) — docs map
+> 2. [`docs/CONTEXT.md`](docs/CONTEXT.md) — canonical project context
+> 3. [`docs/SESSION-NOTES-2026-04-16.md`](docs/SESSION-NOTES-2026-04-16.md) — most recent handoff + permissions guardrails
+> 4. [`docs/DEBUGGING.md`](docs/DEBUGGING.md) — post-mortems
+
 **Project:** Live AI sidebar with 4 personas watching This Week in Startups in real-time
 **Goal:** Win the $5,000 bounty + guest spot on TWiST
 **Name:** Peanut Gallery
-**Repo:** `peanut-gallery` (GitHub)
+**Repo:** `peanut.gallery` (GitHub)
 **Domain:** peanutgallery.live
 **URL:** https://peanutgallery.live
 
