@@ -125,12 +125,18 @@ async function startRecording(config) {
   processor = audioContext.createScriptProcessor(4096, 1, 1);
 
   processor.onaudioprocess = (event) => {
-    if (!capturing) return;
-    chunkBuffer.push(new Float32Array(event.inputBuffer.getChannelData(0)));
+    const input = event.inputBuffer.getChannelData(0);
+    // Pass audio through to destination so the user still hears YouTube.
+    // Tab capture mutes the tab by default; this restores it.
+    event.outputBuffer.getChannelData(0).set(input);
+    // Also buffer a copy for upload to the server.
+    if (capturing) chunkBuffer.push(new Float32Array(input));
   };
 
-  // source → processor → destination
-  // Connecting to destination keeps audio audible in the captured tab
+  // Single path: source → processor → destination.
+  // The processor MUST connect to destination or onaudioprocess won't fire
+  // (that's why connecting `source` directly to destination and leaving the
+  // processor dangling silently stops capture).
   source.connect(processor);
   processor.connect(audioContext.destination);
 
