@@ -39,14 +39,17 @@ chrome.action.onClicked.addListener(async (tab) => {
 });
 
 // ── Offscreen document management ──
+async function offscreenExists() {
+  const contexts = await chrome.runtime.getContexts({
+    contextTypes: ["OFFSCREEN_DOCUMENT"],
+  });
+  return contexts.length > 0;
+}
+
 async function ensureOffscreen() {
   if (offscreenReady) return;
 
-  const existingContexts = await chrome.runtime.getContexts({
-    contextTypes: ["OFFSCREEN_DOCUMENT"],
-  });
-
-  if (existingContexts.length > 0) {
+  if (await offscreenExists()) {
     offscreenReady = true;
     return;
   }
@@ -70,17 +73,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // STOP_CAPTURE: forward to offscreen
+  // STOP_CAPTURE: forward to offscreen only if it's running
   if (message.type === "STOP_CAPTURE") {
-    sendToOffscreen({ type: "STOP_RECORDING" });
-    sendResponse({ ok: true });
+    offscreenExists().then((exists) => {
+      if (exists) sendToOffscreen({ type: "STOP_RECORDING" });
+      sendResponse({ ok: true });
+    });
     return true;
   }
 
-  // GET_STATUS: ask offscreen
+  // GET_STATUS: ask offscreen if it exists; otherwise not capturing
   if (message.type === "GET_STATUS") {
-    sendToOffscreen({ type: "QUERY_STATUS" }, (response) => {
-      sendResponse(response || { capturing: false });
+    offscreenExists().then((exists) => {
+      if (!exists) {
+        sendResponse({ capturing: false });
+        return;
+      }
+      sendToOffscreen({ type: "QUERY_STATUS" }, (response) => {
+        sendResponse(response || { capturing: false });
+      });
     });
     return true;
   }
@@ -108,7 +119,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 function sendToOffscreen(msg, callback) {
-  chrome.runtime.sendMessage({ ...msg, target: "offscreen" }, callback);
+  // Always read chrome.runtime.lastError in the callback to avoid Chrome's
+  // "Unchecked runtime.lastError" warnings when the offscreen doc isn't
+  // there yet or when a broadcast has no responder.
+  chrome.runtime.sendMessage({ ...msg, target: "offscreen" }, (response) => {
+    if (chrome.runtime.lastError) {
+      // Suppress: offscreen doc may not exist, or no listener responded.
+    }
+    if (callback) callback(response);
+  });
 }
 
 async function handleStartCapture({
