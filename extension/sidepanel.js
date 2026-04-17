@@ -305,10 +305,18 @@ function updateTranscript() {
 }
 
 // ── Actions ──
+function normalizeServerUrl(raw) {
+  let url = (raw || "").trim().replace(/\/$/, "");
+  if (url && !/^https?:\/\//i.test(url)) url = "http://" + url;
+  return url;
+}
+
 startBtn.addEventListener("click", async () => {
   saveSettings();
-  const serverUrl = serverUrlInput.value.trim().replace(/\/$/, "");
+  const serverUrl = normalizeServerUrl(serverUrlInput.value);
   if (!serverUrl) { showError("Server URL is required"); return; }
+  // Reflect the normalized URL back into the input so it's visible to the user
+  serverUrlInput.value = serverUrl;
 
   startBtn.disabled = true;
   startBtn.textContent = "Starting...";
@@ -382,7 +390,7 @@ stopBtn.addEventListener("click", () => {
 
 fireBtn.addEventListener("click", async () => {
   if (!sessionId) return;
-  const serverUrl = serverUrlInput.value.trim().replace(/\/$/, "");
+  const serverUrl = normalizeServerUrl(serverUrlInput.value);
   fetch(`${serverUrl}/api/transcribe`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -392,7 +400,7 @@ fireBtn.addEventListener("click", async () => {
 
 function firePersona(personaId) {
   if (!sessionId) return;
-  const serverUrl = serverUrlInput.value.trim().replace(/\/$/, "");
+  const serverUrl = normalizeServerUrl(serverUrlInput.value);
   fetch(`${serverUrl}/api/transcribe`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },

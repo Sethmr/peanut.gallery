@@ -7,6 +7,8 @@
  * 3. SSE stream parsing — forwards transcript/persona events to side panel
  */
 
+console.log("[PG:off] offscreen.js LOADED v2");
+
 let audioContext = null;
 let mediaStream = null;
 let processor = null;
@@ -19,12 +21,14 @@ let sseAbortController = null;
 
 // ── Message handler ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log("[PG:off] message received:", message?.type, "target:", message?.target);
   if (message.target !== "offscreen") return false;
 
   if (message.type === "START_RECORDING") {
+    console.log("[PG:off] → START_RECORDING, serverUrl:", message.serverUrl, "streamId len:", message.streamId?.length);
     startRecording(message)
-      .then(() => sendResponse({ ok: true }))
-      .catch((err) => sendResponse({ error: err.message }));
+      .then(() => { console.log("[PG:off] ✓ startRecording ok"); sendResponse({ ok: true }); })
+      .catch((err) => { console.error("[PG:off] ✗ startRecording err:", err.message); sendResponse({ error: err.message }); });
     return true;
   }
 
@@ -38,7 +42,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ capturing, serverUrl, sessionId });
     return false;
   }
+
+  if (message.type === "PING") {
+    sendResponse({ pong: true });
+    return false;
+  }
 });
+console.log("[PG:off] message listener registered");
 
 async function startRecording(config) {
   if (capturing) {
@@ -46,7 +56,12 @@ async function startRecording(config) {
     stopRecording();
   }
 
-  serverUrl = config.serverUrl.replace(/\/$/, "");
+  // Normalize: strip trailing slash, and auto-prepend http:// if the user
+  // typed "localhost:3000" instead of "http://localhost:3000". Without a
+  // scheme, fetch() treats "localhost" as the scheme and errors out.
+  let raw = (config.serverUrl || "").trim().replace(/\/$/, "");
+  if (raw && !/^https?:\/\//i.test(raw)) raw = "http://" + raw;
+  serverUrl = raw;
   console.log(`[PG] Starting capture → ${serverUrl}`);
 
   // Step 1: Create server session (SSE)
@@ -78,7 +93,9 @@ async function startRecording(config) {
   if (!sessionId) throw new Error("No session ID returned from server");
 
   console.log(`[PG] Session created: ${sessionId}`);
-  chrome.storage.local.set({ sessionId });
+  // NOTE: chrome.storage is not available in offscreen documents (only
+  // chrome.runtime + DOM APIs). The side panel receives sessionId via the
+  // SSE "status" event broadcast below, so persisting here was redundant.
 
   // Broadcast session start to side panel
   broadcast({ type: "SSE_EVENT", event: "status", data: { status: "started", sessionId } });

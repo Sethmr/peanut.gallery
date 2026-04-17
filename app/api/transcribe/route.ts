@@ -29,6 +29,32 @@ import { createSessionLogger } from "@/lib/debug-logger";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// ─── CORS ──────────────────────────────────────────────────────────────
+// The Chrome extension's offscreen doc calls this route from a
+// chrome-extension:// origin. The custom X-*-Key headers trigger a CORS
+// preflight, so we need OPTIONS + Access-Control-* headers on every
+// response. X-Session-Id must be exposed so the extension can read it
+// off the SSE response.
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, PATCH, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type, X-Deepgram-Key, X-Groq-Key, X-Anthropic-Key, X-Brave-Key",
+  "Access-Control-Expose-Headers": "X-Session-Id",
+  "Access-Control-Max-Age": "86400",
+};
+
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
+}
+
+function jsonResponse(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS, ...extraHeaders },
+  });
+}
+
 interface Session {
   transcriber: TranscriptionManager;
   paused: boolean;
@@ -43,10 +69,7 @@ export async function POST(req: NextRequest) {
   const { url: youtubeUrl, mode, isLive: clientIsLive } = await req.json();
 
   if (!youtubeUrl) {
-    return new Response(JSON.stringify({ error: "Missing YouTube URL" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "Missing YouTube URL" }, 400);
   }
 
   const browserMode = mode === "browser";
@@ -59,9 +82,9 @@ export async function POST(req: NextRequest) {
   const braveKey = req.headers.get("X-Brave-Key") || process.env.BRAVE_SEARCH_API_KEY;
 
   if (!deepgramKey || !groqKey) {
-    return new Response(
-      JSON.stringify({ error: "Missing required API keys. Click 'API Keys' to add your Deepgram and Groq keys." }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
+    return jsonResponse(
+      { error: "Missing required API keys. Click 'API Keys' to add your Deepgram and Groq keys." },
+      400
     );
   }
 
@@ -289,6 +312,7 @@ export async function POST(req: NextRequest) {
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
       "X-Session-Id": sessionId,
+      ...CORS_HEADERS,
     },
   });
 }
@@ -299,58 +323,52 @@ export async function PATCH(req: NextRequest) {
   const session = sessions.get(sessionId);
 
   if (!session) {
-    return new Response(JSON.stringify({ error: "Session not found" }), {
-      status: 404,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "Session not found" }, 404);
   }
 
   // Browser audio mode: receive PCM chunks from the client / extension
   if (action === "audio_chunk") {
     if (!audio) {
-      return new Response(JSON.stringify({ error: "Missing audio data" }), { status: 400 });
+      return jsonResponse({ error: "Missing audio data" }, 400);
     }
     const chunk = Buffer.from(audio, "base64");
     session.transcriber.feedAudio(chunk);
-    return new Response(JSON.stringify({ ok: true }));
+    return jsonResponse({ ok: true });
   }
 
   if (action === "pause") {
     session.paused = true;
     session.pauseFiredCount = 0;
-    return new Response(JSON.stringify({ paused: true }));
+    return jsonResponse({ paused: true });
   }
 
   if (action === "resume") {
     session.paused = false;
     session.pauseFiredCount = 0;
-    return new Response(JSON.stringify({ paused: false }));
+    return jsonResponse({ paused: false });
   }
 
   if (action === "force_fire") {
     session.transcriber.forceNextTrigger();
-    return new Response(JSON.stringify({ fired: true }));
+    return jsonResponse({ fired: true });
   }
 
   // Fire a SINGLE specific persona on demand (emoji tap)
   if (action === "fire_persona") {
     if (!targetPersonaId) {
-      return new Response(JSON.stringify({ error: "personaId required" }), { status: 400 });
+      return jsonResponse({ error: "personaId required" }, 400);
     }
     const persona = personas.find((p) => p.id === targetPersonaId);
     if (!persona) {
-      return new Response(JSON.stringify({ error: "Unknown persona" }), { status: 404 });
+      return jsonResponse({ error: "Unknown persona" }, 404);
     }
     // Queue this persona to be fired on the next interval tick
     session.forcedPersonaId = targetPersonaId;
     session.transcriber.forceNextTrigger();
-    return new Response(JSON.stringify({ fired: true, personaId: targetPersonaId }));
+    return jsonResponse({ fired: true, personaId: targetPersonaId });
   }
 
-  return new Response(JSON.stringify({ error: "Invalid action" }), {
-    status: 400,
-    headers: { "Content-Type": "application/json" },
-  });
+  return jsonResponse({ error: "Invalid action" }, 400);
 }
 
 // Stop endpoint
@@ -361,10 +379,8 @@ export async function DELETE(req: NextRequest) {
   if (session) {
     session.transcriber.stop();
     sessions.delete(sessionId);
-    return new Response(JSON.stringify({ stopped: true }));
+    return jsonResponse({ stopped: true });
   }
 
-  return new Response(JSON.stringify({ error: "Session not found" }), {
-    status: 404,
-  });
+  return jsonResponse({ error: "Session not found" }, 404);
 }

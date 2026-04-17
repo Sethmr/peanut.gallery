@@ -126,14 +126,34 @@ async function offscreenExists() {
 }
 
 async function ensureOffscreen() {
-  if (offscreenReady) return;
-  if (await offscreenExists()) { offscreenReady = true; return; }
-  await chrome.offscreen.createDocument({
-    url: "offscreen.html",
-    reasons: ["USER_MEDIA"],
-    justification: "Capture tab audio for real-time transcription",
-  });
-  offscreenReady = true;
+  if (await offscreenExists()) {
+    console.log("[PG:bg] offscreen doc already exists");
+  } else {
+    console.log("[PG:bg] creating offscreen doc…");
+    await chrome.offscreen.createDocument({
+      url: "offscreen.html",
+      reasons: ["USER_MEDIA"],
+      justification: "Capture tab audio for real-time transcription",
+    });
+    console.log("[PG:bg] createDocument resolved");
+  }
+  // PING/PONG handshake — createDocument resolves before offscreen.js's
+  // top-level code runs, so we poll until the listener responds.
+  const start = Date.now();
+  while (Date.now() - start < 3000) {
+    try {
+      const r = await chrome.runtime.sendMessage({ target: "offscreen", type: "PING" });
+      if (r?.pong) {
+        console.log("[PG:bg] offscreen PONG in", Date.now() - start, "ms");
+        offscreenReady = true;
+        return;
+      }
+    } catch {
+      /* listener not registered yet */
+    }
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  throw new Error("Offscreen doc did not become ready within 3s");
 }
 
 // ── Message routing ──
