@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Peanut Gallery",
   "version": "1.0.0",
-  "description": "AI podcast sidebar — captures tab audio and streams it to Peanut Gallery for real-time commentary.",
+  "description": "Watch any YouTube video with an AI writers' room. 4 personas react in real-time in a native Chrome side panel.",
   "permissions": [
     "tabCapture",
     "offscreen",
@@ -11,10 +11,8 @@
     "sidePanel"
   ],
   "host_permissions": [
-    "https://www.youtube.com/*",
-    "https://music.youtube.com/*",
     "http://localhost:*/*",
-    "https://*.peanut.gallery/*"
+    "https://peanutgallery.live/*"
   ],
   "action": {
     "default_title": "Peanut Gallery — click to capture this tab's audio",
@@ -32,7 +30,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["http://localhost:*/*", "https://*.peanut.gallery/*"],
+      "matches": ["http://localhost:*/*", "https://peanutgallery.live/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }

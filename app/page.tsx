@@ -333,6 +333,7 @@ export default function LandingPage() {
               TWiST
             </a>
             <Link href="/watch">Reference App</Link>
+            <Link href="/privacy">Privacy</Link>
           </div>
           <p>
             MIT Licensed. Open source — self-host for full privacy.
