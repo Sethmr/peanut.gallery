@@ -305,7 +305,7 @@ function sendToOffscreen(msg, callback) {
   });
 }
 
-async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle, audio }) {
+async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle, audio, installId }) {
   const streamId = await takePendingStream();
   console.log("[PG:bg] handleStartCapture: took streamId from session?", !!streamId);
 
@@ -334,6 +334,7 @@ async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle, au
         serverUrl,
         apiKeys,
         audio, // { passthrough, outputDeviceId } — optional; offscreen defaults to pre-v1.1 behavior
+        installId: installId || "", // forwarded to backend as X-Install-Id header
         youtubeUrl: youtubeUrl || lastTab?.url || "",
         tabTitle: tabTitle || lastTab?.title || "Unknown tab",
       },

@@ -103,6 +103,10 @@ async function startRecording(config) {
     if (config.apiKeys?.groq) headers["X-Groq-Key"] = config.apiKeys.groq;
     if (config.apiKeys?.anthropic) headers["X-Anthropic-Key"] = config.apiKeys.anthropic;
     if (config.apiKeys?.brave) headers["X-Brave-Key"] = config.apiKeys.brave;
+    // Install-id lets the hosted backend meter shared demo-key usage per
+    // installation (see docs/BUILD-YOUR-OWN-BACKEND.md §non-negotiables).
+    // Self-hosters' servers ignore it when ENABLE_FREE_TIER_LIMIT is unset.
+    if (config.installId) headers["X-Install-Id"] = config.installId;
 
     sseAbortController = new AbortController();
 
@@ -119,7 +123,15 @@ async function startRecording(config) {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: "Server error" }));
-      throw new Error(err.error || `Server returned ${res.status}`);
+      // Preserve the server's error code by prefixing the thrown message, so
+      // the side panel can recognise a 402 TRIAL_EXHAUSTED and open the keys
+      // accordion instead of just showing a raw banner. Chrome runtime
+      // messages drop custom Error props, so a string prefix is the reliable
+      // way to carry the code across the offscreen → background → panel hop.
+      const prefix = err.code ? `${err.code}:` : "";
+      throw new Error(
+        `${prefix}${err.error || `Server returned ${res.status}`}`
+      );
     }
 
     sessionId = res.headers.get("X-Session-Id");

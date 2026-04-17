@@ -64,9 +64,20 @@ them is verified by the acceptance tests at the bottom of this doc.
    degraded.** Monitoring and the extension both rely on this shape.
 7. **Never log API keys.** Log request IDs, persona IDs, and transcript
    lengths — never the secrets themselves.
+8. **`X-Install-Id` is an advisory header** sent by the extension on every
+   `POST /api/transcribe`. It's a UUID the extension persists in
+   `chrome.storage.local` on first launch. You don't have to do anything
+   with it — but if you want to meter shared demo-key usage per install
+   (see `lib/free-tier-limiter.ts` in the reference backend for one
+   approach), this is the identifier to key on. Your CORS
+   `Access-Control-Allow-Headers` MUST include it; otherwise the browser
+   strips it on preflight. Return **HTTP 402** with
+   `{ error, code: "TRIAL_EXHAUSTED", retryAfterMs, resetAt }` when a
+   limit is hit — the official extension recognises that code and opens
+   its keys accordion automatically.
 
 If you're implementing this with an AI coding assistant, copy-paste those
-seven points into its rules/system prompt first. They are the ones that
+eight points into its rules/system prompt first. They are the ones that
 matter most.
 
 ---
@@ -133,7 +144,7 @@ Must return status `204` and these headers:
 ```
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: POST, PATCH, DELETE, OPTIONS
-Access-Control-Allow-Headers: Content-Type, X-Deepgram-Key, X-Groq-Key, X-Anthropic-Key, X-Brave-Key
+Access-Control-Allow-Headers: Content-Type, X-Deepgram-Key, X-Groq-Key, X-Anthropic-Key, X-Brave-Key, X-Install-Id
 Access-Control-Expose-Headers: X-Session-Id
 Access-Control-Max-Age: 86400
 ```
@@ -160,6 +171,9 @@ X-Deepgram-Key:  <key>
 X-Groq-Key:      <key>
 X-Anthropic-Key: <key>   // optional — disables Baba Booey + Jackie if missing
 X-Brave-Key:     <key>   // optional — disables live fact-checking if missing
+X-Install-Id:    <uuid>  // per-installation id. Advisory; used by the
+                         // hosted backend for per-install rate limiting.
+                         // Safe to ignore on self-hosted instances.
 ```
 
 **Validation:**
@@ -167,6 +181,11 @@ X-Brave-Key:     <key>   // optional — disables live fact-checking if missing
 - If no Deepgram key OR no Groq key (from either header or env), return
   `400 { "error": "Missing required API keys. ..." }`. Do **not** 500.
 - If `url` is missing, return `400 { "error": "Missing YouTube URL" }`.
+- If you're running a hosted backend with shared demo keys and you want to
+  meter per-install usage, return `402` with
+  `{ error, code: "TRIAL_EXHAUSTED", quotaMinutes, windowHours, retryAfterMs, resetAt }`
+  when a quota is exhausted. The official extension recognises
+  `TRIAL_EXHAUSTED` and opens its API-keys accordion automatically.
 
 **Response:**
 

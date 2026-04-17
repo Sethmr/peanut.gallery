@@ -65,8 +65,35 @@ const outputDeviceSelect = document.getElementById("outputDevice");
 const capturedTabBanner = document.getElementById("capturedTabBanner");
 const capturedTabTitle = document.getElementById("capturedTabTitle");
 
+// ── Install ID ──
+// Stable per-installation UUID. Generated on first load, persisted in
+// chrome.storage.local, and sent to the hosted backend as X-Install-Id so
+// it can meter shared demo-key usage per install. Self-hosters never look
+// at it — ENABLE_FREE_TIER_LIMIT=false on their server ignores the header.
+// This is a SOFT identifier — clearing extension storage resets it. That's
+// fine; the goal is fair sharing of a free pool, not anti-abuse hardening.
+let installId = null;
+async function ensureInstallId() {
+  const { installId: existing } = await chrome.storage.local.get("installId");
+  if (existing && typeof existing === "string" && existing.length >= 16) {
+    installId = existing;
+    return installId;
+  }
+  const fresh =
+    (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function")
+      ? crypto.randomUUID()
+      : // Fallback for any truly ancient Chrome — produces a 32-hex-char id.
+        Array.from({ length: 32 }, () =>
+          Math.floor(Math.random() * 16).toString(16)
+        ).join("");
+  await chrome.storage.local.set({ installId: fresh });
+  installId = fresh;
+  return installId;
+}
+
 // ── Init ──
 loadSettings();
+ensureInstallId();
 buildPersonaAvatars();
 checkStatus();
 detectCurrentTab();
@@ -536,6 +563,12 @@ async function ensureHostPermission(serverUrl) {
 
 startBtn.addEventListener("click", async () => {
   saveSettings();
+  // Make sure we have an install-id before we fire. Normally ensureInstallId
+  // resolved long ago during panel init, but if the user was quick and storage
+  // was slow, await it here so the backend always sees the X-Install-Id header.
+  if (!installId) {
+    try { await ensureInstallId(); } catch { /* fall through — server will 400 if needed */ }
+  }
   const serverUrl = normalizeServerUrl(serverUrlInput.value);
   if (!serverUrl) { showError("Server URL is required"); return; }
   // Reflect the normalized URL back into the input so it's visible to the user
@@ -595,6 +628,7 @@ startBtn.addEventListener("click", async () => {
         tabId: tabInfo.tabId,
         tabTitle: tabInfo.title || "",
         youtubeUrl: tabInfo.url || "",
+        installId: installId || "",
         apiKeys: {
           deepgram: deepgramKeyInput.value.trim(),
           groq: groqKeyInput.value.trim(),
@@ -628,7 +662,21 @@ startBtn.addEventListener("click", async () => {
     // the UI back to idle so the user isn't stranded in a dead "capturing"
     // view. showIdle clears all the session state and shows the setup form.
     if (capturing) showIdle();
-    showError(err.message || String(err));
+    // Special-case the hosted-backend free-trial exhaustion error so the
+    // user lands directly on the API-keys section and knows exactly what to
+    // do next, instead of getting a raw banner they have to decipher.
+    // Offscreen prefixes the message with "TRIAL_EXHAUSTED:" (or
+    // "INSTALL_ID_REQUIRED:" for the rare missing-header case) — strip it
+    // before display.
+    const rawMsg = err.message || String(err);
+    if (rawMsg.startsWith("TRIAL_EXHAUSTED:") || rawMsg.startsWith("INSTALL_ID_REQUIRED:")) {
+      const cleaned = rawMsg.replace(/^[A-Z_]+:/, "");
+      document.getElementById("keysSection").classList.add("visible");
+      document.getElementById("toggleKeys").classList.add("open");
+      showError(cleaned);
+    } else {
+      showError(rawMsg);
+    }
   } finally {
     startBtn.disabled = false;
     startBtn.textContent = "Start Listening";

@@ -96,6 +96,19 @@ interface Session {
 // Active sessions (keyed by session ID)
 const sessions = new Map<string, Session>();
 
+/**
+ * Charge elapsed session time against the install's free-tier quota. Safe to
+ * call from any cleanup path — self-guards with `session.charged` so DELETE
+ * and the req.signal.abort handler can both call it without double-counting.
+ */
+function chargeSessionUsage(session: Session): void {
+  if (session.charged) return;
+  session.charged = true;
+  if (!session.chargeableInstallId) return;
+  const elapsedMs = Math.max(0, Date.now() - session.startedAt);
+  recordUsage(session.chargeableInstallId, elapsedMs);
+}
+
 export async function POST(req: NextRequest) {
   const { url: youtubeUrl, mode, isLive: clientIsLive } = await req.json();
 
@@ -106,11 +119,18 @@ export async function POST(req: NextRequest) {
   const browserMode = mode === "browser";
 
   // Read API keys from request headers (user provides their own keys)
-  // Falls back to server env vars for local dev
-  const deepgramKey = req.headers.get("X-Deepgram-Key") || process.env.DEEPGRAM_API_KEY;
-  const anthropicKey = req.headers.get("X-Anthropic-Key") || process.env.ANTHROPIC_API_KEY;
-  const groqKey = req.headers.get("X-Groq-Key") || process.env.GROQ_API_KEY;
-  const braveKey = req.headers.get("X-Brave-Key") || process.env.BRAVE_SEARCH_API_KEY;
+  // Falls back to server env vars for local dev / hosted demo keys.
+  // Track which keys came from headers vs env so the free-tier limiter can
+  // tell "user brought their own (no charge)" from "user is using demo keys".
+  const headerDeepgram = req.headers.get("X-Deepgram-Key");
+  const headerAnthropic = req.headers.get("X-Anthropic-Key");
+  const headerGroq = req.headers.get("X-Groq-Key");
+  const headerBrave = req.headers.get("X-Brave-Key");
+
+  const deepgramKey = headerDeepgram || process.env.DEEPGRAM_API_KEY;
+  const anthropicKey = headerAnthropic || process.env.ANTHROPIC_API_KEY;
+  const groqKey = headerGroq || process.env.GROQ_API_KEY;
+  const braveKey = headerBrave || process.env.BRAVE_SEARCH_API_KEY;
 
   if (!deepgramKey || !groqKey) {
     return jsonResponse(
@@ -119,12 +139,63 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // ── Free-tier limiter (hosted-backend only) ──────────────────────────
+  // If the operator has ENABLE_FREE_TIER_LIMIT=true and this session is
+  // going to burn at least one demo key (i.e. the user didn't paste a
+  // header AND the server has a fallback env var to use), we meter usage
+  // per install-id. Self-hosters and BYO-keys users bypass this branch
+  // entirely. We check env existence explicitly so a self-hosted server
+  // that happens to lack (say) ANTHROPIC_API_KEY doesn't get falsely
+  // flagged as "consuming a demo key" just because the header is absent.
+  const installId = (req.headers.get("X-Install-Id") || "").trim() || null;
+  const usingAnyDemoKey =
+    (!headerDeepgram && !!process.env.DEEPGRAM_API_KEY) ||
+    (!headerGroq && !!process.env.GROQ_API_KEY) ||
+    (!headerAnthropic && !!process.env.ANTHROPIC_API_KEY);
+  let chargeableInstallId: string | null = null;
+
+  if (isFreeTierLimitEnabled() && usingAnyDemoKey) {
+    if (!installId) {
+      // Hosted backend with demo keys but no install-id header — refuse
+      // politely so we can't be abused by anonymous scripts. Legit clients
+      // (the official extension) always send one.
+      return jsonResponse(
+        {
+          error:
+            "Missing install identifier. Update to the latest Peanut Gallery extension, or add your own API keys to bypass.",
+          code: "INSTALL_ID_REQUIRED",
+        },
+        400
+      );
+    }
+    const quota = getQuotaStatus(installId);
+    if (!quota.allowed) {
+      return jsonResponse(quotaDeniedBody(quota), 402, {
+        "Retry-After": String(Math.ceil((quota.resetAt - Date.now()) / 1000)),
+      });
+    }
+    // Only charge this session if the install actually crossed into demo-key
+    // territory. (usingAnyDemoKey is already true at this point.)
+    chargeableInstallId = installId;
+  }
+
   const sessionId = Date.now().toString();
   const log = createSessionLogger(sessionId);
-  log.info("session_create", { url: youtubeUrl, hasAnthropic: !!anthropicKey, hasBrave: !!braveKey });
+  log.info("session_create", {
+    url: youtubeUrl,
+    hasAnthropic: !!anthropicKey,
+    hasBrave: !!braveKey,
+    usingAnyDemoKey,
+    chargeable: !!chargeableInstallId,
+  });
 
   const transcriber = new TranscriptionManager(deepgramKey);
-  const session: Session = { transcriber };
+  const session: Session = {
+    transcriber,
+    startedAt: Date.now(),
+    chargeableInstallId,
+    charged: false,
+  };
   sessions.set(sessionId, session);
 
   const personaEngine = new PersonaEngine({
@@ -176,6 +247,7 @@ export async function POST(req: NextRequest) {
 
       transcriber.on("stopped", () => {
         send("status", { status: "stopped" });
+        chargeSessionUsage(session);
         sessions.delete(sessionId);
       });
 
@@ -380,6 +452,7 @@ export async function POST(req: NextRequest) {
         log.info("session_cleanup", { reason: "client_disconnect" });
         clearInterval(personaInterval);
         transcriber.stop();
+        chargeSessionUsage(session);
         sessions.delete(sessionId);
       };
 
@@ -461,6 +534,11 @@ export async function DELETE(req: NextRequest) {
 
   if (session) {
     session.transcriber.stop();
+    // transcriber.stop() synchronously fires "stopped" which already calls
+    // chargeSessionUsage — but belt-and-braces it here too in case the
+    // listener was already torn down. The `charged` guard makes this a no-op
+    // on the second call.
+    chargeSessionUsage(session);
     sessions.delete(sessionId);
     return jsonResponse({ stopped: true });
   }
