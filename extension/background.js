@@ -41,16 +41,35 @@ ensurePanelBehavior();
 // Survives service-worker eviction. Perfect for single-use stream IDs.
 const SESSION = chrome.storage.session;
 
+// Chrome's tab-capture streamId is single-use AND short-lived. If it sits in
+// storage across an SW eviction / extension reload / long idle, Chrome will
+// reject it at getUserMedia time with "Error starting tab capture". We treat
+// anything older than this as stale and refuse to ship it to offscreen.
+const STREAM_TTL_MS = 60_000;
+
 async function setPendingStream(streamId, tab) {
   await SESSION.set({
     pendingStreamId: streamId,
+    pendingStreamAt: Date.now(),
     lastTab: tab,
   });
 }
 async function takePendingStream() {
-  const { pendingStreamId } = await SESSION.get("pendingStreamId");
-  if (pendingStreamId) await SESSION.remove("pendingStreamId");
-  return pendingStreamId || null;
+  const { pendingStreamId, pendingStreamAt } = await SESSION.get([
+    "pendingStreamId",
+    "pendingStreamAt",
+  ]);
+  // Always clear — these are single-use no matter what.
+  if (pendingStreamId || pendingStreamAt) {
+    await SESSION.remove(["pendingStreamId", "pendingStreamAt"]);
+  }
+  if (!pendingStreamId) return null;
+  const age = Date.now() - (pendingStreamAt || 0);
+  if (age > STREAM_TTL_MS) {
+    console.warn(`[PG:bg] streamId is ${age}ms old — discarding as stale`);
+    return null;
+  }
+  return pendingStreamId;
 }
 async function getLastTab() {
   const { lastTab } = await SESSION.get("lastTab");
@@ -228,7 +247,7 @@ async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle }) 
 
   if (!streamId) {
     throw new Error(
-      "Chrome hasn't granted access to this tab. Click the peanut icon in the toolbar on this YouTube tab, then press Start Listening again."
+      "No fresh capture session. Click the 🥜 icon on this YouTube tab, then click Start Listening within 60 seconds."
     );
   }
 

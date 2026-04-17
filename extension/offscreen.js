@@ -104,14 +104,24 @@ async function startRecording(config) {
   readSSE(res.body);
 
   // Step 2: Capture tab audio
-  mediaStream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      mandatory: {
-        chromeMediaSource: "tab",
-        chromeMediaSourceId: config.streamId,
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        mandatory: {
+          chromeMediaSource: "tab",
+          chromeMediaSourceId: config.streamId,
+        },
       },
-    },
-  });
+    });
+  } catch (err) {
+    // Chrome's "Error starting tab capture" almost always means the streamId
+    // was stale (SW evicted, extension reloaded, tab navigated, or just
+    // expired). Translate into something the user can act on.
+    const msg = /tab capture/i.test(err.message)
+      ? "Capture token expired. Click the 🥜 icon on this YouTube tab again, then Start Listening within 60 seconds."
+      : err.message;
+    throw new Error(msg);
+  }
 
   if (!mediaStream.getAudioTracks().length) {
     throw new Error("No audio track in captured stream");
