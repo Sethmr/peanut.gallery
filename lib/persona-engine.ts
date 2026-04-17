@@ -154,7 +154,8 @@ export class PersonaEngine {
    * @param personaId - Which persona to fire
    * @param transcript - Current transcript text
    * @param onStream - Streaming callback
-   * @param isPaused - If true, persona reacts to the pause
+   * @param isSilence - If true, persona reacts to dead air / crickets on the
+   *   show (the transcript went quiet for a while). NOT a viewer pause.
    * @param cascadeFrom - If this is a cascade, the previous persona's response to riff on
    * @returns The full response text (for feeding into the next cascade)
    */
@@ -162,7 +163,7 @@ export class PersonaEngine {
     personaId: string,
     transcript: string,
     onStream: StreamCallback,
-    isPaused = false,
+    isSilence = false,
     cascadeFrom?: { personaId: string; name: string; emoji: string; text: string }
   ): Promise<string> {
     const persona = personas.find((p) => p.id === personaId);
@@ -173,7 +174,7 @@ export class PersonaEngine {
 
     // Log a fresh chunk of transcript (if any) before the persona fires,
     // so the conversation log view includes the latest thing the video said.
-    if (!isPaused) this.logTranscriptDelta(transcript);
+    if (!isSilence) this.logTranscriptDelta(transcript);
 
     // Build cross-persona context: other personas' LAST responses + cascade source
     const otherPersonas: OtherPersonaResponse[] = [];
@@ -204,7 +205,7 @@ export class PersonaEngine {
 
     // Fetch search results for producer
     const searchResults =
-      persona.id === "producer" && !isPaused
+      persona.id === "producer" && !isSilence
         ? await this.fetchSearchResults(transcript)
         : undefined;
 
@@ -217,7 +218,7 @@ export class PersonaEngine {
         searchResults,
         onStream,
         otherPersonas,
-        isPaused,
+        isSilence,
         conversationLog
       );
     } catch (err) {
@@ -237,24 +238,33 @@ export class PersonaEngine {
 
   /**
    * Fire all 4 personas in parallel against the current transcript.
-   * LEGACY — kept for backwards compatibility but the Director + fireSingle
-   * cascade is the preferred path for natural conversation flow.
+   * Used by the 🔥 React button path — when the user explicitly asks for
+   * reactions, we skip the Director and get everyone on the mic.
    *
-   * @param isPaused - If true, personas react to the pause instead of the show
+   * @param isSilence - If true, personas react to the dead-air moment on the
+   *   show (transcript went quiet) instead of to fresh content.
+   * @param isForceReact - If true, personas are told NOT to pass with "-" —
+   *   the user explicitly hit the React button and expects visible takes.
    */
   async fireAll(
     transcript: string,
     onStream: StreamCallback,
-    isPaused = false
+    isSilence = false,
+    isForceReact = false
   ): Promise<void> {
     const doneAll = logTimed("personas_fire_all", "info", {
-      data: { transcriptLength: transcript.length, isPaused, personaCount: personas.length },
+      data: {
+        transcriptLength: transcript.length,
+        isSilence,
+        isForceReact,
+        personaCount: personas.length,
+      },
     });
 
-    if (!isPaused) this.logTranscriptDelta(transcript);
+    if (!isSilence) this.logTranscriptDelta(transcript);
 
     // Start fact-check search in parallel (skip if paused — nothing new to check)
-    const searchPromise = isPaused
+    const searchPromise = isSilence
       ? Promise.resolve(undefined)
       : this.fetchSearchResults(transcript);
 
@@ -292,8 +302,9 @@ export class PersonaEngine {
           searchResults,
           onStream,
           otherPersonas,
-          isPaused,
-          logView
+          isSilence,
+          logView,
+          isForceReact
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -317,8 +328,9 @@ export class PersonaEngine {
     searchResults: string | undefined,
     onStream: StreamCallback,
     otherPersonas: OtherPersonaResponse[] = [],
-    isPaused = false,
-    conversationLog: ConversationEntry[] = []
+    isSilence = false,
+    conversationLog: ConversationEntry[] = [],
+    isForceReact = false
   ): Promise<void> {
     const donePersona = logTimed("persona_fire", "info", {
       personaId: persona.id,
@@ -327,6 +339,7 @@ export class PersonaEngine {
         hasSearchResults: !!searchResults,
         otherPersonaCount: otherPersonas.length,
         logSize: conversationLog.length,
+        isForceReact,
       },
     });
 
@@ -337,8 +350,9 @@ export class PersonaEngine {
       previous,
       searchResults,
       otherPersonas,
-      isPaused,
-      conversationLog
+      isSilence,
+      conversationLog,
+      isForceReact
     );
 
     let fullResponse = "";

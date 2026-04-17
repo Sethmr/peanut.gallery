@@ -156,6 +156,15 @@ export class TranscriptionManager extends EventEmitter {
   private ffmpegBytesReceived = 0;
   private deepgramMessagesReceived = 0;
   private firstTranscriptTime: number | null = null;
+  // Wall-clock of the most recent FINAL transcript. Powers silence detection:
+  // if this hasn't updated in `SILENCE_THRESHOLD_MS` and we've had some prior
+  // activity, the personas get one shot to react to the quiet (like Fred
+  // dropping [crickets]).
+  private lastTranscriptTime: number | null = null;
+  // Flips to true once we've fired a silence reaction for the current quiet
+  // spell. Resets the moment new transcript arrives. Prevents the personas
+  // from dog-piling on the same silence every tick.
+  private silenceFired = false;
 
   // Accumulator for triggering personas
   private newTranscriptSinceLastTrigger = "";
@@ -167,6 +176,11 @@ export class TranscriptionManager extends EventEmitter {
   // feel natural (you're getting 1-2 responses per trigger, not 4).
   private readonly FIRST_TRIGGER_MS = 15_000;
   private readonly TRIGGER_INTERVAL_MS = 22_000;
+  // How long the transcript must be quiet before the personas react to the
+  // silence. Long enough that a guest pausing to breathe doesn't trip it;
+  // short enough that real dead air (ad break, speaker lost their train of
+  // thought) gets a joke. 18s matches how the real Howard crew reads a room.
+  private readonly SILENCE_THRESHOLD_MS = 18_000;
 
   // Deepgram keepalive for live streams (prevents timeout on quiet segments)
   private keepaliveInterval: ReturnType<typeof setInterval> | null = null;
@@ -199,6 +213,47 @@ export class TranscriptionManager extends EventEmitter {
     const interval = this.triggerCount === 0 ? this.FIRST_TRIGGER_MS : this.TRIGGER_INTERVAL_MS;
     const hasContent = this.newTranscriptSinceLastTrigger.trim().length > 30;
     return elapsed >= interval && hasContent;
+  }
+
+  /**
+   * True when the transcript has been silent long enough that the personas
+   * should react to the dead air. Gated on three things:
+   *   1. At least one transcript must have arrived previously (otherwise every
+   *      session would fire an instant silence reaction at startup).
+   *   2. SILENCE_THRESHOLD_MS must have elapsed since the last transcript.
+   *   3. We haven't already fired a silence reaction for this quiet spell.
+   *
+   * The gate resets the moment any new final transcript arrives (see the
+   * Deepgram message handler).
+   */
+  shouldTriggerSilence(): boolean {
+    if (this.silenceFired) return false;
+    if (this.lastTranscriptTime === null) return false;
+    const elapsed = Date.now() - this.lastTranscriptTime;
+    return elapsed >= this.SILENCE_THRESHOLD_MS;
+  }
+
+  /**
+   * Mark that a silence reaction just fired, so we don't re-fire on every
+   * subsequent interval tick while the quiet continues. Auto-resets as soon
+   * as a new final transcript arrives.
+   */
+  markSilenceFired(): void {
+    this.silenceFired = true;
+    // Also advance the regular trigger clock so we don't double up a normal
+    // cascade on top of the silence reaction.
+    this.lastTriggerTime = Date.now();
+    this.triggerCount++;
+  }
+
+  /**
+   * How long ago (in milliseconds) did we last see a final transcript?
+   * Used by the route to include "it's been quiet for X seconds" context
+   * in the silence prompt. Returns null if no transcript has ever arrived.
+   */
+  msSinceLastTranscript(): number | null {
+    if (this.lastTranscriptTime === null) return null;
+    return Date.now() - this.lastTranscriptTime;
   }
 
   /** Force-trigger personas immediately (for manual "fire" button) */
@@ -646,6 +701,10 @@ export class TranscriptionManager extends EventEmitter {
               if (isFinal) {
                 this.transcriptBuffer.push(text);
                 this.newTranscriptSinceLastTrigger += " " + text;
+                // Reset the silence gate — the show is talking again, so the
+                // next quiet spell is a brand-new event worth reacting to.
+                this.lastTranscriptTime = Date.now();
+                this.silenceFired = false;
 
                 logPipeline({
                   event: "transcript_final",

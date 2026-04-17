@@ -111,7 +111,9 @@ export default function LandingPage() {
           <h2 className="fade-in">One click from the Chrome Web Store.</h2>
           <p className="section-sub fade-in">
             The extension is live — add it to Chrome, open any YouTube video, click the 🥜 icon,
-            and hit <strong>Start Listening</strong>. No API keys required (bring your own if you want).
+            and hit <strong>Start Listening</strong>. <strong>Free to try while we grow</strong> —
+            no API keys required right now, and when that changes you can drop in your own free-tier
+            keys or <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend</a>.
           </p>
 
           <div className="hero-ctas fade-in" style={{ marginTop: "2rem", marginBottom: "3rem" }}>
@@ -180,6 +182,39 @@ export default function LandingPage() {
                 <strong>Start Listening</strong>.
               </p>
             </div>
+          </div>
+
+          <div className="section-label" style={{ marginTop: "4rem" }}>Build Your Own Backend</div>
+          <h2 className="fade-in" style={{ fontSize: "1.75rem" }}>
+            Not a Node shop? Rebuild the backend in your stack.
+          </h2>
+          <p className="section-sub fade-in">
+            The extension will talk to <em>any</em> server that honors the wire spec — Go, Rust,
+            Python, Elixir, whatever. Swap providers, change the persona cast, or ship a
+            branded fork. The contract is documented to the byte: endpoints, SSE events,
+            audio format, CORS headers, director rules, and eight curl-based acceptance tests.
+          </p>
+          <p className="section-sub fade-in">
+            There&apos;s also a copy-paste prompt in the README you can feed to Claude or Cursor
+            to scaffold a compliant backend for you.
+          </p>
+          <div className="hero-ctas fade-in" style={{ justifyContent: "flex-start", marginTop: "1.5rem" }}>
+            <a
+              href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary"
+            >
+              Read the build spec &rarr;
+            </a>
+            <a
+              href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/SELF-HOST-INSTALL.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary"
+            >
+              Or run the reference backend
+            </a>
           </div>
         </section>
 

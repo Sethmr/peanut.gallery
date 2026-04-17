@@ -156,7 +156,52 @@ docker build -t peanut-gallery .
 docker run -p 3000:3000 peanut-gallery
 ```
 
-No server-side env vars needed — users provide their own keys through the UI.
+No server-side env vars needed — users provide their own keys through the UI. The full operator's guide is in **[docs/SELF-HOST-INSTALL.md](docs/SELF-HOST-INSTALL.md)** — prerequisites, env vars, smoke tests, Railway / Docker / Vercel trade-offs, and the common-failure checklist.
+
+---
+
+## Build Your Own Backend
+
+Don't want to run Node? Want to swap the persona stack, change providers, or ship a branded fork in Go / Rust / Python? The extension will happily talk to any backend that honors the wire spec.
+
+- **[docs/BUILD-YOUR-OWN-BACKEND.md](docs/BUILD-YOUR-OWN-BACKEND.md)** — the canonical contract. Endpoint shapes, SSE event protocol, audio format, director + cascade rules, persona prompts, required CORS headers, 8 acceptance tests you can paste into curl.
+- **[docs/SELF-HOST-INSTALL.md](docs/SELF-HOST-INSTALL.md)** — if you just want to run the reference backend as-is.
+
+### Let Claude do it for you
+
+Paste this into Claude (or any coding AI) after cloning the repo. It's self-contained — the AI reads the build spec, scaffolds the project, and stops at the acceptance tests so you can verify compatibility before going live.
+
+````text
+You are building a drop-in replacement backend for the Peanut Gallery
+Chrome extension. Read docs/BUILD-YOUR-OWN-BACKEND.md in this repo
+FIRST — that's the canonical wire spec and it is non-negotiable.
+
+Your job:
+1. Pick a stack (ask me which language/framework if it matters).
+2. Implement the 6 endpoints under the exact contracts in that doc:
+   POST /api/transcribe, PATCH /api/transcribe, DELETE /api/transcribe,
+   POST /api/personas, GET /api/health, GET /api/config.
+3. Wire Deepgram Nova-3 (WebSocket), Groq (Llama 70B + 8B), Anthropic
+   (Claude Haiku), and Brave Search exactly as the spec describes.
+4. Honor every "Non-negotiable" in the spec, especially:
+   - CORS for chrome-extension:// origins
+   - SSE content-type, X-Session-Id header, no buffering
+   - PCM 16-bit mono 16 kHz little-endian audio, base64, ~250 ms chunks
+   - Persona IDs: producer, troll, soundfx, joker (hardcoded, don't rename)
+   - API keys accepted via both env vars AND X-*-Key request headers
+5. Implement the Director + cascade rules with the exact scoring
+   formula and persona prompts in sections 7 and 8 of the spec.
+6. Stop before marking yourself done and run the 8 acceptance tests
+   in section 11. Fix anything that fails. Only declare victory when
+   every test passes.
+
+Do not deviate from the wire protocol. The official Chrome extension
+lives at https://github.com/Sethmr/peanut.gallery/tree/main/extension
+and WILL break if any field name, event name, or content-type is wrong.
+If something in the spec is ambiguous, stop and ask me — don't guess.
+````
+
+Once your server is running, point the extension's **Backend server** field at your URL and the four AI personas will react exactly the same way they do against the official hosted backend.
 
 ---
 

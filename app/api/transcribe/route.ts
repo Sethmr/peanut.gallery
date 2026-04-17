@@ -57,9 +57,13 @@ function jsonResponse(body: unknown, status = 200, extraHeaders: Record<string, 
 
 interface Session {
   transcriber: TranscriptionManager;
-  paused: boolean;
-  pauseFiredCount: number;
   forcedPersonaId?: string; // When set, next trigger fires this specific persona
+  /**
+   * When true, the next trigger bypasses the Director and fires ALL 4 personas
+   * with a "don't pass" directive — this is what the React button sets so the
+   * user always gets visible reactions for their click.
+   */
+  forceReactNext?: boolean;
 }
 
 // Active sessions (keyed by session ID)
@@ -93,7 +97,7 @@ export async function POST(req: NextRequest) {
   log.info("session_create", { url: youtubeUrl, hasAnthropic: !!anthropicKey, hasBrave: !!braveKey });
 
   const transcriber = new TranscriptionManager(deepgramKey);
-  const session: Session = { transcriber, paused: false, pauseFiredCount: 0 };
+  const session: Session = { transcriber };
   sessions.set(sessionId, session);
 
   const personaEngine = new PersonaEngine({
@@ -120,9 +124,7 @@ export async function POST(req: NextRequest) {
 
       // Wire up transcript events
       transcriber.on("transcript", (event) => {
-        if (!session.paused) {
-          send("transcript", event);
-        }
+        send("transcript", event);
       });
 
       transcriber.on("started", () => {
@@ -167,32 +169,84 @@ export async function POST(req: NextRequest) {
         if (personasFiring) return; // don't overlap
 
         const shouldFire = transcriber.shouldTriggerPersonas();
-        const justPaused = session.paused && session.pauseFiredCount === 0;
+        // SILENCE TRIGGER: transcript went quiet for >= 18s. Replaces the old
+        // client-driven pause path — the user doesn't have to signal anything,
+        // the server notices the dead air on its own.
+        const shouldFireSilence = transcriber.shouldTriggerSilence();
         const forcedPersona = session.forcedPersonaId;
+        const forceReactBurst = !!session.forceReactNext;
 
         // Clear forced persona immediately so it doesn't re-fire
         if (forcedPersona) {
           session.forcedPersonaId = undefined;
         }
 
-        // When paused, only allow the one-shot pause reaction (or forced persona tap)
-        if ((shouldFire && !session.paused) || justPaused || forcedPersona) {
+        // ── FORCE-REACT BURST ──
+        // User tapped the 🔥 React button. Skip the Director and fire all 4
+        // personas in parallel with isForceReact=true so nobody passes with "-".
+        // This is the ONE path in the whole engine that guarantees visible
+        // reactions regardless of Director scoring.
+        if (forceReactBurst) {
+          session.forceReactNext = false;
+          personasFiring = true;
+          const transcript = transcriber.transcript;
+
+          log.info("personas_trigger", {
+            reason: "force_react_button",
+            transcriptLength: transcript.length,
+          });
+          transcriber.resetNewTranscript();
+
+          const streamCallback = (response: { personaId: string; text: string; done: boolean }) => {
+            if (response.done) {
+              send("persona_done", { personaId: response.personaId });
+            } else {
+              send("persona", { personaId: response.personaId, text: response.text });
+            }
+          };
+
+          send("status", { status: "personas_firing" });
+
+          try {
+            await personaEngine.fireAll(transcript, streamCallback, /*isSilence*/ false, /*isForceReact*/ true);
+          } catch (err) {
+            log.error("force_react_error", { error: err instanceof Error ? err.message : String(err) });
+          }
+
+          send("status", { status: "personas_complete" });
+          personasFiring = false;
+          return;
+        }
+
+        if (shouldFire || shouldFireSilence || forcedPersona) {
           personasFiring = true;
           const transcript = transcriber.transcript;
           const recentTranscript = transcriber.newTranscript;
+          // A silence trigger is "sticky" for this one tick — we still pass
+          // isSilence=true down into the engine so the prompt shifts to the
+          // crickets/dead-air voice even if the cascade takes a few seconds.
+          const isSilenceTick = shouldFireSilence && !forcedPersona && !shouldFire;
+          const msSinceTranscript = transcriber.msSinceLastTranscript();
 
           log.info("personas_trigger", {
-            reason: forcedPersona ? `forced_${forcedPersona}` : justPaused ? "just_paused" : "transcript_threshold",
+            reason: forcedPersona
+              ? `forced_${forcedPersona}`
+              : isSilenceTick
+              ? "silence_threshold"
+              : "transcript_threshold",
             transcriptLength: transcript.length,
             recentLength: recentTranscript.length,
-            isPaused: session.paused,
+            isSilence: isSilenceTick,
+            msSinceLastTranscript: msSinceTranscript,
           });
 
-          if (!session.paused) {
+          if (isSilenceTick) {
+            // Lock out the silence path until new transcript arrives. Without
+            // this, every 5s tick would re-fire a "crickets" reaction — fine
+            // for one beat, miserable after three.
+            transcriber.markSilenceFired();
+          } else {
             transcriber.resetNewTranscript();
-          }
-          if (session.paused && !forcedPersona) {
-            session.pauseFiredCount++;
           }
 
           const streamCallback = (response: { personaId: string; text: string; done: boolean }) => {
@@ -214,7 +268,7 @@ export async function POST(req: NextRequest) {
               forcedPersona,
               transcript,
               streamCallback,
-              session.paused
+              /*isSilence*/ false
             );
 
             send("status", { status: "personas_complete" });
@@ -222,17 +276,20 @@ export async function POST(req: NextRequest) {
             return;
           }
 
-          // ── NORMAL DIRECTOR-DRIVEN CASCADE ──
-          // Ask the Director who should speak
+          // ── NORMAL DIRECTOR-DRIVEN CASCADE (or silence cascade) ──
+          // Ask the Director who should speak. On a silence tick the Director
+          // caps the cascade length so dead air gets one crisp reaction
+          // instead of a 4-way pile-on.
           const decision = director.decide(
             recentTranscript || transcript.slice(-500),
-            session.paused
+            isSilenceTick
           );
 
           log.info("director_decision", {
             chain: decision.personaIds.join(" → "),
             reason: decision.reason,
             cascadeCount: decision.personaIds.length,
+            isSilence: isSilenceTick,
           });
 
           // Fire the cascade chain with staggered delays
@@ -248,10 +305,8 @@ export async function POST(req: NextRequest) {
               await new Promise((resolve) => setTimeout(resolve, delay));
             }
 
-            // Don't fire if session was stopped or paused mid-cascade
-            if (!session.transcriber || (session.paused && !justPaused)) {
-              break;
-            }
+            // Stop if session has been torn down mid-cascade
+            if (!session.transcriber) break;
 
             send("status", { status: "personas_firing", personaId });
 
@@ -267,7 +322,7 @@ export async function POST(req: NextRequest) {
               personaId,
               transcript,
               streamCallback,
-              session.paused,
+              isSilenceTick,
               cascadeFrom
             );
 
@@ -319,7 +374,7 @@ export async function POST(req: NextRequest) {
 
 // Pause / Resume / Stop / Audio chunks
 export async function PATCH(req: NextRequest) {
-  const { sessionId, action, personaId: targetPersonaId, audio } = await req.json();
+  const { sessionId, action, personaId: targetPersonaId, audio, forceReact } = await req.json();
   const session = sessions.get(sessionId);
 
   if (!session) {
@@ -336,21 +391,22 @@ export async function PATCH(req: NextRequest) {
     return jsonResponse({ ok: true });
   }
 
-  if (action === "pause") {
-    session.paused = true;
-    session.pauseFiredCount = 0;
-    return jsonResponse({ paused: true });
-  }
-
-  if (action === "resume") {
-    session.paused = false;
-    session.pauseFiredCount = 0;
-    return jsonResponse({ paused: false });
+  // Legacy pause/resume actions — kept as safe no-ops so any older extension
+  // build still in the wild doesn't 400 when it sends them. The server now
+  // detects silence from transcript flow itself; clients don't need to signal
+  // anything.
+  if (action === "pause" || action === "resume") {
+    return jsonResponse({ ok: true, deprecated: "silence is auto-detected" });
   }
 
   if (action === "force_fire") {
+    // forceReact=true (set by the React button in the side panel) tells the
+    // trigger loop to bypass the Director for the next tick and fire all 4
+    // personas with a "don't pass" directive. Plain force_fire just brings
+    // the next director-driven trigger forward.
+    if (forceReact) session.forceReactNext = true;
     session.transcriber.forceNextTrigger();
-    return jsonResponse({ fired: true });
+    return jsonResponse({ fired: true, forceReact: !!forceReact });
   }
 
   // Fire a SINGLE specific persona on demand (emoji tap)

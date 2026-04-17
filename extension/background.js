@@ -249,6 +249,51 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // Panel asks: which tab is the CURRENT session actually listening to?
+  // Unlike GET_TAB_INFO this never falls back to the active tab — if the
+  // captured tab is gone, we want the banner to know and say so rather than
+  // point at whatever the user is currently looking at.
+  if (message.type === "GET_CAPTURED_TAB") {
+    (async () => {
+      const lastTab = await getLastTab();
+      if (!lastTab?.tabId) { sendResponse(null); return; }
+      // Re-read from chrome.tabs so title updates (e.g., YouTube video change
+      // inside the same tab) are reflected in the banner.
+      try {
+        const fresh = await chrome.tabs.get(lastTab.tabId);
+        sendResponse({
+          tabId: fresh.id,
+          windowId: fresh.windowId,
+          title: fresh.title || lastTab.title || "",
+          url: fresh.url || lastTab.url || "",
+          stillAlive: true,
+        });
+      } catch {
+        // Tab was closed — report the last known info but flag it dead.
+        sendResponse({ ...lastTab, stillAlive: false });
+      }
+    })();
+    return true;
+  }
+
+  // Panel asks to focus the captured tab (user clicked the banner).
+  if (message.type === "FOCUS_CAPTURED_TAB") {
+    (async () => {
+      const lastTab = await getLastTab();
+      if (!lastTab?.tabId) { sendResponse({ ok: false, reason: "no-tab" }); return; }
+      try {
+        await chrome.tabs.update(lastTab.tabId, { active: true });
+        if (lastTab.windowId) {
+          await chrome.windows.update(lastTab.windowId, { focused: true });
+        }
+        sendResponse({ ok: true });
+      } catch (err) {
+        sendResponse({ ok: false, reason: err?.message || "focus-failed" });
+      }
+    })();
+    return true;
+  }
+
   if (message.type === "SSE_EVENT") return false;
   if (message.type === "STREAM_READY") return false;
 });

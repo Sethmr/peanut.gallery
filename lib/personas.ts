@@ -417,7 +417,7 @@ export function buildPersonaContext(
   previousResponses: string[] = [],
   searchResults?: string,
   otherPersonas?: OtherPersonaResponse[],
-  isPaused?: boolean,
+  isSilence?: boolean,
   /**
    * Full interleaved conversation log (most recent last) — shows the flow of
    * what the video said + what every persona has said, in chronological order.
@@ -425,7 +425,13 @@ export function buildPersonaContext(
    * transcript and every persona's recent lines, so it can build on the
    * discussion instead of restating what's already been said.
    */
-  conversationLog?: ConversationEntry[]
+  conversationLog?: ConversationEntry[],
+  /**
+   * True when the user hit the React button manually. Personas should NOT pass
+   * with "-" in this case — the user explicitly asked for a reaction, so we
+   * force a meaningful in-character response even if the transcript is quiet.
+   */
+  isForceReact?: boolean
 ): string {
   let context = `${persona.systemPrompt}\n\n`;
 
@@ -490,15 +496,28 @@ export function buildPersonaContext(
     context += `If you already fact-checked this claim in your recent lines, either add a NEW angle or pass with "-".\n\n`;
   }
 
-  // Pause behavior: the show is paused, but the personas are still aware
-  if (isPaused) {
-    context += `--- THE VIEWER HAS PAUSED THE VIDEO ---\n`;
-    context += `The show is paused. React IN CHARACTER:\n`;
-    context += `- Baba Booey: flustered, uses the pause to double-check something, "Okay while we're paused, I actually want to look that up..."\n`;
-    context += `- The Troll: annoyed, impatient, "Oh great, they paused us. We were just getting to the good part."\n`;
-    context += `- Fred: [elevator music] or [hold music] — maybe a dry "...we'll be right back."\n`;
-    context += `- Jackie: makes a joke about being paused, "I had a great line ready and now the moment's gone."\n\n`;
-    context += `React to the pause. Stay in character. One sentence max.`;
+  // Silence behavior: the transcript has gone quiet — dead air, an ad break,
+  // the speaker lost their thread. Personas react to the quiet, NOT to any
+  // viewer action. The viewer didn't pause; the show itself just went still.
+  if (isSilence) {
+    context += `--- IT JUST GOT QUIET ON THE SHOW ---\n`;
+    context += `No one's said anything for a bit. This is dead air / crickets / awkward silence on the show itself — it is NOT because the viewer did anything. React to the quiet, IN CHARACTER:\n`;
+    context += `- Baba Booey: fills dead air with a loose fact or "while we've got a second, I wanted to mention…"\n`;
+    context += `- The Troll: "Crickets. Gorgeous." or "Did we lose the signal or did the take just die on air?"\n`;
+    context += `- Fred: [crickets] or [elevator music] or a dry "...uh."\n`;
+    context += `- Jackie: "Nobody's laughing because I haven't gone yet." — a joke about the quiet.\n\n`;
+    context += `HARD RULE — language to use and avoid:\n`;
+    context += `- USE: "crickets", "dead air", "the silence", "how quiet it got", "nobody's talking"\n`;
+    context += `- DO NOT USE: "pause", "paused", "pausing", "on hold", "hit pause" — the viewer did not pause anything.\n\n`;
+    context += `React to the silence. Stay in character. One sentence max.`;
+  } else if (isForceReact) {
+    context += `--- ⚡ USER JUST HIT THE REACT BUTTON ⚡ ---\n`;
+    context += `The viewer explicitly asked for a reaction right now. This means:\n`;
+    context += `- DO NOT output "-" to pass. You MUST respond in character.\n`;
+    context += `- If the transcript is thin, react to the vibe, a recent specific, or riff off a co-host's last line — whatever's true to your character.\n`;
+    context += `- Stay in voice. MAX 1-2 sentences. Punchy, not rambly.\n`;
+    context += `- No meta-commentary about being asked to react. Just react.\n\n`;
+    context += `Now react. Stay in character. MAX 1-2 sentences. React to the transcript, a co-host, or the moment — whatever lands.`;
   } else {
     context += `Now react. Stay in character. MAX 1-2 sentences. React mostly to the transcript above — that's where the show is right now. Riffing on another persona is fine when it's natural, as long as you're not re-quoting the same specifics from earlier turns. If you'd just be repeating a recent sidebar line word-for-word, output a single "-" and pass.`;
   }

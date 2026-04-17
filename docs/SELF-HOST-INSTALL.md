@@ -1,0 +1,353 @@
+# SELF-HOST-INSTALL.md
+
+> **Audience:** anyone who wants to run their own Peanut Gallery backend —
+> either to point the official Chrome extension at it, or to host the web app
+> yourself. This is the **operator's guide**. It assumes you are running the
+> reference backend in this repo as-is, not rewriting it.
+>
+> **If you want to build a backend from scratch in a different language or
+> stack,** read [`BUILD-YOUR-OWN-BACKEND.md`](BUILD-YOUR-OWN-BACKEND.md)
+> instead — that's the wire spec the extension talks to.
+
+---
+
+## Contents
+
+1. [What "self-hosting" gets you](#what-self-hosting-gets-you)
+2. [Prerequisites](#prerequisites)
+3. [One-command setup (macOS / Linux)](#one-command-setup-macos--linux)
+4. [Manual setup (Windows, or if you hate shell scripts)](#manual-setup-windows-or-if-you-hate-shell-scripts)
+5. [Get your API keys (90 seconds each)](#get-your-api-keys-90-seconds-each)
+6. [Point the Chrome extension at your local server](#point-the-chrome-extension-at-your-local-server)
+7. [Deploy to a public host (Railway / Docker / Vercel)](#deploy-to-a-public-host-railway--docker--vercel)
+8. [Verify it works (smoke tests)](#verify-it-works-smoke-tests)
+9. [Common problems](#common-problems)
+10. [Cost expectations](#cost-expectations)
+
+---
+
+## What "self-hosting" gets you
+
+Peanut Gallery has two audiences for this doc:
+
+- **Extension user who doesn't trust a shared backend.** Run the server on
+  your own machine; the Chrome extension will send audio to `localhost:3000`
+  and nothing ever touches `peanutgallery.live`. Your API keys, audio, and
+  transcripts stay on your laptop.
+- **Developer who wants to host a branded fork.** Stand it up on Railway,
+  Fly, Render, Vercel (with caveats — see [Deploy](#deploy-to-a-public-host-railway--docker--vercel)),
+  or any Docker host and point your own Chrome extension build at it.
+
+If your goal is to rewrite the backend in Go / Rust / Python / anything
+non-Node, stop reading and go to
+[`BUILD-YOUR-OWN-BACKEND.md`](BUILD-YOUR-OWN-BACKEND.md).
+
+---
+
+## Prerequisites
+
+Required on every OS:
+
+| Tool | Min version | Why | Check |
+|------|-------------|-----|-------|
+| **Node.js** | **18.x or newer** | Next.js 15 + WebSocket + async iterators | `node -v` |
+| **npm** | 9+ (ships with Node 18) | package install | `npm -v` |
+| **git** | any recent | clone the repo | `git --version` |
+
+Required **only if you plan to use the web app** (pasting YouTube URLs at
+`/watch`). The Chrome extension path uses tab audio capture and does NOT need
+these:
+
+| Tool | Install (macOS) | Install (Linux) | Install (Windows) |
+|------|-----------------|-----------------|-------------------|
+| **yt-dlp** | `brew install yt-dlp` | `sudo apt install yt-dlp` or `pip install -U yt-dlp` | `winget install yt-dlp` |
+| **ffmpeg** | `brew install ffmpeg` | `sudo apt install ffmpeg` | `winget install ffmpeg` |
+
+> **Windows note.** The one-command setup script is bash-only. On Windows,
+> use WSL2 (Ubuntu) and follow the Linux instructions, OR follow the manual
+> setup section below from PowerShell.
+
+You also need 4 API keys (all free-tier). See
+[Get your API keys](#get-your-api-keys-90-seconds-each).
+
+---
+
+## One-command setup (macOS / Linux)
+
+```bash
+git clone https://github.com/Sethmr/peanut.gallery.git
+cd peanut.gallery
+./setup.sh
+```
+
+`setup.sh` does the following in order and will abort with a clear error if
+anything is missing:
+
+1. Checks Node ≥ 18, npm, yt-dlp, ffmpeg.
+2. Runs `npm install` if `node_modules/` is missing.
+3. Prompts you interactively for each API key and writes them to
+   `.env.local` (which is git-ignored).
+4. Starts `npm run dev` on `http://localhost:3000`.
+5. Opens the browser for you.
+
+When the script finishes, the web app is live at `http://localhost:3000` and
+the backend is ready for the Chrome extension to hit at
+`http://localhost:3000/api/transcribe`.
+
+---
+
+## Manual setup (Windows, or if you hate shell scripts)
+
+```bash
+# 1. Clone + install
+git clone https://github.com/Sethmr/peanut.gallery.git
+cd peanut.gallery
+npm install
+
+# 2. Copy the env template
+cp .env.example .env.local     # macOS / Linux
+copy .env.example .env.local   # Windows
+
+# 3. Edit .env.local and paste in your keys (see next section)
+
+# 4. Run the dev server
+npm run dev
+```
+
+The dev server prints `▲ Next.js 15.x — Ready on http://localhost:3000`
+when it's up. Keep this terminal open.
+
+### What's in `.env.local`
+
+| Variable | Required? | What it's for |
+|----------|-----------|---------------|
+| `DEEPGRAM_API_KEY` | **Yes** | Real-time speech-to-text. Without it, nothing works. |
+| `GROQ_API_KEY` | **Yes** | Powers The Troll + Fred (Llama 70B / 8B). Without it, those two personas stay silent. |
+| `ANTHROPIC_API_KEY` | **Strongly recommended** | Powers Baba Booey (fact-checker) + Jackie (comedy) on Claude Haiku. Without it those two personas stay silent. |
+| `BRAVE_SEARCH_API_KEY` | Optional | Lets Baba Booey fact-check claims against the live web. Without it Baba still fact-checks from training knowledge. |
+| `YT_DLP_COOKIE_BROWSER` | Optional (web app only) | Set to `chrome`, `firefox`, `safari`, `edge`, or `brave` if yt-dlp starts failing on age-gated or login-walled videos. Not used by the Chrome extension path. |
+
+Technically the server can run with only `DEEPGRAM_API_KEY` + `GROQ_API_KEY`
+— you'll still get live transcription plus The Troll and Fred. Think of
+those two as the "minimum viable cast."
+
+---
+
+## Get your API keys (90 seconds each)
+
+All four providers have free tiers that are enough to run the app for hours
+without paying anything.
+
+1. **Deepgram** — <https://console.deepgram.com/signup>
+   - Sign up, confirm email, go to **API Keys → Create a New API Key**.
+   - New accounts include **$200** in free credit. That's roughly 400 hours
+     of Nova-3 streaming — far more than you need.
+2. **Groq** — <https://console.groq.com/keys>
+   - Sign up with Google/GitHub, click **Create API Key**, name it
+     anything, copy the `gsk_...` string.
+   - Free tier is generous (30 req/min on 70B, higher on 8B).
+3. **Anthropic** — <https://console.anthropic.com/settings/keys>
+   - Sign up, verify, click **Create Key**, copy the `sk-ant-...` string.
+   - New accounts typically receive starter credit. Haiku is the cheapest
+     Claude model — a 2-hour session costs pennies.
+4. **Brave Search** (optional but recommended) —
+   <https://api-dashboard.search.brave.com/app/keys>
+   - Free tier: **2,000 queries per month.** More than enough for personal
+     use — each fact-check typically uses 1 query.
+
+Paste each key into the matching line in `.env.local`, no quotes, no spaces.
+Example:
+
+```bash
+DEEPGRAM_API_KEY=68e...real-key-here
+GROQ_API_KEY=gsk_abc...
+ANTHROPIC_API_KEY=sk-ant-api03-...
+BRAVE_SEARCH_API_KEY=BSA...
+```
+
+---
+
+## Point the Chrome extension at your local server
+
+1. Install the extension in developer mode (
+   [extension/README.md](../extension/README.md)):
+   - Open `chrome://extensions`
+   - Enable **Developer mode** (top right)
+   - Click **Load unpacked** → select the `extension/` folder
+2. Open any YouTube video.
+3. Click the 🥜 icon. The side panel opens.
+4. Expand the **Backend server** field. Change the URL from
+   `https://peanutgallery.live` to `http://localhost:3000`.
+5. (Optional) Expand **API keys**. If you've already put keys in
+   `.env.local` on the server, leave these blank — the server will use env
+   vars. If you want to override on a per-request basis (useful for testing
+   a friend's key), paste them here.
+6. Click **Start Listening**. You should see "Listening..." in the header
+   within 1-2 seconds and persona reactions within 5-10 seconds of speech.
+
+> **Mixed-content warning.** If you deploy the server to HTTPS but try to
+> point the extension at plain `http://`, Chrome will block it. Use
+> `localhost` (which Chrome treats as secure) or a fully HTTPS hostname.
+
+---
+
+## Deploy to a public host (Railway / Docker / Vercel)
+
+### Railway (recommended)
+
+The repo includes [`railway.toml`](../railway.toml) and a
+[`Dockerfile`](../Dockerfile) with yt-dlp + ffmpeg preinstalled.
+
+```bash
+npx @railway/cli login
+npx @railway/cli init -n my-peanut-gallery
+npx @railway/cli up
+```
+
+Then in the Railway dashboard set the same four env vars from `.env.local`.
+Railway will assign you a `your-app.up.railway.app` URL — put that in the
+extension's **Backend server** field.
+
+### Any Docker host
+
+```bash
+docker build -t peanut-gallery .
+docker run -p 3000:3000 \
+  -e DEEPGRAM_API_KEY=... \
+  -e GROQ_API_KEY=... \
+  -e ANTHROPIC_API_KEY=... \
+  -e BRAVE_SEARCH_API_KEY=... \
+  peanut-gallery
+```
+
+Then put your host's public URL in the extension's **Backend server** field.
+Make sure the URL is HTTPS; Chrome will reject mixed content from the
+extension.
+
+### Vercel — read this before deploying
+
+Vercel works for the landing pages but **the Vercel Edge / Hobby runtime
+kills long-running SSE connections after ~10-30s** depending on plan. Peanut
+Gallery sessions run for the length of the video (often 1-2 hours). If you
+want Vercel:
+
+- Use **Fluid Compute** or a Pro plan with extended runtime.
+- Or split: host the static site on Vercel, host `/api/*` on Railway.
+- Or just use Railway for everything — it's simpler.
+
+The reference backend at `peanutgallery.live` runs on Railway for exactly
+this reason.
+
+### What NOT to ship publicly
+
+- **Don't** put real keys in a public Dockerfile or committed env file.
+  `.env.local` is git-ignored for a reason.
+- **Don't** expose `/api/transcribe` to the open internet without rate
+  limiting if you're paying for the keys. Each session holds a Deepgram
+  WebSocket open — a bad actor can drain your credit.
+- **Do** put your server behind Cloudflare or another CDN if you plan to
+  publish the URL anywhere.
+
+---
+
+## Verify it works (smoke tests)
+
+Run each of these after starting the server. Each should succeed.
+
+### 1. Health check
+
+```bash
+curl -sS http://localhost:3000/api/health | jq
+```
+
+Expected: JSON with `status: "healthy"` (or `degraded` if yt-dlp/ffmpeg are
+missing — fine for the Chrome extension path).
+
+### 2. Fire one persona manually
+
+```bash
+curl -sSN -X POST http://localhost:3000/api/personas \
+  -H 'Content-Type: application/json' \
+  -d '{"transcript": "Jason just said Uber was founded in 2007.", "persona": "producer"}'
+```
+
+Expected: an SSE stream that emits `data: {"type":"chunk", ...}` lines,
+then `data: {"type":"done"}`. If you get 401 / 500, check your env vars.
+
+### 3. Open a transcribe session
+
+```bash
+curl -sSN -X POST http://localhost:3000/api/transcribe \
+  -H 'Content-Type: application/json' \
+  -H 'X-Deepgram-Key: <your-key>' \
+  -H 'X-Groq-Key: <your-key>' \
+  -H 'X-Anthropic-Key: <your-key>' \
+  -d '{"mode": "browser"}' | head -c 4000
+```
+
+Expected: the response header includes `X-Session-Id: <uuid>` and the body
+starts emitting `event: status\ndata: {"status":"ready",...}`. Kill with
+Ctrl-C after you see that — you've proved the SSE path works.
+
+---
+
+## Common problems
+
+**"ECONNREFUSED localhost:3000" in the extension.**
+The server isn't running, or it's running on a different port. Check the
+terminal where you ran `npm run dev` — it should say "Ready on
+`http://localhost:3000`". If it's on 3001 (because 3000 was taken), update
+the extension's backend URL.
+
+**"Failed to fetch" but the server is up.**
+Almost always a CORS or mixed-content issue. Confirm:
+- Extension URL is `http://localhost:3000` (not `127.0.0.1`, not `https://`).
+- Or if you deployed publicly, the URL is HTTPS and the server is returning
+  the CORS headers listed in
+  [`BUILD-YOUR-OWN-BACKEND.md`](BUILD-YOUR-OWN-BACKEND.md#non-negotiables-read-first).
+
+**Transcripts never appear, but no error.**
+Deepgram key is missing or invalid. Check the server logs for
+`[transcribe] Deepgram WS error` or `401`. Test the key with
+<https://developers.deepgram.com/playground>.
+
+**Only The Troll + Fred react. Baba and Jackie stay silent.**
+No `ANTHROPIC_API_KEY`. Add it to `.env.local` and restart the server.
+
+**"yt-dlp: command not found" when pasting a URL at /watch.**
+You skipped the web-app prerequisites. Install yt-dlp + ffmpeg (see
+[Prerequisites](#prerequisites)) or just use the Chrome extension path
+instead — it doesn't need them.
+
+**Audio sounds choppy / personas are half a minute behind.**
+Your network can't keep up with 16 kHz PCM uploads (~256 kbps). Uncommon on
+home wifi, common on hotel wifi. Close other tabs; try again.
+
+**Server crashes with "EADDRINUSE :3000".**
+Another process is on 3000. Kill it (`lsof -ti:3000 | xargs kill`) or run
+with a different port: `PORT=3456 npm run dev`.
+
+**I get errors only after ~30 seconds on a hosted deploy.**
+Your platform is buffering or terminating the SSE stream. See the Vercel
+note in [Deploy](#deploy-to-a-public-host-railway--docker--vercel).
+
+---
+
+## Cost expectations
+
+On the free tiers:
+
+| Provider | Free tier | Real-world 2-hour session |
+|----------|-----------|---------------------------|
+| Deepgram | $200 credit on signup | ~$0.87 (Nova-3 streaming) |
+| Groq | 30 req/min on 70B, generous | $0 (free tier covers it) |
+| Anthropic | Starter credit on signup | ~$0.25 (Haiku is cheap) |
+| Brave | 2,000 queries/month | ~30 queries (≈1.5% of free tier) |
+
+**Total per 2-hour episode: ~$1.15** once you exhaust free credit.
+
+---
+
+Back to [main README](../README.md) — or, if you want to build your own
+backend in a different stack,
+[`BUILD-YOUR-OWN-BACKEND.md`](BUILD-YOUR-OWN-BACKEND.md).

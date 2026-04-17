@@ -24,6 +24,22 @@ let streamBuffers = {}; // personaId → accumulated streaming text
 let streamingPersonaId = null;
 let messageCount = 0;
 
+// React button force-state tracking.
+// When the user taps 🔥 React, the button flips to a spinner until at least
+// `forceReactTarget` persona_done events have come back. Safety timeout at 15s
+// guarantees the UI can never get stuck in the loading state.
+let forceReactActive = false;
+let forceReactReceived = 0;
+const FORCE_REACT_TARGET = 2;
+const FORCE_REACT_TIMEOUT_MS = 15_000;
+let forceReactTimeoutId = null;
+let forceReactOriginalHtml = null;
+
+// The tab Peanut Gallery is currently capturing from. Set on status=started
+// (populated by background via GET_CAPTURED_TAB). Lets us show a persistent
+// "Listening to: …" banner even when the user switches tabs.
+let capturedTabInfo = null; // { tabId, title, url, windowId }
+
 // ── DOM refs ──
 const setupSection = document.getElementById("setupSection");
 const statusBar = document.getElementById("statusBar");
@@ -46,6 +62,8 @@ const anthropicKeyInput = document.getElementById("anthropicKey");
 const braveKeyInput = document.getElementById("braveKey");
 const passthroughToggle = document.getElementById("passthroughToggle");
 const outputDeviceSelect = document.getElementById("outputDevice");
+const capturedTabBanner = document.getElementById("capturedTabBanner");
+const capturedTabTitle = document.getElementById("capturedTabTitle");
 
 // ── Init ──
 loadSettings();
@@ -80,10 +98,14 @@ function loadSettings() {
     ],
     (data) => {
       if (data.serverUrl) serverUrlInput.value = data.serverUrl;
-      if (data.deepgramKey) deepgramKeyInput.value = data.deepgramKey;
-      if (data.groqKey) groqKeyInput.value = data.groqKey;
-      if (data.anthropicKey) anthropicKeyInput.value = data.anthropicKey;
-      if (data.braveKey) braveKeyInput.value = data.braveKey;
+      // Key fields stay empty by default. The backend has its own demo keys
+      // in env vars and will use them when the extension sends no key headers.
+      // If the user pastes their own key here, the extension forwards it via
+      // X-*-Key headers and the backend uses those instead.
+      deepgramKeyInput.value = data.deepgramKey || "";
+      groqKeyInput.value = data.groqKey || "";
+      anthropicKeyInput.value = data.anthropicKey || "";
+      braveKeyInput.value = data.braveKey || "";
 
       // Audio routing defaults: passthrough ON + system default device.
       // Matches pre-v1.1 behavior exactly for existing users.
@@ -92,15 +114,8 @@ function loadSettings() {
       // Selected device is applied once enumerateOutputDevices() runs (async).
       outputDeviceSelect.dataset.pendingValue = savedDevice;
 
-      // Auto-expand keys section if the 3 required keys aren't all present,
-      // so first-time users see the key fields without having to find the toggle.
-      const hasRequiredKeys = !!(data.deepgramKey && data.groqKey && data.anthropicKey);
-      if (!hasRequiredKeys) {
-        const section = document.getElementById("keysSection");
-        const toggle = document.getElementById("toggleKeys");
-        section.classList.add("visible");
-        toggle.classList.add("open");
-      }
+      // Keys section stays collapsed by default — the backend handles demo
+      // access, so first-time users never need to open the panel.
     }
   );
 }
@@ -209,6 +224,7 @@ function showCapturing() {
 function showIdle() {
   capturing = false;
   sessionId = null;
+  capturedTabInfo = null;
   setupSection.style.display = "block";
   emptyState.style.display = "flex";
   statusBar.style.display = "none";
@@ -216,6 +232,9 @@ function showIdle() {
   transcriptSection.style.display = "none";
   gallery.style.display = "none";
   statusBar.classList.remove("active", "live");
+  // Capture stopped — make sure the React button can't be stuck spinning
+  if (forceReactActive) resetFireButton();
+  updateCapturedTabBanner();
 
   // Reset state
   transcriptFinal = "";
@@ -226,6 +245,56 @@ function showIdle() {
   gallery.innerHTML = "";
   transcriptTextEl.textContent = "Listening...";
   updatePersonaSpeaking(null);
+}
+
+/**
+ * Refresh the "Listening to: …" banner at the top of the panel. Called on
+ * status=started (to populate), on chrome.tabs activation changes (to flip
+ * the Jump hint on/off), and on showIdle (to clear).
+ *
+ * When not capturing: banner is hidden.
+ * When capturing and we have tab info: banner shows the tab title + optional
+ * "Jump →" hint when the user isn't currently looking at the captured tab.
+ * When the captured tab was closed: banner shows a muted "(tab closed)" line.
+ */
+async function updateCapturedTabBanner() {
+  if (!capturing || !capturedTabInfo) {
+    capturedTabBanner.classList.remove("visible", "on-tab");
+    return;
+  }
+  const displayTitle = capturedTabInfo.title || capturedTabInfo.url || "Unknown tab";
+  capturedTabTitle.textContent = capturedTabInfo.stillAlive === false
+    ? `${displayTitle} (tab closed)`
+    : displayTitle;
+  capturedTabBanner.classList.add("visible");
+
+  // Compare against the currently active tab to decide whether to show the
+  // "Jump →" hint. If the user is already looking at the captured tab, drop
+  // the hint — otherwise it looks like spam.
+  try {
+    const activeTabs = await new Promise((resolve) => {
+      chrome.tabs.query({ active: true, lastFocusedWindow: true }, resolve);
+    });
+    const activeId = activeTabs?.[0]?.id;
+    const isOnCapturedTab = activeId && activeId === capturedTabInfo.tabId;
+    capturedTabBanner.classList.toggle("on-tab", !!isOnCapturedTab);
+  } catch {
+    capturedTabBanner.classList.remove("on-tab");
+  }
+}
+
+/**
+ * Pull fresh tab info from background (which re-reads chrome.tabs, so title
+ * changes like a new YouTube video in the same tab are reflected). Called on
+ * status=started and after a tab-activation change.
+ */
+function refreshCapturedTab() {
+  chrome.runtime.sendMessage({ type: "GET_CAPTURED_TAB" }, (response) => {
+    if (chrome.runtime.lastError) return;
+    if (!response) { capturedTabInfo = null; updateCapturedTabBanner(); return; }
+    capturedTabInfo = response;
+    updateCapturedTabBanner();
+  });
 }
 
 function showError(msg) {
@@ -242,6 +311,9 @@ function checkStatus() {
       showCapturing();
       statusText.textContent = "Capturing...";
       statusBar.classList.add("active");
+      // Re-opening the side panel into an existing session — rehydrate the
+      // "Listening to: …" banner too.
+      refreshCapturedTab();
     }
   });
 }
@@ -371,6 +443,15 @@ chrome.runtime.onMessage.addListener((message) => {
       finalizeStreamingEntry();
       if (finalText.trim()) {
         addFeedEntry(pid, finalText.trim());
+        // If the user is waiting on a React-button click, count non-empty
+        // responses and restore the button as soon as we've got at least
+        // FORCE_REACT_TARGET of them. Empty passes ("-") don't count.
+        if (forceReactActive) {
+          forceReactReceived++;
+          if (forceReactReceived >= FORCE_REACT_TARGET) {
+            resetFireButton();
+          }
+        }
       }
       break;
     }
@@ -385,6 +466,9 @@ chrome.runtime.onMessage.addListener((message) => {
         showCapturing();
         statusText.textContent = "Waiting for audio...";
         statusBar.classList.add("active");
+        // Populate the "Listening to: …" banner now that we know a session
+        // is live. Background remembers the captured tab across SW evictions.
+        refreshCapturedTab();
       }
       if (data.status === "live_detected") {
         if (data.isLive) {
@@ -403,6 +487,10 @@ chrome.runtime.onMessage.addListener((message) => {
       }
       if (data.status === "personas_complete") {
         updatePersonaSpeaking(null);
+        // Backend finished the force-react burst. If the button is still
+        // spinning (e.g. fewer than FORCE_REACT_TARGET non-empty responses
+        // came back), restore it now rather than waiting on the timeout.
+        if (forceReactActive) resetFireButton();
       }
       break;
   }
@@ -453,19 +541,23 @@ startBtn.addEventListener("click", async () => {
   // Reflect the normalized URL back into the input so it's visible to the user
   serverUrlInput.value = serverUrl;
 
-  // Pre-flight: required keys must be set. Deepgram is mandatory; without
-  // Groq or Anthropic, 2 of the 4 personas will stay silent. Warn clearly
-  // rather than silently hang on "Connecting to server..."
-  const missing = [];
-  if (!deepgramKeyInput.value.trim()) missing.push("Deepgram");
-  if (!groqKeyInput.value.trim()) missing.push("Groq");
-  if (!anthropicKeyInput.value.trim()) missing.push("Anthropic");
-  if (missing.length > 0) {
-    // Expand the keys section so user can fill them in
-    document.getElementById("keysSection").classList.add("visible");
-    document.getElementById("toggleKeys").classList.add("open");
-    showError(`Missing required API key${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Free keys are linked below.`);
-    return;
+  // Pre-flight: self-hosters must supply their own keys (their server has no
+  // demo env vars to fall back on). For the default peanutgallery.live backend
+  // we skip the check — the server has demo keys in its env vars and will use
+  // them whenever the extension sends no key headers.
+  const isHostedBackend = /(^|\/\/)peanutgallery\.live(\/|$)/i.test(serverUrl);
+  if (!isHostedBackend) {
+    const missing = [];
+    if (!deepgramKeyInput.value.trim()) missing.push("Deepgram");
+    if (!groqKeyInput.value.trim()) missing.push("Groq");
+    if (!anthropicKeyInput.value.trim()) missing.push("Anthropic");
+    if (missing.length > 0) {
+      // Expand the keys section so user can fill them in
+      document.getElementById("keysSection").classList.add("visible");
+      document.getElementById("toggleKeys").classList.add("open");
+      showError(`Self-hosting requires your own API key${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Free keys are linked below.`);
+      return;
+    }
   }
 
   // Request host permission for the server if we don't already have it.
@@ -569,13 +661,53 @@ stopBtn.addEventListener("click", () => {
 
 fireBtn.addEventListener("click", async () => {
   if (!sessionId) return;
+  if (forceReactActive) return; // debounce — already in-flight
+
+  // Enter loading state: hide label, show spinner, disable button.
+  forceReactActive = true;
+  forceReactReceived = 0;
+  forceReactOriginalHtml = fireBtn.innerHTML;
+  fireBtn.innerHTML = `<span class="btn-spinner" aria-label="Waking the crew up"></span>`;
+  fireBtn.disabled = true;
+  fireBtn.classList.add("loading");
+  fireBtn.setAttribute("aria-busy", "true");
+
+  // Safety timeout — if somehow we don't hear back, restore the button so the
+  // UI never sits stuck. Long enough (15s) to cover slow LLM turns.
+  if (forceReactTimeoutId) clearTimeout(forceReactTimeoutId);
+  forceReactTimeoutId = setTimeout(resetFireButton, FORCE_REACT_TIMEOUT_MS);
+
   const serverUrl = normalizeServerUrl(serverUrlInput.value);
-  fetch(`${serverUrl}/api/transcribe`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId, action: "force_fire" }),
-  }).catch(() => {});
+  try {
+    await fetch(`${serverUrl}/api/transcribe`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      // forceReact=true tells the backend to skip the Director and fire all 4
+      // personas with a "don't pass" directive, so the user always gets visible
+      // reactions for their click.
+      body: JSON.stringify({ sessionId, action: "force_fire", forceReact: true }),
+    });
+  } catch {
+    // Network error — don't leave the UI stuck.
+    resetFireButton();
+  }
 });
+
+function resetFireButton() {
+  if (forceReactTimeoutId) {
+    clearTimeout(forceReactTimeoutId);
+    forceReactTimeoutId = null;
+  }
+  if (forceReactOriginalHtml !== null) {
+    fireBtn.innerHTML = forceReactOriginalHtml;
+    forceReactOriginalHtml = null;
+  }
+  fireBtn.disabled = false;
+  fireBtn.classList.remove("loading");
+  fireBtn.removeAttribute("aria-busy");
+  forceReactActive = false;
+  forceReactReceived = 0;
+}
 
 function firePersona(personaId) {
   if (!sessionId) return;
@@ -628,6 +760,37 @@ if (navigator.mediaDevices?.addEventListener) {
 document.getElementById("errorDismiss").addEventListener("click", () => {
   errorBanner.classList.remove("visible");
 });
+
+// Click the captured-tab banner to switch to that tab. Background handles
+// both chrome.tabs.update + chrome.windows.update in case the tab lives in
+// a different window.
+capturedTabBanner.addEventListener("click", () => {
+  if (!capturedTabInfo?.tabId) return;
+  chrome.runtime.sendMessage({ type: "FOCUS_CAPTURED_TAB" }, () => {
+    // Ignore errors — the banner will refresh itself after the tab becomes
+    // active (onActivated listener below picks it up).
+  });
+});
+
+// When the user switches tabs, re-evaluate the banner so the "Jump →" hint
+// hides on the captured tab and shows on other tabs. We also pull fresh info
+// in case the captured tab's title changed (new video in the same tab).
+if (chrome.tabs?.onActivated) {
+  chrome.tabs.onActivated.addListener(() => {
+    if (!capturing) return;
+    refreshCapturedTab();
+  });
+}
+if (chrome.tabs?.onUpdated) {
+  chrome.tabs.onUpdated.addListener((tabId, info) => {
+    if (!capturing || !capturedTabInfo) return;
+    if (tabId !== capturedTabInfo.tabId) return;
+    // Only refresh on meaningful changes to avoid a storm.
+    if (info.title || info.url || info.status === "complete") {
+      refreshCapturedTab();
+    }
+  });
+}
 
 // ── Utils ──
 function escapeHtml(text) {

@@ -241,7 +241,7 @@ export class Director {
    * Decide who speaks for this transcript chunk.
    * Returns an ordered list of personas with staggered delays.
    */
-  decide(recentTranscript: string, isPaused = false): TriggerDecision {
+  decide(recentTranscript: string, isSilence = false): TriggerDecision {
     const personaIds = Object.keys(PERSONA_PATTERNS);
 
     // Score each persona
@@ -266,7 +266,7 @@ export class Director {
       level: "debug",
       data: {
         scores: Object.fromEntries(scores.map((s) => [s.id, s.score])),
-        isPaused,
+        isSilence,
         textPreview: recentTranscript.slice(-100),
       },
     });
@@ -307,8 +307,10 @@ export class Director {
       }
     }
 
-    // If paused, cap the cascade more aggressively (max 2 responses)
-    if (isPaused && chain.length > 2) {
+    // If it's a silence reaction, cap the cascade more aggressively (max 2
+    // responses). Dead air shouldn't get a 4-way pile-on — one sharp crickets
+    // line + maybe a follow-up is the right rhythm.
+    if (isSilence && chain.length > 2) {
       chain.length = 2;
       delays.length = 2;
     }
@@ -324,7 +326,7 @@ export class Director {
         chain: chain.join(" → "),
         reason,
         cascadeCount: chain.length,
-        isPaused,
+        isSilence,
         drySpells: { ...this.cyclesSinceFire },
       },
     });

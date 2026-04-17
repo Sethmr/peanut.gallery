@@ -111,19 +111,57 @@ export default function InstallPage() {
             </li>
           </ol>
           <p className="mt-4 text-[#c0c0c0] leading-relaxed">
-            No API keys required to try it — the hosted backend covers casual
-            use. If you want full privacy or unlimited use, bring your own keys
-            or self-host the backend (see{" "}
-            <a
-              href={githubUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#3b82f6] hover:underline"
-            >
-              the GitHub repo
-            </a>
-            ).
+            <strong className="text-[#86efac]">Free to try while we grow.</strong>{" "}
+            No API keys required right now — the hosted backend covers casual use
+            on our dime. When that changes, you can drop in your own free-tier
+            keys (every provider has one), self-host the reference backend, or
+            rebuild the backend in whatever stack you prefer.
           </p>
+        </section>
+
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-3">Self-host or build your own backend</h2>
+          <p className="text-[#c0c0c0] leading-relaxed mb-4">
+            Peanut Gallery is MIT-licensed and fully open source. If you want
+            full privacy, unlimited use, or a branded fork, you have three
+            paths:
+          </p>
+          <ul className="space-y-2 text-[#c0c0c0] leading-relaxed mb-4">
+            <li>
+              <strong>Bring your own API keys.</strong> Paste them into the
+              side panel — they live in browser storage and are forwarded
+              directly to each provider on every request.
+            </li>
+            <li>
+              <strong>Run the reference backend locally or on Railway.</strong>{" "}
+              Clone the repo, run <code className="bg-[#1a1a1a] px-1.5 py-0.5 rounded text-sm">./setup.sh</code>, point the extension at <code className="bg-[#1a1a1a] px-1.5 py-0.5 rounded text-sm">http://localhost:3000</code>. See the{" "}
+              <a
+                href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/SELF-HOST-INSTALL.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#3b82f6] hover:underline"
+              >
+                self-host install guide
+              </a>
+              .
+            </li>
+            <li>
+              <strong>Build your own backend from scratch.</strong> The extension
+              talks to any server that follows the wire spec. Pick any stack —
+              Go, Rust, Python, Elixir, Bun — then implement the six endpoints
+              described in the{" "}
+              <a
+                href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#3b82f6] hover:underline"
+              >
+                build-your-own-backend spec
+              </a>
+              . A copy-paste prompt in the README lets Claude or Cursor
+              scaffold it for you.
+            </li>
+          </ul>
         </section>
 
         <section className="mb-12">

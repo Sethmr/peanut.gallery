@@ -38,3 +38,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# commit message scratch (used when committing multi-line messages via -F)
+.commit-msg.txt
