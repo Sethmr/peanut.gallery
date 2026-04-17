@@ -64,9 +64,17 @@ Status of the bounty submission as of end-of-session:
 
 ---
 
-## 6. What's next (roadmap, NOT started)
+## 6. What's next (version-staged plan, NOT started)
 
-See [`ROADMAP.md`](ROADMAP.md) for the full menu. Summary: six-item "big plan" covering selectable persona packs (Howard + TWiST), Smart Director v2 with LLM-assisted routing, expanded director logging, a hidden debug panel in the side panel, pack-swap UI, and a typecheck + lint + smoke-test gate. All six are deliberately unstarted pending a greenlight — don't begin without confirming scope.
+See [`ROADMAP.md`](ROADMAP.md) for the full plan. One-line summary per release:
+
+- **v1.2.0 — "Mise en place" (next up):** Director debug panel, expanded structured routing logs, cascade-delay retune, real test coverage for `lib/director.ts`, pre-merge `tsc` + lint + smoke-test gate. All low-risk + additive; wire-compatible with v1.1.x backends.
+- **v1.3.0 — "TWiST Pack" (flagship):** Persona-pack refactor, Howard + TWiST packs (Jason/Molly/Alex/Lon), pack-swap dropdown in the side panel, pack-creation installer so community packs hit our quality bar.
+- **v1.4.0 — "Smart Director v2":** LLM-assisted routing with the rule-based scorer as fallback under a 400ms budget. Cascade + cooldown bookkeeping unchanged. Rationale surfaces in the v1.2 debug panel automatically.
+- **v1.5.0 — "Voice + Clip Share":** TTS per persona (opt-in, ducked under source audio). Clip-sharing / highlight export — ~30s transcript + persona reactions as a shareable clip or GIF.
+- **v2.0.0 — "Bobbleheads":** 3D character models per persona with procedural rig animation tied to fire events + sentiment.
+
+All five releases are unstarted. Release boundaries are load-bearing — don't pull work forward without confirming scope with Seth.
 
 ---
 
@@ -78,7 +86,7 @@ See [`ROADMAP.md`](ROADMAP.md) for the full menu. Summary: six-item "big plan" c
 | `docs/DEBUGGING.md` | updated | Appended ISSUE-009 (push protection / demo keys). Bumped "Last updated." |
 | `docs/SERVER-SIDE-DEMO-KEYS.md` | new | Architecture + rationale for the key-fallback pattern. |
 | `docs/OPS.md` | new | Runbook for rotations, caps, dashboards. |
-| `docs/ROADMAP.md` | new | Pending work (greenlight-pending big plan + standalone items). |
+| `docs/ROADMAP.md` | new (later restructured) | Version-staged plan v1.2.0 → v2.0. Originally authored as a flat "big plan" list in this session; restructured into release-boundary form the same day. |
 | `docs/SESSION-NOTES-2026-04-17.md` | new | This file. |
 | `docs/INDEX.md` | updated | Pointers to the new docs. |
 | `extension/sidepanel.js` | updated | Removed `DEMO_DEFAULT_KEYS`, empty-string defaults, self-host pre-flight guard. |

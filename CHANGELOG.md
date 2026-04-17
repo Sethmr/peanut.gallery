@@ -2,6 +2,27 @@
 
 All notable changes to Peanut Gallery are recorded here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version numbers follow [SemVer](https://semver.org/).
 
+## [Unreleased — v1.2.0 "Mise en place"]
+
+Low-risk QoL + observability + the pre-merge quality bar. Everything here is additive and wire-compatible with v1.1.x backends so it can ship while v1.1.1 is still in Chrome Web Store review. Canonical plan: [`docs/ROADMAP.md`](docs/ROADMAP.md). Full release notes draft: [`releases/v1.2.0-release-notes.md`](releases/v1.2.0-release-notes.md).
+
+### Planned — Added
+- **Director debug panel** in the side panel. Collapsible, off by default, revealed by long-pressing the version badge. Shows the last N routing decisions as a mini-table — picked persona, score, top alternates, reason. Consumes a new SSE event type `director_decision`.
+- **Expanded director logging.** Every Director decision emits one JSON line: `{ ts, pick, score, top3, cascadeLen, cooldownsMs, reason }`. Routes through `lib/debug-logger.ts` at `info+`.
+- **`scripts/test-director.ts`** — fixture-driven tests for `lib/director.ts`. Covers rule-based scoring, cooldowns, cascade probability, and the v1.1.1 silence path.
+
+### Planned — Changed
+- **Cascade-delay randomness retuned.** Tighter lower bound and narrower jitter window so cascades feel conversational during fast exchanges. Slow stretches keep their full spread.
+
+### Planned — Tooling
+- **Pre-merge gate** wired into pre-commit: `npm run typecheck && npm run lint && scripts/test-director.ts`. Prevents the silent-failure class catalogued in `docs/DEBUGGING.md` (ISSUE-004, ISSUE-006).
+
+### Future roadmap (post-v1.2.0)
+- **v1.3.0 — TWiST Pack (flagship):** Selectable persona packs, TWiST lineup (Jason Calacanis / Molly Wood / Alex Wilhelm / Lon Harris), pack-swap dropdown, pack-creation installer.
+- **v1.4.0 — Smart Director v2:** LLM-assisted routing with rule-based fallback under a 400ms budget.
+- **v1.5.0 — Voice + Clip Share:** TTS per persona; highlight/clip export.
+- **v2.0.0 — Bobbleheads:** 3D persona avatars with procedural animation.
+
 ## [1.1.2] — 2026-04-17
 
 Patch on top of the 1.1.1 "server-side demo access" feature: put a real, fair cap on the shared backend so one heavy user can't drain the pool, and make the "run it yourself" path obvious everywhere.

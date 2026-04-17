@@ -2,7 +2,7 @@
 
 > **Canonical project context.** Start here, then read [`docs/SESSION-NOTES-2026-04-16.md`](SESSION-NOTES-2026-04-16.md) for the most recent handoff and the permissions guardrails that must not be overwritten.
 > For a full docs map, see [`docs/INDEX.md`](INDEX.md).
-> Last updated: 2026-04-16
+> Last updated: 2026-04-17
 
 ---
 
@@ -357,17 +357,19 @@ From Jason's X post (@twistartups), the spec calls for:
 - Reply to Jason's bounty tweet with demo + repo link
 - Chrome Web Store submission (gated on E2E working)
 
-### Coming Soon / Nice to Have
-- Custom persona builder (let podcasters define their own characters)
-- Audience mode (viewers see sidebar alongside live stream)
-- Highlights reel (auto-generate timestamped clips)
-- Show notes generator
-- Voice mode (ElevenLabs TTS)
-- OBS overlay integration
-- Persona memory across episodes
-- Docker deployment
-- Mobile responsive design
-- Swap `ScriptProcessorNode` → `AudioWorkletNode` (post-bounty cleanup)
+### Coming Soon — version-staged plan
+
+Canonical source: [`ROADMAP.md`](ROADMAP.md). Summary:
+
+- **v1.2.0 — "Mise en place":** Director debug panel + expanded routing logs, cascade-delay retune, real director test coverage, pre-merge `tsc`/lint/smoke gate.
+- **v1.3.0 — "TWiST Pack" (flagship):** Persona-pack refactor + Howard/TWiST packs + pack-swap UI + pack-creation installer.
+- **v1.4.0 — "Smart Director v2":** LLM-assisted routing with rule-based fallback.
+- **v1.5.0 — "Voice + Clip Share":** TTS per persona; highlight/clip export.
+- **v2.0.0 — "Bobbleheads":** 3D persona avatars with procedural animation.
+
+Unscoped (explicitly not on the roadmap):
+- Non-YouTube sources (Twitch, Kick, arbitrary tab audio) — already works via `chrome.tabCapture`; supported but not marketed until a pack is tuned for a different format.
+- Custom persona builder, audience mode, show notes generator, OBS overlay, persona memory across episodes, mobile responsive design, `ScriptProcessorNode → AudioWorkletNode` cleanup. Left unscoped; revisit if user demand signals them.
 
 ---
 

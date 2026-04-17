@@ -205,6 +205,22 @@ Once your server is running, point the extension's **Backend server** field at y
 
 ---
 
+## Roadmap
+
+Canonical source: **[docs/ROADMAP.md](docs/ROADMAP.md)**. Version-staged plan:
+
+| Version | Theme | Headline |
+|---------|-------|----------|
+| **v1.2.0** | Mise en place | Director debug panel + structured routing logs, cascade-delay retune, real director test coverage, pre-merge `tsc`/lint/smoke gate. |
+| **v1.3.0** | TWiST Pack (flagship) | Selectable persona packs. Howard + TWiST (Jason / Molly / Alex / Lon). Pack-swap dropdown. Pack-creation installer. |
+| **v1.4.0** | Smart Director v2 | LLM-assisted routing with rule-based fallback under a 400ms budget. |
+| **v1.5.0** | Voice + Clip Share | TTS per persona (opt-in, ducked). Highlight / clip export as shareable video or GIF. |
+| **v2.0.0** | Bobbleheads | 3D persona avatars on screen, procedural animation tied to fire events and sentiment. |
+
+**Already supported, not yet marketed:** non-YouTube sources (Twitch, Kick, any tab) — `chrome.tabCapture` is tab-agnostic, personas are just tuned for podcast pacing.
+
+---
+
 ## Built By
 
 **[Seth Rininger](https://sethrininger.dev)** — iOS dev turned AI builder. 12+ years shipping apps at scale.

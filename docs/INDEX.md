@@ -8,7 +8,7 @@ Map of every markdown file in the repo, ordered by when you should read it.
 2. [`docs/SESSION-NOTES-2026-04-17.md`](SESSION-NOTES-2026-04-17.md) — most recent handoff. v1.1.1 shipped. §3 is the **immutable** server-side demo-keys architecture — do not re-embed keys in the extension. §5 is the finish-strong checklist. §6 points at `ROADMAP.md`.
 3. [`docs/SESSION-NOTES-2026-04-16.md`](SESSION-NOTES-2026-04-16.md) — prior handoff. §3 is the **immutable** permissions/gesture setup for the Chrome extension — read it before editing `extension/`.
 4. [`docs/DEBUGGING.md`](DEBUGGING.md) — canonical post-mortem log (ISSUE-001..009). Diagnostic checklist + silent-failure table. Read before chasing any pipeline bug.
-5. [`docs/ROADMAP.md`](ROADMAP.md) — pending work beyond v1.1.1 (greenlight-pending). Don't start items from here without confirming scope.
+5. [`docs/ROADMAP.md`](ROADMAP.md) — version-staged plan from v1.2.0 through v2.0. v1.2 = QoL + observability, v1.3 = TWiST Pack flagship, v1.4 = Smart Director v2, v1.5 = Voice + Clip Share, v2.0 = 3D avatars. Don't pull work forward across release boundaries without confirming scope.
 
 ## Architecture & operations
 
