@@ -1,56 +1,41 @@
 /**
  * Peanut Gallery — Chrome Extension Service Worker
  *
- * Key insight: chrome.tabCapture.getMediaStreamId() requires a user gesture.
- * Side panels don't grant activeTab, so we capture the stream ID immediately
- * on icon click (which IS a user gesture), store it, then let the side panel
- * use it when the user clicks "Start Listening".
+ * Flow:
+ *   1. User clicks the extension icon (or row in the 🧩 menu) → side panel opens.
+ *      We remember which tab they were on so the panel can default to it.
+ *   2. User clicks "Start Listening" in the side panel. The side panel calls
+ *      chrome.tabCapture.getMediaStreamId() itself — that button click IS a
+ *      user gesture inside the panel's document, which is what tabCapture
+ *      requires. It forwards the streamId here as part of START_CAPTURE.
+ *   3. We spin up the offscreen document and hand it the streamId + config.
+ *
+ * This avoids depending on chrome.action.onClicked firing reliably (which
+ * was flaky when the user invoked the extension from the Extensions dropdown
+ * rather than a pinned icon).
  */
 
 let offscreenReady = false;
-let pendingStreamId = null;  // Stream ID captured on icon click
-let pendingTabInfo = null;   // Tab info from the icon click
+let lastTabInfo = null; // Remember the tab the panel was opened on
 
-// ── Extension icon click: capture stream ID FIRST, then open side panel ──
-// Do NOT use openPanelOnActionClick — we need the click handler for tabCapture
+// ── Icon click: just open the side panel and remember the tab ──
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab?.id) return;
 
+  lastTabInfo = {
+    url: tab.url,
+    title: tab.title,
+    tabId: tab.id,
+    windowId: tab.windowId,
+  };
+
+  console.log("[PG] Icon clicked — opening side panel for tab:", tab.id);
+
   try {
-    // Capture stream ID immediately — this has user gesture context
-    const streamId = await new Promise((resolve, reject) => {
-      chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id }, (id) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-          return;
-        }
-        resolve(id);
-      });
-    });
-
-    pendingStreamId = streamId;
-    pendingTabInfo = { url: tab.url, title: tab.title, tabId: tab.id };
-
-    console.log("[PG] Stream ID captured on icon click:", streamId?.slice(0, 20) + "...");
-
-    // Notify the side panel (if already open) that stream is ready
-    chrome.runtime.sendMessage({
-      type: "STREAM_READY",
-      tabInfo: pendingTabInfo,
-    }).catch(() => {}); // Side panel may not be open yet — that's fine
+    await chrome.sidePanel.open({ windowId: tab.windowId });
   } catch (err) {
-    console.error("[PG] Failed to get stream ID on click:", err.message);
-    pendingStreamId = null;
-    pendingTabInfo = { url: tab.url, title: tab.title, tabId: tab.id, error: err.message };
-
-    chrome.runtime.sendMessage({
-      type: "STREAM_ERROR",
-      error: err.message,
-    }).catch(() => {});
+    console.error("[PG] Failed to open side panel:", err.message);
   }
-
-  // Open the side panel (or bring it to focus if already open)
-  chrome.sidePanel.open({ windowId: tab.windowId });
 });
 
 // ── Offscreen document management ──
@@ -77,18 +62,17 @@ async function ensureOffscreen() {
 
 // ── Message routing ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // START_CAPTURE: side panel is ready to start — use the stored stream ID
+  // START_CAPTURE: the side panel has a streamId from its own user gesture
   if (message.type === "START_CAPTURE") {
-    handleStartCapture(message).then(sendResponse).catch((err) => {
-      sendResponse({ error: err.message });
-    });
+    handleStartCapture(message)
+      .then(sendResponse)
+      .catch((err) => sendResponse({ error: err.message }));
     return true;
   }
 
   // STOP_CAPTURE: forward to offscreen
   if (message.type === "STOP_CAPTURE") {
     sendToOffscreen({ type: "STOP_RECORDING" });
-    pendingStreamId = null;
     sendResponse({ ok: true });
     return true;
   }
@@ -101,31 +85,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // GET_TAB_INFO: return the tab info captured on icon click
+  // GET_TAB_INFO: prefer the tab the panel was opened on; fall back to active
   if (message.type === "GET_TAB_INFO") {
-    if (pendingTabInfo) {
-      sendResponse(pendingTabInfo);
-    } else {
-      // Fallback: query the active tab
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const tab = tabs?.[0];
-        sendResponse({
-          url: tab?.url || "",
-          title: tab?.title || "",
-          tabId: tab?.id || null,
-        });
-      });
+    if (lastTabInfo) {
+      sendResponse(lastTabInfo);
+      return false;
     }
-    return true;
-  }
-
-  // GET_STREAM_STATUS: side panel checks if we have a stream ID ready
-  if (message.type === "GET_STREAM_STATUS") {
-    sendResponse({
-      hasStreamId: !!pendingStreamId,
-      error: pendingTabInfo?.error || null,
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs?.[0];
+      sendResponse({
+        url: tab?.url || "",
+        title: tab?.title || "",
+        tabId: tab?.id || null,
+        windowId: tab?.windowId || null,
+      });
     });
-    return false;
+    return true;
   }
 
   // SSE_EVENT: offscreen forwards these to side panel — ignore here
@@ -136,16 +111,19 @@ function sendToOffscreen(msg, callback) {
   chrome.runtime.sendMessage({ ...msg, target: "offscreen" }, callback);
 }
 
-async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl }) {
-  if (!pendingStreamId) {
+async function handleStartCapture({
+  serverUrl,
+  apiKeys,
+  youtubeUrl,
+  streamId,
+  tabTitle,
+  tabId,
+}) {
+  if (!streamId) {
     throw new Error(
-      "No audio stream available. Close and reopen the side panel by clicking the 🥜 icon on the YouTube tab."
+      "No audio stream available. Make sure you're on a YouTube tab, then click Start Listening again."
     );
   }
-
-  const streamId = pendingStreamId;
-  const tabInfo = pendingTabInfo;
-  pendingStreamId = null; // Consume it — stream IDs are single-use
 
   await ensureOffscreen();
 
@@ -155,9 +133,9 @@ async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl }) {
     streamId,
     serverUrl,
     apiKeys,
-    youtubeUrl: youtubeUrl || tabInfo?.url || "",
-    tabTitle: tabInfo?.title || "Unknown tab",
+    youtubeUrl: youtubeUrl || "",
+    tabTitle: tabTitle || "Unknown tab",
   });
 
-  return { ok: true, tabId: tabInfo?.tabId, tabTitle: tabInfo?.title };
+  return { ok: true, tabId, tabTitle };
 }

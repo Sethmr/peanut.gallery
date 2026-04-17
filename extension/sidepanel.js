@@ -50,7 +50,6 @@ loadSettings();
 buildPersonaAvatars();
 checkStatus();
 detectCurrentTab();
-checkStreamReady();
 
 // Detect the current tab and show its title
 function detectCurrentTab() {
@@ -61,28 +60,6 @@ function detectCurrentTab() {
     if (response.title) {
       detectedTitle.textContent = response.title;
       detectedTab.style.display = "block";
-    }
-    // Show error if tabCapture failed on icon click
-    if (response.error) {
-      showError(response.error);
-      startBtn.disabled = true;
-      startBtn.textContent = "Reopen panel to retry";
-    }
-  });
-}
-
-// Check if background has a stream ID ready from the icon click
-function checkStreamReady() {
-  chrome.runtime.sendMessage({ type: "GET_STREAM_STATUS" }, (response) => {
-    if (chrome.runtime.lastError) return;
-    if (response?.error) {
-      showError(response.error);
-      startBtn.disabled = true;
-      startBtn.textContent = "Reopen panel to retry";
-    } else if (!response?.hasStreamId) {
-      // No stream ID — user may have opened panel without clicking icon
-      startBtn.disabled = true;
-      startBtn.textContent = "Click 🥜 icon first";
     }
   });
 }
@@ -245,32 +222,8 @@ function finalizeStreamingEntry() {
   if (el) el.remove();
 }
 
-// ── Message Handler (SSE events + stream ready notifications) ──
+// ── Message Handler (SSE events from the offscreen doc via background) ──
 chrome.runtime.onMessage.addListener((message) => {
-  // Background notifies us that a stream ID was captured on icon click
-  if (message.type === "STREAM_READY") {
-    startBtn.disabled = false;
-    startBtn.textContent = "Start Listening";
-    // Update detected tab info
-    if (message.tabInfo) {
-      const detectedTab = document.getElementById("detectedTab");
-      const detectedTitle = document.getElementById("detectedTitle");
-      if (message.tabInfo.title) {
-        detectedTitle.textContent = message.tabInfo.title;
-        detectedTab.style.display = "block";
-      }
-    }
-    errorBanner.classList.remove("visible");
-    return;
-  }
-
-  if (message.type === "STREAM_ERROR") {
-    showError(message.error);
-    startBtn.disabled = true;
-    startBtn.textContent = "Click 🥜 icon to retry";
-    return;
-  }
-
   if (message.type !== "SSE_EVENT") return;
 
   const { event, data } = message;
@@ -361,22 +314,43 @@ startBtn.addEventListener("click", async () => {
   startBtn.textContent = "Starting...";
 
   try {
-    // Get current tab URL (should be YouTube)
-    const tabInfo = await new Promise((resolve) => {
-      chrome.runtime.sendMessage({ type: "GET_TAB_INFO" }, resolve);
+    // Resolve which tab to capture. Prefer the tab the user opened the panel
+    // on; otherwise fall back to the active tab in this window.
+    const tabInfo = await resolveCaptureTab();
+    if (!tabInfo?.tabId) {
+      throw new Error("Couldn't find a tab to capture. Open a YouTube tab and try again.");
+    }
+
+    // ── This is the critical bit: getMediaStreamId requires a user gesture.
+    // The click on this button IS one, in the side panel's document context.
+    const streamId = await new Promise((resolve, reject) => {
+      chrome.tabCapture.getMediaStreamId({ targetTabId: tabInfo.tabId }, (id) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        if (!id) {
+          reject(new Error("tabCapture returned no stream ID"));
+          return;
+        }
+        resolve(id);
+      });
     });
 
     const result = await new Promise((resolve) => {
       chrome.runtime.sendMessage({
         type: "START_CAPTURE",
         serverUrl,
+        streamId,
+        tabId: tabInfo.tabId,
+        tabTitle: tabInfo.title || "",
+        youtubeUrl: tabInfo.url || "",
         apiKeys: {
           deepgram: deepgramKeyInput.value.trim(),
           groq: groqKeyInput.value.trim(),
           anthropic: anthropicKeyInput.value.trim(),
           brave: braveKeyInput.value.trim(),
         },
-        youtubeUrl: tabInfo?.url || "",
       }, resolve);
     });
 
@@ -386,12 +360,31 @@ startBtn.addEventListener("click", async () => {
     statusText.textContent = "Connecting to server...";
     statusBar.classList.add("active");
   } catch (err) {
-    showError(err.message);
+    showError(err.message || String(err));
   } finally {
     startBtn.disabled = false;
     startBtn.textContent = "Start Listening";
   }
 });
+
+// Find the tab to capture: prefer what background remembered, else active tab
+async function resolveCaptureTab() {
+  const fromBg = await new Promise((resolve) => {
+    chrome.runtime.sendMessage({ type: "GET_TAB_INFO" }, (response) => {
+      if (chrome.runtime.lastError) { resolve(null); return; }
+      resolve(response || null);
+    });
+  });
+  if (fromBg?.tabId) return fromBg;
+
+  // Fall back to active tab in current window
+  return await new Promise((resolve) => {
+    chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+      const tab = tabs?.[0];
+      resolve(tab ? { tabId: tab.id, title: tab.title, url: tab.url } : null);
+    });
+  });
+}
 
 stopBtn.addEventListener("click", () => {
   chrome.runtime.sendMessage({ type: "STOP_CAPTURE" });
