@@ -150,6 +150,43 @@ body {
   position: relative;
 }
 
+/* Persona icon stack — glyph + spinner layered for crossfade on tap.
+ * The stack is sized by inline width/height (defaults to 1.3em from the
+ * component) so both absolutely-positioned layers can fill it. */
+.persona-icon-stack {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.persona-icon-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.25s ease;
+}
+
+.persona-icon-glyph { opacity: 1; }
+.persona-icon-spinner {
+  opacity: 0;
+  animation: persona-icon-spin 0.8s linear infinite;
+  animation-play-state: paused;
+}
+
+.persona-icon-stack.firing .persona-icon-glyph { opacity: 0; }
+.persona-icon-stack.firing .persona-icon-spinner {
+  opacity: 1;
+  animation-play-state: running;
+}
+
+@keyframes persona-icon-spin {
+  to { transform: rotate(360deg); }
+}
+
 .persona-avatar-ring {
   position: absolute;
   inset: -3px;

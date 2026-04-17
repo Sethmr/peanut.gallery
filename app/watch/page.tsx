@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import PersonaColumn, { type PersonaMessage } from "@/components/PersonaColumn";
 import CombinedFeed, { type FeedEntry } from "@/components/CombinedFeed";
+import PersonaIcon from "@/components/PersonaIcon";
 import ApiKeysModal, { type ApiKeys, loadApiKeys, hasRequiredKeys } from "@/components/ApiKeysModal";
 import YouTubePlayer, {
   extractVideoId,
@@ -98,9 +99,37 @@ export default function Home() {
   // Combined feed — all persona messages interleaved chronologically
   const [combinedFeed, setCombinedFeed] = useState<FeedEntry[]>([]);
 
+  // Per-persona "awaiting response" state — true from the moment the user taps
+  // the avatar until the matching persona_done event arrives (or 15s timeout).
+  // Drives the icon-to-spinner crossfade on the avatar glyph.
+  const [firingPersonaIds, setFiringPersonaIds] = useState<Record<string, boolean>>({});
+  const firingTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
   const abortRef = useRef<AbortController | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const messageCountRef = useRef(0);
+
+  // Clear any pending firing timeouts on unmount so we don't leak timers.
+  useEffect(() => {
+    const timeouts = firingTimeoutsRef.current;
+    return () => {
+      for (const t of Object.values(timeouts)) clearTimeout(t);
+    };
+  }, []);
+
+  const clearFiring = useCallback((pid: string) => {
+    const t = firingTimeoutsRef.current[pid];
+    if (t) {
+      clearTimeout(t);
+      delete firingTimeoutsRef.current[pid];
+    }
+    setFiringPersonaIds((prev) => {
+      if (!prev[pid]) return prev;
+      const next = { ...prev };
+      delete next[pid];
+      return next;
+    });
+  }, []);
 
   // Determine which persona is currently streaming (for combined feed)
   const streamingPersona = useMemo(() => {
@@ -237,6 +266,9 @@ export default function Home() {
                   const pid = data.personaId;
                   const finalText = streamBuffers[pid] || "";
                   streamBuffers[pid] = "";
+                  // Clear the "awaiting" spinner on this persona's avatar —
+                  // regardless of whether the response was substantive or a "-".
+                  clearFiring(pid);
                   if (finalText.trim()) {
                     const msgId = `${pid}-${messageCountRef.current++}`;
                     const now = Date.now();
@@ -379,20 +411,37 @@ export default function Home() {
     }
   }, []);
 
-  // Fire a SINGLE persona on demand (emoji tap)
-  const handleFirePersona = useCallback(async (personaId: string) => {
-    const sid = sessionIdRef.current;
-    if (!sid) return;
-    try {
-      await fetch("/api/transcribe", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: sid, action: "fire_persona", personaId }),
-      });
-    } catch {
-      // ignore
-    }
-  }, []);
+  // Fire a SINGLE persona on demand (glyph tap). Flips that persona's avatar
+  // to a spinner until the matching persona_done event arrives — or a 15s
+  // safety timeout fires so the UI never sits stuck on a spinner.
+  const handleFirePersona = useCallback(
+    async (personaId: string) => {
+      const sid = sessionIdRef.current;
+      if (!sid) return;
+      if (firingPersonaIds[personaId]) return; // debounce — tap already in-flight
+
+      setFiringPersonaIds((prev) => ({ ...prev, [personaId]: true }));
+      // Safety net: 15s matches the extension's FORCE_REACT_TIMEOUT_MS.
+      if (firingTimeoutsRef.current[personaId]) {
+        clearTimeout(firingTimeoutsRef.current[personaId]);
+      }
+      firingTimeoutsRef.current[personaId] = setTimeout(() => {
+        clearFiring(personaId);
+      }, 15000);
+
+      try {
+        await fetch("/api/transcribe", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: sid, action: "fire_persona", personaId }),
+        });
+      } catch {
+        // Network error — don't leave the spinner stuck on the avatar.
+        clearFiring(personaId);
+      }
+    },
+    [firingPersonaIds, clearFiring]
+  );
 
   // Sync when user uses YouTube's native controls
   const handleVideoStateChange = useCallback(
@@ -674,7 +723,7 @@ export default function Home() {
           {/* Right: Persona Cards (2x2) */}
           <div className="w-[520px] shrink-0 grid grid-cols-2 grid-rows-2 gap-3 min-h-0">
             {personas.map((p) => (
-              <PersonaColumn key={p.id} name={p.name} role={p.role} emoji={p.emoji} color={p.color} model={modelDisplay[p.model] || p.model} messages={personaStates[p.id]?.messages || []} isStreaming={personaStates[p.id]?.isStreaming || false} streamingText={personaStates[p.id]?.streamingText || ""} badge={isLive && isRunning && p.id === "producer" ? "LIVE FACT-CHECK" : undefined} compact onAvatarClick={() => handleFirePersona(p.id)} />
+              <PersonaColumn key={p.id} name={p.name} role={p.role} emoji={p.emoji} personaId={p.id} color={p.color} model={modelDisplay[p.model] || p.model} messages={personaStates[p.id]?.messages || []} isStreaming={personaStates[p.id]?.isStreaming || false} streamingText={personaStates[p.id]?.streamingText || ""} badge={isLive && isRunning && p.id === "producer" ? "LIVE FACT-CHECK" : undefined} compact onAvatarClick={() => handleFirePersona(p.id)} isFiring={!!firingPersonaIds[p.id]} />
             ))}
           </div>
         </main>
@@ -686,6 +735,7 @@ export default function Home() {
             {personas.map((p) => {
               const ps = personaStates[p.id];
               const active = ps?.isStreaming;
+              const firing = !!firingPersonaIds[p.id];
               return (
                 <div
                   key={p.id}
@@ -706,11 +756,21 @@ export default function Home() {
                         className={`persona-avatar-ring ${active ? "speaking" : ""}`}
                         style={{ "--ring-color": p.color } as React.CSSProperties}
                       />
-                      <span>{p.emoji}</span>
+                      <PersonaIcon personaId={p.id} fallbackEmoji={p.emoji} color={p.color} firing={firing} />
                     </div>
-                    {/* Sine wave when speaking */}
+                  </div>
+                  {/* Info */}
+                  <div className="text-center min-w-0 w-full">
+                    <div className="text-[10px] font-semibold truncate" style={{ color: p.color }}>{p.name}</div>
+                    <div className="text-[8px] text-white/30 truncate">{p.role}</div>
+                    <div className="text-[7px] text-white/15 font-mono truncate">{modelDisplay[p.model] || p.model}</div>
+                  </div>
+                  {/* Sine wave — below text so it doesn't create a gap
+                      between avatar and labels. Reserved space keeps layout
+                      stable when idle. */}
+                  <div className="h-2.5 flex items-end">
                     {active && (
-                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-end gap-[1px] h-2.5">
+                      <div className="flex items-end gap-[1px] h-2.5">
                         {[0, 1, 2, 3, 4].map((i) => (
                           <span
                             key={i}
@@ -720,12 +780,6 @@ export default function Home() {
                         ))}
                       </div>
                     )}
-                  </div>
-                  {/* Info */}
-                  <div className="text-center min-w-0 w-full">
-                    <div className="text-[10px] font-semibold truncate" style={{ color: p.color }}>{p.name}</div>
-                    <div className="text-[8px] text-white/30 truncate">{p.role}</div>
-                    <div className="text-[7px] text-white/15 font-mono truncate">{modelDisplay[p.model] || p.model}</div>
                   </div>
                 </div>
               );
@@ -789,6 +843,7 @@ export default function Home() {
             {personas.map((p) => {
               const ps = personaStates[p.id];
               const active = ps?.isStreaming;
+              const firing = !!firingPersonaIds[p.id];
               return (
                 <div
                   key={p.id}
@@ -809,10 +864,15 @@ export default function Home() {
                         className={`persona-avatar-ring ${active ? "speaking" : ""}`}
                         style={{ "--ring-color": p.color } as React.CSSProperties}
                       />
-                      <span>{p.emoji}</span>
+                      <PersonaIcon personaId={p.id} fallbackEmoji={p.emoji} color={p.color} firing={firing} />
                     </div>
+                  </div>
+                  <span className="text-[9px] font-semibold truncate max-w-[72px]" style={{ color: p.color }}>{p.name}</span>
+                  {/* Sine wave — below name to eliminate gap between avatar
+                      and text. Reserved space keeps layout steady when idle. */}
+                  <div className="h-2 flex items-end">
                     {active && (
-                      <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 flex items-end gap-[1px] h-2">
+                      <div className="flex items-end gap-[1px] h-2">
                         {[0, 1, 2, 3, 4].map((i) => (
                           <span
                             key={i}
@@ -823,7 +883,6 @@ export default function Home() {
                       </div>
                     )}
                   </div>
-                  <span className="text-[9px] font-semibold truncate max-w-[72px]" style={{ color: p.color }}>{p.name}</span>
                 </div>
               );
             })}

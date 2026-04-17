@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { PersonaMessage } from "./PersonaColumn";
+import PersonaIcon from "./PersonaIcon";
 
 /** A single entry in the combined feed — persona name + message */
 export interface FeedEntry {
@@ -64,7 +65,13 @@ export default function CombinedFeed({
         {entries.map((entry) => (
           <div key={entry.id} className="message-enter">
             <div className="flex items-start gap-2">
-              <span className="text-sm shrink-0 mt-0.5">{entry.personaEmoji}</span>
+              <PersonaIcon
+                personaId={entry.personaId}
+                fallbackEmoji={entry.personaEmoji}
+                color={entry.personaColor}
+                className="shrink-0 mt-0.5"
+                size="1em"
+              />
               <div className="min-w-0">
                 <span
                   className="text-xs font-semibold font-display mr-1.5"
@@ -90,7 +97,13 @@ export default function CombinedFeed({
         {streamingPersonaId && streamingText && (
           <div className="message-enter">
             <div className="flex items-start gap-2">
-              <span className="text-sm shrink-0 mt-0.5">{streamingPersonaEmoji}</span>
+              <PersonaIcon
+                personaId={streamingPersonaId}
+                fallbackEmoji={streamingPersonaEmoji}
+                color={streamingPersonaColor}
+                className="shrink-0 mt-0.5"
+                size="1em"
+              />
               <div className="min-w-0">
                 <span
                   className="text-xs font-semibold font-display mr-1.5"

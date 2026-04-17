@@ -14,6 +14,47 @@ const PERSONAS = [
   { id: "joker", name: "Jackie", role: "Comedy Writer", emoji: "😂", color: "#f59e0b" },
 ];
 
+// ── Persona archetype glyphs ──
+// Minimalist monoline SVG paths — clipboard, flame, headphones, mic — drawn
+// in a 24×24 viewBox. Keeping these synchronized with components/PersonaIcon.tsx
+// in the web app; the extension is intentionally standalone (no bundler), so
+// the duplication is by design.
+const PERSONA_ICON_PATHS = {
+  producer:
+    "M9 3h6a1 1 0 0 1 1 1v1h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h3V4a1 1 0 0 1 1-1z M8.5 13l2.5 2.5 4.5-5",
+  troll:
+    "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z",
+  soundfx:
+    "M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H4a1 1 0 0 1-1-1v-6a9 9 0 0 1 18 0v6a1 1 0 0 1-1 1h-2a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3",
+  joker:
+    "M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v4 M8 23h8",
+};
+
+/**
+ * Render the persona's archetype glyph as an HTML string. Falls back to the
+ * emoji when the persona id is unrecognized. `size` is any CSS length
+ * (default "1.3em" — scales with parent font-size). `color` sets the stroke;
+ * omit to inherit via currentColor.
+ *
+ * When `withSpinner` is true, wraps the glyph in a two-layer `.persona-icon-stack`
+ * and adds a spinner layer underneath — CSS crossfades between them when the
+ * stack gets a `.firing` class. Used on the avatars so tapping one fades the
+ * icon to a spinner until the matching persona_done event returns.
+ */
+function personaGlyphHTML(p, size = "1.3em", color = null, withSpinner = false) {
+  const path = PERSONA_ICON_PATHS[p.id];
+  const stroke = color || "currentColor";
+  const glyph = path
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="${size}" height="${size}" aria-hidden="true"><path d="${path}"/></svg>`
+    : `<span>${p.emoji}</span>`;
+
+  if (!withSpinner) return glyph;
+
+  // Spinner: muted ring + partial arc, same shape as the web app version.
+  const spinner = `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="${stroke}" stroke-opacity="0.2" stroke-width="2"/><path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round"/></svg>`;
+  return `<span class="persona-icon-stack" style="width:${size}; height:${size}"><span class="persona-icon-layer persona-icon-glyph">${glyph}</span><span class="persona-icon-layer persona-icon-spinner">${spinner}</span></span>`;
+}
+
 // ── State ──
 let capturing = false;
 let sessionId = null;
@@ -34,6 +75,13 @@ const FORCE_REACT_TARGET = 2;
 const FORCE_REACT_TIMEOUT_MS = 15_000;
 let forceReactTimeoutId = null;
 let forceReactOriginalHtml = null;
+
+// Per-persona "awaiting response" state. When the user taps a persona avatar,
+// we flip that icon-stack to .firing (glyph crossfades to a spinner) until the
+// matching persona_done event arrives — with a matching 15s safety timeout so
+// the UI can't get stuck on a spinner if the backend falls silent.
+const firingPersonaIds = Object.create(null);
+const firingTimeoutIds = Object.create(null);
 
 // The tab Peanut Gallery is currently capturing from. Set on status=started
 // (populated by background via GET_CAPTURED_TAB). Lets us show a persistent
@@ -259,8 +307,10 @@ function showIdle() {
   transcriptSection.style.display = "none";
   gallery.style.display = "none";
   statusBar.classList.remove("active", "live");
-  // Capture stopped — make sure the React button can't be stuck spinning
+  // Capture stopped — make sure the React button can't be stuck spinning,
+  // and no avatar can be stuck on its tap-to-fire spinner.
   if (forceReactActive) resetFireButton();
+  clearAllPersonaFiring();
   updateCapturedTabBanner();
 
   // Reset state
@@ -351,21 +401,28 @@ function buildPersonaAvatars() {
   for (const p of PERSONAS) {
     const el = document.createElement("div");
     el.className = "persona-bubble";
+    el.id = `bubble-${p.id}`;
     el.dataset.personaId = p.id;
     el.title = `Make ${p.name} react now`;
+    // Ordering: avatar → name → role → wave. The wave lives BELOW the text
+    // block so the avatar and labels form one tight group with no gap when
+    // the persona isn't speaking. The wave's reserved height (CSS) keeps
+    // the row height stable between idle and speaking states. The glyph is
+    // wrapped in a stack with a spinner layer for the tap-to-fire crossfade
+    // (id `stack-<personaId>` so we can add/remove `.firing` directly).
     el.innerHTML = `
       <div class="persona-avatar" id="avatar-${p.id}" style="background:${p.color}20; color:${p.color}">
         <div class="ring"></div>
-        <span>${p.emoji}</span>
+        <span id="stack-${p.id}">${personaGlyphHTML(p, "1.3em", null, true)}</span>
       </div>
+      <span class="persona-name" style="color:${p.color}">${p.name}</span>
+      <span class="persona-role">${p.role}</span>
       <div class="persona-wave" style="color:${p.color}">
         <svg viewBox="0 0 200 20" preserveAspectRatio="none">
           <path d="M 0 10 Q 12.5 0, 25 10 T 50 10 T 75 10 T 100 10 T 125 10 T 150 10 T 175 10 T 200 10"
                 stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" />
         </svg>
       </div>
-      <span class="persona-name" style="color:${p.color}">${p.name}</span>
-      <span class="persona-role">${p.role}</span>
     `;
     el.addEventListener("click", () => firePersona(p.id));
     personasRow.appendChild(el);
@@ -374,11 +431,49 @@ function buildPersonaAvatars() {
 
 function updatePersonaSpeaking(activeId) {
   for (const p of PERSONAS) {
+    // Toggle on the bubble (parent of avatar + wave), since the wave is no
+    // longer adjacent to the avatar — the CSS now targets
+    // `.persona-bubble.speaking .persona-wave` instead of an adjacent-sibling.
+    const bubble = document.getElementById(`bubble-${p.id}`);
     const avatar = document.getElementById(`avatar-${p.id}`);
-    if (avatar) {
-      avatar.classList.toggle("speaking", p.id === activeId);
-    }
+    const speaking = p.id === activeId;
+    if (bubble) bubble.classList.toggle("speaking", speaking);
+    // Keep .speaking on the avatar too — the ring-pulse animation still keys
+    // off it via `.persona-avatar.speaking .ring`.
+    if (avatar) avatar.classList.toggle("speaking", speaking);
   }
+}
+
+/**
+ * Flip the persona's icon-stack into the firing state (glyph fades out,
+ * spinner fades in). Clears automatically on persona_done, on clearPersonaFiring,
+ * or after FORCE_REACT_TIMEOUT_MS as a safety net.
+ */
+function setPersonaFiring(personaId) {
+  const stack = document.getElementById(`stack-${personaId}`);
+  const inner = stack?.querySelector(".persona-icon-stack");
+  if (inner) inner.classList.add("firing");
+  firingPersonaIds[personaId] = true;
+  if (firingTimeoutIds[personaId]) clearTimeout(firingTimeoutIds[personaId]);
+  firingTimeoutIds[personaId] = setTimeout(
+    () => clearPersonaFiring(personaId),
+    FORCE_REACT_TIMEOUT_MS
+  );
+}
+
+function clearPersonaFiring(personaId) {
+  const stack = document.getElementById(`stack-${personaId}`);
+  const inner = stack?.querySelector(".persona-icon-stack");
+  if (inner) inner.classList.remove("firing");
+  delete firingPersonaIds[personaId];
+  if (firingTimeoutIds[personaId]) {
+    clearTimeout(firingTimeoutIds[personaId]);
+    delete firingTimeoutIds[personaId];
+  }
+}
+
+function clearAllPersonaFiring() {
+  for (const pid of Object.keys(firingPersonaIds)) clearPersonaFiring(pid);
 }
 
 // ── Gallery feed ──
@@ -395,7 +490,7 @@ function addFeedEntry(personaId, text) {
   el.id = `feed-${id}`;
   el.innerHTML = `
     <div class="feed-header">
-      <span class="feed-emoji">${p.emoji}</span>
+      <span class="feed-emoji" style="color:${p.color}">${personaGlyphHTML(p, "1em", p.color)}</span>
       <span class="feed-name" style="color:${p.color}">${p.name}</span>
       <span class="feed-time">${formatTime(now)}</span>
     </div>
@@ -420,7 +515,7 @@ function updateStreamingEntry(personaId, text) {
 
   el.innerHTML = `
     <div class="feed-header">
-      <span class="feed-emoji">${p.emoji}</span>
+      <span class="feed-emoji" style="color:${p.color}">${personaGlyphHTML(p, "1em", p.color)}</span>
       <span class="feed-name" style="color:${p.color}">${p.name}</span>
     </div>
     <div class="feed-text">${escapeHtml(text)}</div>
@@ -467,6 +562,10 @@ chrome.runtime.onMessage.addListener((message) => {
       streamBuffers[pid] = "";
       streamingPersonaId = null;
       updatePersonaSpeaking(null);
+      // Always clear the tap-to-fire spinner on this persona — even if the
+      // response was empty, the round-trip is done and the spinner shouldn't
+      // linger on the avatar.
+      clearPersonaFiring(pid);
       finalizeStreamingEntry();
       if (finalText.trim()) {
         addFeedEntry(pid, finalText.trim());
@@ -759,12 +858,22 @@ function resetFireButton() {
 
 function firePersona(personaId) {
   if (!sessionId) return;
+  if (firingPersonaIds[personaId]) return; // debounce — tap already in-flight
+
+  // Flip the avatar glyph to a spinner immediately so the tap feels
+  // instant, regardless of network latency. Cleared on persona_done or
+  // the 15s safety timeout baked into setPersonaFiring.
+  setPersonaFiring(personaId);
+
   const serverUrl = normalizeServerUrl(serverUrlInput.value);
   fetch(`${serverUrl}/api/transcribe`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sessionId, action: "fire_persona", personaId }),
-  }).catch(() => {});
+  }).catch(() => {
+    // Network error — don't leave the spinner stuck on the avatar.
+    clearPersonaFiring(personaId);
+  });
 }
 
 // ── Toggle keys ──

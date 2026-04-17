@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import PersonaIcon from "./PersonaIcon";
 
 export interface PersonaMessage {
   id: string;
@@ -11,7 +12,10 @@ export interface PersonaMessage {
 interface PersonaColumnProps {
   name: string;
   role: string;
+  /** Emoji used as a fallback when `personaId` is missing or unknown. */
   emoji: string;
+  /** Persona id — drives which archetype SVG glyph is rendered. Falls back to `emoji`. */
+  personaId?: string;
   color: string;
   model: string;
   messages: PersonaMessage[];
@@ -21,8 +25,14 @@ interface PersonaColumnProps {
   badge?: string;
   /** Compact mode for sidebar mini-cards */
   compact?: boolean;
-  /** Callback when the avatar emoji is tapped — fires this persona on demand */
+  /** Callback when the avatar glyph is tapped — fires this persona on demand */
   onAvatarClick?: () => void;
+  /**
+   * When true, crossfades the persona avatar glyph to a spinner — driven by the
+   * parent's "awaiting response" state after the avatar is tapped. Clear this
+   * when the matching persona_done event arrives (or on a safety timeout).
+   */
+  isFiring?: boolean;
 }
 
 /** Sine wave bars — animated when speaking, idle otherwise */
@@ -49,6 +59,7 @@ export default function PersonaColumn({
   name,
   role,
   emoji,
+  personaId,
   color,
   model,
   messages,
@@ -57,6 +68,7 @@ export default function PersonaColumn({
   badge,
   compact = false,
   onAvatarClick,
+  isFiring = false,
 }: PersonaColumnProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -91,14 +103,8 @@ export default function PersonaColumn({
                 className={`persona-avatar-ring ${isStreaming ? "speaking" : ""}`}
                 style={{ "--ring-color": color } as React.CSSProperties}
               />
-              <span>{emoji}</span>
+              <PersonaIcon personaId={personaId} fallbackEmoji={emoji} color={color} firing={isFiring} />
             </div>
-            {/* Sine wave overlaid at bottom of avatar when speaking */}
-            {isStreaming && (
-              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2">
-                <SineWave color={color} active={true} small />
-              </div>
-            )}
           </div>
           <div className="text-center min-w-0 w-full">
             <h3
@@ -109,6 +115,12 @@ export default function PersonaColumn({
             </h3>
             <p className="text-[9px] text-white/30 truncate">{role}</p>
             <p className="text-[8px] text-white/20 font-mono truncate">{model}</p>
+          </div>
+          {/* Sine wave below the text — reserves space so the layout is
+              stable whether speaking or idle, and removes the visual gap
+              between the avatar and the label block. */}
+          <div className="h-3 flex items-center">
+            {isStreaming && <SineWave color={color} active={true} small />}
           </div>
           {badge && (
             <span className="flex items-center gap-1 px-1.5 py-0.5 bg-red-500/15 border border-red-500/25 rounded text-[8px] font-mono text-red-400 uppercase tracking-wider whitespace-nowrap">
@@ -172,11 +184,7 @@ export default function PersonaColumn({
               className={`persona-avatar-ring ${isStreaming ? "speaking" : ""}`}
               style={{ "--ring-color": color } as React.CSSProperties}
             />
-            <span>{emoji}</span>
-          </div>
-          {/* Sine wave indicator underneath avatar */}
-          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2">
-            <SineWave color={color} active={isStreaming} small />
+            <PersonaIcon personaId={personaId} fallbackEmoji={emoji} color={color} firing={isFiring} />
           </div>
         </div>
 
@@ -198,6 +206,13 @@ export default function PersonaColumn({
           </div>
           <p className="text-[10px] text-white/40 mt-0.5">{role}</p>
           <p className="text-[9px] text-white/20 font-mono mt-0.5">{model}</p>
+        </div>
+
+        {/* Sine wave sits under the text block so the label group hugs the
+            avatar without an interstitial gap. Reserved space keeps layout
+            stable between speaking/idle. */}
+        <div className="h-3 mt-1 flex items-center">
+          {isStreaming && <SineWave color={color} active={true} small />}
         </div>
       </div>
 
