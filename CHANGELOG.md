@@ -2,6 +2,55 @@
 
 All notable changes to Peanut Gallery are recorded here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version numbers follow [SemVer](https://semver.org/).
 
+## [1.1.1] — 2026-04-17
+
+Quality-of-life polish ahead of the TWiST submission and a security-driven refactor of how the extension handles "demo access."
+
+### Added
+- **Silence detection** replaces pause detection (`lib/transcription.ts`, `app/api/transcribe/route.ts`). When the transcript stays empty for 18 seconds the Director fires a one-shot "crickets on the show" moment, cascade-capped at 2 so it doesn't dogpile. Firing resets when new speech arrives. Director + persona prompts forbid the words "pause/paused/pausing" and use "crickets / dead air / silence / nobody's talking" instead, because the viewer didn't pause anything — the show itself went quiet.
+- **Force-react button** in the side panel with a pure-CSS loading spinner (no layout shift). One click summons an in-character reaction from the Director's pick; persona prompt forbids the `"-"` pass token so force-fires never no-op.
+- **Captured-tab banner** in the side panel. Live-updates on tab switch and title change via `chrome.tabs.onActivated` / `chrome.tabs.onUpdated`. Click the banner to focus the capturing tab (`chrome.tabs.update` + `chrome.windows.update`).
+- **Server-side demo access** — see "Changed" and [`docs/SERVER-SIDE-DEMO-KEYS.md`](docs/SERVER-SIDE-DEMO-KEYS.md). First-time users can Start Listening without entering any keys; the hosted backend's env vars cover the providers.
+- **Docs**
+  - `docs/SERVER-SIDE-DEMO-KEYS.md` — architecture + rationale for the header-first / env-var-fallback pattern.
+  - `docs/BUILD-YOUR-OWN-BACKEND.md` — contract for alternative backends (also enables the self-hoster guard).
+  - `docs/SELF-HOST-INSTALL.md` — install flow for users running their own Next.js deploy.
+  - `docs/SESSION-NOTES-2026-04-17.md` — handoff for the v1.1.1 session (post-compaction rescue + docs pass).
+
+### Changed
+- **Extension no longer ships demo API keys.** Key input fields default to empty strings; `extension/offscreen.js` only sets `X-*-Key` headers when the user has pasted a value. The backend (`app/api/transcribe/route.ts`, `app/api/personas/route.ts`) falls back to `process.env.*` when headers are absent. Zero keys in the extension zip, zero keys in `git`. See [`docs/SERVER-SIDE-DEMO-KEYS.md`](docs/SERVER-SIDE-DEMO-KEYS.md).
+- **Side-panel copy** updated to reflect the new architecture: "API keys — temporarily optional" instead of "pre-filled / free right now." Copy notes that shared backend access is rate-limited and will be retired.
+- **Pre-flight key check** is now conditional on the configured server URL. Against `peanutgallery.live` we skip the client-side check entirely (server env vars cover it). For self-hosters the old behavior applies — Deepgram + Groq + Anthropic are required.
+
+### Fixed
+- **ISSUE-009 — GitHub push protection rejected v1.1.1 for embedded demo keys.** An earlier pass at demo access hard-coded four provider keys into `extension/sidepanel.js`. Push was blocked; commits were local only (nothing leaked). Fixed by reset-and-reshape onto the server-side fallback architecture above. Full post-mortem in `docs/DEBUGGING.md`.
+- Persona context no longer leaks "pause" wording into silence reactions. `lib/personas.ts::buildPersonaContext` takes an `isSilence` flag (renamed from `isPaused`) and installs a hard rule list of allowed / forbidden phrases.
+
+### Notes
+- Extension version bumped `1.1.0 → 1.1.1` in `extension/manifest.json` and in the side-panel footer badge.
+- `.commit-msg.txt` added to `.gitignore` — it's a scratch file used when committing multi-line messages via `git commit -F`.
+
+## [1.1.0] — 2026-04-17
+
+Audio-routing QoL for podcasters + persona context rebalance + Chrome extension reliability fixes.
+
+### Added
+- **Passthrough toggle + output-device picker** in the side panel. On by default — captured tab audio plays back through your speakers so you hear the video normally. Turn off when OBS / Riverside / BlackHole / VB-Audio is already routing audio, to avoid doubling. Device picker lets you send passthrough to a specific output the recording rig doesn't capture. See `docs/PODCASTER-SETUP.md`.
+- **Audio config forwarded through `background.js`** so passthrough + `sinkId` reach the offscreen document cleanly.
+
+### Changed
+- **Persona context rebalanced.** The Director now hands each persona a transcript-heavy context (roughly 90% transcript / 10% cross-persona log) so replies ground in what was actually said, not in what the other personas just said. Fixes Baba Booey's tendency to echo his own last fact-check.
+- **Troll trigger timing.** Re-tuned cooldown and cascade probability so The Troll engages more often on spicy transcripts without dominating cascades.
+- **Persona character depth.** `lib/personas.ts` received richer character models — specific mannerisms, taboo topics, callback patterns — pulled from Howard Stern show research.
+
+### Fixed
+- **Silent START_RECORDING failure** — errors from the offscreen document are now propagated back through `background.js` to the side panel, which surfaces them in the error banner instead of hanging on "Connecting to server…"
+- **Baba Booey self-repetition** — conversation-context sampler now excludes each persona's own recent messages when building its prompt.
+- **Honest UI copy** pass on the side panel — version badge, status copy, and settings descriptions aligned with actual behavior.
+
+### Notes
+- v1.1.0 was released alongside v1.1.1; the changelog entries are split here for historical clarity but the Chrome Web Store upload is v1.1.1.
+
 ## [1.0.0] — 2026-04-17
 
 First public release. Submitted for the TWiST $5,000 + guest-spot bounty from Jason Calacanis and Lon Harris.

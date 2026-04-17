@@ -4,7 +4,7 @@
 > AI assistants: read this file FIRST when debugging transcription, persona, or streaming problems.
 > Humans: update this file every time you fix a bug. Future you will thank past you.
 
-Last updated: 2026-04-15
+Last updated: 2026-04-17
 
 ---
 
@@ -112,6 +112,14 @@ YouTube URL
 - **Fix (persistent):** Add `YT_DLP_COOKIE_BROWSER=chrome` to `.env.local`. This tells yt-dlp to use cookies from the user's browser, authenticating with YouTube. Supported values: `chrome`, `firefox`, `safari`, `edge`, `brave`.
 - **Lesson:** YouTube's extraction landscape changes constantly. Always keep yt-dlp updated, and cookie auth is increasingly mandatory, not optional.
 - **How to verify:** Run `yt-dlp --cookies-from-browser chrome -f bestaudio -o - "URL" | head -c 1024 | wc -c` — should output `1024`.
+
+### ISSUE-009: GitHub push protection rejected v1.1.1 for embedded demo API keys
+- **Date:** 2026-04-17
+- **Symptom:** `git push` on the v1.1.1 commit failed with `remote: error: GH013: Repository rule violations found for refs/heads/main` and specific hits on "Groq API Key" at `extension/sidepanel.js:19` and "Anthropic API Key" at `extension/sidepanel.js:20`.
+- **Root cause:** During v1.1.1 development a `DEMO_DEFAULT_KEYS` constant was added to `extension/sidepanel.js` with live Deepgram / Groq / Anthropic / Brave keys, so first-time users could try the extension without signing up. Distinctive key prefixes (`sk-ant-`, `gsk_`) tripped GitHub's secret-scanning patterns. The two commits containing the keys were local only — nothing was pushed.
+- **Fix:** Refactored to the server-side fallback pattern documented in [`docs/SERVER-SIDE-DEMO-KEYS.md`](SERVER-SIDE-DEMO-KEYS.md). Extension inputs default to empty strings; `extension/offscreen.js` only sets `X-*-Key` headers when the user entered a value; the backend's existing header-first / env-var-fallback logic in `app/api/transcribe/route.ts` and `app/api/personas/route.ts` covers demo access using Vercel env vars. After a `git reset origin/main` + clean recommit, zero keys remain in any tracked file.
+- **Lesson:** Any "demo keys for easy first-run" pattern must live on the server (in env vars) not in the client. Public extensions are scraped within minutes of publish; the Chrome Web Store zip is trivially extractable by any reviewer or end user. GitHub push protection is the last line of defense — treat a block as *correct* and redesign, don't click the unblock link for your own intentional commits.
+- **How to verify:** `grep -r "DEMO_DEFAULT\|sk-ant-api\|gsk_" extension/` returns no matches. The `app/api/transcribe/route.ts` key lines follow the header-first pattern: `req.headers.get("X-Deepgram-Key") || process.env.DEEPGRAM_API_KEY`.
 
 ---
 

@@ -25,6 +25,12 @@ import { PersonaEngine } from "@/lib/persona-engine";
 import { Director } from "@/lib/director";
 import { personas } from "@/lib/personas";
 import { createSessionLogger } from "@/lib/debug-logger";
+import {
+  isFreeTierLimitEnabled,
+  getQuotaStatus,
+  recordUsage,
+  quotaDeniedBody,
+} from "@/lib/free-tier-limiter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,11 +41,16 @@ export const dynamic = "force-dynamic";
 // preflight, so we need OPTIONS + Access-Control-* headers on every
 // response. X-Session-Id must be exposed so the extension can read it
 // off the SSE response.
+//
+// X-Install-Id is the per-installation UUID the extension generates on
+// first run. It's used by the free-tier limiter on the hosted backend to
+// meter demo-key usage per install. Self-hosters can safely ignore it —
+// the limiter is off unless ENABLE_FREE_TIER_LIMIT=true.
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, X-Deepgram-Key, X-Groq-Key, X-Anthropic-Key, X-Brave-Key",
+    "Content-Type, X-Deepgram-Key, X-Groq-Key, X-Anthropic-Key, X-Brave-Key, X-Install-Id",
   "Access-Control-Expose-Headers": "X-Session-Id",
   "Access-Control-Max-Age": "86400",
 };
@@ -64,6 +75,22 @@ interface Session {
    * user always gets visible reactions for their click.
    */
   forceReactNext?: boolean;
+  /**
+   * Epoch-ms when this session was created. Used by the free-tier limiter to
+   * charge actual elapsed time against the install's quota on session close.
+   */
+  startedAt: number;
+  /**
+   * The install-id that opened this session, if any. Set only when the
+   * free-tier limiter is active AND the install is consuming demo keys. A
+   * session carrying its own keys has `null` here and is never charged.
+   */
+  chargeableInstallId: string | null;
+  /**
+   * Guards against double-charging. DELETE and the client-disconnect cleanup
+   * can both fire for the same session; we only want to record usage once.
+   */
+  charged: boolean;
 }
 
 // Active sessions (keyed by session ID)
