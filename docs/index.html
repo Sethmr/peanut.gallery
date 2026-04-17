@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0a0a0a">
-    <title>Peanut Gallery — AI Sidebar for Live Podcasts</title>
-    <meta name="description" content="4 AI personas inspired by the Howard Stern Show watch your podcast in real-time. A fact-checker, a sound effects guy, a comedy writer, and a cynical troll — reacting live.">
-    <meta property="og:title" content="Peanut Gallery — AI Sidebar for Live Podcasts">
-    <meta property="og:description" content="4 AI personas watching your podcast in real-time. Open source. Ship it.">
+    <title>Peanut Gallery — AI Sidebar for YouTube (Chrome Extension)</title>
+    <meta name="description" content="Chrome extension with 4 AI personas — fact-checker, sound effects guy, comedy writer, cynical troll — reacting in real-time to any YouTube video. Inspired by the Howard Stern Show. Open source, MIT licensed.">
+    <meta property="og:title" content="Peanut Gallery — AI Sidebar for YouTube (Chrome Extension)">
+    <meta property="og:description" content="Chrome extension: 4 AI personas react in real-time in a native side panel while you watch YouTube. Open source. Shipped.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://peanutgallery.live">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -555,10 +555,11 @@
     <nav>
         <a href="#" class="nav-brand"><span>🥜</span> Peanut Gallery</a>
         <ul class="nav-links">
+            <li><a href="#install">Install</a></li>
             <li><a href="#personas">Personas</a></li>
             <li><a href="#how">How It Works</a></li>
             <li><a href="#stack">Stack</a></li>
-            <li><a href="https://github.com/Sethmr/peanut.gallery" class="nav-cta">View on GitHub</a></li>
+            <li><a href="#install" class="nav-cta">Install Extension</a></li>
         </ul>
     </nav>
 
@@ -567,23 +568,24 @@
         <div class="hero-content">
             <div class="hero-badge">
                 <div class="pulse"></div>
-                Work in Progress — Shipping Soon
+                Live — Chrome Extension Shipping
             </div>
 
             <h1>Your podcast's<br><span class="gradient-text">AI writers' room.</span></h1>
 
             <p class="hero-sub">
-                4 AI personas watch your live show and react in real-time.
-                A fact-checker. A sound effects guy. A comedy writer. A cynical troll.
-                Inspired by the Howard Stern Show. Streaming alongside the conversation as it happens.
+                A Chrome extension that sits next to any YouTube video and reacts in real-time.
+                4 AI personas — a fact-checker, a sound effects guy, a comedy writer, a cynical troll —
+                watch the show with you through a native Chrome side panel. No tab switching. No screen-share picker.
+                Audio captured silently while you watch.
             </p>
 
             <div class="hero-ctas">
-                <a href="https://github.com/Sethmr/peanut.gallery" class="btn-primary">
-                    Star on GitHub
+                <a href="#install" class="btn-primary">
+                    Install the Extension
                 </a>
-                <a href="#how" class="btn-secondary">
-                    See How It Works
+                <a href="https://github.com/Sethmr/peanut.gallery" class="btn-secondary">
+                    View on GitHub
                 </a>
             </div>
 
@@ -598,6 +600,44 @@
                 <a href="https://x.com/jason" target="_blank" rel="noopener">@jason</a> &amp;
                 <a href="https://x.com/lonharris" target="_blank" rel="noopener">@lonharris</a>
                 on <a href="https://x.com/twistartups" target="_blank" rel="noopener">This Week in Startups</a>
+            </p>
+        </div>
+    </section>
+
+    <!-- INSTALL -->
+    <section id="install">
+        <div class="section-label">Install</div>
+        <h2 class="fade-in">Running on your machine in 4 steps.</h2>
+        <p class="section-sub fade-in">
+            The extension is open source. Until it lands on the Chrome Web Store, install it in Developer mode
+            straight from the GitHub repo. Takes about a minute.
+        </p>
+
+        <div class="steps-grid">
+            <div class="step fade-in">
+                <h3>Clone the repo</h3>
+                <p><code style="background:rgba(255,255,255,0.05);padding:0.15rem 0.45rem;border-radius:4px;font-size:0.85rem">git clone github.com/Sethmr/peanut.gallery</code></p>
+            </div>
+            <div class="step fade-in">
+                <h3>Start the server</h3>
+                <p>In the repo, run <code style="background:rgba(255,255,255,0.05);padding:0.15rem 0.45rem;border-radius:4px;font-size:0.85rem">./setup.sh</code> then <code style="background:rgba(255,255,255,0.05);padding:0.15rem 0.45rem;border-radius:4px;font-size:0.85rem">npm run dev</code>. Your API keys stay on your machine.</p>
+            </div>
+            <div class="step fade-in">
+                <h3>Load unpacked</h3>
+                <p>Open <code style="background:rgba(255,255,255,0.05);padding:0.15rem 0.45rem;border-radius:4px;font-size:0.85rem">chrome://extensions</code>, enable Developer mode, click <strong>Load unpacked</strong>, and select the <code style="background:rgba(255,255,255,0.05);padding:0.15rem 0.45rem;border-radius:4px;font-size:0.85rem">extension/</code> folder.</p>
+            </div>
+            <div class="step fade-in">
+                <h3>Click the peanut</h3>
+                <p>Open any YouTube video, click the 🥜 icon in the toolbar, and hit <strong>Start Listening</strong>. The gallery opens in a native Chrome side panel.</p>
+            </div>
+        </div>
+
+        <div class="status-banner" style="margin-top:3rem;">
+            <h3 style="color:var(--accent-green);">✓ Working product</h3>
+            <p>
+                Tab audio is captured silently via <code style="background:rgba(255,255,255,0.05);padding:0.1rem 0.4rem;border-radius:4px;font-size:0.85rem">chrome.tabCapture</code> —
+                the same API Otter.ai and Fireflies use. No permission picker, no interference with playback.
+                You hear the video; the AI hears it too.
             </p>
         </div>
     </section>
@@ -646,25 +686,29 @@
     <!-- HOW IT WORKS -->
     <section id="how">
         <div class="section-label">Architecture</div>
-        <h2 class="fade-in">Paste a URL. Watch it together.</h2>
-        <p class="section-sub fade-in">The video plays right inside the app. Pause it and the AI pauses too. Resume and everyone picks back up.</p>
+        <h2 class="fade-in">The show watches itself.</h2>
+        <p class="section-sub fade-in">
+            The extension captures tab audio silently, streams PCM to your local server, routes it through Deepgram,
+            and a rule-based director decides which persona reacts — cascading to others with decreasing probability.
+            You never leave the YouTube tab.
+        </p>
 
         <div class="steps-grid">
             <div class="step fade-in">
-                <h3>Watch Together</h3>
-                <p>Embedded YouTube player on the left, 4 AI personas on the right. One screen, full experience. Synced play/pause controls.</p>
+                <h3>Silent Tab Capture</h3>
+                <p><code style="background:rgba(255,255,255,0.05);padding:0.1rem 0.4rem;border-radius:4px;font-size:0.85rem">chrome.tabCapture</code> grabs YouTube audio without a permission picker. The user keeps hearing the video; the extension hears it too.</p>
             </div>
             <div class="step fade-in">
-                <h3>Real-Time Transcription</h3>
-                <p>Audio streams to Deepgram's Nova-3 model over WebSocket. Sub-300ms latency. Live transcript scrolls beneath the video.</p>
+                <h3>Offscreen Processing</h3>
+                <p>An MV3 offscreen document downsamples to 16kHz PCM and streams 250ms chunks to the server. Service worker handles gestures + permissions.</p>
             </div>
             <div class="step fade-in">
-                <h3>Persona Engine</h3>
-                <p>Every 90 seconds of new dialogue, all 4 personas fire in parallel. Each gets rolling context + their own memory for continuity.</p>
+                <h3>Director + Cascade</h3>
+                <p>Deepgram Nova-3 transcribes in real-time. A rule-based director picks one persona per trigger, then others cascade with staggered delays — like a real writers' room.</p>
             </div>
             <div class="step fade-in">
-                <h3>Streaming Sidebar</h3>
-                <p>Responses stream token-by-token via SSE into a 2&times;2 persona grid. Dark theme. Auto-scroll. Typing indicators.</p>
+                <h3>Native Side Panel</h3>
+                <p>Responses stream token-by-token via SSE into Chrome's Side Panel API. Lives next to the video, not on top of it. Persists across tabs.</p>
             </div>
         </div>
     </section>
@@ -703,17 +747,37 @@
         </div>
     </section>
 
+    <!-- REFERENCE IMPLEMENTATION -->
+    <section id="reference">
+        <div class="section-label">The Artifact</div>
+        <h2 class="fade-in">The web app still exists — as a reference.</h2>
+        <p class="section-sub fade-in">
+            Before the Chrome extension, Peanut Gallery was a Next.js web app you pasted a YouTube URL into.
+            It proved out the persona engine, the director, the SSE stream, and the UI that now lives in the side panel.
+            It's preserved as a reference implementation — paste a URL, see the whole pipeline run in a single tab.
+            When we iterate on the sidebar next, this is where we prototype.
+        </p>
+        <div class="hero-ctas" style="justify-content:flex-start;margin-bottom:0;">
+            <a href="https://peanutgallery.live" class="btn-secondary">
+                Open the Reference App
+            </a>
+            <a href="https://github.com/Sethmr/peanut.gallery/tree/main/app" class="btn-secondary">
+                View the Source
+            </a>
+        </div>
+    </section>
+
     <!-- ORIGIN -->
     <section>
         <div class="origin-box fade-in">
-            <h2>Built for a bounty.</h2>
+            <h2>Built for a bounty. Shipped as a product.</h2>
             <p>
                 Jason Calacanis and Lon Harris put out a challenge on This Week in Startups:
                 $5,000 + a guest spot to whoever builds a live AI sidebar with 4 personas
                 watching the pod in real-time. Open source. Ship it.
             </p>
             <p>
-                So we're shipping it.
+                It shipped — as a Chrome extension that works on any YouTube video, not just TWiST.
             </p>
             <div class="shoutout">
                 Built by <a href="https://sethrininger.dev" target="_blank" rel="noopener">Seth Rininger</a>&nbsp; for
@@ -721,8 +785,8 @@
             </div>
 
             <div class="status-banner">
-                <h3>🚧 Currently Building</h3>
-                <p>Star the repo to get notified when we ship. It won't be long.</p>
+                <h3 style="color:var(--accent-green);">✓ Live and open source</h3>
+                <p>MIT licensed. Self-hosted. Your API keys never leave your machine. Star the repo — a Chrome Web Store listing is next.</p>
             </div>
         </div>
     </section>

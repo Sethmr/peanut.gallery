@@ -1,8 +1,8 @@
 # Peanut Gallery
 
-**Your podcast's AI writers' room.**
+**A Chrome extension that puts an AI writers' room next to any YouTube video.**
 
-4 AI personas — inspired by the Howard Stern Show staff — watch your podcast in real-time and react through a streaming sidebar. A fact-checker keeping the host honest. A sound effects guy scoring every moment. A comedy writer dropping one-liners. A cynical troll saying what the audience is thinking.
+4 AI personas — inspired by the Howard Stern Show staff — watch the show with you through a native Chrome side panel and react in real-time. A fact-checker keeping the host honest. A sound effects guy scoring every moment. A comedy writer dropping one-liners. A cynical troll saying what the audience is thinking.
 
 **[peanutgallery.live](https://peanutgallery.live)** | MIT Licensed | Open Source
 
@@ -16,36 +16,46 @@ Built in response to Jason Calacanis and Lon Harris's open bounty on [This Week 
 
 ---
 
-## Try It
+## The Chrome Extension (primary product)
 
-Two ways to run Peanut Gallery. **We recommend self-hosting** — your API keys stay on your machine and never touch a third-party server.
+The main way to use Peanut Gallery. Silent tab audio capture via `chrome.tabCapture` — no permission picker, no interference with playback — and a gallery that lives in Chrome's native Side Panel right next to the video.
 
-### Option A: Self-Host (Recommended)
-
-One command. Your keys never leave your machine.
+### Install
 
 ```bash
 git clone https://github.com/Sethmr/peanut.gallery.git
 cd peanut.gallery
-./setup.sh
+./setup.sh          # deps + API keys in .env.local
+npm run dev         # starts local server on :3000
 ```
 
-The setup script checks for dependencies (Node.js 18+, yt-dlp, ffmpeg), walks you through entering your API keys, and launches the app at `localhost:3000`. Keys are stored in `.env.local` on your machine — git-ignored, never uploaded anywhere.
+Then load the unpacked extension:
 
-**Prerequisites:** [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [FFmpeg](https://ffmpeg.org/). Install both with:
+1. Open `chrome://extensions`
+2. Toggle **Developer mode** (top right)
+3. Click **Load unpacked** → select the `extension/` folder
+4. Open any YouTube video → click the 🥜 icon → **Start Listening**
+
+That's it. Your keys live in `.env.local` on your machine — git-ignored, never uploaded.
+
+**Prerequisites:** Node.js 18+. The extension flow doesn't need yt-dlp or ffmpeg (those are only for the reference web app below).
+
+---
+
+## The Web App (reference implementation)
+
+Before the extension, Peanut Gallery was a Next.js web app where you pasted a YouTube URL. It's preserved in `app/` as a reference implementation — it proved out the persona engine, director, SSE stream, and UI that now powers the side panel. Kept around for prototyping the next iteration of the sidebar.
+
+**Run the web app locally:** `npm run dev`, open `localhost:3000`, paste a URL.
+
+**Hosted:** [peanutgallery.live](https://peanutgallery.live) — your keys get sent to the server via headers, forwarded to Deepgram/Groq/Anthropic/Brave, and discarded at session end. Never logged, never persisted. [Audit the route](https://github.com/Sethmr/peanut.gallery/blob/main/app/api/transcribe/route.ts) if you want zero trust required.
+
+The web app uses `yt-dlp` + `ffmpeg` to pull audio server-side:
 
 ```bash
-brew install yt-dlp ffmpeg    # macOS
-sudo apt install yt-dlp ffmpeg # Ubuntu/Debian
+brew install yt-dlp ffmpeg          # macOS
+sudo apt install yt-dlp ffmpeg      # Ubuntu/Debian
 ```
-
-### Option B: Use the Hosted Version
-
-Go to **[peanutgallery.live](https://peanutgallery.live)** and enter your API keys when prompted.
-
-**How your keys are handled:** Your keys are stored in your browser's localStorage and sent to our server via request headers when you start a session. The server passes them directly to Deepgram, Groq, Anthropic, and Brave, then discards them when the session ends. Keys are never saved on the server, never logged, and never shared.
-
-**This project is fully open source** — you can [audit the server code](https://github.com/Sethmr/peanut.gallery/blob/main/app/api/transcribe/route.ts) to verify exactly what happens with your keys. If you want zero trust required, use Option A.
 
 ---
 
@@ -85,30 +95,20 @@ One-liners and jokes. Setup-punchline structure, callback humor, observational c
 
 ## How It Works
 
-Two audio capture modes depending on your setup:
+**Chrome Extension (primary):**
+```
+YouTube Tab → chrome.tabCapture → Offscreen Doc → PCM 16kHz (250ms chunks)
+           → Local Server → Deepgram Nova-3 → Director → AI Personas → SSE → Side Panel
+```
 
-**Self-hosted (yt-dlp):**
+**Reference Web App:**
 ```
 YouTube URL → yt-dlp → FFmpeg → Deepgram Nova-3 → Director → AI Personas → SSE → UI
 ```
 
-**Chrome Extension (recommended):**
-```
-YouTube Tab → chrome.tabCapture → PCM 16kHz → Server → Deepgram Nova-3 → Director → AI Personas → Side Panel
-```
+In both, the **Director** (a rule-based booth producer) reads each transcript chunk and picks the best persona to respond — then cascades to others with decreasing probability and staggered timing. Some moments get 1 response, some get 2-3, and occasionally all 4 pile on.
 
-The Chrome extension captures tab audio silently via `chrome.tabCapture` — no screen share picker, no interference with YouTube playback. The gallery UI lives in a Chrome Side Panel right next to your video. This is the same approach used by Otter.ai, Fireflies, and Recall.ai.
-
-In both modes, the Director (a rule-based booth producer) reads each transcript chunk and picks the best persona to respond — then cascades to others with decreasing probability and staggered timing. Some moments get 1 response, some get 2-3, and occasionally all 4 pile on.
-
-The Fact-Checker has an extra step: it scores sentences for factual claims and runs parallel Brave Search queries to cross-reference.
-
-### Chrome Extension Install
-
-1. Open `chrome://extensions`
-2. Enable **Developer mode** (toggle in top right)
-3. Click **Load unpacked** → select the `extension/` folder in this repo
-4. Open a YouTube video → click the 🥜 extension icon → Start Listening
+The **Fact-Checker** has an extra step: it scores sentences for factual claims and runs parallel Brave Search queries to cross-reference.
 
 ---
 
