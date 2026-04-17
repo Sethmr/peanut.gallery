@@ -31,7 +31,7 @@ export default function LandingPage() {
           <div className="hero-content">
             <div className="hero-badge">
               <div className="pulse"></div>
-              Live — Chrome Extension Shipping
+              In Chrome Web Store review — shipping soon
             </div>
 
             <h1>
@@ -85,8 +85,8 @@ export default function LandingPage() {
           <div className="section-label">Install</div>
           <h2 className="fade-in">Running on your machine in 4 steps.</h2>
           <p className="section-sub fade-in">
-            The extension is open source. Until it lands on the Chrome Web Store, install it in
-            Developer mode straight from the GitHub repo. Takes about a minute.
+            The Chrome Web Store listing is submitted and under review — it&apos;ll ship there soon.
+            Until then, install it in Developer mode straight from the GitHub repo. Takes about a minute.
           </p>
 
           <div className="steps-grid">
