@@ -51,6 +51,8 @@ zip -r -9 "$OUT_FILE" . \
   -x "*.swp" \
   -x ".git*" \
   -x "node_modules/*" \
+  -x "icons/_preview_*.png" \
+  -x "icons/_*.png" \
   > /dev/null
 
 SIZE="$(du -h "$OUT_FILE" | cut -f1)"

@@ -243,9 +243,14 @@ Capture audio from the current browser tab so it can be transcribed in real-time
   Opens the extension UI (transcript, persona avatars, response feed) in Chrome's native side panel next to the video, rather than in a popup or separate tab. This is the primary UI surface of the extension.
   ```
 
-- **`host_permissions` for `http://localhost:*/*` and `https://peanutgallery.live/*`** —
+- **`host_permissions` for `https://peanutgallery.live/*`** —
   ```
-  The extension streams audio and receives Server-Sent Events from either the user's local Peanut Gallery server (localhost, the default self-hosted mode) or the hosted reference implementation at peanutgallery.live. No other hosts are accessed.
+  The extension streams audio and receives Server-Sent Events from the hosted reference implementation at peanutgallery.live. This is the only host granted at install time.
+  ```
+
+- **`optional_host_permissions` for `http://*/*` and `https://*/*`** —
+  ```
+  Users who self-host the open-source Peanut Gallery server (localhost during development, or their own deployed domain for full privacy) can point the extension at that server via a URL field in the UI. When they click Start Listening, the extension calls chrome.permissions.request() in response to that user gesture, triggering Chrome's standard permission dialog for that specific origin. No broad host access is granted at install time — permission is requested per-origin, only when the user opts in.
   ```
 
 **"Remote code" question:**

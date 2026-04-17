@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Peanut Gallery",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Watch any YouTube video with an AI writers' room. 4 personas react in real-time in a native Chrome side panel.",
   "permissions": [
     "tabCapture",
@@ -11,8 +11,11 @@
     "sidePanel"
   ],
   "host_permissions": [
-    "http://localhost:*/*",
     "https://peanutgallery.live/*"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
   ],
   "action": {
     "default_title": "Peanut Gallery — click to capture this tab's audio",
@@ -30,7 +33,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["http://localhost:*/*", "https://peanutgallery.live/*"],
+      "matches": ["https://peanutgallery.live/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }

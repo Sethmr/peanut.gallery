@@ -317,12 +317,45 @@ function normalizeServerUrl(raw) {
   return url;
 }
 
+/**
+ * Ensure we have host permission to fetch from `serverUrl`. peanutgallery.live
+ * is granted at install time via the manifest; anything else (localhost,
+ * self-hosted domain, etc.) must be requested at runtime — CWS rejects
+ * hardcoded localhost patterns, so we use `optional_host_permissions` plus
+ * `chrome.permissions.request` here.
+ *
+ * Returns true if we have (or just got) permission; false if user declined.
+ */
+async function ensureHostPermission(serverUrl) {
+  let origin;
+  try {
+    origin = new URL(serverUrl).origin + "/*";
+  } catch {
+    return true; // malformed URL — downstream fetch will surface the error
+  }
+  const already = await chrome.permissions.contains({ origins: [origin] });
+  if (already) return true;
+  // request() MUST be called in response to a user gesture (the Start click)
+  return chrome.permissions.request({ origins: [origin] });
+}
+
 startBtn.addEventListener("click", async () => {
   saveSettings();
   const serverUrl = normalizeServerUrl(serverUrlInput.value);
   if (!serverUrl) { showError("Server URL is required"); return; }
   // Reflect the normalized URL back into the input so it's visible to the user
   serverUrlInput.value = serverUrl;
+
+  // Request host permission for the server if we don't already have it.
+  // For self-hosters (localhost, custom domains) Chrome shows a permission
+  // prompt. For peanutgallery.live this returns true immediately.
+  const granted = await ensureHostPermission(serverUrl);
+  if (!granted) {
+    showError(
+      "Permission to reach the server was declined. Click Start Listening again and accept the prompt."
+    );
+    return;
+  }
 
   startBtn.disabled = true;
   startBtn.textContent = "Starting...";
