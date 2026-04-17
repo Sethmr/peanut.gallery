@@ -57,14 +57,33 @@ async function getLastTab() {
   return lastTab || null;
 }
 
-// ── Icon click: capture streamId synchronously, persist, open panel ──
-chrome.action.onClicked.addListener(async (tab) => {
+// ── Icon click: open panel SYNC first (gesture-preserving), then capture ──
+//
+// CRITICAL ORDERING: chrome.sidePanel.open() requires an active user gesture.
+// `await` (or any microtask boundary) consumes that gesture. So we MUST call
+// sidePanel.open() synchronously inside the click handler, BEFORE awaiting
+// anything. getMediaStreamId doesn't need a gesture (it needs activeTab),
+// so we can do it after.
+chrome.action.onClicked.addListener((tab) => {
   console.log("[PG:bg] onClicked fired for tab:", tab?.id, tab?.url);
   if (!tab?.id) {
     console.warn("[PG:bg] onClicked: no tab id, bailing");
     return;
   }
 
+  // 1. Open the side panel FIRST, synchronously. No await before this.
+  chrome.sidePanel.open({ windowId: tab.windowId })
+    .then(() => console.log("[PG:bg] ✓ sidePanel.open OK"))
+    .catch((err) => console.error("[PG:bg] ✗ sidePanel.open failed:", err.message));
+
+  // 2. Now do the async work in a separate function. By this point the
+  //    gesture has been consumed by sidePanel.open(), but that's fine —
+  //    getMediaStreamId only needs the activeTab grant, which lives until
+  //    navigation/close.
+  captureAndStash(tab);
+});
+
+async function captureAndStash(tab) {
   const tabInfo = {
     url: tab.url,
     title: tab.title,
@@ -72,8 +91,6 @@ chrome.action.onClicked.addListener(async (tab) => {
     windowId: tab.windowId,
   };
 
-  // CRITICAL: capture the stream ID here, in the click handler. This is the
-  // only place with both activeTab + user gesture. Do not move this call.
   let streamId = null;
   try {
     streamId = await new Promise((resolve, reject) => {
@@ -87,18 +104,10 @@ chrome.action.onClicked.addListener(async (tab) => {
     console.log("[PG:bg] ✓ getMediaStreamId OK, id length:", streamId.length);
   } catch (err) {
     console.error("[PG:bg] ✗ getMediaStreamId failed:", err.message);
-    // Still open the panel so the user sees a message, but don't store a bad id.
   }
 
   await setPendingStream(streamId, tabInfo);
   console.log("[PG:bg] persisted streamId to session storage:", !!streamId);
-
-  try {
-    await chrome.sidePanel.open({ windowId: tab.windowId });
-    console.log("[PG:bg] sidePanel.open OK");
-  } catch (err) {
-    console.error("[PG:bg] sidePanel.open failed:", err.message);
-  }
 
   // Tell an already-open panel to refresh its state
   chrome.runtime.sendMessage({
@@ -106,7 +115,7 @@ chrome.action.onClicked.addListener(async (tab) => {
     tab: tabInfo,
     hasStream: !!streamId,
   }).catch(() => {});
-});
+}
 
 // ── Offscreen document management ──
 async function offscreenExists() {
