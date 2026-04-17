@@ -473,7 +473,8 @@
   font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
   font-size: 0.85em;
   color: #f59e0b;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* ─── STATUS BANNER ─── */
