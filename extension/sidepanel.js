@@ -44,6 +44,8 @@ const deepgramKeyInput = document.getElementById("deepgramKey");
 const groqKeyInput = document.getElementById("groqKey");
 const anthropicKeyInput = document.getElementById("anthropicKey");
 const braveKeyInput = document.getElementById("braveKey");
+const passthroughToggle = document.getElementById("passthroughToggle");
+const outputDeviceSelect = document.getElementById("outputDevice");
 
 // ── Init ──
 loadSettings();
@@ -67,15 +69,51 @@ function detectCurrentTab() {
 // ── Settings ──
 function loadSettings() {
   chrome.storage.local.get(
-    ["serverUrl", "deepgramKey", "groqKey", "anthropicKey", "braveKey"],
+    [
+      "serverUrl",
+      "deepgramKey",
+      "groqKey",
+      "anthropicKey",
+      "braveKey",
+      "passthrough",
+      "outputDeviceId",
+    ],
     (data) => {
       if (data.serverUrl) serverUrlInput.value = data.serverUrl;
       if (data.deepgramKey) deepgramKeyInput.value = data.deepgramKey;
       if (data.groqKey) groqKeyInput.value = data.groqKey;
       if (data.anthropicKey) anthropicKeyInput.value = data.anthropicKey;
       if (data.braveKey) braveKeyInput.value = data.braveKey;
+
+      // Audio routing defaults: passthrough ON + system default device.
+      // Matches pre-v1.1 behavior exactly for existing users.
+      passthroughToggle.checked = data.passthrough !== false;
+      const savedDevice = data.outputDeviceId || "default";
+      // Selected device is applied once enumerateOutputDevices() runs (async).
+      outputDeviceSelect.dataset.pendingValue = savedDevice;
+
+      // Auto-expand keys section if the 3 required keys aren't all present,
+      // so first-time users see the key fields without having to find the toggle.
+      const hasRequiredKeys = !!(data.deepgramKey && data.groqKey && data.anthropicKey);
+      if (!hasRequiredKeys) {
+        const section = document.getElementById("keysSection");
+        const toggle = document.getElementById("toggleKeys");
+        section.classList.add("visible");
+        toggle.classList.add("open");
+      }
     }
   );
+}
+
+/**
+ * Resolve the current output device id safely. Before enumerateOutputDevices
+ * runs, the <select> only contains "System default" so reading .value would
+ * trample a user's previously-saved device. Fall back to the pending value
+ * we parked on the element from chrome.storage.
+ */
+function currentOutputDeviceId() {
+  if (devicesEnumerated) return outputDeviceSelect.value || "default";
+  return outputDeviceSelect.dataset.pendingValue || "default";
 }
 
 function saveSettings() {
@@ -85,7 +123,76 @@ function saveSettings() {
     groqKey: groqKeyInput.value.trim(),
     anthropicKey: anthropicKeyInput.value.trim(),
     braveKey: braveKeyInput.value.trim(),
+    passthrough: passthroughToggle.checked,
+    outputDeviceId: currentOutputDeviceId(),
   });
+}
+
+/**
+ * Populate the output device dropdown from the browser's list. Without any
+ * prior microphone grant, device labels come back empty strings — still
+ * usable (we fall back to "Device 1/2/…" labels) but not friendly. We only
+ * call this once the user expands the Audio section, to avoid pestering
+ * Chrome's permission model on every panel open.
+ */
+let devicesEnumerated = false;
+async function enumerateOutputDevices() {
+  if (!navigator.mediaDevices?.enumerateDevices) return;
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const outputs = devices.filter((d) => d.kind === "audiooutput");
+
+    // Prefer the pending value from chrome.storage (set in loadSettings) over
+    // the currently-selected option — on first enumerate, the dropdown only
+    // has "System default" so reading .value would lose the saved device.
+    const pending = outputDeviceSelect.dataset.pendingValue;
+    const prev = pending || outputDeviceSelect.value || "default";
+
+    outputDeviceSelect.innerHTML = "";
+    const defaultOpt = document.createElement("option");
+    defaultOpt.value = "default";
+    defaultOpt.textContent = "System default";
+    outputDeviceSelect.appendChild(defaultOpt);
+
+    outputs.forEach((d, i) => {
+      if (!d.deviceId || d.deviceId === "default") return;
+      const opt = document.createElement("option");
+      opt.value = d.deviceId;
+      opt.textContent = d.label || `Output device ${i + 1}`;
+      outputDeviceSelect.appendChild(opt);
+    });
+
+    // Restore previously selected device if it still exists.
+    const values = Array.from(outputDeviceSelect.options).map((o) => o.value);
+    const resolved = values.includes(prev) ? prev : "default";
+    const changed = outputDeviceSelect.value !== resolved;
+    outputDeviceSelect.value = resolved;
+    // Once restored, clear the pending marker so subsequent re-enumerations
+    // (devicechange event) prefer the current value.
+    delete outputDeviceSelect.dataset.pendingValue;
+    devicesEnumerated = true;
+    // If the previously selected device disappeared (unplugged, etc) and we
+    // fell back to default, persist + notify — the `change` event does NOT
+    // fire for programmatic value assignment, so we do it manually.
+    if (changed && prev !== "default") {
+      saveSettings();
+      sendAudioSettingsToOffscreen();
+    }
+  } catch (err) {
+    console.warn("[PG] enumerateDevices failed:", err.message);
+  }
+}
+
+function sendAudioSettingsToOffscreen() {
+  // Live-update the offscreen document if a session is in progress. This is
+  // a best-effort fire-and-forget — if no session is running the background
+  // responds with { ok: true, note: "no offscreen" } and the settings still
+  // apply to the next session via START_CAPTURE.
+  chrome.runtime.sendMessage({
+    type: "UPDATE_AUDIO_SETTINGS",
+    passthrough: passthroughToggle.checked,
+    outputDeviceId: currentOutputDeviceId(),
+  }).catch(() => {});
 }
 
 // ── UI State ──
@@ -346,6 +453,21 @@ startBtn.addEventListener("click", async () => {
   // Reflect the normalized URL back into the input so it's visible to the user
   serverUrlInput.value = serverUrl;
 
+  // Pre-flight: required keys must be set. Deepgram is mandatory; without
+  // Groq or Anthropic, 2 of the 4 personas will stay silent. Warn clearly
+  // rather than silently hang on "Connecting to server..."
+  const missing = [];
+  if (!deepgramKeyInput.value.trim()) missing.push("Deepgram");
+  if (!groqKeyInput.value.trim()) missing.push("Groq");
+  if (!anthropicKeyInput.value.trim()) missing.push("Anthropic");
+  if (missing.length > 0) {
+    // Expand the keys section so user can fill them in
+    document.getElementById("keysSection").classList.add("visible");
+    document.getElementById("toggleKeys").classList.add("open");
+    showError(`Missing required API key${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Free keys are linked below.`);
+    return;
+  }
+
   // Request host permission for the server if we don't already have it.
   // For self-hosters (localhost, custom domains) Chrome shows a permission
   // prompt. For peanutgallery.live this returns true immediately.
@@ -386,6 +508,10 @@ startBtn.addEventListener("click", async () => {
           groq: groqKeyInput.value.trim(),
           anthropic: anthropicKeyInput.value.trim(),
           brave: braveKeyInput.value.trim(),
+        },
+        audio: {
+          passthrough: passthroughToggle.checked,
+          outputDeviceId: currentOutputDeviceId(),
         },
       }, resolve);
     });
@@ -448,9 +574,43 @@ function firePersona(personaId) {
 }
 
 // ── Toggle keys ──
-document.getElementById("toggleKeys").addEventListener("click", () => {
-  document.getElementById("keysSection").classList.toggle("visible");
+document.getElementById("toggleKeys").addEventListener("click", (e) => {
+  const section = document.getElementById("keysSection");
+  const isOpen = section.classList.toggle("visible");
+  e.currentTarget.classList.toggle("open", isOpen);
 });
+
+// ── Toggle audio routing ──
+document.getElementById("toggleAudio").addEventListener("click", (e) => {
+  const section = document.getElementById("audioSection");
+  const isOpen = section.classList.toggle("visible");
+  e.currentTarget.classList.toggle("open", isOpen);
+  // Enumerate devices the first time the section is opened — this is when
+  // the user is actually interested in seeing them, and it avoids poking
+  // the media permission model on every panel open.
+  if (isOpen && !devicesEnumerated) {
+    enumerateOutputDevices();
+  }
+});
+
+// ── Audio settings: persist + live-update the running session ──
+passthroughToggle.addEventListener("change", () => {
+  saveSettings();
+  sendAudioSettingsToOffscreen();
+});
+outputDeviceSelect.addEventListener("change", () => {
+  saveSettings();
+  sendAudioSettingsToOffscreen();
+});
+
+// When a new device shows up (plugged in/out) re-enumerate so the dropdown
+// stays fresh. Only wire this if the browser supports the event.
+if (navigator.mediaDevices?.addEventListener) {
+  navigator.mediaDevices.addEventListener("devicechange", () => {
+    if (devicesEnumerated) enumerateOutputDevices();
+  });
+}
+
 document.getElementById("errorDismiss").addEventListener("click", () => {
   errorBanner.classList.remove("visible");
 });

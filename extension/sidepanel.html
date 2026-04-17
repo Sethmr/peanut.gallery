@@ -75,17 +75,134 @@
     .key-input { -webkit-text-security: disc; }
 
     .toggle-keys {
+      display: flex;
+      align-items: center;
+      gap: 5px;
       background: none;
       border: none;
       font-size: 10px;
       color: var(--text-muted);
-      text-decoration: underline;
       cursor: pointer;
-      padding: 0;
+      padding: 4px 0;
+      margin-top: 2px;
       margin-bottom: 6px;
     }
+    .toggle-keys:hover { color: rgba(255,255,255,0.7); }
+    .toggle-keys .caret {
+      display: inline-block;
+      font-size: 8px;
+      transition: transform 0.15s ease;
+    }
+    .toggle-keys.open .caret { transform: rotate(90deg); }
     .keys-section { display: none; }
     .keys-section.visible { display: block; }
+
+    /* Audio routing section (mirrors the keys-section styling) */
+    .audio-section { display: none; }
+    .audio-section.visible { display: block; }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 3px;
+    }
+    .toggle-row input[type="checkbox"] {
+      width: 13px;
+      height: 13px;
+      accent-color: var(--blue);
+      cursor: pointer;
+      margin: 0;
+    }
+    .toggle-row label {
+      font-size: 11px;
+      color: var(--text);
+      text-transform: none;
+      letter-spacing: normal;
+      font-weight: 500;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .setup select {
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 10px;
+      color: white;
+      font-size: 12px;
+      margin-bottom: 8px;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23888' d='M0 0l5 6 5-6z'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+    }
+    .setup select:focus { border-color: rgba(255,255,255,0.2); }
+    .setup select:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Inline help text */
+    .field-hint {
+      font-size: 9.5px;
+      line-height: 1.45;
+      color: var(--text-muted);
+      margin-top: -4px;
+      margin-bottom: 10px;
+    }
+    .field-hint a {
+      color: var(--blue);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .field-hint a:hover { text-decoration: underline; }
+
+    /* Intro blurb above the keys grid */
+    .keys-intro {
+      font-size: 10px;
+      line-height: 1.5;
+      color: var(--text-muted);
+      background: rgba(59,130,246,0.06);
+      border: 1px solid rgba(59,130,246,0.15);
+      border-radius: 6px;
+      padding: 7px 9px;
+      margin-bottom: 10px;
+    }
+    .keys-intro strong {
+      color: rgba(255,255,255,0.78);
+      font-weight: 600;
+    }
+
+    /* Per-key grouping */
+    .key-row { margin-bottom: 8px; }
+    .key-label-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+    .key-label-row label { margin-bottom: 0; }
+    .key-tag {
+      font-size: 8px;
+      font-weight: 600;
+      padding: 2px 5px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.06);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .key-tag.optional {
+      background: rgba(168,85,247,0.12);
+      color: var(--purple);
+    }
+    .key-tag.required {
+      background: rgba(239,68,68,0.15);
+      color: #fca5a5;
+    }
 
     .btn-row { display: flex; gap: 6px; }
     .btn {
@@ -309,7 +426,7 @@
     <span class="emoji">🥜</span>
     <h1>Peanut Gallery</h1>
     <div class="header-right">
-      <span id="versionBadge" style="font-size:8px; color:rgba(255,255,255,0.15); font-family:monospace;">v1.0</span>
+      <span id="versionBadge" style="font-size:8px; color:rgba(255,255,255,0.15); font-family:monospace;">v1.0.6</span>
     </div>
   </div>
 
@@ -321,19 +438,107 @@
 
   <!-- SETUP (shown when not capturing) -->
   <div id="setupSection" class="setup">
-    <label>Server URL</label>
-    <input type="text" id="serverUrl" placeholder="http://localhost:3000" value="http://localhost:3000" />
+    <label>Backend server</label>
+    <input type="text" id="serverUrl" placeholder="https://peanutgallery.live" value="https://peanutgallery.live" />
+    <p class="field-hint">
+      Where audio is transcribed and persona replies are generated. The default is the hosted backend — change it only if you&rsquo;re self-hosting.
+    </p>
 
-    <button class="toggle-keys" id="toggleKeys">API Keys (optional)</button>
+    <button class="toggle-keys" id="toggleKeys">
+      <span class="caret">&#9656;</span>
+      <span>API keys — required to run</span>
+    </button>
     <div id="keysSection" class="keys-section">
-      <label>Deepgram</label>
-      <input type="text" id="deepgramKey" class="key-input" placeholder="Deepgram API key" />
-      <label>Groq</label>
-      <input type="text" id="groqKey" class="key-input" placeholder="Groq API key" />
-      <label>Anthropic (optional)</label>
-      <input type="text" id="anthropicKey" class="key-input" placeholder="Anthropic API key" />
-      <label>Brave Search (optional)</label>
-      <input type="text" id="braveKey" class="key-input" placeholder="Brave Search API key" />
+      <p class="keys-intro">
+        <strong>Peanut Gallery runs on your own API keys.</strong>
+        The hosted backend forwards requests using the keys you provide — it has no shared tier. Free tiers at every provider cover normal usage. Deepgram is required for transcription; the others light up specific personas.
+      </p>
+
+      <div class="key-row">
+        <div class="key-label-row">
+          <label>Deepgram</label>
+          <span class="key-tag required">required</span>
+          <span class="key-tag">transcription</span>
+        </div>
+        <input type="text" id="deepgramKey" class="key-input" placeholder="dg_..." />
+        <p class="field-hint">
+          Turns tab audio into real-time text. Without this, nothing works. Free tier: $200 credit, plenty for testing.
+          <a href="https://console.deepgram.com/signup" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
+        </p>
+      </div>
+
+      <div class="key-row">
+        <div class="key-label-row">
+          <label>Groq</label>
+          <span class="key-tag required">required</span>
+          <span class="key-tag">troll + fred</span>
+        </div>
+        <input type="text" id="groqKey" class="key-input" placeholder="gsk_..." />
+        <p class="field-hint">
+          Powers The Troll &amp; Fred Norris on Llama for sub-200ms reactions. Without it, those two stay silent. Free tier is generous.
+          <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
+        </p>
+      </div>
+
+      <div class="key-row">
+        <div class="key-label-row">
+          <label>Anthropic</label>
+          <span class="key-tag required">required</span>
+          <span class="key-tag">baba + jackie</span>
+        </div>
+        <input type="text" id="anthropicKey" class="key-input" placeholder="sk-ant-..." />
+        <p class="field-hint">
+          Powers Baba Booey (fact-checker) &amp; Jackie Martling (comedy) on Claude Haiku. Without it, those two stay silent. New accounts get free credit.
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Get a key &#8599;</a>
+        </p>
+      </div>
+
+      <div class="key-row">
+        <div class="key-label-row">
+          <label>Brave Search</label>
+          <span class="key-tag optional">optional</span>
+          <span class="key-tag">live facts</span>
+        </div>
+        <input type="text" id="braveKey" class="key-input" placeholder="BSA..." />
+        <p class="field-hint">
+          Lets Baba Booey fact-check claims against the live web. Optional — without it, Baba still fact-checks from training knowledge. Free tier: 2,000 queries/month.
+          <a href="https://api-dashboard.search.brave.com/app/keys" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
+        </p>
+      </div>
+    </div>
+
+    <button class="toggle-keys" id="toggleAudio">
+      <span class="caret">&#9656;</span>
+      <span>Audio routing — podcaster options</span>
+    </button>
+    <div id="audioSection" class="audio-section">
+      <p class="keys-intro">
+        <strong>Recording a podcast?</strong>
+        By default Peanut Gallery plays captured audio back through your speakers so you hear the video normally. If your recording software (OBS, Riverside, etc.) or a virtual cable (BlackHole, VB-Audio) is already routing the audio, turn passthrough off to avoid doubling. You can also send passthrough to a specific output device your recording rig doesn&rsquo;t capture.
+      </p>
+
+      <div class="key-row">
+        <div class="toggle-row">
+          <input type="checkbox" id="passthroughToggle" checked />
+          <label for="passthroughToggle">Passthrough — play captured audio through speakers</label>
+        </div>
+        <p class="field-hint">
+          On (default): you hear the video as normal. Off: tab is captured silently — use this if another app is already playing the audio.
+        </p>
+      </div>
+
+      <div class="key-row">
+        <div class="key-label-row">
+          <label>Output device</label>
+          <span class="key-tag">passthrough</span>
+        </div>
+        <select id="outputDevice">
+          <option value="default">System default</option>
+        </select>
+        <p class="field-hint">
+          Route passthrough to a specific device — useful for sending it to monitor-only headphones or a virtual cable. Device names show after you start capture once.
+        </p>
+      </div>
     </div>
 
     <div id="detectedTab" style="background:rgba(59,130,246,0.06); border:1px solid rgba(59,130,246,0.12); border-radius:6px; padding:6px 10px; margin-bottom:8px; display:none;">

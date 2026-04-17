@@ -13,6 +13,7 @@ Map of every markdown file in the repo, ordered by when you should read it.
 - [`extension/README.md`](../extension/README.md) — Chrome extension: install, architecture diagram, why it exists.
 - [`README.md`](../README.md) — public-facing README. Setup, personas overview, cost, deploy.
 - [`docs/index.html`](index.html) — landing page served at peanutgallery.live (GitHub Pages / Railway).
+- [`docs/PODCASTER-SETUP.md`](PODCASTER-SETUP.md) — audio routing guide for OBS, Riverside, SquadCast, BlackHole/Loopback, VB-Audio, RODECaster, GoXLR, Wave XLR. Pairs with the Audio Routing section of the side panel.
 
 ## Archived (do not trust as source of truth)
 

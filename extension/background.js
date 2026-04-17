@@ -193,6 +193,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // Side panel → offscreen relay for live audio-routing updates
+  // (passthrough toggle, output device change). No-op if offscreen isn't
+  // running yet — the offscreen doc reads settings from START_RECORDING
+  // when a new session spins up.
+  if (message.type === "UPDATE_AUDIO_SETTINGS") {
+    offscreenExists().then((exists) => {
+      if (!exists) { sendResponse({ ok: true, note: "no offscreen" }); return; }
+      sendToOffscreen(
+        {
+          type: "UPDATE_AUDIO_SETTINGS",
+          passthrough: message.passthrough,
+          outputDeviceId: message.outputDeviceId,
+        },
+        (response) => sendResponse(response || { ok: true })
+      );
+    });
+    return true;
+  }
+
   if (message.type === "GET_STATUS") {
     offscreenExists().then((exists) => {
       if (!exists) { sendResponse({ capturing: false }); return; }
@@ -241,7 +260,7 @@ function sendToOffscreen(msg, callback) {
   });
 }
 
-async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle }) {
+async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle, audio }) {
   const streamId = await takePendingStream();
   console.log("[PG:bg] handleStartCapture: took streamId from session?", !!streamId);
 
@@ -260,6 +279,7 @@ async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle }) 
     streamId,
     serverUrl,
     apiKeys,
+    audio, // { passthrough, outputDeviceId } — optional; offscreen defaults to pre-v1.1 behavior
     youtubeUrl: youtubeUrl || lastTab?.url || "",
     tabTitle: tabTitle || lastTab?.title || "Unknown tab",
   });

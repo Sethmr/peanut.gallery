@@ -47,18 +47,36 @@ const PERSONA_PATTERNS: Record<string, { patterns: RegExp[]; keywords: RegExp[] 
     ],
   },
 
-  // The Troll: hype, buzzwords, self-congratulation, BS
+  // The Troll: hype, buzzwords, self-congratulation, BS, confident claims, preach-y takes
+  // EXPANDED: the old patterns missed most normal podcast conversation. The Troll should
+  // be able to latch onto confident opinions, name-drops, self-promotion, and the
+  // everyday rhythm of tech-bro speech — not just the blockchain-era buzzword soup.
   troll: {
     patterns: [
-      /\b(?:disrupt|revolutionary|game.?chang|paradigm|synergy|leverage|ecosystem|scalable)\b/i,
-      /\b(?:AI.?native|web3|blockchain|metaverse|crypto|NFT|token)\b/i,
-      /\b(?:unicorn|decacorn|10x|100x|moonshot|rocket.?ship)\b/i,
-      /\b(?:pivot|iterate|move fast|break things|hustle|grind)\b/i,
+      // Classic tech buzzwords
+      /\b(?:disrupt|revolutionary|game.?chang|paradigm|synergy|leverage|ecosystem|scalable|vertical|horizontal)\b/i,
+      /\b(?:AI.?native|AI.?first|AI.?powered|web3|blockchain|metaverse|crypto|NFT|token|LLM)\b/i,
+      /\b(?:unicorn|decacorn|10x|100x|moonshot|rocket.?ship|hockey.?stick)\b/i,
+      /\b(?:pivot|iterate|move fast|break things|hustle|grind|ship it|default alive)\b/i,
+      // Confident-opinion cues — The Troll LIVES for these
+      /\b(?:everyone|nobody|every single|literally the|the only way|the best|the worst)\b/i,
+      /\b(?:trust me|believe me|take it from me|I promise you|guaranteed)\b/i,
+      /\b(?:obviously|clearly|undeniably|without question)\b/i,
+      // Self-promotion cues
+      /\b(?:my company|my firm|my fund|at my|I built|I founded|I created|I invested in|I was early)\b/i,
+      /\b(?:bought|sold|exited|flipped|acquired)\s+(?:at|for)\b/i,
+      // Podcast-tic phrases (these show up constantly on TWiST)
+      /\b(?:by the way|so look|here's the thing|at the end of the day|the reality is)\b/i,
     ],
     keywords: [
-      /\b(?:amazing|incredible|exciting|unprecedented|historic|massive|huge|insane|crazy|wild|unbelievable)\b/i,
-      /\b(?:honestly|frankly|to be fair|look|listen|here's the thing|let me tell you)\b/i,
-      /\b(?:billion|million|valuation|funding|raised|Series [A-F]|seed round|IPO)\b/i,
+      // Hype adjectives
+      /\b(?:amazing|incredible|exciting|unprecedented|historic|massive|huge|insane|crazy|wild|unbelievable|phenomenal|genius|brilliant)\b/i,
+      // Hedging / filler / posturing
+      /\b(?:honestly|frankly|to be fair|to be honest|look|listen|I mean|you know what|quite frankly)\b/i,
+      // Money signals
+      /\b(?:billion|million|valuation|funding|raised|Series [A-F]|seed round|IPO|ARR|MRR|runway|burn)\b/i,
+      // Big-name drops (any of these = Troll moment)
+      /\b(?:Elon|Zuck|Bezos|Sam Altman|Sequoia|Andreessen|a16z|YC|Y Combinator|Tiger|SoftBank)\b/i,
     ],
   },
 
@@ -107,14 +125,41 @@ const PERSONA_PATTERNS: Record<string, { patterns: RegExp[]; keywords: RegExp[] 
 
 const CASCADE_PROBABILITY = [
   1.0,   // Primary persona: always fires
-  0.50,  // Second persona: 50% chance
-  0.35,  // Third persona: 35% chance
-  0.20,  // Fourth persona: 20% chance
+  0.60,  // Second persona: bumped from 0.50 — conversations feel richer
+  0.40,  // Third persona: bumped from 0.35
+  0.22,  // Fourth persona: nudged from 0.20
 ];
 
 // Delay in ms between cascade responses (randomized within range)
 const CASCADE_DELAY_MIN_MS = 2000;
 const CASCADE_DELAY_MAX_MS = 4000;
+
+// ──────────────────────────────────────────────────────
+// BASELINE + DRY-SPELL BOOSTS
+// Each persona has a baseline "eagerness" score added on top of content
+// matching, plus a dry-spell boost that grows the longer they've been silent.
+// This keeps quiet stretches interesting — if nobody has a pattern hit, the
+// personas with the hungriest personality still get a shot.
+// ──────────────────────────────────────────────────────
+
+const BASELINE_SCORE: Record<string, number> = {
+  // Baba Booey: only speaks when he has a fact to deliver — low baseline
+  producer: 0,
+  // The Troll: WANTS the mic. High baseline so he wins more random-tie rounds.
+  troll: 2,
+  // Fred: quiet by design. Lowest baseline.
+  soundfx: -1,
+  // Jackie: a joke machine — medium-high baseline
+  joker: 1,
+};
+
+// How many points per trigger cycle a persona has been silent
+const DRY_SPELL_POINTS_PER_CYCLE = 0.8;
+const DRY_SPELL_CAP = 6; // max boost, so one persona doesn't dominate forever
+
+// Bonus multiplier for Troll cascade probability when he hasn't primary-fired
+// in a while — the Troll should be the show's pressure valve.
+const TROLL_CASCADE_FLOOR = 0.75;
 
 // ──────────────────────────────────────────────────────
 // TYPES
@@ -138,15 +183,27 @@ export class Director {
   private recentFirings: string[] = [];
   private readonly RECENCY_WINDOW = 4; // remember last 4 firings
 
+  // Per-persona dry-spell counter: incremented every cycle they DON'T fire,
+  // reset to 0 when they do. Prevents one persona from monopolizing the mic.
+  private cyclesSinceFire: Record<string, number> = {
+    producer: 0,
+    troll: 0,
+    soundfx: 0,
+    joker: 0,
+  };
+
   /**
    * Score a transcript chunk for a specific persona.
    * Higher score = more relevant to that persona's specialty.
+   *
+   * score = baseline + content_matches + dry_spell_boost - recency_penalty
    */
   private scoreForPersona(text: string, personaId: string): number {
     const config = PERSONA_PATTERNS[personaId];
     if (!config) return 0;
 
-    let score = 0;
+    // Start with this persona's baseline eagerness
+    let score = BASELINE_SCORE[personaId] ?? 0;
 
     // Pattern matches (strong signal)
     for (const pattern of config.patterns) {
@@ -160,11 +217,20 @@ export class Director {
       if (matches) score += matches.length;
     }
 
-    // Recency penalty: if this persona fired recently, reduce score
+    // Dry-spell boost: the longer this persona has been silent, the more
+    // likely they are to fire. Cap so one quiet persona doesn't freeze the mic.
+    const silentCycles = this.cyclesSinceFire[personaId] ?? 0;
+    const drySpellBoost = Math.min(
+      silentCycles * DRY_SPELL_POINTS_PER_CYCLE,
+      DRY_SPELL_CAP
+    );
+    score += drySpellBoost;
+
+    // Recency penalty: if this persona fired in the last RECENCY_WINDOW,
+    // knock their score. Stacks against consecutive cascades.
     const recencyIndex = this.recentFirings.lastIndexOf(personaId);
     if (recencyIndex !== -1) {
       const howRecent = this.recentFirings.length - recencyIndex;
-      // Most recent = -3, second most = -2, etc.
       score -= Math.max(0, 4 - howRecent);
     }
 
@@ -221,11 +287,22 @@ export class Director {
 
     let cumulativeDelay = 0;
     for (let i = 0; i < remaining.length; i++) {
-      const prob = CASCADE_PROBABILITY[i + 1]; // +1 because index 0 is primary
+      let prob = CASCADE_PROBABILITY[i + 1]; // +1 because index 0 is primary
+
+      // Troll floor: if the Troll is being considered and he's been silent
+      // for 2+ cycles, his cascade probability floor kicks in. The Troll is
+      // the pressure valve — he should show up more than the math would
+      // otherwise dictate.
+      const personaId = remaining[i].id;
+      const silent = this.cyclesSinceFire[personaId] ?? 0;
+      if (personaId === "troll" && silent >= 2) {
+        prob = Math.max(prob, TROLL_CASCADE_FLOOR);
+      }
+
       if (Math.random() < prob) {
         const delay = CASCADE_DELAY_MIN_MS + Math.random() * (CASCADE_DELAY_MAX_MS - CASCADE_DELAY_MIN_MS);
         cumulativeDelay += delay;
-        chain.push(remaining[i].id);
+        chain.push(personaId);
         delays.push(Math.round(cumulativeDelay));
       }
     }
@@ -237,7 +314,7 @@ export class Director {
     }
 
     const reason = scores[0].score > 0
-      ? `${scores[0].id} scored highest (${scores[0].score}) for content match`
+      ? `${scores[0].id} scored highest (${scores[0].score.toFixed(1)}) for content match`
       : `random pick (no strong content match)`;
 
     logPipeline({
@@ -248,8 +325,20 @@ export class Director {
         reason,
         cascadeCount: chain.length,
         isPaused,
+        drySpells: { ...this.cyclesSinceFire },
       },
     });
+
+    // Update dry-spell tracking: every persona in the chain gets reset to 0,
+    // every persona NOT in the chain gets +1.
+    const firedSet = new Set(chain);
+    for (const id of Object.keys(this.cyclesSinceFire)) {
+      if (firedSet.has(id)) {
+        this.cyclesSinceFire[id] = 0;
+      } else {
+        this.cyclesSinceFire[id]++;
+      }
+    }
 
     // Track ALL personas in the chain (not just primary) to prevent domination
     for (const id of chain) {

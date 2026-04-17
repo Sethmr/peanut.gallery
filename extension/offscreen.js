@@ -12,12 +12,25 @@ console.log("[PG:off] offscreen.js LOADED v2");
 let audioContext = null;
 let mediaStream = null;
 let processor = null;
+let passthroughGain = null;
 let sendInterval = null;
 let chunkBuffer = [];
 let capturing = false;
 let serverUrl = "";
 let sessionId = "";
 let sseAbortController = null;
+
+// ── Audio routing prefs (live-updatable via UPDATE_AUDIO_SETTINGS) ──
+// passthrough: whether the user hears the tab audio through the extension.
+//   Default true — matches pre-v1.1 behavior exactly.
+//   Podcasters who route YouTube through OBS / a virtual cable (BlackHole,
+//   VB-Audio, Loopback) should set this false to avoid doubling/echo.
+// outputDeviceId: which audio device hears the passthrough. "default" = system
+//   default (pre-v1.1 behavior). A specific deviceId routes via
+//   AudioContext.setSinkId(), letting podcasters send passthrough to a
+//   monitor-only device their recording rig doesn't capture.
+let passthrough = true;
+let outputDeviceId = "default";
 
 // ── Message handler ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -43,6 +56,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 
+  if (message.type === "UPDATE_AUDIO_SETTINGS") {
+    applyAudioSettings(message)
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ error: err.message }));
+    return true;
+  }
+
   if (message.type === "PING") {
     sendResponse({ pong: true });
     return false;
@@ -55,6 +75,12 @@ async function startRecording(config) {
     console.log("[PG] Already capturing, stopping first...");
     stopRecording();
   }
+
+  // Pull initial audio routing prefs from the side panel. Fall back to
+  // pre-v1.1 defaults (passthrough on, system default device) if missing so
+  // older side panel builds keep working.
+  passthrough = config.audio?.passthrough !== false;
+  outputDeviceId = config.audio?.outputDeviceId || "default";
 
   // Normalize: strip trailing slash, and auto-prepend http:// if the user
   // typed "localhost:3000" instead of "http://localhost:3000". Without a
@@ -136,19 +162,32 @@ async function startRecording(config) {
 
   processor.onaudioprocess = (event) => {
     const input = event.inputBuffer.getChannelData(0);
-    // Pass audio through to destination so the user still hears YouTube.
-    // Tab capture mutes the tab by default; this restores it.
+    // Always pass audio through the processor's output buffer — the
+    // passthroughGain node downstream controls whether the user hears it.
+    // Tab capture mutes the tab by default; this restores it when gain=1.
     event.outputBuffer.getChannelData(0).set(input);
     // Also buffer a copy for upload to the server.
     if (capturing) chunkBuffer.push(new Float32Array(input));
   };
 
-  // Single path: source → processor → destination.
-  // The processor MUST connect to destination or onaudioprocess won't fire
-  // (that's why connecting `source` directly to destination and leaving the
-  // processor dangling silently stops capture).
+  // Routing: source → processor → passthroughGain → destination.
+  // The processor MUST have a path to destination or onaudioprocess won't
+  // fire. passthroughGain stays connected always (at gain=0 when
+  // passthrough is disabled) so onaudioprocess keeps firing — muting the
+  // gain silences the user's ears without breaking capture.
+  passthroughGain = audioContext.createGain();
+  passthroughGain.gain.value = passthrough ? 1 : 0;
   source.connect(processor);
-  processor.connect(audioContext.destination);
+  processor.connect(passthroughGain);
+  passthroughGain.connect(audioContext.destination);
+
+  // Apply initial output device selection. Swallow failures: setSinkId is
+  // only available in Chrome 110+ and some environments reject non-default
+  // sinks with an unknown-device error. If it fails, we fall back silently
+  // to the system default — the user still hears audio.
+  if (outputDeviceId && outputDeviceId !== "default") {
+    await trySetSinkId(outputDeviceId);
+  }
 
   capturing = true;
   chunkBuffer = [];
@@ -165,6 +204,7 @@ function stopRecording() {
   flushAudio();
 
   if (processor) { processor.disconnect(); processor = null; }
+  if (passthroughGain) { passthroughGain.disconnect(); passthroughGain = null; }
   if (audioContext) { audioContext.close().catch(() => {}); audioContext = null; }
   if (mediaStream) { mediaStream.getTracks().forEach((t) => t.stop()); mediaStream = null; }
   if (sseAbortController) { sseAbortController.abort(); sseAbortController = null; }
@@ -276,5 +316,45 @@ function flushAudio() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId, action: "audio_chunk", audio: base64 }),
     }).catch(() => {});
+  }
+}
+
+/**
+ * Live-update audio routing without restarting capture. Called by the side
+ * panel when the user toggles passthrough or picks a different output device
+ * mid-session. Returns quietly if no session is active — the new values are
+ * still cached so the next startRecording() picks them up.
+ */
+async function applyAudioSettings(msg) {
+  if (typeof msg.passthrough === "boolean") {
+    passthrough = msg.passthrough;
+    if (passthroughGain) passthroughGain.gain.value = passthrough ? 1 : 0;
+  }
+  if (typeof msg.outputDeviceId === "string") {
+    outputDeviceId = msg.outputDeviceId;
+    if (audioContext) {
+      await trySetSinkId(outputDeviceId);
+    }
+  }
+  console.log("[PG:off] audio settings applied:", { passthrough, outputDeviceId });
+}
+
+/**
+ * Try to route AudioContext output to a specific device. Available in
+ * Chrome 110+. Failure is non-fatal — we log and keep the previous sink.
+ * The special value "default" means "system default device".
+ */
+async function trySetSinkId(deviceId) {
+  try {
+    if (!audioContext) return;
+    if (typeof audioContext.setSinkId !== "function") {
+      console.warn("[PG:off] audioContext.setSinkId unavailable — using default device");
+      return;
+    }
+    const target = deviceId === "default" ? "" : deviceId;
+    await audioContext.setSinkId(target);
+    console.log("[PG:off] ✓ setSinkId OK:", deviceId);
+  } catch (err) {
+    console.warn("[PG:off] setSinkId failed, keeping previous sink:", err.message);
   }
 }

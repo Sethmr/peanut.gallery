@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Peanut Gallery",
-  "version": "1.0.3",
+  "version": "1.0.6",
   "description": "Watch any YouTube video with an AI writers' room. 4 personas react in real-time in a native Chrome side panel.",
   "permissions": [
     "tabCapture",

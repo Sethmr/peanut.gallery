@@ -21,6 +21,7 @@ import {
   buildPersonaContext,
   type Persona,
   type OtherPersonaResponse,
+  type ConversationEntry,
 } from "./personas";
 
 export interface PersonaResponse {
@@ -30,6 +31,19 @@ export interface PersonaResponse {
 }
 
 type StreamCallback = (response: PersonaResponse) => void;
+
+/**
+ * A single entry in the unified conversation log. Interleaves:
+ * - Transcript snapshots from the video (personaId = null)
+ * - Persona responses (personaId = their id)
+ * Newest last. The engine uses this to give every persona a coherent
+ * picture of what's been said, so they don't repeat themselves.
+ */
+interface LogEntry {
+  personaId: string | null; // null = video transcript snapshot
+  text: string;
+  timestamp: number;
+}
 
 // Patterns that indicate a verifiable factual claim
 const CLAIM_PATTERNS = [
@@ -56,6 +70,15 @@ export class PersonaEngine {
   private previousResponses: Map<string, string[]> = new Map();
   private readonly MAX_PREVIOUS = 3;
 
+  // Unified, ordered conversation log: video transcript snapshots interleaved
+  // with persona responses. Every persona sees a recent window of this so they
+  // can build on the discussion instead of repeating themselves.
+  private conversationLog: LogEntry[] = [];
+  private readonly LOG_WINDOW = 20; // most-recent N entries shown to each persona
+  private readonly LOG_MAX = 60; // hard cap to keep memory bounded
+  // Remember the last snippet of video we logged so we only push NEW transcript
+  private lastTranscriptLength = 0;
+
   constructor(config: {
     anthropicKey: string;
     groqKey: string;
@@ -69,6 +92,55 @@ export class PersonaEngine {
     for (const p of personas) {
       this.previousResponses.set(p.id, []);
     }
+  }
+
+  /** Log a fresh chunk of video transcript so personas can reference it. */
+  private logTranscriptDelta(transcript: string): void {
+    // Only log the text added since the last log (to avoid re-logging the same
+    // words over and over as the rolling buffer grows).
+    if (transcript.length <= this.lastTranscriptLength) return;
+    const delta = transcript.slice(this.lastTranscriptLength).trim();
+    if (delta.length >= 20) {
+      // Keep each snapshot digestible — ~200 chars is enough for the model
+      // to see the current topic without flooding context.
+      const snippet = delta.length > 280 ? "…" + delta.slice(-260) : delta;
+      this.conversationLog.push({
+        personaId: null,
+        text: snippet,
+        timestamp: Date.now(),
+      });
+      this.trimLog();
+    }
+    this.lastTranscriptLength = transcript.length;
+  }
+
+  private trimLog(): void {
+    if (this.conversationLog.length > this.LOG_MAX) {
+      this.conversationLog = this.conversationLog.slice(-this.LOG_MAX);
+    }
+  }
+
+  /** Build the conversation-log view passed to a persona's system prompt. */
+  private buildConversationLogView(): ConversationEntry[] {
+    const now = Date.now();
+    const recent = this.conversationLog.slice(-this.LOG_WINDOW);
+    return recent.map((entry) => {
+      if (entry.personaId === null) {
+        return {
+          personaName: "",
+          personaEmoji: "",
+          text: entry.text,
+          secondsAgo: Math.round((now - entry.timestamp) / 1000),
+        };
+      }
+      const p = personas.find((x) => x.id === entry.personaId);
+      return {
+        personaName: p?.name || "Someone",
+        personaEmoji: p?.emoji || "",
+        text: entry.text,
+        secondsAgo: Math.round((now - entry.timestamp) / 1000),
+      };
+    });
   }
 
   /**
@@ -94,6 +166,10 @@ export class PersonaEngine {
       logPipeline({ event: "persona_not_found", level: "error", data: { personaId } });
       return "";
     }
+
+    // Log a fresh chunk of transcript (if any) before the persona fires,
+    // so the conversation log view includes the latest thing the video said.
+    if (!isPaused) this.logTranscriptDelta(transcript);
 
     // Build cross-persona context: other personas' LAST responses + cascade source
     const otherPersonas: OtherPersonaResponse[] = [];
@@ -128,6 +204,8 @@ export class PersonaEngine {
         ? await this.fetchSearchResults(transcript)
         : undefined;
 
+    const conversationLog = this.buildConversationLogView();
+
     try {
       await this.firePersona(
         persona,
@@ -135,7 +213,8 @@ export class PersonaEngine {
         searchResults,
         onStream,
         otherPersonas,
-        isPaused
+        isPaused,
+        conversationLog
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -168,6 +247,8 @@ export class PersonaEngine {
       data: { transcriptLength: transcript.length, isPaused, personaCount: personas.length },
     });
 
+    if (!isPaused) this.logTranscriptDelta(transcript);
+
     // Start fact-check search in parallel (skip if paused — nothing new to check)
     const searchPromise = isPaused
       ? Promise.resolve(undefined)
@@ -191,6 +272,9 @@ export class PersonaEngine {
       otherPersonaMap.set(p.id, others);
     }
 
+    // Snapshot the conversation log so all 4 parallel fires see the same view
+    const logView = this.buildConversationLogView();
+
     const tasks = personas.map(async (persona) => {
       try {
         const searchResults =
@@ -204,7 +288,8 @@ export class PersonaEngine {
           searchResults,
           onStream,
           otherPersonas,
-          isPaused
+          isPaused,
+          logView
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -228,11 +313,17 @@ export class PersonaEngine {
     searchResults: string | undefined,
     onStream: StreamCallback,
     otherPersonas: OtherPersonaResponse[] = [],
-    isPaused = false
+    isPaused = false,
+    conversationLog: ConversationEntry[] = []
   ): Promise<void> {
     const donePersona = logTimed("persona_fire", "info", {
       personaId: persona.id,
-      data: { model: persona.model, hasSearchResults: !!searchResults, otherPersonaCount: otherPersonas.length },
+      data: {
+        model: persona.model,
+        hasSearchResults: !!searchResults,
+        otherPersonaCount: otherPersonas.length,
+        logSize: conversationLog.length,
+      },
     });
 
     const previous = this.previousResponses.get(persona.id) || [];
@@ -242,39 +333,60 @@ export class PersonaEngine {
       previous,
       searchResults,
       otherPersonas,
-      isPaused
+      isPaused,
+      conversationLog
     );
 
     let fullResponse = "";
+    // PASS-DETECTION strategy: buffer the very first chunk. If the response
+    // starts with a bare dash (pass signal), we drop the whole thing. Otherwise
+    // we flush the buffer and continue streaming normally so the UX still
+    // feels live.
+    const PASS_BUFFER_CHARS = 12;
+    let passBuffer = "";
+    let passDecided = false; // once we flush or declare a pass, stream directly
+    let passed = false;
+
+    const handleDelta = (delta: string) => {
+      fullResponse += delta;
+      if (passed) return; // dropped — ignore further deltas
+      if (passDecided) {
+        onStream({ personaId: persona.id, text: delta, done: false });
+        return;
+      }
+      passBuffer += delta;
+      // Keep buffering until we have enough to decide, unless the stream is
+      // clearly past the "dash pass" signal already.
+      if (passBuffer.trim().length >= 2 || passBuffer.length >= PASS_BUFFER_CHARS) {
+        const early = passBuffer.trim();
+        // Pass-if: starts with a dash AND is very short or only whitespace after
+        if (/^-(\s|$)/.test(early) && early.length <= 3) {
+          passed = true;
+          return;
+        }
+        // Not a pass: flush the buffer as one chunk and switch to direct streaming
+        passDecided = true;
+        onStream({ personaId: persona.id, text: passBuffer, done: false });
+        passBuffer = "";
+      }
+    };
 
     if (persona.model === "claude-haiku") {
-      // Use Anthropic Claude Haiku
       const stream = this.anthropic.messages.stream({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 200,
         messages: [{ role: "user", content: context }],
       });
-
       for await (const event of stream) {
-        if (
-          event.type === "content_block_delta" &&
-          event.delta.type === "text_delta"
-        ) {
-          fullResponse += event.delta.text;
-          onStream({
-            personaId: persona.id,
-            text: event.delta.text,
-            done: false,
-          });
+        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+          handleDelta(event.delta.text);
         }
       }
     } else {
-      // Use Groq (Llama models)
       const model =
         persona.model === "groq-llama-70b"
           ? "llama-3.3-70b-versatile"
           : "llama-3.1-8b-instant";
-
       const stream = await this.groq.chat.completions.create({
         model,
         messages: [
@@ -284,31 +396,48 @@ export class PersonaEngine {
         max_tokens: 200,
         stream: true,
       });
-
       for await (const chunk of stream) {
         const delta = chunk.choices[0]?.delta?.content;
-        if (delta) {
-          fullResponse += delta;
-          onStream({
-            personaId: persona.id,
-            text: delta,
-            done: false,
-          });
-        }
+        if (delta) handleDelta(delta);
       }
     }
 
-    // Signal done
-    onStream({
+    // Final decision if we never left the buffer phase (tiny responses)
+    if (!passDecided && !passed) {
+      const finalEarly = passBuffer.trim();
+      if (/^-(\s|$)?$/.test(finalEarly) && finalEarly.length <= 2) {
+        passed = true;
+      } else if (passBuffer) {
+        onStream({ personaId: persona.id, text: passBuffer, done: false });
+      }
+    }
+
+    if (passed) {
+      logPipeline({
+        event: "persona_pass",
+        level: "info",
+        personaId: persona.id,
+        data: { reason: "explicit_dash_pass" },
+      });
+      onStream({ personaId: persona.id, text: "", done: true });
+      donePersona({ responseLength: 0, passed: true });
+      return;
+    }
+
+    // Normal completion
+    onStream({ personaId: persona.id, text: "", done: true });
+
+    const trimmed = fullResponse.trim();
+    donePersona({ responseLength: trimmed.length, preview: trimmed.slice(0, 100) });
+
+    // Store response for continuity (both per-persona history AND shared log)
+    this.storeResponse(persona.id, trimmed);
+    this.conversationLog.push({
       personaId: persona.id,
-      text: "",
-      done: true,
+      text: trimmed,
+      timestamp: Date.now(),
     });
-
-    donePersona({ responseLength: fullResponse.length, preview: fullResponse.slice(0, 100) });
-
-    // Store response for continuity
-    this.storeResponse(persona.id, fullResponse);
+    this.trimLog();
   }
 
   private storeResponse(personaId: string, response: string): void {
