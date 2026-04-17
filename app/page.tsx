@@ -63,7 +63,7 @@ export default function LandingPage() {
 
             {/* VIDEO CLIP — Jason's $5k bounty announcement */}
             <div className="video-section">
-              <video autoPlay loop playsInline controls>
+              <video autoPlay muted loop playsInline controls preload="metadata">
                 <source src="/twist-clip.mp4" type="video/mp4" />
               </video>
             </div>
