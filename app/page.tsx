@@ -61,11 +61,15 @@ export default function LandingPage() {
               </a>
             </div>
 
-            {/* VIDEO CLIP — Jason's $5k bounty announcement */}
-            <div className="video-section">
-              <video autoPlay muted loop playsInline controls preload="metadata">
-                <source src="/twist-clip.mp4" type="video/mp4" />
-              </video>
+            {/* VIDEO CLIP — Jason's $5k bounty announcement (YouTube Short) */}
+            <div className="video-section video-section--shorts">
+              <iframe
+                src="https://www.youtube.com/embed/xHdwcCfuy4Y?rel=0&modestbranding=1"
+                title="Jason Calacanis & Lon Harris — $5k bounty announcement"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              />
             </div>
             <p className="video-caption">
               The challenge, straight from{" "}
