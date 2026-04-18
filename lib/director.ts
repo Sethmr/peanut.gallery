@@ -188,6 +188,15 @@ export interface TriggerDecision {
    * Omitted on pre-v1.5 call sites that don't pass `opts`.
    */
   source?: "rule" | "llm";
+  /**
+   * v1.5: what the pattern-match scorer would have picked ABSENT the LLM
+   * hoist. Same as `personaIds[0]` when `source === "rule"`. When
+   * `source === "llm"` and `rulePrimary !== personaIds[0]`, the LLM
+   * overrode the rule-based pick — the canary telemetry in
+   * `/api/transcribe` (event: `director_v2_compare`) uses this to
+   * compute an agreement rate across ticks.
+   */
+  rulePrimary?: string;
 }
 
 /**
@@ -334,6 +343,11 @@ export class Director {
     if (scores[0].score === 0) {
       scores.sort(() => Math.random() - 0.5);
     }
+
+    // v1.5: capture the rule-based primary BEFORE any LLM hoist so the
+    // route's `director_v2_compare` telemetry can answer "what would the
+    // scorer have picked here?" even on ticks the LLM won.
+    const rulePrimary = scores[0].id;
 
     // v1.5: Smart Director v2. If the LLM routing call won the 400ms
     // race and returned a valid archetype id, hoist it to the primary
@@ -495,6 +509,7 @@ export class Director {
       top3,
       cooldownsMs,
       source,
+      rulePrimary,
     };
   }
 }

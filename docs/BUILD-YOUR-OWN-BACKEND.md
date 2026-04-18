@@ -485,6 +485,7 @@ Any compatible backend should implement the same guard on force-react paths.
 | `XAI_API_KEY`             | ✅ (unless `ANTHROPIC_API_KEY`)   | Troll + Sound FX (Grok 4.1 Fast); also powers Live Search |
 | `SEARCH_ENGINE`           | Optional (default `brave`)        | `brave` \| `xai` — picks Producer's fact-check backend |
 | `BRAVE_SEARCH_API_KEY`    | Only when `SEARCH_ENGINE=brave`   | Brave Search REST API                     |
+| `ENABLE_SMART_DIRECTOR`   | Optional (v1.5+, default off)     | `true` turns on LLM-assisted routing (Claude Haiku, 400ms budget) per director tick; falls back to the rule-based scorer on timeout. Requires `ANTHROPIC_API_KEY`. |
 | `YT_DLP_COOKIES_FILE`     | Optional                          | Server-mode YouTube URL path              |
 | `YT_DLP_COOKIE_BROWSER`   | Optional                          | Server-mode YouTube URL path              |
 | `YT_DLP_PLAYER_CLIENT`    | Optional                          | Server-mode YouTube URL path              |

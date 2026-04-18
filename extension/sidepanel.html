@@ -664,6 +664,29 @@
     .trace-line1 .trace-score { color: var(--text-muted); }
     .trace-line1 .trace-top3 { color: var(--text-dim); margin-left: 4px; }
     .trace-line1 .trace-cascade { color: var(--text-muted); margin-left: 4px; }
+    /* v1.5: Smart Director v2 routing source. RULE is a soft neutral; LLM is
+       a highlighted accent so the eye can scan a batch of rows and gauge how
+       often the LLM is actually winning the 400ms race. */
+    .trace-line1 .trace-source {
+      display: inline-block;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 1px 4px;
+      border-radius: 3px;
+      margin-left: 4px;
+      vertical-align: 1px;
+    }
+    .trace-line1 .trace-source.src-rule {
+      color: var(--text-dim);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .trace-line1 .trace-source.src-llm {
+      color: #101012;
+      background: #f5c36b;
+      border: 1px solid #f5c36b;
+    }
     .trace-line2 { color: var(--text-dim); margin-top: 1px; font-size: 9px; }
     .trace-line3 { color: var(--text-muted); margin-top: 1px; padding-left: 10px; font-size: 9px; }
     .trace-empty {

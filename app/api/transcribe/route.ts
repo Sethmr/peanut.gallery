@@ -527,10 +527,12 @@ export async function POST(req: NextRequest) {
           // rolls.
           const directorInput = recentTranscript || transcript.slice(-500);
           let llmPick: LlmRoutingPick | null = null;
+          let llmElapsedMs: number | null = null;
+          const LLM_BUDGET_MS = 400;
           const smartOn =
             process.env.ENABLE_SMART_DIRECTOR === "true" && !!anthropicKey;
           if (smartOn) {
-            const LLM_BUDGET_MS = 400;
+            const llmStart = Date.now();
             try {
               llmPick = await pickPersonaLLM({
                 recentTranscript: directorInput,
@@ -547,6 +549,7 @@ export async function POST(req: NextRequest) {
               // in case a future refactor drops that invariant.
               llmPick = null;
             }
+            llmElapsedMs = Date.now() - llmStart;
           }
           const decision = director.decide(
             directorInput,
@@ -554,6 +557,37 @@ export async function POST(req: NextRequest) {
             sessionId,
             { llmPick }
           );
+
+          // v1.5: canary telemetry. One structured event per tick when the
+          // Smart Director is on — enough to roll up agreement rate, latency
+          // distribution, and how often the LLM actually overrode the rules.
+          // Kept in the route (not the Director) because only the route
+          // knows llmElapsedMs and whether the race happened at all.
+          if (smartOn) {
+            const llmPrimary = llmPick?.personaId ?? null;
+            const finalPrimary = decision.personaIds[0] ?? null;
+            const rulePrimary = decision.rulePrimary ?? finalPrimary ?? null;
+            log.info("director_v2_compare", {
+              rulePrimary,
+              llmPrimary,
+              finalPrimary,
+              source: decision.source ?? "rule",
+              // v1.5: include the LLM's one-liner on the compare event itself
+              // so canary triage (sanity-reading 20 `overrode=true` rows in
+              // logs/pipeline-debug.jsonl) can see *why* the LLM picked,
+              // not just what. Null on ticks where the LLM lost the race
+              // or returned nothing.
+              llmRationale: llmPick?.rationale ?? null,
+              llmElapsedMs,
+              llmTimedOut: llmPrimary === null && (llmElapsedMs ?? 0) >= LLM_BUDGET_MS,
+              agreed: llmPrimary !== null && llmPrimary === rulePrimary,
+              overrode:
+                (decision.source ?? "rule") === "llm" &&
+                llmPrimary !== null &&
+                llmPrimary !== rulePrimary,
+              isSilence: isSilenceTick,
+            });
+          }
 
           // v1.2: emit the Director's decision to the side-panel debug panel
           // as an SSE event. The Director already writes a structured log

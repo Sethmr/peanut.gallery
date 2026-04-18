@@ -127,6 +127,7 @@ when it's up. Keep this terminal open.
 | `XAI_API_KEY` | **Yes** | Powers Troll + Sound FX on Grok 4.1 Fast (non-reasoning). Also powers Live Search when `SEARCH_ENGINE=xai`. |
 | `SEARCH_ENGINE` | Optional | `brave` (default) or `xai`. Picks which backend fact-checks run through. |
 | `BRAVE_SEARCH_API_KEY` | Only if `SEARCH_ENGINE=brave` | Lets Producer fact-check claims against the live web via Brave's REST API. Skip it if you're on xAI Live Search. |
+| `ENABLE_SMART_DIRECTOR` | Optional (v1.5+) | Set to `true` to opt in to Smart Director v2 — a short Claude Haiku routing call per tick that decides who speaks next, falling back to the rule-based scorer under a 400ms budget. Off by default. Requires `ANTHROPIC_API_KEY`. Costs one extra Haiku call per director tick (roughly every 10–15s of active session). |
 | `YT_DLP_COOKIE_BROWSER` | Optional (web app only) | Set to `chrome`, `firefox`, `safari`, `edge`, or `brave` if yt-dlp starts failing on age-gated or login-walled videos. Not used by the Chrome extension path. |
 
 Technically the server can run with `DEEPGRAM_API_KEY` plus **either**

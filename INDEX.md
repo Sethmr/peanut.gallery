@@ -35,7 +35,7 @@ Chrome extension + Next.js backend that captures a YouTube tab's audio, transcri
 | [`SHIP.md`](SHIP.md) | v1.0 launch checklist. Historical but mostly still valid as a ship template. |
 | [`SCREENSHOTS.md`](SCREENSHOTS.md) | How to shoot the 5 required CWS screenshots. |
 | [`TWIST-AI-SIDEBAR-BUILD-PLAN.md`](TWIST-AI-SIDEBAR-BUILD-PLAN.md) | ARCHIVED — original v1.0 pre-build plan. Banner at top says "do not trust." |
-| [`CLAUDE.md`](CLAUDE.md) | If present: instructions for Claude working in this repo. |
+| [`CLAUDE.md`](CLAUDE.md) | **READ FIRST.** AI working agreement for this repo. Non-negotiable rules, esp. the git `index.lock` protocol. Points at [`docs/AI-GIT-PROTOCOL.md`](docs/AI-GIT-PROTOCOL.md) for the full version. |
 | [`package.json`](package.json) | Dependencies + scripts. `npm run check` is the pre-merge gate (typecheck + extension syntax + 14 director fixtures × 50 runs). |
 | [`next.config.ts`](next.config.ts) | Next.js config. |
 | [`tsconfig.json`](tsconfig.json) | TypeScript config. |

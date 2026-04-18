@@ -1365,14 +1365,25 @@ function renderDirectorTrace() {
         .join(" · ");
     }
 
-    // Line 1: pick · score · top3 · cascadeLen
+    // v1.5: routing-source badge. Backend sends source="rule"|"llm" on every
+    // director_decision; older backends omit the field so we default to "rule"
+    // — that matches the effective behavior when ENABLE_SMART_DIRECTOR is off.
+    // Normalize unknown values back to "rule" so a malformed payload never
+    // colors the badge as a false-positive LLM win.
+    const rawSource = typeof d?.source === "string" ? d.source : "rule";
+    const source = rawSource === "llm" ? "llm" : "rule";
+    const sourceClass = source === "llm" ? "src-llm" : "src-rule";
+    const sourceLabel = source === "llm" ? "LLM" : "RULE";
+
+    // Line 1: pick · score · top3 · cascadeLen · source
     const line1 = document.createElement("div");
     line1.className = "trace-line1";
     line1.innerHTML =
       `<span class="trace-pick" style="color:${color}">${escapeHtml(pick)}</span>` +
       ` <span class="trace-score">${escapeHtml(String(score))}</span>` +
       (top3Str ? ` <span class="trace-top3">(${escapeHtml(top3Str)})</span>` : "") +
-      ` <span class="trace-cascade">×${cascadeLen}${d?.isSilence ? " · silence" : ""}${d?.isForceReact ? " · force" : ""}</span>`;
+      ` <span class="trace-cascade">×${cascadeLen}${d?.isSilence ? " · silence" : ""}${d?.isForceReact ? " · force" : ""}</span>` +
+      ` <span class="trace-source ${sourceClass}">${sourceLabel}</span>`;
     row.appendChild(line1);
 
     // Line 2: chain, e.g. "troll → joker → producer"
