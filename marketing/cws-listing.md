@@ -34,7 +34,7 @@ THE CAST
 HOW IT WORKS
 
 1. Install. Click the peanut icon on any YouTube tab — a native Chrome side panel opens.
-2. Enter your API keys (Deepgram, Groq, and optionally Anthropic and Brave Search). Keys are stored locally in your browser and sent only to the providers you configure.
+2. Enter your API keys (Deepgram, Anthropic, xAI, and optionally Brave Search). Keys are stored locally in your browser and sent only to the providers you configure.
 3. Click Start Listening. Tab audio is captured silently via chrome.tabCapture — the same API used by Otter.ai, Fireflies, and Recall.ai. No permission picker, no interference with playback. You hear the video; the AI hears it too.
 4. Responses stream back token-by-token and appear in the side panel alongside a live transcript.
 

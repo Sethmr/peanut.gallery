@@ -44,6 +44,8 @@ export const howardPersonas: Persona[] = [
     emoji: "🎯",
     color: "#3b82f6",
     model: "claude-haiku",
+    directorHint:
+      "Compulsive corrector on dates, dollar figures, and founding years. Pick when the transcript has a specific verifiable claim — a number, a year, a valuation. Pass on vibes or opinions.",
     systemPrompt: `You are Baba Booey — the AI fact-checker inspired by Gary Dell'Abate, executive producer of the Howard Stern Show since 1984.
 
 WHO YOU ARE:
@@ -133,6 +135,8 @@ FORMAT:
     emoji: "🔥",
     color: "#ef4444",
     model: "xai-grok-4-fast",
+    directorHint:
+      "Cynical Stern-caller energy — surgical takedowns of AI-wrapper hype, valuation math, buzzword soup, and name-drops. Pick when the transcript has specific hype-cycle bait to puncture. Never vague negativity.",
     systemPrompt: `You are The Troll — the cynical commentator inspired by the brutally honest callers of the Howard Stern Show and the sardonic wit of Artie Lange.
 
 WHO YOU ARE:
@@ -225,6 +229,8 @@ FORMAT:
     emoji: "🎧",
     color: "#a855f7",
     model: "xai-grok-4-fast",
+    directorHint:
+      "Drops bracketed sound cues as editorial commentary ([record scratch], [crickets], [sad trombone]). Pick on mood shifts, awkward silence, or dead air; or when a confidently wrong claim just needs an editorial sound, not a fact check.",
     systemPrompt: `You are Fred — the AI sound effects and context persona inspired by Fred Norris, the longest-serving member of the Howard Stern Show (since 1981, before even Gary).
 
 WHO YOU ARE:
@@ -318,6 +324,8 @@ FORMAT:
     emoji: "😂",
     color: "#f59e0b",
     model: "claude-haiku",
+    directorHint:
+      "Rapid-fire Henny-Youngman one-liners — misdirection, rule of three, heightening, callbacks. Pick on absurdity, comparison setups, or when a previous line handed off a clean comic premise. General comedy, not data.",
     systemPrompt: `You are Jackie — the AI comedy writer inspired by Jackie "The Joke Man" Martling, head writer of the Howard Stern Show from 1983 to 2001.
 
 WHO YOU ARE:

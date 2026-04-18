@@ -1,0 +1,64 @@
+feat(v1.5): debug-panel badge + agreement telemetry + V1.5-PLAN
+
+Finishing touches on the v1.5 Smart Director v2 scaffold landed in
+`4b5cd2c`. All four remaining items from the scaffold commit's
+"remaining for 1.5.0 tag" list land here, plus two pickups from an
+audit pass before canary.
+
+### Debug panel — RULE/LLM badge
+- extension/sidepanel.js renders a tiny routing-source badge on every
+  director_decision row. RULE is a soft neutral; LLM is a highlighted
+  accent so operators can scan a session and gauge how often the LLM
+  actually wins the 400ms race.
+- Unknown/missing source values normalize back to "rule" so a
+  malformed payload never shows a false-positive LLM win.
+
+### Agreement + latency telemetry
+- Director.decide now returns `rulePrimary` — the scorer's pre-hoist
+  top pick. Stable across LLM wins and rule-only ticks.
+- Route emits one `director_v2_compare` pipeline event per tick when
+  the smart director is enabled. Fields: rulePrimary, llmPrimary,
+  finalPrimary, source, llmRationale, llmElapsedMs, llmTimedOut,
+  agreed, overrode, isSilence. Enough to roll up agreement rate +
+  latency distribution AND sanity-read *why* the LLM picked, from
+  logs/pipeline-debug.jsonl without a real deploy.
+
+### Default posture decision
+Explicit opt-in for the v1.5.0 tag. `ENABLE_SMART_DIRECTOR=true` is
+required to turn the feature on. Rationale captured in V1.5-PLAN §2;
+short version: (1) each tick adds a Haiku call we shouldn't silently
+cost self-hosters, (2) no agreement-rate data yet to justify default-
+on, (3) failing safe is v1.4 behavior which is known-good. Revisit in
+v1.5.1 once canary data is in.
+
+Flag is now documented in docs/SELF-HOST-INSTALL.md and
+docs/BUILD-YOUR-OWN-BACKEND.md so it's discoverable without reading
+the code.
+
+### docs/V1.5-PLAN.md
+Step-by-step playbook for the rest of v1.5.0 — goals, non-goals,
+done-definition, flag-posture decision, canary checklist with the
+exact roll-up queries + target bands (agreement ≥ 0.55, override
+between 0.20–0.45, p95 llmElapsedMs < 350ms, timeout rate < 0.05),
+rollback lever, and a known-risks section covering prompt
+brittleness, rationale drift, cost surprise, and demo-key fallback.
+
+Added the plan to docs/INDEX.md under a new "In progress" section so
+future sessions can find it.
+
+### Audit pickups (pre-canary)
+- Added `llmRationale` to the `director_v2_compare` telemetry event.
+  During canary triage the rollup needs to answer "why did the LLM
+  pick X" not just "what did it pick" — sanity-reading 20 override
+  rows is dramatically faster with the rationale inline.
+- New fixture `llm-agrees-with-rule.json` locks in the `source="llm"`
+  semantic when the LLM agrees with the rule scorer (idx===0 path in
+  Director.decide). Guards against a refactor regression where the
+  source accidentally flips back to "rule" on agreement and silently
+  hides the routing layer's contribution in canary rollups.
+
+### Gate
+`npm run check` — tsc + extension node --check + 17 fixtures × 50
+runs all green.
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>

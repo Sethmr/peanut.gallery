@@ -146,6 +146,15 @@ function buildRoutingUserPrompt(ctx: PickPersonaCtx): string {
   lines.push("PACK VOICES (for flavor context — route by slot id, not name):");
   for (const p of ctx.packPersonas) {
     lines.push(`  ${p.id}: ${p.name} — ${p.role}`);
+    // v1.5: if the pack author supplied a directorHint, surface it here.
+    // This is the compressed "when to pick this voice" heuristic — lets
+    // the router disambiguate same-slot voices across packs (Howard's
+    // Jackie is rapid-fire one-liners; TWiST's Alex is data-joke
+    // numerate). Hint is optional; packs that omit it fall back to
+    // role-string routing, which still works.
+    if (p.directorHint && p.directorHint.trim().length > 0) {
+      lines.push(`    hint: ${p.directorHint.trim()}`);
+    }
   }
 
   lines.push("");

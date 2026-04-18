@@ -20,9 +20,10 @@
 5. [Get your API keys (90 seconds each)](#get-your-api-keys-90-seconds-each)
 6. [Point the Chrome extension at your local server](#point-the-chrome-extension-at-your-local-server)
 7. [Deploy to a public host (Railway / Docker / Vercel)](#deploy-to-a-public-host-railway--docker--vercel)
-8. [Verify it works (smoke tests)](#verify-it-works-smoke-tests)
-9. [Common problems](#common-problems)
-10. [Cost expectations](#cost-expectations)
+8. [Create your own persona pack](#create-your-own-persona-pack)
+9. [Verify it works (smoke tests)](#verify-it-works-smoke-tests)
+10. [Common problems](#common-problems)
+11. [Cost expectations](#cost-expectations)
 
 ---
 
@@ -260,6 +261,190 @@ this reason.
   WebSocket open — a bad actor can drain your credit.
 - **Do** put your server behind Cloudflare or another CDN if you plan to
   publish the URL anywhere.
+
+---
+
+## Create your own persona pack
+
+A **pack** is a swappable set of 4 persona voices. Every pack fills the
+same 4 archetype slots keyed by fixed ids: `producer`, `troll`, `soundfx`,
+`joker`. The slot ids are load-bearing — the Director, side panel cards,
+and scoring rules are all keyed off them — so writing a new pack is purely
+additive content work. You do NOT touch the Director or UI.
+
+Before you start, skim the two shipping packs as reference:
+
+- [`lib/packs/howard/personas.ts`](../lib/packs/howard/personas.ts) —
+  Stern-style lineup. The "loud and prank-y" archetype calibration.
+- [`lib/packs/twist/personas.ts`](../lib/packs/twist/personas.ts) —
+  startup-podcast lineup. The "numerate and roasting" calibration.
+
+Both packs use the same 4 slots; only the voice, tics, and topical focus
+differ. That's the target.
+
+### 1. Create the pack folder
+
+Everything for a pack lives under `lib/packs/<id>/`, where `<id>` is the
+lowercase machine name you'll use everywhere (`howard`, `twist`, etc.).
+
+```bash
+mkdir -p lib/packs/myshow
+touch lib/packs/myshow/personas.ts lib/packs/myshow/index.ts
+```
+
+### 2. Write `personas.ts`
+
+This file exports an array of **exactly 4** `Persona` objects, one per
+slot, in this order: `producer`, `troll`, `soundfx`, `joker`.
+
+Every `Persona` has these fields (see
+[`lib/personas.ts`](../lib/personas.ts) for the full type):
+
+| Field | Required? | Notes |
+|-------|-----------|-------|
+| `id` | Yes | MUST be one of `producer`, `troll`, `soundfx`, `joker`. Do not invent new slots. |
+| `name` | Yes | Human-facing display name. Shown in the side panel. |
+| `role` | Yes | One-line role description. Also read by the Director's routing LLM for slot disambiguation. |
+| `emoji` | Yes | Single-character emoji shown in the avatar and chat bubble. |
+| `color` | Yes | Tailwind-compatible hex (e.g. `#f87171`). Used for the avatar ring + bubble accent. |
+| `model` | Yes | `"claude-haiku"` or `"xai-grok-4-fast"`. Convention: `producer` + `joker` on Haiku, `troll` + `soundfx` on Grok. Pick differently only if you know why. |
+| `systemPrompt` | Yes | The full character prompt. This is where ~95% of the voice work happens — tics, dos, don'ts, example lines, silence behavior, format gates. Copy a shipping pack's prompt and rewrite rather than starting from scratch. |
+| `directorHint` | **Optional (v1.5+)** | One-sentence, ~15-token cheat sheet the Smart Director v2 reads when picking who speaks next. See [Director hints](#about-directorhint) below. |
+
+The convention is to keep each persona's system prompt in-file (template
+literal) and export the array as `<packId>Personas`. Example scaffold:
+
+```typescript
+// lib/packs/myshow/personas.ts
+import type { Persona } from "../../personas";
+
+export const myshowPersonas: Persona[] = [
+  {
+    id: "producer",
+    name: "Ellie",
+    role: "Fact-checker / numbers person",
+    emoji: "📊",
+    color: "#60a5fa",
+    model: "claude-haiku",
+    systemPrompt: `You are Ellie, the show's fact-checker…`,
+    directorHint: "Claims, stats, founding dates — anything verifiable. Lean in on numbers.",
+  },
+  // …troll, soundfx, joker — same shape, one each.
+];
+```
+
+#### About `directorHint`
+
+v1.5 added the **Smart Director v2** — an opt-in routing LLM that picks
+which persona speaks each tick based on the transcript, recent firings,
+and cooldowns. The router sees each persona's `id`, `name`, `role`, and
+(if present) `directorHint`. The hint is the **compressed "when to pick
+this voice" heuristic** — it lets the router tell your `joker` apart from
+Jackie Martling or Alex Wilhelm even though they share the slot id.
+
+Keep hints terse (1–2 sentences, ~15 tokens). They're NOT the full system
+prompt — the router doesn't need that. Reference the distinctive trigger
+for this voice at this slot. A few working examples from the shipping
+packs:
+
+- Howard's Jackie (`joker`) — *"Rapid-fire one-liners and hyena laugh. Lean in on absurd comparisons, confident hype, easy dunks."*
+- TWiST's Alex (`joker`) — *"Numerate comedian — jokes about valuations, cap tables, and dashboards. Pick on data-flavored absurdity."*
+
+Hints are optional. Packs that omit them still route correctly (the
+router falls back to `role` alone). Add hints when your pack has a voice
+whose specialty doesn't land cleanly from the role string.
+
+`directorHint` is only read when `ENABLE_SMART_DIRECTOR=true`. The
+default rule-based Director ignores it. Token cost is ~15 tokens × 4
+personas = 60 extra tokens on the routing call, which already completes
+inside a 400ms budget. Negligible.
+
+### 3. Write `index.ts`
+
+This file wires the personas to the pack metadata:
+
+```typescript
+// lib/packs/myshow/index.ts
+import type { Pack } from "../types";
+import { myshowPersonas } from "./personas";
+
+export const myshowPack: Pack = {
+  meta: {
+    id: "myshow",
+    name: "My Show",
+    description: "Ellie, Rex, Dot, Jools — my house lineup.",
+    universe: "My Show Universe",
+    updatedAt: "2026-04-18",
+  },
+  personas: myshowPersonas,
+};
+
+export { myshowPersonas };
+```
+
+The optional `patterns` field on `Pack` lets you override the Director's
+default regex scoring table (see
+[`lib/packs/types.ts`](../lib/packs/types.ts)). Leave it unset for your
+first pack — the default patterns work for most talk-show-style content.
+
+### 4. Register in the pack registry
+
+Edit [`lib/packs/index.ts`](../lib/packs/index.ts) and add your pack to
+`PACKS`:
+
+```typescript
+import { myshowPack } from "./myshow";
+
+export const PACKS: Record<string, Pack> = {
+  howard: howardPack,
+  twist: twistPack,
+  myshow: myshowPack,   // ← add this
+};
+```
+
+Do NOT change `DEFAULT_PACK_ID` unless you want your pack to become the
+fallback for unknown pack ids.
+
+### 5. Test with the Director harness
+
+The Director is pack-agnostic — it only routes by slot — so the existing
+fixture suite already covers your pack's structural behavior. What's
+worth testing for a new pack is whether **your transcript vocabulary
+lights up the right slots**.
+
+Copy a Howard fixture that matches the vibe you're aiming for, rewrite
+the transcript with your show's language, and run:
+
+```bash
+npx tsx scripts/test-director.ts --fixture my-new-fixture
+```
+
+Each fixture runs 50 times by default (the Director uses RNG for
+tiebreaks) and asserts distribution thresholds. If you pasted in a
+transcript about startup funding and the `producer` slot only wins 40% of
+the time, either your transcript isn't claim-dense enough or your
+pack needs a pattern override. See
+[`scripts/fixtures/director/`](../scripts/fixtures/director/) for the
+shipping fixture shape.
+
+### 6. Use your pack from the extension
+
+Packs are selected per session. The Chrome extension exposes a pack
+picker in the side panel; once your pack is registered and the server is
+rebuilt (`npm run build` or just a `npm run dev` hot reload), it shows up
+there automatically.
+
+If you're building your own frontend, send `"pack": "myshow"` in the
+POST body to `/api/transcribe` at session start. Unknown pack ids fall
+back to the default pack (never error), so old clients stay compatible.
+
+### Optional: full backend rewrite
+
+If you're rewriting the backend in a non-Node stack rather than adding a
+pack to this repo, the persona shape above (including `directorHint`) is
+part of the wire contract. See
+[`BUILD-YOUR-OWN-BACKEND.md §9`](BUILD-YOUR-OWN-BACKEND.md) for the
+per-persona requirements a custom backend must honor.
 
 ---
 

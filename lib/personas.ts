@@ -39,6 +39,24 @@ export interface Persona {
    */
   model: "claude-haiku" | "xai-grok-4-fast";
   systemPrompt: string;
+  /**
+   * One-sentence routing hint for the Smart Director v2 (v1.5+). Tells the
+   * routing LLM what THIS pack's voice at THIS slot actually does — useful
+   * for disambiguating same-slot personas across packs (e.g. Howard's
+   * joker is a rapid-fire one-liner machine; TWiST's joker is a data
+   * comedian). The routing LLM sees id + name + role + directorHint for
+   * every persona in the active pack, every tick.
+   *
+   * Keep it terse — 1-2 sentences, ~15 tokens. The full systemPrompt is
+   * NOT passed to the router; that's too expensive and not the point. The
+   * hint is the compressed "when to pick this voice" heuristic.
+   *
+   * Optional: packs that predate v1.5 will still route correctly without
+   * it (the router falls back to role alone). Add hints when a pack has
+   * distinctively-voiced personas whose specialty doesn't land cleanly
+   * from the role string alone.
+   */
+  directorHint?: string;
 }
 
 export interface OtherPersonaResponse {

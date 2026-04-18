@@ -474,6 +474,27 @@ persona's response (logged as `force_react_fallback` at warn level). This
 is the v1.4 safety net that guarantees taps never produce an empty bubble.
 Any compatible backend should implement the same guard on force-react paths.
 
+### Optional: `directorHint` (v1.5+)
+
+If your backend implements **Smart Director v2** (the LLM-assisted router
+gated by `ENABLE_SMART_DIRECTOR`), each persona may carry an optional
+one-sentence `directorHint` string — roughly 15 tokens — describing when
+this specific voice at this slot should fire. The routing LLM sees each
+persona's `id`, `name`, `role`, and (if present) `directorHint` every
+tick. Hints disambiguate same-slot voices across packs (e.g. Stern's
+Jackie at `joker` is rapid-fire one-liners; TWiST's Alex at `joker` is a
+numerate data-joke comedian).
+
+Hints are optional. Backends that omit them still route correctly — the
+router falls back to `role` alone. Backends that don't implement the
+Smart Director at all can ignore the field entirely. Token impact is
+~60 tokens total per routing call (4 personas × ~15 tokens), which fits
+inside the 400ms routing budget with room to spare.
+
+See [`lib/personas.ts`](../lib/personas.ts) for the full `Persona`
+interface and [`lib/packs/howard/personas.ts`](../lib/packs/howard/personas.ts)
+for example hints.
+
 ---
 
 ## Required environment variables
