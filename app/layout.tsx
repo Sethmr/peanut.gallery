@@ -230,6 +230,22 @@ export default function RootLayout({
               {
                 "@context": "https://schema.org",
                 "@type": "VideoObject",
+                name: "Peanut Gallery v1.5 walkthrough — Smart Director v2, narrated by the builder",
+                description:
+                  "Seth walks through Peanut Gallery v1.5's Smart Director v2 — how the LLM-assisted router picks a persona, the 400ms race against the rule-based fallback, and what changed since v1.4. Recorded with voice-over by the builder.",
+                thumbnailUrl: "https://i.ytimg.com/vi/WPyknI7-N5U/maxresdefault.jpg",
+                uploadDate: "2026-04-18",
+                contentUrl: "https://www.youtube.com/watch?v=WPyknI7-N5U",
+                embedUrl: "https://www.youtube.com/embed/WPyknI7-N5U",
+                publisher: {
+                  "@type": "Person",
+                  name: "Seth Rininger",
+                  url: "https://sethrininger.dev",
+                },
+              },
+              {
+                "@context": "https://schema.org",
+                "@type": "VideoObject",
                 name: "Peanut Gallery — product demo",
                 description:
                   "Two-minute walkthrough of the Peanut Gallery Chrome extension reacting to a YouTube video in real time from the side panel.",

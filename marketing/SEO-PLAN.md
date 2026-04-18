@@ -594,6 +594,7 @@ Run these through Claude Design once setup is done. Each line is one Claude Desi
 | P0 | CWS promo tile (small) | 440×280 PNG | P8 | 1 |
 | P0 | CWS promo tile (marquee, optional but higher-impression) | 1400×560 PNG | P8 | 1 |
 | P0 | OG image refresh — replaces `public/og-image.png` | 1200×630 PNG | P7 | 1 |
+| ✅ Shipped | **v1.5 narrated walkthrough** (https://youtu.be/WPyknI7-N5U) — Seth's voice-over deep dive on Smart Director v2. Already embedded at `/#walkthrough`, in `VideoObject` JSON-LD, and linked from README + ROADMAP + CHANGELOG. No Claude Design work required. | YouTube | P7, P18 | Shipped 2026-04-18 |
 | P1 | README hero banner + architecture diagram (YouTube → Deepgram → Director → 4 personas → SSE) | 1600×900 PNG | P5 | 2 |
 | P1 | GitHub social preview image | 1280×640 PNG | P5 | 2 |
 | P1 | Pack page hero — Howard (Stern-booth aesthetic, emoji glyphs in bubbles, not faces) | 1600×900 PNG | P10 | 4 |
@@ -618,6 +619,32 @@ Keep the boundary clean:
 - **Editing the repo's own `app/` UI:** don't let Claude Design regenerate production React components. It's for marketing surfaces, not for your shipping product. The extension + `/watch` UI stays in the normal dev flow.
 - **Real persona voice / audio:** v1.6 TTS per persona is a separate effort; don't try to prototype it in Claude Design.
 - **Running the SEO audits themselves:** Claude Design produces visuals, not competitor spreadsheets. Prompts 1, 3, 6, 9, 11, 13, 14, 15, 19 still need Chrome + SEMrush/Ahrefs + GSC.
+
+---
+
+## 3.6. Rendering + crawlability — already handled, don't rebuild
+
+> Audited 2026-04-18 when someone suggested "consider SSR/SSG." Conclusion: already correct. This section exists so the next time someone asks, the answer is documented.
+
+Next.js 15 App Router, used as it is in this repo, gives us static generation by default on every route that has no dynamic APIs. Current rendering mode per route:
+
+| Route | File | Component type | Rendering | SEO status |
+|---|---|---|---|---|
+| `/` | `app/page.tsx` | Server component (uses one nested client component, `FadeInObserver`) | SSG at build time | Ideal |
+| `/install` | `app/install/page.tsx` | Server component | SSG at build time | Ideal |
+| `/privacy` | `app/privacy/page.tsx` | Server component | SSG at build time | Ideal |
+| `/watch` | `app/watch/page.tsx` | `"use client"` | CSR | Correct — interactive app, not content to rank. Already priority 0.3 in `sitemap.ts`. |
+| `/sitemap.xml` | `app/sitemap.ts` | Route handler | Generated at build | Correct |
+| `/robots.txt` | `app/robots.ts` | Route handler | Generated at build | Correct |
+
+JSON-LD from `app/layout.tsx` (`SoftwareApplication`, `FAQPage`, `VideoObject` × 2) renders as inline `<script>` tags in the initial HTML payload, so Googlebot sees structured data on first fetch — no client-side injection, no hydration gap.
+
+**Two quiet failure modes to watch for** (neither is a reason to change stack today):
+
+1. **Accidentally forcing the app dynamic.** Adding `cookies()`, `headers()`, `searchParams`, `export const dynamic = 'force-dynamic'`, or `unstable_noStore()` anywhere in `app/layout.tsx` propagates dynamic rendering through the whole tree and kills SSG. If a future PR introduces one of those, push back or scope it to a leaf route.
+2. **Railway not producing prerender output.** The Dockerfile must run `next build` cleanly and the container start command must be `next start` (not `next dev`). A 30-second sanity check any time the deploy config changes: `curl -sS https://peanutgallery.live/ | grep -c '@type":"SoftwareApplication'` should return `1`. If it returns `0`, the JSON-LD didn't make it into the initial HTML and something broke.
+
+**Future note — pack pages with dynamic routes.** When the pack landing pages from P10 land at `/packs/[slug]`, use `generateStaticParams()` to prerender all packs at build time (Howard, TWiST, All-In, Acquired, Hard Fork, Lex Fridman). That keeps them SSG even though the route is parameterized. Don't reach for ISR or SSR — the content is editorial and changes only when we ship a new pack, so a rebuild on pack launch is the right cadence.
 
 ---
 

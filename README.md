@@ -223,7 +223,7 @@ Canonical source: **[docs/ROADMAP.md](docs/ROADMAP.md)**. Version-staged plan:
 | ✅ **v1.2.0** | Mise en place | Director debug panel + structured routing logs, real director test coverage (50 runs × 10 fixtures), husky pre-merge gate. **Shipped.** |
 | ✅ **v1.3.0** | TWiST Pack (flagship) | Selectable persona packs. Howard + TWiST (Molly / Jason / Lon / Alex). Pack-swap dropdown. Pack label in the debug trace. **Shipped.** |
 | ✅ **v1.4.0** | Grok & Stability | Troll + Sound FX migrated from Groq to xAI Grok 4.1 Fast. Search-engine toggle (Brave ↔ xAI Live Search). Session-firing deadlock fixed so one stalled upstream can't strand the rest of the session. **Shipped.** |
-| 🧪 **v1.5.0** | Smart Director v2 | LLM-assisted routing (Claude Haiku) with rule-based fallback under a 400ms budget; `Persona.directorHint` lets the router read each voice's specialty up front. **Feature-complete; 48h canary pending before tag.** |
+| 🧪 **v1.5.0** | Smart Director v2 | LLM-assisted routing (Claude Haiku) with rule-based fallback under a 400ms budget; `Persona.directorHint` lets the router read each voice's specialty up front. **Feature-complete; 48h canary pending before tag.** [Narrated walkthrough →](https://youtu.be/WPyknI7-N5U) |
 | **v1.5.1** | Smart Director Polish | Codify canary disagreements into fixtures, per-pack hint weighting, usage counter, default-on decision. |
 | **v1.6.0** | Voice + Clip Share | TTS per persona (opt-in, ducked, barge-in). Client-side highlight / clip export as shareable video. |
 | **v1.7.0** | Pack Lab | Visual `/pack-lab` pack authoring UI with director sanity-check + gallery (All-In, Acquired, Lex Fridman, user packs — no PRs required). |

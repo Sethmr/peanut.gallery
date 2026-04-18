@@ -25,6 +25,8 @@ Details on any of these live in the corresponding `docs/V<x>-PLAN.md` or the `CH
 
 **Status (2026-04-18):** all code + docs landed. Seth tested v1.5 locally and signed off. `ENABLE_SMART_DIRECTOR=true` is opt-in. Canary is the last gate between "feature-complete" and "tagged."
 
+**Narrated walkthrough:** https://youtu.be/WPyknI7-N5U — Seth walks through the LLM-assisted router, the 400ms race, the rule-based fallback, and what changed since v1.4. Embedded on the landing page at `#walkthrough` and exposed as a `VideoObject` in the site's JSON-LD.
+
 **What's left to tag v1.5.0:**
 
 1. **Deploy with `ENABLE_SMART_DIRECTOR=true`** to the hosted reference backend. Leave it for ≥ 48 hours of real traffic.

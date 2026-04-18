@@ -106,6 +106,26 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* V1.5 WALKTHROUGH — narrated deep dive on Smart Director v2 */}
+        <section className="content-section" id="walkthrough">
+          <div className="section-label">Go deeper</div>
+          <h2 className="fade-in">Smart Director v2 — the full walkthrough.</h2>
+          <p className="section-sub fade-in">
+            v1.5 adds an LLM-assisted router on top of the rule-based Director — it races against a 400ms budget and
+            falls back cleanly when it misses. Seth narrates how it picks a persona, what the rule-based
+            fallback looks like, and what&apos;s new since v1.4.
+          </p>
+          <div className="video-section video-section--demo fade-in">
+            <iframe
+              src="https://www.youtube.com/embed/WPyknI7-N5U?rel=0&modestbranding=1"
+              title="Peanut Gallery v1.5 walkthrough — Smart Director v2, narrated by the builder"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allowFullScreen
+            />
+          </div>
+        </section>
+
         {/* INSTALL */}
         <section className="content-section" id="install">
           <div className="section-label">Install</div>
