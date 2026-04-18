@@ -8,7 +8,7 @@ const githubUrl = "https://github.com/Sethmr/peanut.gallery";
 export const metadata: Metadata = {
   title: "Install the Peanut Gallery Chrome Extension",
   description:
-    "Install Peanut Gallery for Chrome — the free, open-source YouTube AI sidebar. Four AI personas react to any YouTube video in real time from Chrome's native side panel.",
+    "Install Peanut Gallery for Chrome — the free, open-source YouTube AI sidebar. Four AI personas react live to any YouTube video from Chrome's side panel.",
   alternates: { canonical: "https://peanutgallery.live/install" },
   openGraph: {
     title: "Install the Peanut Gallery Chrome Extension",
@@ -19,9 +19,79 @@ export const metadata: Metadata = {
   },
 };
 
+const howToJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  name: "How to install the Peanut Gallery Chrome extension",
+  description:
+    "Install the free, open-source Peanut Gallery Chrome extension from the Chrome Web Store, then start reacting to any YouTube video in real time from Chrome's native side panel.",
+  totalTime: "PT1M",
+  tool: [{ "@type": "HowToTool", name: "Google Chrome 116 or later" }],
+  step: [
+    {
+      "@type": "HowToStep",
+      position: 1,
+      name: "Open the Chrome Web Store listing",
+      text: "Click Add to Chrome on the Peanut Gallery Chrome Web Store listing.",
+      url: "https://chromewebstore.google.com/detail/peanut-gallery/jjlpinlhfiheegiddmddkgfialcknagh",
+    },
+    {
+      "@type": "HowToStep",
+      position: 2,
+      name: "Accept the permissions prompt",
+      text: "Accept the permissions prompt (tab capture, side panel, storage).",
+    },
+    {
+      "@type": "HowToStep",
+      position: 3,
+      name: "Open any YouTube video",
+      text: "Navigate to any YouTube video you want the AI writers' room to watch with you.",
+    },
+    {
+      "@type": "HowToStep",
+      position: 4,
+      name: "Open the Peanut Gallery side panel",
+      text: "Click the 🥜 Peanut Gallery icon in the Chrome toolbar to open the side panel.",
+    },
+    {
+      "@type": "HowToStep",
+      position: 5,
+      name: "Start Listening",
+      text: "Click Start Listening. The four personas begin reacting in real time.",
+    },
+  ],
+};
+
+const breadcrumbJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: "Home",
+      item: "https://peanutgallery.live",
+    },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: "Install",
+      item: "https://peanutgallery.live/install",
+    },
+  ],
+};
+
 export default function InstallPage() {
   return (
     <main className="min-h-screen bg-bg-primary text-[#e5e5e5]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(howToJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <div className="max-w-[820px] mx-auto px-6 py-16">
         <Link href="/" className="text-sm text-[#3b82f6] hover:underline">
           &larr; peanutgallery.live

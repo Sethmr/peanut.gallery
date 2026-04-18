@@ -10,9 +10,32 @@ export const metadata: Metadata = {
 
 const lastUpdated = "April 17, 2026";
 
+const breadcrumbJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: "Home",
+      item: "https://peanutgallery.live",
+    },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: "Privacy Policy",
+      item: "https://peanutgallery.live/privacy",
+    },
+  ],
+};
+
 export default function PrivacyPage() {
   return (
     <main className="min-h-screen bg-bg-primary text-[#e5e5e5]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <div className="max-w-[720px] mx-auto px-6 py-16">
         <Link
           href="/"

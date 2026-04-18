@@ -137,8 +137,15 @@ export default function RootLayout({
               },
               author: {
                 "@type": "Person",
+                "@id": `${siteUrl}/#seth`,
                 name: "Seth Rininger",
                 url: "https://sethrininger.dev",
+              },
+              publisher: {
+                "@type": "Organization",
+                "@id": `${siteUrl}/#organization`,
+                name: siteName,
+                url: siteUrl,
               },
               screenshot: siteImage,
               softwareVersion: "1.0.6",
@@ -227,6 +234,59 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify([
+              {
+                "@context": "https://schema.org",
+                "@type": "Organization",
+                "@id": `${siteUrl}/#organization`,
+                name: siteName,
+                alternateName: "Peanut Gallery — AI writers' room for YouTube",
+                url: siteUrl,
+                logo: {
+                  "@type": "ImageObject",
+                  url: `${siteUrl}/icon-512.png`,
+                  width: 512,
+                  height: 512,
+                },
+                description:
+                  "Peanut Gallery is a free, open-source Chrome extension that adds a live AI writers' room to any YouTube video — four personas react in real time from Chrome's native side panel.",
+                founder: {
+                  "@type": "Person",
+                  "@id": `${siteUrl}/#seth`,
+                },
+                foundingDate: "2026-04",
+                sameAs: [
+                  "https://github.com/Sethmr/peanut.gallery",
+                  "https://chromewebstore.google.com/detail/peanut-gallery/jjlpinlhfiheegiddmddkgfialcknagh",
+                ],
+              },
+              {
+                "@context": "https://schema.org",
+                "@type": "Person",
+                "@id": `${siteUrl}/#seth`,
+                name: "Seth Rininger",
+                givenName: "Seth",
+                familyName: "Rininger",
+                url: "https://sethrininger.dev",
+                jobTitle: "Creator of Peanut Gallery",
+                description:
+                  "Full-stack engineer; creator of Peanut Gallery, the open-source Chrome extension that adds four live AI personas to any YouTube video. Built to win Jason Calacanis's $5k This Week in Startups bounty.",
+                sameAs: [
+                  "https://github.com/Sethmr",
+                  "https://x.com/SethRininger",
+                  "https://sethrininger.dev",
+                ],
+                worksFor: {
+                  "@type": "Organization",
+                  "@id": `${siteUrl}/#organization`,
+                },
+                knowsAbout: [
+                  "Chrome Extensions",
+                  "Next.js",
+                  "AI agents",
+                  "Real-time transcription",
+                  "YouTube developer platform",
+                ],
+              },
               {
                 "@context": "https://schema.org",
                 "@type": "VideoObject",

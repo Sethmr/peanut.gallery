@@ -494,6 +494,19 @@ export default function Home() {
       {/* DOM bridge for Chrome extension */}
       <div id="pg-extension-bridge" style={{ display: "none" }} />
 
+      {/* Legacy-page CTA banner — funnels /watch traffic to the CWS listing.
+          /watch is the legacy reference web app (see project memory); this
+          nudges visitors toward the real product without rebuilding the page. */}
+      <a
+        href="https://chromewebstore.google.com/detail/peanut-gallery/jjlpinlhfiheegiddmddkgfialcknagh"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block w-full bg-accent-blue/10 border-b border-accent-blue/20 px-4 py-2 text-xs text-center text-accent-blue/90 hover:bg-accent-blue/15 transition-colors"
+      >
+        <span className="font-semibold">This is the reference web app.</span>{" "}
+        For live AI reactions while you watch any YouTube video, get the Chrome extension →
+      </a>
+
       {/* ── TOP BAR ── */}
       <header
         className={`flex items-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 sm:py-3 bg-bg-secondary border-b transition-colors ${

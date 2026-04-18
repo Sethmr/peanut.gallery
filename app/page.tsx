@@ -517,6 +517,7 @@ export default function LandingPage() {
         {/* FOOTER */}
         <footer>
           <div className="footer-links">
+            <Link href="/install">Install</Link>
             <a href="https://github.com/Sethmr/peanut.gallery" target="_blank" rel="noopener noreferrer">
               GitHub
             </a>
