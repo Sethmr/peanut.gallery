@@ -6,10 +6,11 @@
 
 ## TL;DR
 
-- v1.5 "Smart Director v2" is **feature-complete and tested locally.** Seth signed off. One gate left: **48h canary on hosted.**
-- Seven files on the working tree are **uncommitted** (docs + `directorHint` field + marketing polish). Sandbox is currently blocked on `.git/index.lock`; Seth's terminal clears it instantly.
+- v1.5 "Smart Director v2" is **feature-complete, tested locally, committed, and pushed to origin.** Seth signed off. One gate left: **48h canary on hosted.**
+- All v1.5 code + docs + directorHint + CWS polish + CHANGELOG/README roadmap refresh are in `main` as of `26c66bf` (2026-04-18). Working tree is clean apart from Seth's in-flight `marketing/SEO-PLAN.md` edits.
 - Subsystem audit (9 subsystems) comes back green: every integration point for Smart Director v2 is explicit, telemetered, and opt-in.
 - Near-term roadmap is now fleshed out through v1.8 with concrete sub-steps; v2.0 remains vision-level.
+- **CWS note:** v1.4.0 is the version live on the Chrome Web Store. **Do not submit a v1.5 extension package to CWS while any v1.4.x review is in flight** — submitting a new version typically supersedes the in-review version and resets the reviewer queue. Git pushes to GitHub and Railway backend deploys are independent of CWS state and always safe.
 
 ---
 
@@ -17,55 +18,27 @@
 
 | Component | Version | Notes |
 |-----------|---------|-------|
-| `extension/manifest.json#version` | 1.4.0 | Bumps to 1.5.0 at tag time |
-| Web app (`peanutgallery.live`) | v1.4.0 deploy | v1.5 backend not yet deployed — canary target |
-| Active branch | `main` | Clean apart from uncommitted docs |
-| Last merged commit | `60bcf79` | v1.5 finishing touches (docs/AI-GIT-PROTOCOL + competitive landscape + `docs/V1.5-PLAN.md` + debug panel source badge + fixtures) |
+| `extension/manifest.json#version` | 1.4.0 | Bumps to 1.5.0 at tag time — only AFTER canary clears AND any v1.4.x CWS review has resolved |
+| Web app (`peanutgallery.live`) | v1.4.0 deploy | v1.5 backend deploy with `ENABLE_SMART_DIRECTOR=true` is the canary trigger |
+| Active branch | `main` | Clean apart from in-flight `marketing/SEO-PLAN.md` edits |
+| Latest commit | `26c66bf` | CHANGELOG + README roadmap refresh for v1.5 feature-complete + docs/index.html stale-label fix + SEO-PLAN Claude Design addendum |
 
 ---
 
-## 2. Working tree + recent commits
-
-**Last 4 commits on `main`:**
+## 2. Recent commits on `main`
 
 ```
+26c66bf 🥜… — CHANGELOG + README roadmap refresh for v1.5 feature-complete (2026-04-18)
+8a28a29 docs: state-of-product audit + roadmap refresh + CWS polish
 33f71f8 docs: seo plan tuned for a chrome extension, not a plumber
 5a27ae4 docs: persona-pack authoring guide + directorHint for Smart Director v2
 60bcf79 🥜… (v1.5 finishing touches — landed 13 files, Seth's terminal)
 4b5cd2c feat(v1.5): scaffold Smart Director v2 behind ENABLE_SMART_DIRECTOR
 ```
 
-Commit `5a27ae4` captured the `directorHint` work: `Persona.directorHint?` field on `lib/personas.ts`, routing-prompt emission in `lib/director-llm.ts`, hint backfill on all 8 Howard + TWiST personas, §8 "Create your own persona pack" in `SELF-HOST-INSTALL.md`, §9 `directorHint` note in `BUILD-YOUR-OWN-BACKEND.md`, and the Groq→xAI cleanup in `marketing/cws-listing.md`.
+Commit chain for v1.5: `4b5cd2c` scaffold → `60bcf79` finishing touches (telemetry + source badge + V1.5-PLAN) → `5a27ae4` directorHint + pack-authoring guide → `8a28a29` state-of-product audit + roadmap rewrite + CWS polish → `26c66bf` CHANGELOG + README refresh.
 
-**Currently uncommitted (as of this memo):**
-
-```
-M SHIP.md                                       — CWS long-description block synced with marketing/cws-listing
-M docs/INDEX.md                                 — add STATE-OF-PRODUCT link; update ROADMAP summary
-M docs/ROADMAP.md                               — full rewrite; fleshed-out v1.5.1 → v1.8; adds Pack Lab + Live Moments
-M marketing/cws-listing.md                      — TWiST pack mention; podcast-first framing; screenshot caption tweaks; +5 keyword additions
-? docs/STATE-OF-PRODUCT-2026-04-18.md           — this memo (new)
-```
-
-**Gates before commit:** `npm run check` green (tsc + node --check × 4 + 17/17 director fixtures × 50 runs).
-
-**Suggested commit message:**
-
-```
-docs: state-of-product audit + roadmap refresh + CWS polish
-
-- docs/STATE-OF-PRODUCT-2026-04-18.md (new) — v1.5 feature-complete
-  snapshot, canary gate, 9-subsystem health check, value framing.
-- docs/ROADMAP.md — full rewrite. Near-term releases fleshed out with
-  sub-steps: v1.5.1 Smart Director Polish, v1.6 Voice + Clip Share
-  (provider bake-off + client-side clip render), v1.7 Pack Lab (visual
-  pack authoring + All-In / Acquired / Lex gallery), v1.8 Live Moments
-  (danmaku overlay + event triggers + personal context).
-- docs/INDEX.md — surface STATE-OF-PRODUCT; update ROADMAP summary.
-- marketing/cws-listing.md + SHIP.md — add TWiST pack to long
-  description; podcast-first positioning per competitive landscape;
-  tighten screenshot captions; five additional search-term slots.
-```
+**Gates run before each commit:** `npm run check` green (tsc + node --check × 4 + 17/17 director fixtures × 50 runs).
 
 ---
 
