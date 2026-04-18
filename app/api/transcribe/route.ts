@@ -22,6 +22,7 @@
 import { NextRequest } from "next/server";
 import { TranscriptionManager } from "@/lib/transcription";
 import { PersonaEngine } from "@/lib/persona-engine";
+import { resolvePack } from "@/lib/packs";
 import { Director } from "@/lib/director";
 import { personas } from "@/lib/personas";
 import { createSessionLogger } from "@/lib/debug-logger";
@@ -110,7 +111,7 @@ function chargeSessionUsage(session: Session): void {
 }
 
 export async function POST(req: NextRequest) {
-  const { url: youtubeUrl, mode, isLive: clientIsLive, rate } = await req.json();
+  const { url: youtubeUrl, mode, isLive: clientIsLive, rate, packId } = await req.json();
 
   if (!youtubeUrl) {
     return jsonResponse({ error: "Missing YouTube URL" }, 400);
@@ -192,6 +193,17 @@ export async function POST(req: NextRequest) {
     chargeableInstallId = installId;
   }
 
+  // ── Persona pack resolution (v1.3) ─────────────────────────────────────
+  // resolvePack() is the SINGLE forward-compat choke point: unknown, missing,
+  // null, whitespace, or malformed ids all fall back to the default pack
+  // (Howard). That means:
+  //   - Old client + new server  → no packId in body → Howard (identical to
+  //     pre-v1.3 behavior, zero regression).
+  //   - New client + old server  → server ignores the field → Howard (client
+  //     UI still shows chosen names, backend speaks Howard; tolerable drift).
+  //   - New client + new server  → pack flows through, engine uses its
+  //     persona array, Director is unchanged (same 4 archetype slots).
+  const resolvedPack = resolvePack(packId);
   const sessionId = Date.now().toString();
   const log = createSessionLogger(sessionId);
   log.info("session_create", {
@@ -202,6 +214,11 @@ export async function POST(req: NextRequest) {
     chargeable: !!chargeableInstallId,
     rate: rateClamped,
     paceMultiplier,
+    // Log both requested + resolved so we can see fallbacks in the logs
+    // (e.g. someone sending "Howard" with a capital H should show
+    // requestedPackId="Howard", packId="howard" — or unknown → "howard").
+    requestedPackId: typeof packId === "string" ? packId : null,
+    packId: resolvedPack.meta.id,
   });
 
   const transcriber = new TranscriptionManager(deepgramKey);
@@ -218,6 +235,10 @@ export async function POST(req: NextRequest) {
     anthropicKey: anthropicKey || "",
     groqKey: groqKey,
     braveSearchKey: braveKey || "",
+    // Pass the resolved pack (never undefined — resolvePack() guarantees a
+    // valid Pack). Engine internally falls back to Howard if pack is unset,
+    // so this is also the "self-documenting" seam.
+    pack: resolvedPack,
   });
 
   const director = new Director();

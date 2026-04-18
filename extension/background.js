@@ -305,7 +305,7 @@ function sendToOffscreen(msg, callback) {
   });
 }
 
-async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle, audio, installId, rate }) {
+async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle, audio, installId, rate, packId }) {
   const streamId = await takePendingStream();
   console.log("[PG:bg] handleStartCapture: took streamId from session?", !!streamId);
 
@@ -340,6 +340,11 @@ async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle, au
         // User-chosen pace dial (1-10). Forwarded verbatim to offscreen,
         // which embeds it in the /api/transcribe POST body.
         rate: Number.isFinite(rate) ? rate : 5,
+        // Persona pack id (howard | twist | ...). Forwarded as-is; offscreen
+        // includes it in the /api/transcribe POST body. Older servers ignore
+        // the field, so omitting or sending an unknown value is always safe
+        // — the server defaults to Howard via resolvePack().
+        packId: typeof packId === "string" && packId.length > 0 ? packId : "howard",
       },
       (r) => resolve(r || { error: "Offscreen did not respond" })
     );

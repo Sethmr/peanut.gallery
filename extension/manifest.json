@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Peanut Gallery",
-  "version": "1.2.0",
-  "description": "AI writers' room for YouTube. 4 AI personas react in real-time from the side panel — fact-checker, troll, sound guy, comedy writer.",
+  "version": "1.3.0",
+  "description": "AI writers' room for YouTube. 4 AI personas react in real-time from the side panel — fact-checker, troll, sound guy, comedy writer. Pick your lineup (Howard crew, TWiST lineup).",
   "permissions": [
     "tabCapture",
     "offscreen",

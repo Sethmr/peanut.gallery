@@ -593,6 +593,27 @@
       flex-shrink: 0;
     }
     .trace-header-label { flex: 1; }
+    .trace-pack-label {
+      /* Muted by default — shows the dropdown's selection. Flips to the
+         accent tint via .locked once a session commits the pack, so the
+         user can tell at a glance whether the decisions they're reading
+         are from the active session or queued for the next Start. */
+      color: var(--text-dim);
+      font-size: 9px;
+      font-family: monospace;
+      letter-spacing: 0.4px;
+      text-transform: lowercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .trace-pack-label.locked {
+      color: var(--text);
+      background: rgba(245,158,11,0.08);
+      border-color: rgba(245,158,11,0.25);
+    }
     .trace-clear {
       background: rgba(255,255,255,0.05);
       border: 1px solid var(--border);
@@ -664,6 +685,26 @@
         API keys are optional right now &mdash; we&rsquo;re covering the hosted backend for early users. When that changes, you&rsquo;ll get plenty of notice and can drop in your own free-tier keys below, or
         <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>.
       </div>
+    </div>
+
+    <!-- Persona pack — top of setup so it's the FIRST thing a user sees.
+         The Director is pack-agnostic (operates on 4 fixed archetype slots
+         producer/troll/soundfx/joker), so swapping packs is content-only —
+         new voices, no engine change. Howard is the default pack: unknown
+         pack ids fall back to Howard on the server via resolvePack(), which
+         keeps old extensions + new servers backward-compatible. -->
+    <div class="key-row">
+      <div class="key-label-row">
+        <label for="packSelect">Persona pack</label>
+        <span class="key-tag">lineup</span>
+      </div>
+      <select id="packSelect">
+        <option value="howard" selected>Howard Stern Show — Baba Booey, Troll, Fred, Jackie</option>
+        <option value="twist">This Week in Startups — Molly, Jason, Lon, Alex</option>
+      </select>
+      <p class="field-hint">
+        Which four personas show up in the sidebar. You can switch mid-day — new pack applies the next time you hit <em>Start Listening</em>.
+      </p>
     </div>
 
     <label>Backend server</label>
@@ -858,6 +899,7 @@
   <section id="directorTrace" class="hidden" aria-hidden="true">
     <div class="trace-header">
       <span class="trace-header-label">Director trace · last 20</span>
+      <span id="tracePackLabel" class="trace-pack-label" title="Active persona pack">pack: —</span>
       <button id="traceClear" class="trace-clear" type="button">Clear</button>
     </div>
     <div id="traceList">

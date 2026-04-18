@@ -1,0 +1,17 @@
+{
+  "name": "twist-alex-setup-available",
+  "description": "TWiST pack — comparison / absurdity / 'imagine / like / reminds me of' language primed for Alex (joker slot) data-comp jokes.",
+  "pack": "twist",
+  "input": {
+    "transcript": "Imagine, hypothetically, if your Series A pitch deck was like — I mean literally like — a ridiculous joke. Nobody would invest. Compared to the real founders, these guys are always, every time, making the same cap-table mistake. It reminds me of every failed demo day in 2021. Picture this, in theory, a founder walks into an investor meeting with an AI wrapper and says 'it's similar to ChatGPT but with better margins.' Ridiculous. Absurd."
+  },
+  "assertions": {
+    "mustFirePersona": "joker",
+    "mustFireRatio": 0.7,
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true
+  }
+}

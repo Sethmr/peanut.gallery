@@ -1,0 +1,17 @@
+{
+  "name": "twist-lon-mood-shift",
+  "description": "TWiST pack — awkward pause / mood-shift / 'but/however/oops' language on a startup that crashed. Lon (soundfx slot) should appear in the chain most of the time — his patterns are broad and his job is reacting to moments.",
+  "pack": "twist",
+  "input": {
+    "transcript": "Wait, hold on — actually, that company crashed and burned hard. They shut down operations last month. Wow, that's insane. But however unfortunately, um, the whole engineering team got laid off. Whoops. The Series C was supposed to be a new paradigm but it failed, and the founders admit they were wrong about the market fit. Oops."
+  },
+  "assertions": {
+    "mustFirePersona": "soundfx",
+    "mustFireRatio": 0.7,
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true
+  }
+}

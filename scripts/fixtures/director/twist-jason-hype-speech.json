@@ -1,0 +1,17 @@
+{
+  "name": "twist-jason-hype-speech",
+  "description": "TWiST pack — hype-soup transcript with AI buzzwords, name-drops, and confident predictions. Jason (troll slot) should dominate pick.",
+  "pack": "twist",
+  "input": {
+    "transcript": "Trust me, this is the most disruptive, game-changing AI-native agent company of the decade. Obviously Elon is texting about it, obviously Sam Altman already sees it, and frankly this is a 100x moonshot for the AI vertical. At our firm we were early on this thesis. Everyone knows a16z and Andreessen are about to lead the Series B — it's a paradigm-shift, and honestly the only way forward. Look, the reality is that Sequoia is going to regret passing on this one."
+  },
+  "assertions": {
+    "pickIn": ["troll"],
+    "pickInRatio": 0.85,
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true
+  }
+}

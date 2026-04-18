@@ -6,13 +6,80 @@
  * document via chrome.runtime.onMessage.
  */
 
-// ── Persona definitions (must match server) ──
-const PERSONAS = [
-  { id: "producer", name: "Baba Booey", role: "Fact-Checker", emoji: "🎯", color: "#3b82f6" },
-  { id: "troll", name: "The Troll", role: "Cynical Commentator", emoji: "🔥", color: "#ef4444" },
-  { id: "soundfx", name: "Fred", role: "Sound Effects", emoji: "🎧", color: "#a855f7" },
-  { id: "joker", name: "Jackie", role: "Comedy Writer", emoji: "😂", color: "#f59e0b" },
-];
+// ── Persona pack definitions (must match lib/packs/* on the server) ──
+//
+// The extension is intentionally un-bundled, so pack metadata is duplicated
+// here as a plain object. Archetype slot IDs (producer/troll/soundfx/joker)
+// are LOAD-BEARING — they match the server's Director output and every DOM
+// lookup below keys off them. NAMES, emojis, and colors change per pack.
+//
+// Adding a new pack: add an entry to PACKS_CLIENT (same 4 slot ids, any
+// names/emojis/colors), then add a matching <option> to sidepanel.html's
+// packSelect. The server resolves unknown pack ids to "howard" via
+// resolvePack(), so an older server won't reject a newer client's choice —
+// the UI will simply show different names than the personas that speak.
+const PACKS_CLIENT = {
+  howard: [
+    { id: "producer", name: "Baba Booey", role: "Fact-Checker", emoji: "🎯", color: "#3b82f6" },
+    { id: "troll", name: "The Troll", role: "Cynical Commentator", emoji: "🔥", color: "#ef4444" },
+    { id: "soundfx", name: "Fred", role: "Sound Effects", emoji: "🎧", color: "#a855f7" },
+    { id: "joker", name: "Jackie", role: "Comedy Writer", emoji: "😂", color: "#f59e0b" },
+  ],
+  twist: [
+    { id: "producer", name: "Molly", role: "Fact-Checker", emoji: "📓", color: "#3b82f6" },
+    { id: "troll", name: "Jason", role: "Provocateur", emoji: "🎙️", color: "#ef4444" },
+    { id: "soundfx", name: "Lon", role: "The Reframe", emoji: "🎬", color: "#a855f7" },
+    { id: "joker", name: "Alex", role: "Data Comedian", emoji: "📊", color: "#f59e0b" },
+  ],
+};
+const DEFAULT_PACK_ID = "howard";
+
+// Short display names for the trace panel's pack label. Kept separate from
+// PACKS_CLIENT (which is only personas) so the sidebar header doesn't have
+// to inline a longer name like "This Week in Startups". Falls back to the
+// pack id for anything not listed.
+const PACK_DISPLAY_NAMES = {
+  howard: "howard",
+  twist: "twist",
+};
+function packDisplayName(id) {
+  return PACK_DISPLAY_NAMES[id] || id || "—";
+}
+
+// Mutable reference to the active pack's persona array. The server picks up
+// the pack id from the /api/transcribe body and never reads names — so any
+// mismatch between client names and server personas degrades to "unknown
+// pack → Howard on the server" while the UI still renders its chosen labels.
+let currentPackId = DEFAULT_PACK_ID;
+
+// Pack id committed to the currently-running session. Captured at Start
+// Listening time and cleared on showIdle. Distinct from currentPackId
+// because the dropdown can drift mid-session (the hint explicitly says
+// "new pack applies the next time you hit Start Listening"). The trace
+// label surfaces THIS value when capturing — otherwise reading a decision
+// row while the dropdown shows a different pack would be confusing.
+let sessionPackId = null;
+function currentPersonas() {
+  return PACKS_CLIENT[currentPackId] || PACKS_CLIENT[DEFAULT_PACK_ID];
+}
+
+// Legacy alias — older code paths read `PERSONAS` directly. Route them all
+// through a getter so pack swaps take effect immediately. The getter keeps
+// call sites unchanged (`PERSONAS.find`, `for (const p of PERSONAS)`) so
+// v1.2 call sites don't need a sweep; they just pick up the active pack.
+const PERSONAS = new Proxy(
+  {},
+  {
+    get(_t, prop) {
+      const arr = currentPersonas();
+      const val = arr[prop];
+      return typeof val === "function" ? val.bind(arr) : val;
+    },
+    has(_t, prop) {
+      return prop in currentPersonas();
+    },
+  }
+);
 
 // ── Persona archetype glyphs ──
 // Minimalist monoline SVG paths — clipboard, flame, headphones, mic — drawn
@@ -113,6 +180,9 @@ const outputDeviceSelect = document.getElementById("outputDevice");
 // Response-rate dial (1-10, default 5). If an older build somehow loads a new
 // sidepanel.js without the HTML update, the ?.value pattern below keeps us safe.
 const responseRateSelect = document.getElementById("responseRate");
+// Persona pack selector. Chrome side-panel DOM is created fresh each open,
+// so we're guaranteed the element exists when this file runs.
+const packSelect = document.getElementById("packSelect");
 const capturedTabBanner = document.getElementById("capturedTabBanner");
 const capturedTabTitle = document.getElementById("capturedTabTitle");
 
@@ -174,6 +244,7 @@ function loadSettings() {
       "passthrough",
       "outputDeviceId",
       "responseRate",
+      "packId",
     ],
     (data) => {
       if (data.serverUrl) serverUrlInput.value = data.serverUrl;
@@ -203,6 +274,23 @@ function loadSettings() {
         responseRateSelect.value = String(clamped);
       }
 
+      // Persona pack: restore saved pack or fall back to the default. An
+      // unknown pack id (old extension storage, manual tampering) coerces to
+      // the default, and the server does the same on its end via
+      // resolvePack(). First-time users land on Howard, which matches pre-v1.3
+      // behavior exactly.
+      const savedPack =
+        typeof data.packId === "string" && data.packId in PACKS_CLIENT
+          ? data.packId
+          : DEFAULT_PACK_ID;
+      currentPackId = savedPack;
+      if (packSelect) packSelect.value = savedPack;
+      // Mirror the restored selection in the trace header so the debug
+      // panel reads correctly the first time a user opens it — even
+      // before they've started a session. sessionPackId is still null
+      // here, so this renders the muted pre-session style.
+      updateTracePackLabel();
+
       // Keys section stays collapsed by default — the backend handles demo
       // access, so first-time users never need to open the panel.
     }
@@ -230,6 +318,7 @@ function saveSettings() {
     passthrough: passthroughToggle.checked,
     outputDeviceId: currentOutputDeviceId(),
     responseRate: currentResponseRate(),
+    packId: currentPackId,
   });
 }
 
@@ -324,6 +413,11 @@ function showIdle() {
   capturing = false;
   sessionId = null;
   capturedTabInfo = null;
+  // Session over — trace panel should show the dropdown's pre-session
+  // selection again. updateTracePackLabel() reflects both states via the
+  // .locked class toggle.
+  sessionPackId = null;
+  updateTracePackLabel();
   setupSection.style.display = "block";
   emptyState.style.display = "flex";
   statusBar.style.display = "none";
@@ -775,10 +869,23 @@ startBtn.addEventListener("click", async () => {
         // session's paceMultiplier. Changing this mid-session has no
         // effect — it's captured at Start Listening time.
         rate: currentResponseRate(),
+        // Persona pack id (howard | twist | ...). Forwarded through the same
+        // chain and handed to resolvePack() on the server. Unknown ids fall
+        // back to Howard server-side, so a new client + old server still
+        // works — the UI shows the chosen names but the backend speaks
+        // Howard until it's updated.
+        packId: currentPackId,
       }, resolve);
     });
 
     if (result?.error) throw new Error(result.error);
+
+    // Commit the pack id for this session so the trace panel shows what's
+    // actually producing decisions, not whatever the dropdown drifts to.
+    // Cleared in showIdle when capture stops. Done after the error check
+    // so a failed start doesn't leave a stale session pack in the header.
+    sessionPackId = currentPackId;
+    updateTracePackLabel();
 
     // {ok:true} from background now means offscreen setup fully succeeded
     // (SSE live + getUserMedia got audio + AudioContext running). The
@@ -953,6 +1060,26 @@ if (responseRateSelect) {
   responseRateSelect.addEventListener("change", saveSettings);
 }
 
+// Persona pack: persist on change and re-render the avatar row immediately
+// so the user sees the new lineup while still in the setup screen. Like
+// response-rate, the server-side pack change only takes effect on the next
+// Start Listening — that matches the dial's hint text and keeps live
+// sessions coherent (no mid-session persona swap).
+if (packSelect) {
+  packSelect.addEventListener("change", () => {
+    const next = packSelect.value;
+    currentPackId = next in PACKS_CLIENT ? next : DEFAULT_PACK_ID;
+    saveSettings();
+    // Rebuild the persona row so the names/emojis match the chosen pack.
+    buildPersonaAvatars();
+    // Mirror the new pre-session selection in the trace panel header so
+    // power users who open the debug panel see the change reflected
+    // immediately. Won't clobber the .locked state — updateTracePackLabel
+    // preserves sessionPackId when one is committed.
+    updateTracePackLabel();
+  });
+}
+
 // When a new device shows up (plugged in/out) re-enumerate so the dropdown
 // stays fresh. Only wire this if the browser supports the event.
 if (navigator.mediaDevices?.addEventListener) {
@@ -1041,13 +1168,35 @@ let longPressTimer = null;
 const traceSection = document.getElementById("directorTrace");
 const traceListEl = document.getElementById("traceList");
 const traceClearBtn = document.getElementById("traceClear");
+const tracePackLabelEl = document.getElementById("tracePackLabel");
 const versionBadgeEl = document.getElementById("versionBadge");
 
-// Map persona ids to their brand colors for left-border tint.
-const PERSONA_COLOR_BY_ID = PERSONAS.reduce((acc, p) => {
-  acc[p.id] = p.color;
-  return acc;
-}, {});
+// Refresh the pack label in the trace header. When a session is live,
+// shows the locked session pack (tinted accent); otherwise shows the
+// dropdown's pre-session selection (muted). Called on session lifecycle
+// transitions and whenever the pack dropdown changes.
+function updateTracePackLabel() {
+  if (!tracePackLabelEl) return;
+  const committed = typeof sessionPackId === "string" && sessionPackId.length > 0;
+  const id = committed ? sessionPackId : currentPackId;
+  tracePackLabelEl.textContent = `pack: ${packDisplayName(id)}`;
+  tracePackLabelEl.classList.toggle("locked", committed);
+  tracePackLabelEl.setAttribute(
+    "title",
+    committed
+      ? `Session locked to pack: ${packDisplayName(id)}`
+      : `Pre-session selection: ${packDisplayName(id)} (applies on next Start Listening)`
+  );
+}
+
+// Map persona ids to their brand colors for the trace left-border tint.
+// Read lazily so pack switches pick up new colors immediately. Every pack in
+// v1.3 uses identical archetype-slot colors, but a future pack could change
+// them — the getter keeps this safe.
+function colorForPersonaId(id) {
+  const p = currentPersonas().find((x) => x.id === id);
+  return p?.color || "rgba(255,255,255,0.1)";
+}
 
 function pushDirectorTrace(payload) {
   // Newest-first ring buffer. Trim from the tail to maintain TRACE_MAX.
@@ -1084,7 +1233,7 @@ function renderDirectorTrace() {
         : Array.isArray(d?.chain)
         ? d.chain.length
         : 1;
-    const color = PERSONA_COLOR_BY_ID[pick] || "rgba(255,255,255,0.1)";
+    const color = colorForPersonaId(pick);
     row.style.borderLeftColor = color;
 
     // Top-3 short form, e.g. "troll:4.3 · producer:2.1 · joker:1.0". Falls

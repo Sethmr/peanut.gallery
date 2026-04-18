@@ -16,6 +16,8 @@
  *   npx tsx scripts/test-director.ts
  *   npx tsx scripts/test-director.ts --fixture baba-booey-fact-driven
  *   npx tsx scripts/test-director.ts --runs 200
+ *   npx tsx scripts/test-director.ts --pack twist    // only TWiST fixtures
+ *   npx tsx scripts/test-director.ts --pack howard   // only Howard fixtures
  */
 
 import { readdirSync, readFileSync } from "fs";
@@ -31,6 +33,17 @@ import { Director, type TriggerDecision } from "../lib/director";
 interface DirectorFixture {
   name: string;
   description: string;
+  /**
+   * Optional pack id this fixture targets (v1.3+). The Director is
+   * pack-agnostic — it only sees archetype slots (producer/troll/soundfx/joker)
+   * — so the `pack` field doesn't change runtime behavior. It exists so the
+   * harness can filter by pack (e.g. `--pack twist`) and so a failing fixture
+   * can be traced back to the transcript vocabulary that drove it.
+   *
+   * Fixtures without this field default to "howard" (back-compat with the
+   * pre-v1.3 suite). No existing fixture needs to be edited.
+   */
+  pack?: string;
   initialState?: {
     recentFirings?: string[];
     cyclesSinceFire?: Record<string, number>;
@@ -95,6 +108,16 @@ const DEFAULT_RUNS = (() => {
 const FILTER_NAME = (() => {
   const idx = args.indexOf("--fixture");
   return idx === -1 ? null : args[idx + 1];
+})();
+// --pack <id> (v1.3): filter fixtures whose pack field matches. Fixtures
+// without a pack field default to "howard", so `--pack howard` covers both
+// explicit "howard" and the legacy (untagged) fixtures. Unknown pack ids
+// produce zero matches and exit 1, which is the right behavior for CI.
+const FILTER_PACK = (() => {
+  const idx = args.indexOf("--pack");
+  if (idx === -1) return null;
+  const raw = args[idx + 1];
+  return typeof raw === "string" ? raw.trim().toLowerCase() : null;
 })();
 const VERBOSE = args.includes("--verbose");
 
@@ -314,16 +337,39 @@ function runFixture(fixture: DirectorFixture): FixtureResult {
 
 function main() {
   const allFixtures = loadFixtures();
-  const fixtures = FILTER_NAME
-    ? allFixtures.filter((f) => f.name === FILTER_NAME || f.name.includes(FILTER_NAME))
-    : allFixtures;
+
+  let fixtures = allFixtures;
+  if (FILTER_PACK) {
+    fixtures = fixtures.filter((f) => (f.pack ?? "howard") === FILTER_PACK);
+  }
+  if (FILTER_NAME) {
+    fixtures = fixtures.filter(
+      (f) => f.name === FILTER_NAME || f.name.includes(FILTER_NAME)
+    );
+  }
 
   if (fixtures.length === 0) {
-    console.error(FILTER_NAME ? `No fixture matched "${FILTER_NAME}"` : "No fixtures loaded");
+    const parts: string[] = [];
+    if (FILTER_PACK) parts.push(`pack="${FILTER_PACK}"`);
+    if (FILTER_NAME) parts.push(`fixture="${FILTER_NAME}"`);
+    console.error(
+      parts.length > 0
+        ? `No fixtures matched ${parts.join(", ")}`
+        : "No fixtures loaded"
+    );
     process.exit(1);
   }
 
-  console.log(`Director test harness — ${fixtures.length} fixture(s), ${DEFAULT_RUNS} runs each\n`);
+  const filterDesc = [
+    FILTER_PACK ? `pack=${FILTER_PACK}` : null,
+    FILTER_NAME ? `name~${FILTER_NAME}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const header = filterDesc
+    ? `Director test harness — ${fixtures.length} fixture(s) [${filterDesc}], ${DEFAULT_RUNS} runs each`
+    : `Director test harness — ${fixtures.length} fixture(s), ${DEFAULT_RUNS} runs each`;
+  console.log(`${header}\n`);
 
   const results = fixtures.map(runFixture);
 

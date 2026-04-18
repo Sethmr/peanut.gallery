@@ -576,8 +576,9 @@
             <p class="hero-sub">
                 A Chrome extension that sits next to any YouTube video and reacts in real-time.
                 4 AI personas — a fact-checker, a sound effects guy, a comedy writer, a cynical troll —
-                watch the show with you through a native Chrome side panel. No tab switching. No screen-share picker.
-                Audio captured silently while you watch.
+                watch the show with you through a native Chrome side panel. Pick your lineup:
+                <strong>Howard Stern crew</strong> or the <strong>This Week in Startups</strong> cast.
+                No tab switching. No screen-share picker. Audio captured silently while you watch.
             </p>
 
             <div class="hero-ctas">
@@ -644,15 +645,18 @@
 
     <!-- PERSONAS -->
     <section class="dark" id="personas">
-        <div class="section-label">The Cast</div>
-        <h2 class="fade-in">4 personas. Inspired by the Howard Stern Show.</h2>
-        <p class="section-sub fade-in">Each persona mirrors a member of the Stern Show staff — the fact-checker, the sound guy, the comedy writer, the troll. Each runs on a different AI model. No single point of failure.</p>
+        <div class="section-label">The Cast · v1.3.0</div>
+        <h2 class="fade-in">Two packs. Four slots. One dropdown.</h2>
+        <p class="section-sub fade-in">Every pack ships four archetype slots — <strong>producer, troll, sound FX, joker</strong>. The Director is pack-agnostic; same routing, same cascade, only the voices change. Swap lineups from the side panel's setup dropdown; the choice persists and takes effect on your next Start Listening.</p>
+
+        <h3 class="fade-in" style="margin-top:3rem;margin-bottom:0.5rem;font-size:1.4rem;">Howard Stern Show <span style="color:var(--text-secondary);font-weight:400;font-size:0.9rem;">(default)</span></h3>
+        <p class="section-sub fade-in" style="margin-top:0;margin-bottom:1.5rem;">The original spec — inspired by the Stern staff.</p>
 
         <div class="personas-grid">
             <div class="persona-card producer fade-in">
                 <div class="persona-icon">🎯</div>
-                <h3>The Fact-Checker</h3>
-                <div class="persona-role">Gary Dell'Abate &middot; Claude Haiku + Brave Search</div>
+                <h3>Baba Booey</h3>
+                <div class="persona-role">Fact-Checker &middot; Claude Haiku + Brave Search</div>
                 <p>Monitors the conversation for factual claims and provides corrections or background data in real-time. Searches the web mid-show to verify statistics, dates, and attributions.</p>
                 <div class="persona-quote">[FACT CHECK] "Jason just said Uber was founded in 2007. It was 2009. Again."</div>
             </div>
@@ -660,25 +664,62 @@
             <div class="persona-card troll fade-in">
                 <div class="persona-icon">🔥</div>
                 <h3>The Cynical Troll</h3>
-                <div class="persona-role">Groq &middot; Llama 70B &middot; 120ms</div>
+                <div class="persona-role">Commentary &middot; Groq Llama 70B &middot; 120ms</div>
                 <p>The "chaotic or negative cynical" commentator. Says what the audience is thinking but won't type. Dunks with internet-brain energy.</p>
                 <div class="persona-quote">"Oh cool, another AI wrapper. Very 2024."</div>
             </div>
 
             <div class="persona-card soundfx fade-in">
                 <div class="persona-icon">🎧</div>
-                <h3>Sound Effects Guy</h3>
-                <div class="persona-role">Fred Norris &middot; Groq &middot; Llama 8B</div>
+                <h3>Fred Norris</h3>
+                <div class="persona-role">Sound Effects &middot; Groq Llama 8B</div>
                 <p>Supplies background context and sound effects. Communicates through precisely timed sound cues and the occasional razor-sharp one-liner.</p>
                 <div class="persona-quote">[record scratch] Fun fact: that company went bankrupt in 2023. [sad trombone]</div>
             </div>
 
             <div class="persona-card joker fade-in">
                 <div class="persona-icon">😂</div>
-                <h3>The Comedy Writer</h3>
-                <div class="persona-role">Jackie Martling &middot; Claude Haiku</div>
+                <h3>Jackie Martling</h3>
+                <div class="persona-role">Comedy Writer &middot; Claude Haiku</div>
                 <p>Generates one-liners and jokes related to the current discussion. Setup-punchline structure, callback humor, the one who makes you spit out your coffee.</p>
                 <div class="persona-quote">"Jason's investment thesis: if it has 'AI' in the name and the founder has a pulse, it's a yes."</div>
+            </div>
+        </div>
+
+        <h3 class="fade-in" style="margin-top:4rem;margin-bottom:0.5rem;font-size:1.4rem;">This Week in Startups <span style="color:var(--accent-amber);font-weight:600;font-size:0.85rem;margin-left:0.5rem;">NEW</span></h3>
+        <p class="section-sub fade-in" style="margin-top:0;margin-bottom:1.5rem;">Researched from public TWiST transcripts. Personas are <em>inspired by</em> their namesakes — never claim to <em>be</em> them.</p>
+
+        <div class="personas-grid">
+            <div class="persona-card producer fade-in">
+                <div class="persona-icon">📓</div>
+                <h3>Molly Wood</h3>
+                <div class="persona-role">Fact-Checker &middot; Claude Haiku + Brave Search</div>
+                <p>Calm journalistic corrections. "According to…" framing. Receipts first, take second. The one who quietly reshapes the discussion by citing the source everyone else forgot to check.</p>
+                <div class="persona-quote">"According to the 10-K they filed last quarter, the number's closer to 2.4 billion. Worth noting."</div>
+            </div>
+
+            <div class="persona-card troll fade-in">
+                <div class="persona-icon">🎙️</div>
+                <h3>Jason Calacanis</h3>
+                <div class="persona-role">Provocateur &middot; Groq Llama 70B &middot; 120ms</div>
+                <p>Confident takes framed around founder-market fit. Warm, never mean. Self-aware self-promotion as a character fingerprint, not a bug. Will tell you why the cap table matters.</p>
+                <div class="persona-quote">"Let me tell you something — this is a founder-market-fit story, and they're not telling it well."</div>
+            </div>
+
+            <div class="persona-card soundfx fade-in">
+                <div class="persona-icon">🎬</div>
+                <h3>Lon Harris</h3>
+                <div class="persona-role">The Reframe &middot; Groq Llama 8B</div>
+                <p>Bracket-delimited sound cues and cultural analogies as primary languages. Reacts to moments, never monologues. The one who turns a dry term sheet into a scene from <em>Succession</em>.</p>
+                <div class="persona-quote">[movie trailer voice-over] "In a world where the burn rate exceeds the runway…"</div>
+            </div>
+
+            <div class="persona-card joker fade-in">
+                <div class="persona-icon">📊</div>
+                <h3>Alex Wilhelm</h3>
+                <div class="persona-role">Data Comedian &middot; Claude Haiku</div>
+                <p>Eight joke techniques built on data + absurdity — NUMBER-AS-PUNCH, COMP-BOMB, BACK-OUT-THE-THING, and more. Will tell you their burn rate in units of Series A rounds.</p>
+                <div class="persona-quote">"At $200k/month burn, that $4M round is — hold on — twenty months. Twenty! That's a whole pregnancy and a toddler."</div>
             </div>
         </div>
     </section>

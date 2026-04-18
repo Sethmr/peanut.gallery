@@ -17,12 +17,13 @@ import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
 import { logPipeline, logTimed } from "./debug-logger";
 import {
-  personas,
   buildPersonaContext,
   type Persona,
   type OtherPersonaResponse,
   type ConversationEntry,
 } from "./personas";
+import { howardPack } from "./packs/howard";
+import type { Pack } from "./packs/types";
 
 export interface PersonaResponse {
   personaId: string;
@@ -66,6 +67,17 @@ export class PersonaEngine {
   private groq: Groq;
   private braveApiKey: string;
 
+  /**
+   * The active pack. Defaults to the Howard pack so pre-v1.3 call sites that
+   * construct the engine without a pack keep working unchanged. All internal
+   * references to "the 4 personas" flow through `this.pack.personas`, which
+   * means swapping packs is a constructor-arg change — no engine rewrite.
+   */
+  private pack: Pack;
+  private get personas(): Persona[] {
+    return this.pack.personas;
+  }
+
   // Track previous responses per persona for continuity
   private previousResponses: Map<string, string[]> = new Map();
   private readonly MAX_PREVIOUS = 3;
@@ -86,15 +98,29 @@ export class PersonaEngine {
     anthropicKey: string;
     groqKey: string;
     braveSearchKey: string;
+    /**
+     * Optional. Defaults to the Howard pack (pre-v1.3 behavior). When v1.3's
+     * pack selector forwards a user-chosen pack from the extension, the
+     * transcribe route resolves it via `resolvePack(...)` and passes the
+     * resulting `Pack` object here. `resolvePack` never returns undefined,
+     * so this argument is either a valid Pack or unset.
+     */
+    pack?: Pack;
   }) {
     this.anthropic = new Anthropic({ apiKey: config.anthropicKey });
     this.groq = new Groq({ apiKey: config.groqKey });
     this.braveApiKey = config.braveSearchKey;
+    this.pack = config.pack ?? howardPack;
 
-    // Initialize response history
-    for (const p of personas) {
+    // Initialize response history for every persona in the active pack
+    for (const p of this.pack.personas) {
       this.previousResponses.set(p.id, []);
     }
+  }
+
+  /** Exposes the active pack's meta so the route can log packId per session. */
+  getPackMeta(): Pack["meta"] {
+    return this.pack.meta;
   }
 
   /** Log a fresh chunk of video transcript so personas can reference it. */
@@ -137,7 +163,7 @@ export class PersonaEngine {
           secondsAgo: Math.round((now - entry.timestamp) / 1000),
         };
       }
-      const p = personas.find((x) => x.id === entry.personaId);
+      const p = this.personas.find((x) => x.id === entry.personaId);
       return {
         personaName: p?.name || "Someone",
         personaEmoji: p?.emoji || "",
@@ -166,7 +192,7 @@ export class PersonaEngine {
     isSilence = false,
     cascadeFrom?: { personaId: string; name: string; emoji: string; text: string }
   ): Promise<string> {
-    const persona = personas.find((p) => p.id === personaId);
+    const persona = this.personas.find((p) => p.id === personaId);
     if (!persona) {
       logPipeline({ event: "persona_not_found", level: "error", data: { personaId } });
       return "";
@@ -178,7 +204,7 @@ export class PersonaEngine {
 
     // Build cross-persona context: other personas' LAST responses + cascade source
     const otherPersonas: OtherPersonaResponse[] = [];
-    for (const op of personas) {
+    for (const op of this.personas) {
       if (op.id === persona.id) continue;
       const prev = this.previousResponses.get(op.id) || [];
       if (prev.length > 0) {
@@ -257,7 +283,7 @@ export class PersonaEngine {
         transcriptLength: transcript.length,
         isSilence,
         isForceReact,
-        personaCount: personas.length,
+        personaCount: this.personas.length,
       },
     });
 
@@ -270,9 +296,9 @@ export class PersonaEngine {
 
     // Build cross-persona context: each persona sees the others' last response
     const otherPersonaMap = new Map<string, OtherPersonaResponse[]>();
-    for (const p of personas) {
+    for (const p of this.personas) {
       const others: OtherPersonaResponse[] = [];
-      for (const op of personas) {
+      for (const op of this.personas) {
         if (op.id === p.id) continue;
         const prev = this.previousResponses.get(op.id) || [];
         if (prev.length > 0) {
@@ -289,7 +315,7 @@ export class PersonaEngine {
     // Snapshot the conversation log so all 4 parallel fires see the same view
     const logView = this.buildConversationLogView();
 
-    const tasks = personas.map(async (persona) => {
+    const tasks = this.personas.map(async (persona) => {
       try {
         const searchResults =
           persona.id === "producer" ? await searchPromise : undefined;

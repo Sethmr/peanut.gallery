@@ -1,0 +1,17 @@
+{
+  "name": "twist-molly-fact-driven",
+  "description": "TWiST pack — transcript packed with factual claims, round sizes, and company history. Molly (producer slot) should almost always win pick.",
+  "pack": "twist",
+  "input": {
+    "transcript": "According to the report, Anthropic was founded in 2021 and raised 4 billion dollars from Amazon in their most recent round. The CEO of OpenAI claimed that ChatGPT now has 180 million weekly users worldwide, and the company is valued at 157 billion dollars. Jason said that Databricks reported revenue of 2.4 billion dollars last quarter, with annual recurring revenue growing 50 percent year over year."
+  },
+  "assertions": {
+    "pickIn": ["producer"],
+    "pickInRatio": 0.9,
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true
+  }
+}

@@ -120,6 +120,13 @@ async function startRecording(config) {
         // User-chosen pace dial (1-10, default 5). Older backends ignore
         // the field, so omitting it is always safe.
         rate: Number.isFinite(config.rate) ? config.rate : 5,
+        // Persona pack id (howard | twist | ...). Older backends ignore
+        // the field. New servers resolve unknown/missing ids to "howard"
+        // via resolvePack(), so this is always safe to send.
+        packId:
+          typeof config.packId === "string" && config.packId.length > 0
+            ? config.packId
+            : "howard",
       }),
       signal: sseAbortController.signal,
     });

@@ -9,12 +9,13 @@
 
 import { NextRequest } from "next/server";
 import { PersonaEngine } from "@/lib/persona-engine";
+import { resolvePack } from "@/lib/packs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const { transcript } = await req.json();
+  const { transcript, packId } = await req.json();
 
   if (!transcript) {
     return new Response(JSON.stringify({ error: "Missing transcript" }), {
@@ -34,10 +35,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // resolvePack() never throws — unknown / missing / empty packId falls back
+  // to Howard (see lib/packs/index.ts). Safe to call with any user input.
+  const resolvedPack = resolvePack(packId);
+
   const engine = new PersonaEngine({
     anthropicKey: anthropicKey || "",
     groqKey: groqKey,
     braveSearchKey: braveKey || "",
+    pack: resolvedPack,
   });
 
   const encoder = new TextEncoder();

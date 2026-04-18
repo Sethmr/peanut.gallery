@@ -1,5 +1,8 @@
 #!/usr/bin/env sh
 # Peanut Gallery — pre-commit gate
-# Runs: tsc --noEmit + next lint + tsx scripts/test-director.ts
+# Runs: tsc --noEmit + node --check on extension/*.js + tsx scripts/test-director.ts
+# ESLint is intentionally not wired in yet — eslint-config-next @ Next 15.5
+# has a known circular-structure bug that makes `next lint` blow up during
+# config load. Extension JS is validated via `node --check` instead.
 # Bypass in emergencies with `git commit --no-verify`.
 npm run check

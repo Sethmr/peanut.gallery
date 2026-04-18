@@ -2,7 +2,9 @@
 
 **A Chrome extension that puts an AI writers' room next to any YouTube video.**
 
-4 AI personas — inspired by the Howard Stern Show staff — watch the show with you through a native Chrome side panel and react in real-time. A fact-checker keeping the host honest. A sound effects guy scoring every moment. A comedy writer dropping one-liners. A cynical troll saying what the audience is thinking.
+4 AI personas — pick your lineup — watch the show with you through a native Chrome side panel and react in real-time. A fact-checker keeping the host honest. A sound effects guy scoring every moment. A comedy writer dropping one-liners. A cynical troll saying what the audience is thinking.
+
+As of **v1.3.0**, you choose which cast shows up via a dropdown at the top of the side panel: the Howard Stern crew (default) or the **TWiST lineup** — Molly Wood, Jason Calacanis, Lon Harris, Alex Wilhelm. Same four archetype slots, same Director, entirely different voices.
 
 **[peanutgallery.live](https://peanutgallery.live)** | MIT Licensed | Open Source
 
@@ -61,35 +63,41 @@ sudo apt install yt-dlp ffmpeg      # Ubuntu/Debian
 
 ## The Cast
 
-Inspired by the Howard Stern Show staff, per Jason's spec.
+Every pack ships four archetype slots. The Director is pack-agnostic — same routing, same cascade, same cooldowns — only the voices change.
 
-### The Fact-Checker (Gary Dell'Abate)
-*Powered by Claude Haiku | Brave Search for live fact-checking*
+### Howard Stern Show (default)
 
-Monitors the conversation for factual claims and provides corrections or background data in real-time. Searches the web mid-show to verify statistics, dates, and attributions.
+Inspired by the Stern staff, per Jason's original spec.
 
-> [FACT CHECK] "Jason just said Uber was founded in 2007. It was 2009. Again."
+| Slot | Character | Model | Role |
+|------|-----------|-------|------|
+| **Producer** | Baba Booey (Gary Dell'Abate) | Claude Haiku + Brave Search | Fact-Checker. Pulls receipts mid-show on numbers, dates, attributions. |
+| **Troll** | The Cynical Troll | Groq Llama 70B | Contrarian. Internet-brain energy. Says what the audience is thinking. |
+| **Sound FX** | Fred Norris | Groq Llama 8B | Bracket-delimited sound cues + deadpan one-liners. |
+| **Joker** | Jackie Martling | Claude Haiku | Setup-punchline jokes, callbacks, observational comedy. |
 
-### The Cynical Troll
-*Powered by Groq Llama 70B (120ms response time)*
+Sample fires:
 
-The "chaotic or negative cynical" commentator. Dunks on everything with internet-brain energy. Says what the audience is thinking but won't type.
+> *Baba Booey:* [FACT CHECK] "Jason just said Uber was founded in 2007. It was 2009. Again."
+>
+> *Troll:* "Oh cool, another AI wrapper. Very 2024."
+>
+> *Fred:* [record scratch] Fun fact: that company went bankrupt in 2023. [sad trombone]
+>
+> *Jackie:* "Jason's investment thesis: if it has 'AI' in the name and the founder has a pulse, it's a yes."
 
-> "Oh cool, another AI wrapper. Very 2024."
+### This Week in Startups (new in v1.3.0)
 
-### Sound Effects Guy (Fred Norris)
-*Powered by Groq Llama 8B*
+Researched from public TWiST transcripts and episode clips. Anti-impersonation guardrails are baked into every prompt — these are personas **inspired by** their namesakes, not impressions of them. See `docs/packs/twist/RESEARCH.md` for the characterization source.
 
-Background context and sound effects. Precisely timed cues and the occasional razor-sharp one-liner.
+| Slot | Character | Model | Role |
+|------|-----------|-------|------|
+| **Producer** | Molly Wood | Claude Haiku + Brave Search | Fact-Checker. Calm journalistic corrections, "according to" framing, receipts-first. |
+| **Troll** | Jason Calacanis | Groq Llama 70B | Provocateur. Confident takes, founder-market-fit framing, warm-not-mean. |
+| **Sound FX** | Lon Harris | Groq Llama 8B | The Reframe. Bracket-delimited sound cues + cultural analogies. |
+| **Joker** | Alex Wilhelm | Claude Haiku | Data Comedian. Eight joke techniques built on data + absurdity. |
 
-> [record scratch] Fun fact: that company went bankrupt in 2023. [sad trombone]
-
-### The Comedy Writer (Jackie Martling)
-*Powered by Claude Haiku*
-
-One-liners and jokes. Setup-punchline structure, callback humor, observational comedy.
-
-> "Jason's investment thesis: if it has 'AI' in the name and the founder has a pulse, it's a yes."
+Pack choice lives in the side-panel setup dropdown and persists across sessions. Change takes effect on the next Start Listening — no mid-session persona swap.
 
 ---
 
@@ -211,8 +219,9 @@ Canonical source: **[docs/ROADMAP.md](docs/ROADMAP.md)**. Version-staged plan:
 
 | Version | Theme | Headline |
 |---------|-------|----------|
-| **v1.2.0** | Mise en place | Director debug panel + structured routing logs, cascade-delay retune, real director test coverage, pre-merge `tsc`/lint/smoke gate. |
-| **v1.3.0** | TWiST Pack (flagship) | Selectable persona packs. Howard + TWiST (Jason / Molly / Alex / Lon). Pack-swap dropdown. Pack-creation installer. |
+| ✅ **v1.2.0** | Mise en place | Director debug panel + structured routing logs, real director test coverage (50 runs × 10 fixtures), husky pre-merge gate. **Shipped.** |
+| ✅ **v1.3.0** | TWiST Pack (flagship) | Selectable persona packs. Howard + TWiST (Molly / Jason / Lon / Alex). Pack-swap dropdown. Pack label in the debug trace. **Shipped.** |
+| **v1.3.1** | Pack installer + cascade retune | Sideload a pack JSON with schema validation + merge into the dropdown. Cascade-delay values retuned against real-session captures. |
 | **v1.4.0** | Smart Director v2 | LLM-assisted routing with rule-based fallback under a 400ms budget. |
 | **v1.5.0** | Voice + Clip Share | TTS per persona (opt-in, ducked). Highlight / clip export as shareable video or GIF. |
 | **v2.0.0** | Bobbleheads | 3D persona avatars on screen, procedural animation tied to fire events and sentiment. |

@@ -4,7 +4,45 @@ All notable changes to Peanut Gallery are recorded here. Format loosely follows 
 
 ## [Unreleased]
 
-Tracks in-flight work for the next release. See [`docs/ROADMAP.md`](docs/ROADMAP.md) §v1.3.0.
+Tracks in-flight work for the next release. See [`docs/ROADMAP.md`](docs/ROADMAP.md) §v1.4.0.
+
+## [1.3.0] — 2026-04-17 — "TWiST Pack"
+
+The flagship feature: **selectable persona packs.** Keep riding with the Howard crew, or swap in the This Week in Startups lineup — Molly Wood, Jason Calacanis, Lon Harris, Alex Wilhelm — with a single dropdown. Pack choice persists across sessions; the Director is pack-agnostic (same archetype slot ids, same behavior) so routing stays identical regardless of who's on the roster. Fully wire-compatible with v1.2.x backends: an unknown pack id gracefully degrades to Howard server-side via `resolvePack()`, so an older server + newer client still works.
+
+### Added
+- **Pack abstraction** (`lib/packs/`). New `Pack` type + `resolvePack(id)` helper that never throws — unknown / missing / malformed ids always resolve to Howard. Single choke point means the forward-compat matrix (new client + old server, old client + new server, mismatched packs) always degrades cleanly. `PersonaEngine` now takes an optional `pack` in its constructor; legacy call sites that don't pass one continue to get Howard via a back-compat shim (`lib/personas.ts` re-exports `howardPersonas as personas`).
+- **Howard pack** (`lib/packs/howard/`). Pre-existing Baba Booey / Troll / Fred / Jackie personas extracted from `lib/personas.ts` into `lib/packs/howard/personas.ts` with zero content changes. Back-compat shim keeps all v1.2 import sites unchanged.
+- **TWiST pack** (`lib/packs/twist/`). Four new personas, each researched from public TWiST transcripts and episode clips and mapped to the four archetype slots:
+  - **Molly Wood** → `producer` (Fact-Checker). Claude Haiku + Brave. Calm journalistic corrections, "according to" framing, receipts-first.
+  - **Jason Calacanis** → `troll` (Provocateur). Groq Llama 70B. Confident takes, founder-market-fit framing, warm-not-mean, self-aware self-promotion as character fingerprint.
+  - **Lon Harris** → `soundfx` (The Reframe). Groq Llama 8B. Bracket-delimited sound cues + cultural analogies as primary languages. Reacts to moments, never monologues.
+  - **Alex Wilhelm** → `joker` (Data Comedian). Claude Haiku. Eight joke techniques (NUMBER-AS-PUNCH, COMP-BOMB, BACK-OUT-THE-THING, …) built on data + absurdity.
+  - All four include explicit anti-impersonation guardrails: "NEVER claim to BE [person]. You are a persona INSPIRED BY him." See [`docs/packs/twist/RESEARCH.md`](docs/packs/twist/RESEARCH.md) for the characterization source.
+- **Pack selector dropdown** in the side-panel setup section. Always-visible at the top so first-time users understand the choice; persists across sessions via `chrome.storage.local`. Hint text tells users the change takes effect on the next Start Listening (no mid-session swap, for the same reasons as the rate dial).
+- **Director trace pack label.** The debug panel (long-press version badge) now shows a `pack: <id>` tag in its header. Muted when idle — reflects the dropdown's pre-session selection. Tinted accent + `locked` state when a session is live — reflects the pack that actually produced the rows you're reading. Prevents the "dropdown drifted mid-session" confusion surface.
+- **Four TWiST-flavored fixtures** under `scripts/fixtures/director/twist-*.json` exercising each archetype slot with TWiST vocabulary (cap tables, Series A/B/C, Anthropic, Databricks, a16z / Sequoia name-drops). Same assertions shape as the Howard fixtures — pack-agnostic Director means these validate the same code path with different transcripts.
+
+### Changed
+- **`/api/transcribe` + `/api/personas`** now parse an optional `packId` from the request body and pass the resolved pack to `new PersonaEngine({ pack })`. Omitted `packId` → Howard, so v1.2 clients (and any third-party backend honoring the spec) keep working untouched. The resolved pack id is written into the `session_create` log line for end-to-end correlation.
+- **Extension pipeline** (`sidepanel.js` → `background.js` → `offscreen.js` → `/api/transcribe`) threads `packId` through every hop. Background + offscreen default to `"howard"` on any missing / non-string field so a stale side-panel build can't wedge a backend session.
+- **`PERSONAS` global in `sidepanel.js`** is now a Proxy over the active pack's array. All existing call sites (`PERSONAS.find(...)`, `for..of PERSONAS`, `.reduce`, …) work unchanged; pack switches take effect immediately without a refresh. `PERSONA_COLOR_BY_ID` became a lazy `colorForPersonaId(id)` getter for the same reason.
+- **`scripts/test-director.ts` gained a `--pack <id>` flag.** Runs the subset of fixtures whose `pack` field matches. Fixtures without a `pack` field default to `"howard"`, so `--pack howard` covers the legacy v1.2 fixtures verbatim. `npm run test:director` with no flag runs all 14 fixtures (10 Howard + 4 TWiST) in one pass.
+
+### Tooling
+- **Pre-merge gate now covers extension JS.** New `npm run check:extension` step runs `node --check` across `background.js`, `offscreen.js`, `sidepanel.js`, and `content.js`. Folded into `npm run check` (= `typecheck + check:extension + test:director`) and wired through the husky pre-commit hook. Catches the MV3 extension's plain-JS syntax errors before commit — the extension is intentionally un-bundled so TypeScript wouldn't catch these.
+- **`next lint` deferred.** Dropped from `npm run check` due to an eslint-config-next @ Next 15.5 circular-structure bug (`Converting circular structure to JSON` during config load). Will re-enable once we migrate to the ESLint flat-config CLI per Next.js's migration guide.
+
+### Deferred to a future release
+- **Pack-creation installer.** v1.3 ships with Howard + TWiST baked in. A proper `pack install` flow (sideload a pack JSON, validate, merge into the dropdown) was scoped out of the flagship and will land in v1.3.1 or v1.4. Adding a pack today still means editing `lib/packs/` and `extension/sidepanel.js::PACKS_CLIENT`.
+- **ESLint migration.** Re-wire lint into the pre-merge gate once the flat-config CLI path is stable.
+- **Cascade-delay retune** (carried over from v1.2). Still waiting on two real-session captures before retuning `CASCADE_DELAY_MIN_MS` / `MAX_MS`.
+
+### Future roadmap (post-v1.3.0)
+- **v1.3.1 — Pack installer:** Sideload pack JSON, validation pipeline, pack management UI.
+- **v1.4.0 — Smart Director v2:** LLM-assisted routing with rule-based fallback under a 400ms budget.
+- **v1.5.0 — Voice + Clip Share:** TTS per persona; highlight/clip export.
+- **v2.0.0 — Bobbleheads:** 3D persona avatars with procedural animation.
 
 ## [1.2.0] — 2026-04-17 — "Mise en place"
 
@@ -31,7 +69,7 @@ Observability + pacing + the quality bar. Everything here is additive and wire-c
 - **Cascade-delay retune** (`CASCADE_DELAY_MIN_MS` / `MAX_MS` in `lib/director.ts`). Plan called for measuring against two real-session captures (one fast-exchange, one slow) before tuning. Debug panel is now live; the retune will land as a small follow-up PR once the captures are recorded.
 
 ### Future roadmap (post-v1.2.0)
-- **v1.3.0 — TWiST Pack (flagship):** Selectable persona packs, TWiST lineup (Jason Calacanis / Molly Wood / Alex Wilhelm / Lon Harris), pack-swap dropdown, pack-creation installer.
+- **v1.3.0 — TWiST Pack (flagship):** Selectable persona packs. Shipped — see above.
 - **v1.4.0 — Smart Director v2:** LLM-assisted routing with rule-based fallback under a 400ms budget.
 - **v1.5.0 — Voice + Clip Share:** TTS per persona; highlight/clip export.
 - **v2.0.0 — Bobbleheads:** 3D persona avatars with procedural animation.
