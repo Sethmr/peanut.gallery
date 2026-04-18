@@ -174,13 +174,23 @@ export class TranscriptionManager extends EventEmitter {
   // Subsequent triggers every 20-25s — the Director picks ONE persona per trigger
   // and cascades to others with decreasing probability, so shorter intervals
   // feel natural (you're getting 1-2 responses per trigger, not 4).
-  private readonly FIRST_TRIGGER_MS = 15_000;
-  private readonly TRIGGER_INTERVAL_MS = 22_000;
+  //
+  // v1.2: these are mutable so the user-facing response-rate dial (1-10) can
+  // scale them at session start via setPaceMultiplier(). Defaults are preserved
+  // verbatim for rate=5 (multiplier=1.0) so existing behavior is unchanged.
+  private static readonly DEFAULT_FIRST_TRIGGER_MS = 15_000;
+  private static readonly DEFAULT_TRIGGER_INTERVAL_MS = 22_000;
+  private static readonly DEFAULT_SILENCE_THRESHOLD_MS = 18_000;
+  private FIRST_TRIGGER_MS = TranscriptionManager.DEFAULT_FIRST_TRIGGER_MS;
+  private TRIGGER_INTERVAL_MS = TranscriptionManager.DEFAULT_TRIGGER_INTERVAL_MS;
   // How long the transcript must be quiet before the personas react to the
   // silence. Long enough that a guest pausing to breathe doesn't trip it;
   // short enough that real dead air (ad break, speaker lost their train of
   // thought) gets a joke. 18s matches how the real Howard crew reads a room.
-  private readonly SILENCE_THRESHOLD_MS = 18_000;
+  private SILENCE_THRESHOLD_MS = TranscriptionManager.DEFAULT_SILENCE_THRESHOLD_MS;
+  // The active pace multiplier — 1.0 means "default cadence", >1 means slower,
+  // <1 means faster. Stored so we can log it alongside decisions.
+  private paceMultiplier = 1.0;
 
   // Deepgram keepalive for live streams (prevents timeout on quiet segments)
   private keepaliveInterval: ReturnType<typeof setInterval> | null = null;
@@ -192,6 +202,39 @@ export class TranscriptionManager extends EventEmitter {
   constructor(deepgramKey: string) {
     super();
     this.deepgramKey = deepgramKey;
+  }
+
+  /**
+   * Scale the cadence of persona triggers without touching Director logic.
+   * Multiplier semantics:
+   *   - 1.0 → default cadence (rate dial at 5)
+   *   - >1  → slower (e.g. 2.4 at rate=1: ~36s first trigger, ~53s between)
+   *   - <1  → faster (e.g. 0.33 at rate=10: ~5s first trigger, ~7s between)
+   *
+   * This ONLY scales:
+   *   - FIRST_TRIGGER_MS   — time before the first cascade fires
+   *   - TRIGGER_INTERVAL_MS — cadence between cascades
+   *   - SILENCE_THRESHOLD_MS — how long a quiet spell must last before the
+   *     silence reaction fires (keeps the proportion sensible at the extremes)
+   *
+   * It does NOT scale the intra-cascade "responses to responses" delays —
+   * those live in Director.CASCADE_DELAY_MIN_MS / MAX_MS and are held
+   * constant so personas always interrupt each other with a natural human
+   * beat regardless of overall pace.
+   *
+   * Values are clamped to [0.2, 5.0] so an accidental bad input can't
+   * silence the session for an hour or hammer the pipeline every second.
+   */
+  setPaceMultiplier(multiplier: number): void {
+    const clamped = Math.max(0.2, Math.min(5.0, Number.isFinite(multiplier) ? multiplier : 1.0));
+    this.paceMultiplier = clamped;
+    this.FIRST_TRIGGER_MS = Math.round(TranscriptionManager.DEFAULT_FIRST_TRIGGER_MS * clamped);
+    this.TRIGGER_INTERVAL_MS = Math.round(TranscriptionManager.DEFAULT_TRIGGER_INTERVAL_MS * clamped);
+    this.SILENCE_THRESHOLD_MS = Math.round(TranscriptionManager.DEFAULT_SILENCE_THRESHOLD_MS * clamped);
+  }
+
+  getPaceMultiplier(): number {
+    return this.paceMultiplier;
   }
 
   get transcript(): string {

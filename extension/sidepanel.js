@@ -110,6 +110,9 @@ const anthropicKeyInput = document.getElementById("anthropicKey");
 const braveKeyInput = document.getElementById("braveKey");
 const passthroughToggle = document.getElementById("passthroughToggle");
 const outputDeviceSelect = document.getElementById("outputDevice");
+// Response-rate dial (1-10, default 5). If an older build somehow loads a new
+// sidepanel.js without the HTML update, the ?.value pattern below keeps us safe.
+const responseRateSelect = document.getElementById("responseRate");
 const capturedTabBanner = document.getElementById("capturedTabBanner");
 const capturedTabTitle = document.getElementById("capturedTabTitle");
 
@@ -170,6 +173,7 @@ function loadSettings() {
       "braveKey",
       "passthrough",
       "outputDeviceId",
+      "responseRate",
     ],
     (data) => {
       if (data.serverUrl) serverUrlInput.value = data.serverUrl;
@@ -188,6 +192,16 @@ function loadSettings() {
       const savedDevice = data.outputDeviceId || "default";
       // Selected device is applied once enumerateOutputDevices() runs (async).
       outputDeviceSelect.dataset.pendingValue = savedDevice;
+
+      // Response-rate dial: restore saved value (1-10). Default of 5 is
+      // baked into the HTML <option selected>, so a first-time user gets
+      // exactly pre-v1.2 cadence. Clamp + validate in case storage was
+      // corrupted by an extension migration.
+      if (responseRateSelect) {
+        const raw = Number.parseInt(data.responseRate, 10);
+        const clamped = Number.isFinite(raw) ? Math.max(1, Math.min(10, raw)) : 5;
+        responseRateSelect.value = String(clamped);
+      }
 
       // Keys section stays collapsed by default — the backend handles demo
       // access, so first-time users never need to open the panel.
@@ -215,7 +229,17 @@ function saveSettings() {
     braveKey: braveKeyInput.value.trim(),
     passthrough: passthroughToggle.checked,
     outputDeviceId: currentOutputDeviceId(),
+    responseRate: currentResponseRate(),
   });
+}
+
+// Resolve the currently-selected response rate as a number in [1, 10].
+// Defaults to 5 if the select is missing or the value is malformed, so
+// nothing downstream has to defend against NaN.
+function currentResponseRate() {
+  const raw = Number.parseInt(responseRateSelect?.value, 10);
+  if (!Number.isFinite(raw)) return 5;
+  return Math.max(1, Math.min(10, raw));
 }
 
 /**
@@ -746,6 +770,11 @@ startBtn.addEventListener("click", async () => {
           passthrough: passthroughToggle.checked,
           outputDeviceId: currentOutputDeviceId(),
         },
+        // User-chosen pace dial (1-10). Forwarded through
+        // background → offscreen → /api/transcribe, where it becomes the
+        // session's paceMultiplier. Changing this mid-session has no
+        // effect — it's captured at Start Listening time.
+        rate: currentResponseRate(),
       }, resolve);
     });
 
@@ -913,6 +942,16 @@ outputDeviceSelect.addEventListener("change", () => {
   saveSettings();
   sendAudioSettingsToOffscreen();
 });
+
+// Response rate: persist on change so it sticks across panel re-opens.
+// Intentionally NOT pushed to a running session — changing cadence
+// mid-conversation would be jarring and would require the server to
+// re-thread the dial through the live transcriber, which isn't worth
+// the complexity. The hint text in the HTML tells users "takes effect
+// on your next Start Listening".
+if (responseRateSelect) {
+  responseRateSelect.addEventListener("change", saveSettings);
+}
 
 // When a new device shows up (plugged in/out) re-enumerate so the dropdown
 // stays fresh. Only wire this if the browser supports the event.

@@ -740,6 +740,30 @@
       </div>
     </div>
 
+    <!-- Response-rate dial — controls persona cadence. Placed outside the
+         accordions so everyone sees it before starting. Default is 5. -->
+    <div class="key-row" id="responseRateRow">
+      <div class="key-label-row">
+        <label for="responseRate">Response rate</label>
+        <span class="key-tag">cadence</span>
+      </div>
+      <select id="responseRate">
+        <option value="1">1 — Laid back · ~56k tok/hr</option>
+        <option value="2">2 — Slow · ~70k tok/hr</option>
+        <option value="3">3 — Measured · ~87k tok/hr</option>
+        <option value="4">4 — Relaxed · ~107k tok/hr</option>
+        <option value="5" selected>5 — Default · ~134k tok/hr</option>
+        <option value="6">6 — Lively · ~168k tok/hr</option>
+        <option value="7">7 — Chatty · ~210k tok/hr</option>
+        <option value="8">8 — Punchy · ~258k tok/hr</option>
+        <option value="9">9 — Rapid · ~324k tok/hr</option>
+        <option value="10">10 — Nonstop · ~403k tok/hr</option>
+      </select>
+      <p class="field-hint">
+        How often the personas chime in. 1 = slow, occasional quips. 10 = nonstop banter. Token estimates are ballpark per hour across all models (input + output). Takes effect on your next <em>Start Listening</em>.
+      </p>
+    </div>
+
     <button class="toggle-keys" id="toggleAudio">
       <span class="caret">&#9656;</span>
       <span>Audio routing — podcaster options</span>

@@ -117,6 +117,9 @@ async function startRecording(config) {
         url: config.youtubeUrl || "",
         mode: "browser",
         isLive: false,
+        // User-chosen pace dial (1-10, default 5). Older backends ignore
+        // the field, so omitting it is always safe.
+        rate: Number.isFinite(config.rate) ? config.rate : 5,
       }),
       signal: sseAbortController.signal,
     });

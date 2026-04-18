@@ -110,13 +110,26 @@ function chargeSessionUsage(session: Session): void {
 }
 
 export async function POST(req: NextRequest) {
-  const { url: youtubeUrl, mode, isLive: clientIsLive } = await req.json();
+  const { url: youtubeUrl, mode, isLive: clientIsLive, rate } = await req.json();
 
   if (!youtubeUrl) {
     return jsonResponse({ error: "Missing YouTube URL" }, 400);
   }
 
   const browserMode = mode === "browser";
+
+  // ── Response-rate dial (user-configurable pace, 1..10, default 5) ─────
+  // Older clients omit `rate` entirely, so missing/invalid values fall
+  // through to 5 (default cadence, multiplier 1.0, zero behavior change).
+  // Formula: multiplier = 3 ^ ((5 - rate) / 5)
+  //   rate=1  → 2.41× (much slower, ~36s first trigger)
+  //   rate=5  → 1.00× (default — identical to pre-v1.2 cadence)
+  //   rate=10 → 0.33× (fast, ~5s first trigger)
+  // The exponential curve gives uniform "feels-different" steps across the
+  // dial; a linear mapping would bunch all the change at one end.
+  const rateParsed = Number.isFinite(rate) ? Math.round(rate) : 5;
+  const rateClamped = Math.max(1, Math.min(10, rateParsed));
+  const paceMultiplier = Math.pow(3, (5 - rateClamped) / 5);
 
   // Read API keys from request headers (user provides their own keys)
   // Falls back to server env vars for local dev / hosted demo keys.
@@ -187,9 +200,12 @@ export async function POST(req: NextRequest) {
     hasBrave: !!braveKey,
     usingAnyDemoKey,
     chargeable: !!chargeableInstallId,
+    rate: rateClamped,
+    paceMultiplier,
   });
 
   const transcriber = new TranscriptionManager(deepgramKey);
+  transcriber.setPaceMultiplier(paceMultiplier);
   const session: Session = {
     transcriber,
     startedAt: Date.now(),
@@ -454,7 +470,12 @@ export async function POST(req: NextRequest) {
           send("status", { status: "personas_complete" });
           personasFiring = false;
         }
-      }, 5000); // Check every 5 seconds
+        // Poll cadence scales with the rate dial, but only FASTER than the
+        // 5s default — we never poll SLOWER than the original because the
+        // real gate on triggering is already the trigger-interval check
+        // inside transcriber.shouldTriggerPersonas(). A slower poll would
+        // only add latency without changing the decision.
+      }, Math.max(1000, Math.min(5000, Math.round(5000 * paceMultiplier)))); // default 5s; floor 1s at rate=10
 
       // Start the pipeline
       if (browserMode) {

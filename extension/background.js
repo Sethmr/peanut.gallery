@@ -305,7 +305,7 @@ function sendToOffscreen(msg, callback) {
   });
 }
 
-async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle, audio, installId }) {
+async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle, audio, installId, rate }) {
   const streamId = await takePendingStream();
   console.log("[PG:bg] handleStartCapture: took streamId from session?", !!streamId);
 
@@ -337,6 +337,9 @@ async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle, au
         installId: installId || "", // forwarded to backend as X-Install-Id header
         youtubeUrl: youtubeUrl || lastTab?.url || "",
         tabTitle: tabTitle || lastTab?.title || "Unknown tab",
+        // User-chosen pace dial (1-10). Forwarded verbatim to offscreen,
+        // which embeds it in the /api/transcribe POST body.
+        rate: Number.isFinite(rate) ? rate : 5,
       },
       (r) => resolve(r || { error: "Offscreen did not respond" })
     );
