@@ -746,11 +746,14 @@ chrome.runtime.onMessage.addListener((message) => {
         // responses and restore the button as soon as we've got at least
         // FORCE_REACT_TARGET of them. Empty passes ("-") don't count.
         //
-        // Gate on data.fromForceReact: a Director cascade that happens to
-        // finish between click and burst-start would otherwise flip the
-        // button back to idle before the burst's events arrive. Only count
-        // events that were actually emitted by the force-react burst.
-        if (forceReactActive && data.fromForceReact) {
+        // Deliberately does NOT gate on data.fromForceReact. A Director
+        // cascade that happens to finish between click and burst-start
+        // will flip the button back to idle slightly early — that's a
+        // minor cosmetic quirk, but the queued burst still fires on the
+        // next tick so the user gets all 4 reactions. Previous attempt
+        // to gate this stranded the spinner on the 15s safety timeout
+        // whenever a burst event didn't carry the flag for any reason.
+        if (forceReactActive) {
           forceReactReceived++;
           if (forceReactReceived >= FORCE_REACT_TARGET) {
             resetFireButton();
@@ -799,13 +802,11 @@ chrome.runtime.onMessage.addListener((message) => {
       }
       if (data.status === "personas_complete") {
         updatePersonaSpeaking(null);
-        // Backend finished the force-react burst. If the button is still
-        // spinning (e.g. fewer than FORCE_REACT_TARGET non-empty responses
-        // came back), restore it now rather than waiting on the timeout.
-        //
-        // Gate on fromForceReact so a tail Director cascade's completion
-        // event doesn't reset the button before the actual burst finishes.
-        if (forceReactActive && data.fromForceReact) resetFireButton();
+        // Backend finished a persona run. If the button is still
+        // spinning, restore it now rather than waiting on the 15s
+        // safety timeout. No fromForceReact gate here — see the
+        // equivalent comment on persona_done.
+        if (forceReactActive) resetFireButton();
       }
       break;
   }
