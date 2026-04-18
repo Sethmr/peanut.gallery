@@ -14,71 +14,50 @@ reacts to YouTube, live YouTube transcription, AI writers' room.*
 
 ## Short description (≤132 chars, must match manifest.json)
 
-AI writers' room for YouTube. 4 AI personas react in real-time from the side panel — fact-checker, troll, sound guy, comedy writer.
+AI writers' room for YouTube. 4 personas react live — fact-checker, troll, sound guy, comedy writer. Howard or TWiST pack.
 
 ---
 
 ## Long description
 
-Peanut Gallery is a free, open-source Chrome extension that puts an AI writers' room next to any YouTube video. Four AI personas — inspired by the Howard Stern Show staff — watch the video with you in real time and react from Chrome's native side panel. A fact-checker catches misstatements mid-sentence. A comedy writer drops setup-punchline one-liners. A sound effects guy cues timed drops and razor-sharp asides. A cynical troll says what the audience is thinking but won't type.
+Peanut Gallery turns any YouTube video into a live show with 4 AI personas watching alongside you — a fact-checker, a sound effects guy, a comedy writer, and a cynical troll. They react in real-time in a native Chrome side panel, next to the video. No tab switching. No screen-share picker. Audio captured silently while you watch.
 
-Works on ANY YouTube video — podcasts, interviews, livestreams, keynotes, lectures, music, news clips, anything with audio. Built for This Week in Startups, designed for everything else.
+Inspired by the Howard Stern Show staff.
 
-🥜 THE CAST
+THE CAST
 
-• Fact-Checker (Claude Haiku + Brave Search) — Monitors the conversation for claims and cross-references them against live web results. Catches wrong dates, misquoted stats, and "I'm pretty sure" moments in real time.
+- Baba Booey — fact-checker. Mid-show corrections and background data on every claim. Searches the web via Brave Search to verify stats, dates, and attributions.
+- Fred Norris — sound effects guy. Well-timed cues and the occasional razor-sharp aside.
+- Jackie Martling — comedy writer. Setup-punchline jokes, callbacks, observational humor.
+- The Cynical Troll — contrarian commentator, 120ms response time. Says what the chat is thinking.
 
-• Cynical Troll (xAI Grok 4.1 Fast, non-reasoning) — Dunks on everything with internet-brain energy. Non-reasoning variant keeps the timing reflexive — trolls don't deliberate.
+HOW IT WORKS
 
-• Sound Effects Guy (xAI Grok 4.1 Fast, non-reasoning) — Background context and timed sound-effect cues. The one whispering fun facts in your ear.
+1. Install. Click the peanut icon on any YouTube tab — a native Chrome side panel opens.
+2. Enter your API keys (Deepgram, Groq, and optionally Anthropic and Brave Search). Keys are stored locally in your browser and sent only to the providers you configure.
+3. Click Start Listening. Tab audio is captured silently via chrome.tabCapture — the same API used by Otter.ai, Fireflies, and Recall.ai. No permission picker, no interference with playback. You hear the video; the AI hears it too.
+4. Responses stream back token-by-token and appear in the side panel alongside a live transcript.
 
-• Comedy Writer (Claude Haiku) — Setup-punchline structure, callback humor, observational comedy. The one who makes you spit out your coffee mid-episode.
+PRIVACY-FIRST BY DESIGN
 
-A rule-based director picks one persona per moment, then others cascade with staggered delays — just like a real writers' room. Some moments get one response; some get two or three; occasionally all four pile on.
+- Your API keys live in chrome.storage.local on your machine and are passed directly to the providers — never logged, never persisted.
+- Audio is transcribed in real-time and discarded. No session is written to disk.
+- No user accounts. Nothing to sign up for.
+- For full privacy: Peanut Gallery is MIT-licensed open source. Run the server yourself with `npm run dev` and point the extension at localhost. Your audio never leaves your machine except to the AI providers you choose.
 
-⚡ HOW IT WORKS
+COST
 
-Peanut Gallery uses chrome.tabCapture — the same API Otter.ai and Fireflies use — to capture YouTube tab audio silently. No screen-share picker. No playback interference. No second tab. You hear the video; the extension hears it too. Audio streams to a backend (hosted or self-hosted) at 16kHz PCM, gets transcribed by Deepgram Nova-3 in under 300ms, and routed through the director to the AI personas. Reactions stream token-by-token via SSE directly into Chrome's Side Panel, right next to the video.
+Approximately $1.15 per 2-hour episode across all four providers at current rates. No subscription, no middleman — you pay the providers directly.
 
-🔒 PRIVACY
+LINKS
 
-Your audio is transcribed in real time and discarded. Nothing is logged. Nothing is persisted. If you use the hosted backend, API keys live in your browser's extension storage and are forwarded per request — never saved server-side. If you want zero trust, self-host the backend in one command. The full privacy policy is at peanutgallery.live/privacy.
+- Source code + setup: https://github.com/Sethmr/peanut.gallery
+- Hosted reference web app: https://peanutgallery.live
+- Privacy policy: https://peanutgallery.live/privacy
 
-🛠 OPEN SOURCE
+BUILT FOR
 
-Peanut Gallery is MIT-licensed and fully open source on GitHub at github.com/Sethmr/peanut.gallery. Fork it, swap providers, remix the personas, or self-host for full privacy. No platform trap, no proprietary pipeline.
-
-💸 COST
-
-Free to try with the hosted backend. Bring your own API keys (all providers have free tiers) for unlimited use. Typical cost with your own keys: ~$1.15 per two-hour video.
-
-✅ FEATURES
-
-• Native Chrome side panel — lives next to the video, not on top of it
-• Real-time YouTube transcription (Deepgram Nova-3, <300ms latency)
-• Live fact-checking with Brave Search
-• Four AI personas with director-driven cascade logic
-• Silent tab audio capture via chrome.tabCapture (no permission picker)
-• Bring your own API keys — Deepgram, Anthropic, xAI, optional Brave
-• Self-hostable backend (one-command Docker deploy)
-• Works on any YouTube video, any channel, any length
-• MIT licensed, fully open source
-
-🎯 WHO IT'S FOR
-
-• Podcast listeners who want a live writers' room on This Week in Startups, Lex Fridman, The All-In Podcast, The Tim Ferriss Show, Joe Rogan, Huberman Lab, anything
-• Content creators who want live fact-checking and commentary on their own uploads
-• Teams watching conference keynotes together — Peanut Gallery is the async coworker in the side panel
-• Students using YouTube lectures who want a contextual sidekick
-• Anyone who's wondered "what if I could hear the chat reacting to this in real time?"
-
-🚀 INSTALL
-
-Click "Add to Chrome" above. Open any YouTube video. Click the 🥜 icon. Hit Start Listening. Four personas react in real time.
-
-Built by Seth Rininger in response to Jason Calacanis and Lon Harris's $5,000 open-source bounty on This Week in Startups. Shipped as a Chrome extension. Works on any YouTube video.
-
-peanutgallery.live | github.com/Sethmr/peanut.gallery
+The $5,000 This Week in Startups bounty from @jason and @lonharris. Ship it. @TWiStartups.
 
 ---
 

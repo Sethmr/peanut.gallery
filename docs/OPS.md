@@ -2,7 +2,7 @@
 
 > Day-to-day operational tasks: rotating API keys, setting usage caps, verifying a deploy covers the shared-demo path, handling alerts. Nothing in this file should contain a real secret — use placeholders.
 
-Last updated: 2026-04-17
+Last updated: 2026-04-18 (v1.4.0)
 
 ---
 
@@ -73,17 +73,22 @@ After the bounty demo airs, rotate all four shared keys as a matter of hygiene �
 
 Likely failure modes, in order of probability:
 
-1. **One of the four shared demo keys hit its cap.** Check `GET /api/health` (reports env var presence only, not quota), then hit each provider dashboard to see usage. Rotate or top up the offending key.
+1. **One of the shared demo keys hit its cap.** Check `GET /api/health` (reports env var presence only, not quota), then hit each provider dashboard to see usage. Rotate or top up the offending key. Partial silence is diagnostic:
+   - Baba + Jackie silent, Troll + Fred fine → **Anthropic** (producer + joker run on Claude Haiku).
+   - Troll + Fred silent, Baba + Jackie fine → **xAI** (troll + soundfx run on Grok 4.1 Fast).
+   - Everyone silent → **Deepgram** (no transcript, no fires).
+   - Baba's fact-checks stop citing sources but he still talks → **Brave** or **xAI Live Search** (depending on `SEARCH_ENGINE`). Check `search_upstream_error` / `search_timeout` in the JSONL log.
 2. **User is on a non-hosted backend** (self-host / wrong server URL) **without their own keys.** The extension's pre-flight should block this. If it didn't, check the side panel's "Backend server" field matches `https://peanutgallery.live`.
 3. **Deepgram WebSocket dropped and didn't reconnect.** Check server logs for `deepgram_error` or repeated `reconnect` events. `lib/transcription.ts` has exponential backoff but a persistent auth failure will surface after a few retries.
 4. **Chrome extension lost tabCapture permission.** User re-installed or reset permissions. See `extension/README.md` for the fix (re-enable site access).
+5. **Search backend mis-toggled.** If `SEARCH_ENGINE=brave` is set on Vercel but `BRAVE_SEARCH_API_KEY` is blank, the Producer will still fire but with no fact-check context. Symptom: Baba talks, but his lines don't cite anything. Flip to `SEARCH_ENGINE=xai` (reuses `XAI_API_KEY`) or set a Brave key and redeploy.
 
 ---
 
 ## Where NOT to put secrets
 
 - ❌ Commit messages. `git log` is public once pushed.
-- ❌ Markdown docs (including this one). Use `sk-ant-api03-...` / `gsk_...` / etc. as placeholders.
+- ❌ Markdown docs (including this one). Use `sk-ant-api03-...` / `xai-...` / `BSA...` / etc. as placeholders. (Historical note: `gsk_...` was the Groq prefix we used to handle; Groq was removed in v1.4.)
 - ❌ Extension source (`extension/*.js`, `extension/*.html`). Anything shipped to Chrome Web Store is trivially extractable.
 - ❌ Client-side React components (`app/**/*.tsx` that run in the browser). Public bundle.
 - ❌ Screenshots, videos, or demo recordings. Scrub the side panel before capturing.

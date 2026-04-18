@@ -352,23 +352,29 @@ transcript chunk; emit them as an SSE `transcript` event.
 - Model: `nova-3`.
 - Target latency: <300 ms.
 
-### xAI Grok (The Troll + Fred Norris) — required
+### xAI Grok (troll + soundfx slots) — required
 
 - Endpoint: `POST https://api.x.ai/v1/chat/completions`
 - Auth: `Authorization: Bearer <key>`.
-- Model: `grok-4-1-fast-non-reasoning` for both Troll and Fred. The
+- Model: `grok-4-1-fast-non-reasoning` for both troll and soundfx. The
   non-reasoning variant is deliberate — reflexive output is what makes the
   voices land; reasoning mode kills the timing.
 - Streaming: `stream: true`. Emit deltas into `persona` SSE events as they
   arrive.
+- Wrap each stream in an abort signal with a **25s** budget. Anything slower
+  and the user has already given up on that response.
 - If no xAI key is configured, `troll` and `soundfx` stay silent — emit
-  `persona_done` immediately. Do not error.
+  `persona_done` immediately. Do not error. (Note: the reference backend
+  previously ran these slots on Groq Llama; v1.4 migrated off. Any backend
+  that still reads `GROQ_API_KEY` / `X-Groq-Key` is stale and will not match
+  the extension's current header set.)
 
-### Anthropic (Baba Booey + Jackie) — required (unless xAI is also missing)
+### Anthropic (producer + joker slots) — required (unless xAI is also missing)
 
 - SDK: `@anthropic-ai/sdk` or direct `POST https://api.anthropic.com/v1/messages`
 - Auth: `x-api-key: <key>`, `anthropic-version: 2023-06-01`.
 - Model: `claude-3-5-haiku-latest`.
+- Wrap each stream in a **25s** abort budget (same as xAI).
 - If no Anthropic key is configured, `producer` and `joker` stay silent —
   return `persona_done` immediately without any `persona` events for those IDs
   during their turn. Do not error.
@@ -377,15 +383,18 @@ transcript chunk; emit them as an SSE `transcript` event.
 
 ### Search engines (fact-checking) — one required when fact-checking is on
 
-The Producer persona picks up either **Brave Search** or **xAI Live Search**
+The Producer slot picks up either **Brave Search** or **xAI Live Search**
 depending on the `X-Search-Engine` header (defaults to `brave`). If no search
 engine is reachable, the Producer still runs — it just relies on the model's
-training knowledge. Never fail the pipeline on a missing search key.
+training knowledge. Never fail the pipeline on a missing search key. Search
+failures emit the `search_*` pipeline events documented in
+[`DEBUGGING.md`](DEBUGGING.md); the Producer still fires.
 
 **Brave Search** (default; `X-Search-Engine: brave`)
 
 - Endpoint: `GET https://api.search.brave.com/res/v1/web/search?q=<encoded>`
 - Auth: `X-Subscription-Token: <key>`.
+- Abort budget: **5s**. Queued per claim; up to 3 claims per round.
 
 **xAI Live Search** (`X-Search-Engine: xai`)
 
@@ -394,6 +403,13 @@ training knowledge. Never fail the pipeline on a missing search key.
   `search_parameters: { mode: "on", sources: [{ type: "web" }], max_search_results: 5, return_citations: true }`
   to get the Producer a search snippet and citations in one round-trip.
   No separate search signup.
+- Abort budget: **8s**. Typically slower than Brave because the LLM round-trip
+  is inside the search call.
+
+**Important**: the Producer's **force-react tap** (user clicks Baba's avatar or
+the 🔥 button) should skip the pre-stream search entirely. The tap wants a
+fast reaction more than a sourced one; blocking on a 5–8s search on a tap
+visibly strands the spinner.
 
 ---
 
@@ -452,7 +468,11 @@ don't have to copy them verbatim, but you MUST keep the voice identifiable:
 
 Every persona can "pass" by returning a single `-` character, which clients
 render as "no reaction". On a force-react burst (see above), personas are
-told explicitly NOT to pass.
+told explicitly NOT to pass — and if they pass anyway, the reference backend
+substitutes a short archetype-keyed fallback string and emits it as the
+persona's response (logged as `force_react_fallback` at warn level). This
+is the v1.4 safety net that guarantees taps never produce an empty bubble.
+Any compatible backend should implement the same guard on force-react paths.
 
 ---
 

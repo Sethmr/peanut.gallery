@@ -1,83 +1,46 @@
 # Peanut Gallery — Roadmap
 
-> Version-staged plan from v1.2.0 through v2.0. Confirm scope with Seth before starting any item — this is a menu, not a queue, and release boundaries are load-bearing (each one tees up the next).
+> Version-staged plan. Confirm scope with Seth before starting any item — this is a menu, not a queue, and release boundaries are load-bearing (each one tees up the next).
 
-Last updated: 2026-04-17
-
----
-
-## v1.2.0 — "Mise en place" (shipping next)
-
-Low-risk QoL + observability + the pre-merge quality bar. Everything here is additive and wire-compatible with v1.1.x backends, so we can ship while v1.1.1 is still in Chrome Web Store review.
-
-### 1. Director debug panel
-- **Why:** Hard to tune the Director or demo it credibly without seeing *why* it picked a given persona. Also the single best tool for debugging "nothing fired" complaints.
-- **Shape:** Collapsible section in the side panel, off by default, revealed by long-pressing the version badge. Shows the last N routing decisions as a mini-table — picked persona, score, top alternates, reason. Consumes a new SSE event type `director_decision`.
-- **Touches:** `extension/sidepanel.html`, `extension/sidepanel.js`, `app/api/transcribe/route.ts`.
-
-### 2. Expanded director logging
-- **Why:** Feeds item 1. Also gives us offline tuning data for the cascade retune and the v1.4 Director v2 work.
-- **Shape:** Every Director decision emits one JSON line: `{ ts, pick, score, top3, cascadeLen, cooldownsMs, reason }`. Routes through `lib/debug-logger.ts` at `info+`.
-- **Touches:** `lib/director.ts`, `lib/debug-logger.ts`.
-
-### 3. Cascade-delay retune
-- **Why:** Early feedback says it feels too spaced-out during fast exchanges.
-- **Shape:** Tighten the lower bound, narrow the jitter window. Slow stretches keep their full spread. Bake the new numbers once the debug logs give us real data.
-- **Touches:** `lib/director.ts` cascade scheduling.
-
-### 4. Real director test coverage
-- **Why:** Coverage today is informal. ISSUE-004 (force-fire no-op) and ISSUE-006 (pause repeat) both shipped through types and only showed up at runtime. We need fixtures.
-- **Shape:** `scripts/test-director.ts` with fixtures covering rule-based scoring, cooldowns, cascade probability, and the v1.1.1 silence path.
-- **Touches:** `scripts/test-director.ts` (new), `lib/director.ts` (minor test-seams only).
-
-### 5. Pre-merge gate: `tsc` + lint + smoke test
-- **Why:** Enforce 1–4 and prevent the whole silent-failure class.
-- **Shape:** `npm run typecheck && npm run lint && scripts/test-director.ts` wired into pre-commit. Upgrade to `--pack twist` once v1.3 lands.
-- **Touches:** `.husky/pre-commit` (or equivalent), `package.json` scripts.
+Last updated: 2026-04-18 (v1.4.0 is current)
 
 ---
 
-## v1.3.0 — "TWiST Pack" (flagship)
+## Shipped
 
-The bounty-aligned release. Swappable persona packs, a shipped TWiST pack, and a guided installer so the community can build new packs that match our quality bar.
+### v1.2.0 — "Mise en place" — shipped
 
-### 1. Refactor personas into selectable packs
-- **Why:** Today `lib/personas.ts` hard-codes the Howard Stern crew. A pack abstraction lets us ship the TWiST lineup (Jason Calacanis, Molly Wood, Alex Wilhelm, Lon Harris) and any future lineups without touching the Director or engine.
-- **Shape:** Extract into `lib/packs/howard/`, `lib/packs/twist/`. Each pack exports a `Persona[]` + pack metadata (display name, badge color, default voice assignments, pack prompt). `lib/persona-engine.ts` takes a pack instead of importing personas directly.
-- **Touches:** `lib/personas.ts` (shim), `lib/persona-engine.ts`, `lib/director.ts`, `app/api/personas/route.ts`, `app/api/transcribe/route.ts`, extension side panel.
+Director debug panel + `director_decision` SSE, expanded `lib/director.ts` logging, cascade-delay retune, `scripts/test-director.ts` fixtures, pre-merge `tsc` + lint + smoke-test gate.
 
-### 2. TWiST pack
-- **Why:** The flagship. Jason Calacanis + Molly Wood + Alex Wilhelm + Lon Harris, researched and written to the same depth as the Howard pack.
-- **Shape:** `lib/packs/twist/personas.ts` with character research in `docs/packs/twist/RESEARCH.md`. Includes taboo topics, callback patterns, mannerisms.
-- **Touches:** `lib/packs/twist/`, `docs/packs/twist/`.
+### v1.3.0 — "TWiST Pack" (flagship) — shipped
 
-### 3. Pack swap UI in side panel
-- **Why:** Makes the refactor user-visible.
-- **Shape:** Select element at the top of the side panel. Persists to `chrome.storage.local`. Sends `X-Pack-Id` header (or query param on the SSE URL) on session start; server passes it through to `PersonaEngine` + Director.
-- **Touches:** `extension/sidepanel.html`, `extension/sidepanel.js`, `app/api/transcribe/route.ts`.
+- Persona-pack refactor: `lib/packs/howard/` + `lib/packs/twist/`, each exporting `Persona[]` + pack metadata. `lib/personas.ts` is now a thin shim. Engine + Director + both routes take a pack argument.
+- TWiST pack: Molly Wood (producer), Jason Calacanis (troll), Lon Harris (soundfx), Alex Wilhelm (joker). Character research in [`docs/packs/twist/RESEARCH.md`](packs/twist/RESEARCH.md).
+- Pack-swap UI in the side panel, persisted to `chrome.storage.local`, `X-Pack-Id` on the session POST.
+- Pack-creation scaffolding + smoke-gate upgrade (`--pack twist` runs against both packs).
 
-### 4. Pack-creation installer
-- **Why:** We want the community building packs at our quality bar, not half-baked ones. A guided installer produces a scaffold + a lint-style checklist so every new pack has character research, taboo topics, cross-persona callbacks, and a test fixture.
-- **Shape:** CLI / Claude skill that: (a) scaffolds `lib/packs/<id>/`, (b) prompts the author through persona count, voice, taboo topics, signature patterns, (c) generates a research doc template, (d) writes a smoke-test fixture. Exposed via `scripts/new-pack.ts` + a published prompt in the README.
-- **Touches:** `scripts/new-pack.ts` (new), possibly a new skill under `.claude/skills/`, README.
+### v1.4.0 — "Grok-powered Troll + search toggle" — current
 
-### 5. Tests + smoke gate upgrade
-- Re-run the v1.2 pre-merge gate with `--pack twist` added. Both packs must pass fixtures before merge.
+- **Provider migration:** Troll + Sound FX moved from Groq Llama to xAI **Grok 4.1 Fast non-reasoning** (same models across both packs). `groq-sdk` removed from dependencies and runtime. `GROQ_API_KEY` / `X-Groq-Key` no longer read.
+- **New env + header surface:** `XAI_API_KEY`, `SEARCH_ENGINE` (`brave` | `xai`, default `brave`), `X-XAI-Key`, `X-Search-Engine`. Full wire spec in [`BUILD-YOUR-OWN-BACKEND.md`](BUILD-YOUR-OWN-BACKEND.md).
+- **Search-engine toggle:** Producer's fact-check pipeline picks Brave REST or xAI Live Search per session. Timeouts: Brave 5s, xAI Live Search 8s, LLM streams `AbortSignal.timeout(25_000)`.
+- **Pipeline log events** for fact-check observability: `search_skip`, `search_no_claims_detected`, `search_timeout`, `search_upstream_error`, `search_empty_result`, `search_complete`, `search_pipeline_error`. See [`DEBUGGING.md`](DEBUGGING.md).
+- **Force-react hardening:** Baba's force-react tap now skips pre-stream search for latency. `firePersona` logs `force_react_fallback` at warn and substitutes an archetype-keyed string when a persona tries to pass on a tap, so taps never leave an empty bubble. Working-tree fixes for the persona-tap path are **unverified in production** — see [`SESSION-NOTES-2026-04-18.md`](SESSION-NOTES-2026-04-18.md) §5 for the localhost verification checklist.
 
 ---
 
-## v1.4.0 — "Smart Director v2"
+## v1.5.0 — "Smart Director v2" (next)
 
-The brains upgrade. Runs on top of the observability and tests from v1.2.
+The brains upgrade. Runs on top of the v1.2 observability + tests, and depends on the v1.4 force-react work being verified first.
 
 ### Smart Director v2 — LLM-assisted routing with pattern-match fallback
 - **Why:** The rule-based scorer can't weigh context like "this joke already got roasted 10s ago, pick a different angle." An LLM pick — with a brief routing rationale — wins those cases. The pattern-match scorer stays as the guaranteed-cheap, guaranteed-fast fallback.
-- **Shape:** `lib/director-llm.ts::pickPersona(recent, packPersonas)` runs in parallel with the existing scorer. If it returns under 400ms, use its pick + rationale. Otherwise fall back to the rule-based Director. Cascade + cooldown bookkeeping is unchanged. Rationale flows into the v1.2 debug panel automatically.
+- **Shape:** `lib/director-llm.ts::pickPersona(recent, packPersonas)` runs in parallel with the existing scorer. If it returns under **400 ms**, use its pick + rationale. Otherwise fall back to the rule-based Director. Cascade + cooldown bookkeeping is unchanged. Rationale flows into the v1.2 debug panel automatically.
 - **Touches:** `lib/director.ts`, `lib/director-llm.ts` (new), `app/api/transcribe/route.ts` routing block.
 
 ---
 
-## v1.5.0 — "Voice + Clip Share"
+## v1.6.0 — "Voice + Clip Share"
 
 ### 1. Voice / TTS per persona
 - **Why:** Written reactions are differentiated, but voice turns Peanut Gallery into a companion broadcast. Latency budget was the blocker in 2025 — revisit now that per-persona TTS is cheaper and streaming-native.
@@ -86,12 +49,12 @@ The brains upgrade. Runs on top of the observability and tests from v1.2.
 
 ### 2. Clip-sharing / highlight export
 - **Why:** The funniest cascades deserve to escape the side panel. Clip + personas = organic distribution.
-- **Shape:** "Clip last ~30s" button. Exports transcript snippet + persona reactions as either (a) a styled video / GIF with captions, or (b) a permalinked HTML clip page. Starts client-side; server-side render is a v1.5.x stretch if we need it.
+- **Shape:** "Clip last ~30s" button. Exports transcript snippet + persona reactions as either (a) a styled video / GIF with captions, or (b) a permalinked HTML clip page. Starts client-side; server-side render is a v1.6.x stretch if we need it.
 - **Touches:** `extension/sidepanel.js`, new render path (likely `app/clip/[id]/page.tsx` or client-side canvas).
 
 ---
 
-## v2.0.0 — "Bobbleheads"
+## v2.0.0 — "3D Bobbleheads"
 
 ### 3D avatars on screen
 - **Why:** The visual payoff. Peanut Gallery becomes a show, not just a text sidebar.
@@ -110,5 +73,5 @@ The brains upgrade. Runs on top of the observability and tests from v1.2.
 ## How to start any of this
 
 1. Re-read [`docs/CONTEXT.md`](CONTEXT.md) end-to-end.
-2. Read [`docs/SESSION-NOTES-2026-04-17.md`](SESSION-NOTES-2026-04-17.md) for the most recent state.
+2. Read [`docs/SESSION-NOTES-2026-04-18.md`](SESSION-NOTES-2026-04-18.md) for the most recent state — §5 is the localhost verification checklist to run before changing anything.
 3. Confirm scope + priority with Seth before writing code. Release boundaries are load-bearing — don't pull work forward without confirming.

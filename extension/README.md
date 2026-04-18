@@ -14,10 +14,11 @@ AI podcast sidebar that lives right next to your YouTube video. Uses `chrome.tab
 1. Start the Peanut Gallery server (`npm run dev`)
 2. Open a YouTube video
 3. Click the 🥜 extension icon — the side panel opens
-4. Set your server URL + API keys (saved between sessions)
-5. Click **Start Listening**
+4. Set your server URL + API keys — Deepgram, Anthropic, xAI (optional: Brave Search, used when the search-engine dropdown is set to "brave"). Saved in `chrome.storage.local` between sessions.
+5. Pick a pack from the dropdown — **Howard** (default: Baba Booey, The Troll, Fred Norris, Jackie Martling) or **TWiST** (Molly Wood, Jason Calacanis, Lon Harris, Alex Wilhelm).
+6. Click **Start Listening**
 
-The four AI personas (Baba Booey, The Troll, Fred, Jackie) react in real-time in the sidebar while you watch.
+Four AI personas react in real-time in the sidebar while you watch. Pack choice applies on the next Start Listening — mid-session swaps are intentionally not supported (same reason the response-rate dial is setup-time only).
 
 ## Architecture
 

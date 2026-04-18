@@ -222,9 +222,9 @@ Canonical source: **[docs/ROADMAP.md](docs/ROADMAP.md)**. Version-staged plan:
 |---------|-------|----------|
 | ✅ **v1.2.0** | Mise en place | Director debug panel + structured routing logs, real director test coverage (50 runs × 10 fixtures), husky pre-merge gate. **Shipped.** |
 | ✅ **v1.3.0** | TWiST Pack (flagship) | Selectable persona packs. Howard + TWiST (Molly / Jason / Lon / Alex). Pack-swap dropdown. Pack label in the debug trace. **Shipped.** |
-| **v1.3.1** | Pack installer + cascade retune | Sideload a pack JSON with schema validation + merge into the dropdown. Cascade-delay values retuned against real-session captures. |
-| **v1.4.0** | Smart Director v2 | LLM-assisted routing with rule-based fallback under a 400ms budget. |
-| **v1.5.0** | Voice + Clip Share | TTS per persona (opt-in, ducked). Highlight / clip export as shareable video or GIF. |
+| ✅ **v1.4.0** | Grok & Stability | Troll + Sound FX migrated from Groq to xAI Grok 4.1 Fast. Search-engine toggle (Brave ↔ xAI Live Search). Session-firing deadlock fixed so one stalled upstream can't strand the rest of the session. **Shipped.** |
+| **v1.5.0** | Smart Director v2 | LLM-assisted routing with rule-based fallback under a 400ms budget. |
+| **v1.6.0** | Voice + Clip Share | TTS per persona (opt-in, ducked). Highlight / clip export as shareable video or GIF. |
 | **v2.0.0** | Bobbleheads | 3D persona avatars on screen, procedural animation tied to fire events and sentiment. |
 
 **Already supported, not yet marketed:** non-YouTube sources (Twitch, Kick, any tab) — `chrome.tabCapture` is tab-agnostic, personas are just tuned for podcast pacing.

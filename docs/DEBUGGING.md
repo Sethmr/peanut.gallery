@@ -4,7 +4,7 @@
 > AI assistants: read this file FIRST when debugging transcription, persona, or streaming problems.
 > Humans: update this file every time you fix a bug. Future you will thank past you.
 
-Last updated: 2026-04-17
+Last updated: 2026-04-18 (v1.4.0)
 
 ---
 
@@ -33,6 +33,11 @@ YouTube URL
     │ React state
     ▼
  PersonaEngine             ← Can fail: API keys, model names, rate limits
+    │  Anthropic SDK (Claude Haiku) for producer + joker
+    │  xAI OpenAI-compat fetch+SSE (Grok 4.1 Fast non-reasoning) for troll + soundfx
+    │  Brave OR xAI Live Search fact-check for producer (per X-Search-Engine)
+    │  LLM streams wrapped in AbortSignal.timeout(25_000)
+    │  Search timeouts: Brave=5s, xAI Live Search=8s
     │ Parallel LLM streams
     ▼
  4 Persona Columns (UI)   ← Can fail: streaming text accumulation
@@ -116,10 +121,44 @@ YouTube URL
 ### ISSUE-009: GitHub push protection rejected v1.1.1 for embedded demo API keys
 - **Date:** 2026-04-17
 - **Symptom:** `git push` on the v1.1.1 commit failed with `remote: error: GH013: Repository rule violations found for refs/heads/main` and specific hits on "Groq API Key" at `extension/sidepanel.js:19` and "Anthropic API Key" at `extension/sidepanel.js:20`.
-- **Root cause:** During v1.1.1 development a `DEMO_DEFAULT_KEYS` constant was added to `extension/sidepanel.js` with live Deepgram / Groq / Anthropic / Brave keys, so first-time users could try the extension without signing up. Distinctive key prefixes (`sk-ant-`, `gsk_`) tripped GitHub's secret-scanning patterns. The two commits containing the keys were local only — nothing was pushed.
+- **Root cause:** During v1.1.1 development a `DEMO_DEFAULT_KEYS` constant was added to `extension/sidepanel.js` with live Deepgram / Groq (at the time — Groq has since been removed entirely, see v1.4 notes below) / Anthropic / Brave keys, so first-time users could try the extension without signing up. Distinctive key prefixes (`sk-ant-`, `gsk_`) tripped GitHub's secret-scanning patterns. The two commits containing the keys were local only — nothing was pushed.
 - **Fix:** Refactored to the server-side fallback pattern documented in [`docs/SERVER-SIDE-DEMO-KEYS.md`](SERVER-SIDE-DEMO-KEYS.md). Extension inputs default to empty strings; `extension/offscreen.js` only sets `X-*-Key` headers when the user entered a value; the backend's existing header-first / env-var-fallback logic in `app/api/transcribe/route.ts` and `app/api/personas/route.ts` covers demo access using Vercel env vars. After a `git reset origin/main` + clean recommit, zero keys remain in any tracked file.
 - **Lesson:** Any "demo keys for easy first-run" pattern must live on the server (in env vars) not in the client. Public extensions are scraped within minutes of publish; the Chrome Web Store zip is trivially extractable by any reviewer or end user. GitHub push protection is the last line of defense — treat a block as *correct* and redesign, don't click the unblock link for your own intentional commits.
-- **How to verify:** `grep -r "DEMO_DEFAULT\|sk-ant-api\|gsk_" extension/` returns no matches. The `app/api/transcribe/route.ts` key lines follow the header-first pattern: `req.headers.get("X-Deepgram-Key") || process.env.DEEPGRAM_API_KEY`.
+- **How to verify:** `grep -r "DEMO_DEFAULT\|sk-ant-api\|gsk_\|xai-" extension/` returns no matches. The `app/api/transcribe/route.ts` key lines follow the header-first pattern: `req.headers.get("X-Deepgram-Key") || process.env.DEEPGRAM_API_KEY`.
+
+---
+
+## Pipeline log events (v1.4)
+
+`lib/debug-logger.ts` writes JSONL events to `logs/pipeline-debug.jsonl`. The event names below are what you'll grep for when debugging v1.4-era behavior (fact-check + force-react). The old "Groq" events are gone along with the dependency.
+
+### Search pipeline (Producer only)
+
+| Event | Level | Meaning / next step |
+|---|---|---|
+| `search_skip` | info | Producer decided not to search (e.g. nothing worth fact-checking, or force-react tap). Not a bug. |
+| `search_no_claims_detected` | info | Claim-scorer returned zero candidates over the threshold. Producer will still fire, just without injected context. |
+| `search_timeout` | warn | Brave (5s) or xAI Live Search (8s) exceeded its budget. Check the chosen engine's dashboard. |
+| `search_upstream_error` | error | Brave / xAI returned non-200. Usually quota or auth. Inspect `data.status` + `data.body`. |
+| `search_empty_result` | info | Search ran but returned zero hits for all claims. Legitimate for obscure topics. |
+| `search_complete` | info | Happy path — snippets/citations injected into Producer context. |
+| `search_pipeline_error` | error | Unexpected exception in the search path. Producer still fires; capture the stack. |
+
+### Force-react / persona tap
+
+| Event | Level | Meaning |
+|---|---|---|
+| `force_react_fallback` | warn | A persona emitted `"-"` (pass) on a force-react call; engine substituted the archetype fallback string so the user sees a response. High fire rate = the preamble in `buildPersonaContext` is being ignored. |
+
+### Provider-specific error signatures
+
+When a persona silently fails to produce output, the error shape tells you which provider:
+
+- **Anthropic failure** — error message contains `Invalid API key` / `authentication_error` / `overloaded_error` / `rate_limit_error`; producer + joker go quiet. Check `ANTHROPIC_API_KEY` or the account's rate limit.
+- **xAI failure** — response is an SSE stream whose first data frame is `{ "error": { "code": "...", "message": "..." } }`. Troll + soundfx go quiet. Common codes: `invalid_api_key`, `credit_exceeded`, `rate_limit_exceeded`. Check the xAI console.
+- **Deepgram failure** — WebSocket `type: "Error"` frame OR HTTP 401 on the upgrade. Surfaces as an `error` SSE event to the client.
+- **Brave failure** — `search_upstream_error` with `status: 429` = rate-limit; `status: 401` = bad key; `status: 422` = malformed query (we paste the user's transcript into the query, so weird punctuation can trigger this).
+- **xAI Live Search failure** — same response shape as a regular xAI chat completion failure, but look for `search_upstream_error` specifically; if the LLM stream is fine and only search is broken you'll see `search_*` events without any surrounding xAI errors.
 
 ---
 
@@ -158,8 +197,8 @@ When transcript isn't working, run through this in order:
 which yt-dlp && yt-dlp --version
 which ffmpeg && ffmpeg -version | head -1
 
-# Check API keys are set
-cat .env.local | grep -c "API_KEY"   # Should be 4
+# Check API keys are set (v1.4: Deepgram + Anthropic + xAI required; Brave optional)
+cat .env.local | grep -cE "^(DEEPGRAM|ANTHROPIC|XAI|BRAVE_SEARCH)_API_KEY="   # 3 or 4
 
 # Check health endpoint
 curl http://localhost:3000/api/health | jq .
@@ -224,8 +263,9 @@ These are places in the code where errors are caught but not surfaced. If you're
 | `transcription.ts` live detection | 10s timeout resolves null — defaults to recorded mode | Check `live_detected` SSE event |
 | `transcription.ts` yt-dlp stderr | Only surfaces lines containing "ERROR" — warnings dropped | Run yt-dlp manually to see full stderr |
 | `transcription.ts` ffmpeg stderr | Filters out "Error while decoding" as transient — may hide real issues | Run ffmpeg manually with `-loglevel error` |
-| `persona-engine.ts` Brave Search | Returns undefined on any failure — Producer fires without search context | Check if Producer responses lack fact-check data |
-| `persona-engine.ts` claim scoring | Sentences scoring 0 are silently dropped — no visibility into what was filtered | Add `debug-pipeline` logger (see below) |
+| `persona-engine.ts` search path | Returns undefined on any failure — Producer fires without search context. Watch for `search_timeout` / `search_upstream_error` in the JSONL log. | Check if Producer responses lack fact-check data |
+| `persona-engine.ts` claim scoring | Sentences scoring 0 are silently dropped — no visibility into what was filtered. Look for `search_no_claims_detected`. | Add `debug-pipeline` logger (see below) |
+| `persona-engine.ts` force-react pass | Persona returns `"-"` on a tap; engine substitutes `FORCE_REACT_FALLBACKS[archetype]` and logs `force_react_fallback` at warn. | Count `force_react_fallback` events; if every tap hits fallback the model is ignoring the preamble. |
 | `route.ts` SSE enqueue | Catch block swallows errors when stream is closed — no log of client disconnect | Check Next.js server logs for connection count |
 | `route.ts` persona interval | `personasFiring` flag stuck true if LLM hangs — all future triggers skip | Check if personas fire exactly once then stop |
 

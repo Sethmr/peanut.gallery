@@ -67,7 +67,8 @@ these:
 > use WSL2 (Ubuntu) and follow the Linux instructions, OR follow the manual
 > setup section below from PowerShell.
 
-You also need 4 API keys (all free-tier). See
+You also need 3 required API keys (all free-tier) plus 1 optional one for
+fact-checking. See
 [Get your API keys](#get-your-api-keys-90-seconds-each).
 
 ---
@@ -137,21 +138,27 @@ full cast.
 
 ## Get your API keys (90 seconds each)
 
-All four providers have free tiers that are enough to run the app for hours
-without paying anything.
+Three required providers + one optional one for fact-checking. All have free
+tiers that are enough to run the app for hours without paying anything.
 
 1. **Deepgram** — <https://console.deepgram.com/signup>
    - Sign up, confirm email, go to **API Keys → Create a New API Key**.
    - New accounts include **$200** in free credit. That's roughly 400 hours
      of Nova-3 streaming — far more than you need.
+   - Powers transcription. Required.
 2. **Anthropic** — <https://console.anthropic.com/settings/keys>
    - Sign up, verify, click **Create Key**, copy the `sk-ant-...` string.
    - New accounts typically receive starter credit. Haiku is the cheapest
      Claude model — a 2-hour session costs pennies.
+   - Powers the Producer + Joker archetype slots (Baba Booey + Jackie in the
+     Howard pack; Molly Wood + Alex Wilhelm in the TWiST pack). Required.
 3. **xAI** — <https://console.x.ai>
    - Sign up, verify, create an API key, copy the `xai-...` string.
    - Grok 4.1 Fast non-reasoning is cheap and fast; it also powers the
      optional Live Search fact-check pipeline with no separate signup.
+   - Powers the Troll + Sound FX archetype slots (The Troll + Fred in Howard;
+     Jason Calacanis + Lon Harris in TWiST). Required. Replaces Groq, which
+     was removed in v1.4.
 4. **Brave Search** (optional, only for `SEARCH_ENGINE=brave`) —
    <https://api-dashboard.search.brave.com/app/keys>
    - Free tier: **2,000 queries per month.** More than enough for personal
@@ -165,8 +172,8 @@ Example:
 DEEPGRAM_API_KEY=68e...real-key-here
 ANTHROPIC_API_KEY=sk-ant-api03-...
 XAI_API_KEY=xai-...
-BRAVE_SEARCH_API_KEY=BSA...   # optional
-SEARCH_ENGINE=brave           # or `xai`
+SEARCH_ENGINE=brave           # or `xai` to route fact-check through Live Search
+BRAVE_SEARCH_API_KEY=BSA...   # required only when SEARCH_ENGINE=brave
 ```
 
 ---
@@ -317,10 +324,10 @@ Deepgram key is missing or invalid. Check the server logs for
 `[transcribe] Deepgram WS error` or `401`. Test the key with
 <https://developers.deepgram.com/playground>.
 
-**Only Baba and Jackie react. Troll and Fred stay silent.**
+**Only the producer + joker slots react** (Baba + Jackie in Howard; Molly + Alex in TWiST). Troll + soundfx stay silent.
 No `XAI_API_KEY`. Add it to `.env.local` and restart the server.
 
-**Only Troll + Fred react. Baba and Jackie stay silent.**
+**Only the troll + soundfx slots react** (Troll + Fred in Howard; Jason + Lon in TWiST). Producer + joker stay silent.
 No `ANTHROPIC_API_KEY`. Add it to `.env.local` and restart the server.
 
 **"yt-dlp: command not found" when pasting a URL at /watch.**
