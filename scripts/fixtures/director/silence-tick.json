@@ -1,0 +1,15 @@
+{
+  "name": "silence-tick",
+  "description": "isSilence=true with empty transcript. Enforces the v1.1.1 invariant: chain length ≤ 2 in 100% of runs. Reverting the cap should blow this up loudly.",
+  "input": {
+    "transcript": "",
+    "isSilence": true
+  },
+  "assertions": {
+    "chainMaxLength": 2,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true
+  }
+}

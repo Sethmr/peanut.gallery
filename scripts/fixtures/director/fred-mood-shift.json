@@ -1,0 +1,16 @@
+{
+  "name": "fred-mood-shift",
+  "description": "Awkward pause / mood-shift / 'but/however/oops' language. Fred (soundfx) should appear in the chain most of the time — his patterns are broad and his job is reacting to moments.",
+  "input": {
+    "transcript": "Wait, hold on — actually, that company crashed and burned. They shut down last month. Wow, that's insane. But however unfortunately, um, the whole team got laid off. Whoops. The launch was supposed to be a new paradigm but it failed, and the founders admit they were wrong about the market."
+  },
+  "assertions": {
+    "mustFirePersona": "soundfx",
+    "mustFireRatio": 0.7,
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true
+  }
+}

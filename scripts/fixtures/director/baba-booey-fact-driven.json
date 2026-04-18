@@ -1,0 +1,16 @@
+{
+  "name": "baba-booey-fact-driven",
+  "description": "Transcript packed with factual claims, numbers, and company history — Baba Booey (producer) should almost always win pick.",
+  "input": {
+    "transcript": "Jason said that Uber was founded in 2007 and raised 50 million dollars in their Series A. According to the report, the company now has 100 million users worldwide and is valued at 90 billion dollars. The CEO of Tesla claimed that production increased by 40 percent last quarter, with revenue of 25 billion dollars."
+  },
+  "assertions": {
+    "pickIn": ["producer"],
+    "pickInRatio": 0.9,
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true
+  }
+}

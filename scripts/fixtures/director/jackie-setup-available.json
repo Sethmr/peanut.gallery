@@ -1,0 +1,16 @@
+{
+  "name": "jackie-setup-available",
+  "description": "Comparison / absurdity / 'imagine / like / reminds me of' language primed for Jackie (joker) — his setups.",
+  "input": {
+    "transcript": "Imagine, hypothetically, if your startup pitch deck was like — I mean literally like — a ridiculous joke. Nobody would invest. Compared to the real founders, these guys are always, every time, making the same mistake. It reminds me of every failed demo day pitch. Picture this, in theory, a CEO walks into an investor meeting with an AI app and says 'it's similar to ChatGPT but funnier.' Ridiculous. Absurd."
+  },
+  "assertions": {
+    "mustFirePersona": "joker",
+    "mustFireRatio": 0.7,
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true
+  }
+}

@@ -2,20 +2,33 @@
 
 All notable changes to Peanut Gallery are recorded here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version numbers follow [SemVer](https://semver.org/).
 
-## [Unreleased — v1.2.0 "Mise en place"]
+## [Unreleased]
 
-Low-risk QoL + observability + the pre-merge quality bar. Everything here is additive and wire-compatible with v1.1.x backends so it can ship while v1.1.1 is still in Chrome Web Store review. Canonical plan: [`docs/ROADMAP.md`](docs/ROADMAP.md). Full release notes draft: [`releases/v1.2.0-release-notes.md`](releases/v1.2.0-release-notes.md).
+Tracks in-flight work for the next release. See [`docs/ROADMAP.md`](docs/ROADMAP.md) §v1.3.0.
 
-### Planned — Added
-- **Director debug panel** in the side panel. Collapsible, off by default, revealed by long-pressing the version badge. Shows the last N routing decisions as a mini-table — picked persona, score, top alternates, reason. Consumes a new SSE event type `director_decision`.
-- **Expanded director logging.** Every Director decision emits one JSON line: `{ ts, pick, score, top3, cascadeLen, cooldownsMs, reason }`. Routes through `lib/debug-logger.ts` at `info+`.
-- **`scripts/test-director.ts`** — fixture-driven tests for `lib/director.ts`. Covers rule-based scoring, cooldowns, cascade probability, and the v1.1.1 silence path.
+## [1.2.0] — 2026-04-17 — "Mise en place"
 
-### Planned — Changed
-- **Cascade-delay randomness retuned.** Tighter lower bound and narrower jitter window so cascades feel conversational during fast exchanges. Slow stretches keep their full spread.
+Observability + pacing + the quality bar. Everything here is additive and wire-compatible with v1.1.x backends, so existing installs keep working if they pin an older server.
 
-### Planned — Tooling
-- **Pre-merge gate** wired into pre-commit: `npm run typecheck && npm run lint && scripts/test-director.ts`. Prevents the silent-failure class catalogued in `docs/DEBUGGING.md` (ISSUE-004, ISSUE-006).
+### Added
+- **Director debug panel** in the side panel. Hidden by default, revealed by long-pressing the version badge for 750ms. Shows the last 20 routing decisions as persona-tinted rows with pick, score, runners-up, cascade length, chain, and reason. Open/closed state persists across side-panel reopens. Short-press does nothing so normal users never see it.
+- **New SSE event `director_decision`** emitted once per Director cycle. Payload is backward-compatible: adds `pick`, `score`, `top3`, `chainIds`, `delays`, `cascadeLen`, `cooldownsMs` while preserving the pre-v1.2 fields (`chain`, `reason`, `cascadeCount`, `isSilence`, `drySpells`).
+- **Enriched structured logs.** `lib/director.ts` now owns the `director_decision` line at `info+` with the full schema above plus `sessionId` for end-to-end correlation. The duplicate log line in the route is removed.
+- **Response-rate dial (1-10)** in the side-panel setup. A smooth exponential pace multiplier (`3^((5-rate)/5)`) scales the first-trigger, trigger-interval, and silence-threshold timings so users can pick the cadence that fits their audience. 1 = laid back (~56k tok/hr), 5 = default (identical to pre-v1.2), 10 = nonstop (~403k tok/hr). Token estimates shown inline in the selector. Forwarded side-panel → background → offscreen → `/api/transcribe`; older clients that omit `rate` fall through to 5 on the backend (zero-behavior-change path).
+- **`scripts/test-director.ts` + 10 JSON fixtures** under `scripts/fixtures/director/`. Fixture-driven harness runs each fixture 50× and asserts on distribution (pick-ratios, must-fire-ratios) plus structural invariants (delays monotonic, delays[0] === 0, return-shape complete). Covers the v1.1.1 silence cap, ISSUE-004 shape preservation, ISSUE-006 variance, dry-spell boost, recency penalty, and every persona's primary trigger path.
+
+### Changed
+- **Director internal state** now tracks per-persona `lastFiredAt`, seeded at construction so "never fired" reads as "cold since session start" in the debug panel rather than a 54-year-old epoch cooldown.
+- **`TranscriptionManager` timing constants** (`FIRST_TRIGGER_MS`, `TRIGGER_INTERVAL_MS`, `SILENCE_THRESHOLD_MS`) are now mutable via a new `setPaceMultiplier(mult)` method with `[0.2, 5.0]` clamping and NaN/Infinity → 1.0 fallback. Default multiplier is 1.0, so pre-v1.2 clients see identical cadence.
+- **Route poll tick** in `/api/transcribe` scales with the rate dial but only faster than the 5s default (floor 1s at rate=10). Poll never slows below default because the real trigger gate is already inside `shouldTriggerPersonas()`.
+
+### Tooling
+- **Pre-merge gate** via `.husky/pre-commit`: runs `npm run check` (= `tsc --noEmit` + `next lint` + `tsx scripts/test-director.ts`). Bypass with `git commit --no-verify` in emergencies.
+- **`npm run typecheck` / `npm run check` / `npm run test:director`** scripts added to `package.json`.
+- **`husky`** added as a dev dependency with `prepare` script for automatic install on `npm install`.
+
+### Deferred to a future patch
+- **Cascade-delay retune** (`CASCADE_DELAY_MIN_MS` / `MAX_MS` in `lib/director.ts`). Plan called for measuring against two real-session captures (one fast-exchange, one slow) before tuning. Debug panel is now live; the retune will land as a small follow-up PR once the captures are recorded.
 
 ### Future roadmap (post-v1.2.0)
 - **v1.3.0 — TWiST Pack (flagship):** Selectable persona packs, TWiST lineup (Jason Calacanis / Molly Wood / Alex Wilhelm / Lon Harris), pack-swap dropdown, pack-creation installer.

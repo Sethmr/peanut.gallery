@@ -1,0 +1,19 @@
+{
+  "name": "pause-repeat-regression",
+  "description": "ISSUE-006 guard. Calling decide() twice on DIFFERENT transcripts must not produce identical chains on most runs — variance via tiebreak RNG, cascade roll, and remaining-persona shuffle. If someone accidentally caches a decision, this flares.",
+  "input": {
+    "transcript": "First chunk: Jason is discussing a recent Series A raise of 20 million dollars."
+  },
+  "assertions": {
+    "returnShapeComplete": true,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "variance": {
+      "runs": 50,
+      "minDifferentRatio": 0.5,
+      "secondInput": {
+        "transcript": "Second chunk: the next guest is complaining about hype-driven valuations and buzzwords."
+      }
+    }
+  }
+}

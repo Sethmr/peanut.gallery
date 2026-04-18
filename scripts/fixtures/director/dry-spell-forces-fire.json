@@ -1,0 +1,19 @@
+{
+  "name": "dry-spell-forces-fire",
+  "description": "Seed Jackie (joker) with 12 cycles of silence. Dry-spell boost caps at 6 points but that's enough to dominate a neutral transcript with no strong pattern hits. Jackie should appear in the chain on most runs.",
+  "initialState": {
+    "cyclesSinceFire": { "producer": 0, "troll": 0, "soundfx": 0, "joker": 12 }
+  },
+  "input": {
+    "transcript": "Yeah so anyway, we moved to the next agenda item. The meeting continued for another ten minutes without anything notable."
+  },
+  "assertions": {
+    "mustFirePersona": "joker",
+    "mustFireRatio": 0.8,
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true
+  }
+}

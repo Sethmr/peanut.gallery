@@ -1,0 +1,17 @@
+{
+  "name": "recency-penalty",
+  "description": "Seed recentFirings=['troll','troll','troll','troll'] and feed a transcript that would normally be a Troll magnet. Recency penalty should drag his score enough that he picks less often than baseline.",
+  "initialState": {
+    "recentFirings": ["troll", "troll", "troll", "troll"]
+  },
+  "input": {
+    "transcript": "Obviously this is revolutionary, trust me — the most disruptive, game-changing, paradigm-shift AI-native unicorn in history. Believe me, honestly, this is a 10x moonshot. The reality is that Elon will invest."
+  },
+  "assertions": {
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true
+  }
+}

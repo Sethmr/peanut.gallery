@@ -1,0 +1,16 @@
+{
+  "name": "troll-hype-speech",
+  "description": "Hype-soup transcript with buzzwords, big-name drops, and confident-opinion cues — The Troll should dominate.",
+  "input": {
+    "transcript": "Trust me, this is the most disruptive, game-changing AI-native unicorn of the decade. Obviously Elon will invest, obviously Sam Altman already did, this is a 100x moonshot, a literal rocket-ship. At my firm we were early on this. Everyone knows Andreessen and a16z are about to lead the Series B — it's a paradigm-shift, and frankly the only way forward. Honestly, the reality is that Sequoia is going to regret passing."
+  },
+  "assertions": {
+    "pickIn": ["troll"],
+    "pickInRatio": 0.85,
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true
+  }
+}

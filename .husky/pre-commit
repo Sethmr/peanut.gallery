@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Peanut Gallery — pre-commit gate
+# Runs: tsc --noEmit + next lint + tsx scripts/test-director.ts
+# Bypass in emergencies with `git commit --no-verify`.
+npm run check

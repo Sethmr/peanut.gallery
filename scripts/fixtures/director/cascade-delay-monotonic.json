@@ -1,0 +1,14 @@
+{
+  "name": "cascade-delay-monotonic",
+  "description": "Structural invariant: delays are monotonically non-decreasing and delays[0] === 0 on every run. Transcript content doesn't matter for this fixture — any cascade shape must satisfy the property.",
+  "input": {
+    "transcript": "OK so let's talk about the latest quarterly earnings report. Tesla announced record production numbers and Elon tweeted about it. Honestly, it's a wild time. Imagine if we had this in 2010. Wow. Anyway, the company raised a Series C at a 12 billion dollar valuation."
+  },
+  "assertions": {
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true,
+    "chainMaxLength": 4,
+    "chainMinLength": 1
+  }
+}
