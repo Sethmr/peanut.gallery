@@ -358,11 +358,18 @@
       flex-direction: column;
       align-items: center;
       gap: 2px;
-      cursor: pointer;
+      cursor: default; /* only .interactive rows promote to pointer */
       transition: transform 0.15s;
     }
-    .persona-bubble:hover { transform: scale(1.1); }
-    .persona-bubble:active { transform: scale(0.95); }
+    /* Avatars are tap-to-fire only during a live session. Outside a session
+       the persona row is visible (so users can preview a pack's lineup
+       before Start), but the click handler short-circuits on !sessionId —
+       .interactive gates the affordance so the cursor/hover/active states
+       match that reality instead of advertising a dead button. Toggled in
+       sidepanel.js from showCapturing() / showIdle(). */
+    .personas-row.interactive .persona-bubble { cursor: pointer; }
+    .personas-row.interactive .persona-bubble:hover { transform: scale(1.1); }
+    .personas-row.interactive .persona-bubble:active { transform: scale(0.95); }
     .persona-avatar {
       width: 32px; height: 32px;
       border-radius: 50%;

@@ -25,6 +25,7 @@ import { PersonaEngine } from "@/lib/persona-engine";
 import { resolvePack } from "@/lib/packs";
 import { Director } from "@/lib/director";
 import { personas } from "@/lib/personas";
+import type { Pack } from "@/lib/packs/types";
 import { createSessionLogger } from "@/lib/debug-logger";
 import {
   isFreeTierLimitEnabled,
@@ -69,6 +70,13 @@ function jsonResponse(body: unknown, status = 200, extraHeaders: Record<string, 
 
 interface Session {
   transcriber: TranscriptionManager;
+  /**
+   * The pack that was resolved when the session started. Frozen for the life
+   * of the session — pack swaps only take effect on the next Start Listening.
+   * Used by PATCH handlers (e.g. fire_persona validation) so we never leak the
+   * global Howard import into pack-specific decisions.
+   */
+  resolvedPack: Pack;
   forcedPersonaId?: string; // When set, next trigger fires this specific persona
   /**
    * When true, the next trigger bypasses the Director and fires ALL 4 personas
@@ -225,6 +233,10 @@ export async function POST(req: NextRequest) {
   transcriber.setPaceMultiplier(paceMultiplier);
   const session: Session = {
     transcriber,
+    // Freeze the resolved pack on the session so PATCH handlers validate
+    // fire_persona requests against THIS session's pack rather than the
+    // global Howard shim. Pack swaps only take effect on the next Start.
+    resolvedPack,
     startedAt: Date.now(),
     chargeableInstallId,
     charged: false,
@@ -335,12 +347,19 @@ export async function POST(req: NextRequest) {
 
           const streamCallback = (response: { personaId: string; text: string; done: boolean }) => {
             if (response.done) {
-              send("persona_done", { personaId: response.personaId });
+              send("persona_done", { personaId: response.personaId, fromForceReact: true });
             } else {
               send("persona", { personaId: response.personaId, text: response.text });
             }
           };
 
+          // The fromForceReact=true flag on this burst's persona_done and
+          // personas_complete events is what the client gates its React
+          // button reset on — a tail-end Director cascade that happened to
+          // finish between click and burst-start would otherwise flip the
+          // button back to idle before the burst's events even arrived.
+          // Per-event tagging is more accurate than a separate "started"
+          // sentinel because it survives event reordering.
           send("status", { status: "personas_firing" });
 
           try {
@@ -349,7 +368,7 @@ export async function POST(req: NextRequest) {
             log.error("force_react_error", { error: err instanceof Error ? err.message : String(err) });
           }
 
-          send("status", { status: "personas_complete" });
+          send("status", { status: "personas_complete", fromForceReact: true });
           personasFiring = false;
           return;
         }
@@ -578,7 +597,23 @@ export async function PATCH(req: NextRequest) {
     if (!targetPersonaId) {
       return jsonResponse({ error: "personaId required" }, 400);
     }
-    const persona = personas.find((p) => p.id === targetPersonaId);
+    // Collision guard: if a 🔥 React burst is pending or already running,
+    // a solo persona tap would be clobbered by the burst branch (which clears
+    // forcedPersonaId before returning). 409 tells the client to restore the
+    // avatar spinner — the React burst will fire that persona anyway as part
+    // of firing all four. Prevents a phantom "nothing happened to my tap"
+    // state where the UI spinner sits until the 15s safety timeout.
+    if (session.forceReactNext) {
+      return jsonResponse(
+        { error: "force-react burst pending", code: "BURST_PENDING" },
+        409
+      );
+    }
+    // Validate against THIS session's pack — not the global Howard shim.
+    // Today Howard and TWiST share the same four archetype IDs so either
+    // array would accept the same inputs, but a future pack that renames
+    // a slot would 404 legitimate requests if we kept the global import.
+    const persona = session.resolvedPack.personas.find((p) => p.id === targetPersonaId);
     if (!persona) {
       return jsonResponse({ error: "Unknown persona" }, 404);
     }

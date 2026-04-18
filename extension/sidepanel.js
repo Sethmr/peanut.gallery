@@ -407,12 +407,32 @@ function showCapturing() {
   controlsRow.style.display = "block";
   transcriptSection.style.display = "block";
   gallery.style.display = "flex";
+  // Avatar clicks only do work during a live session — promote the row
+  // to the interactive visual state (pointer cursor, hover transform,
+  // "Make X react now" tooltip). See .personas-row.interactive rules in
+  // sidepanel.html. Also sync the title attribute on each bubble so
+  // it matches the actual behavior.
+  personasRow.classList.add("interactive");
+  syncAvatarTitles();
+  // Freeze the pack selector for the life of the session. The server
+  // already locked in session.resolvedPack at Start; switching the
+  // dropdown mid-session would repaint the avatar row to the new pack
+  // while incoming persona responses still come from the old pack —
+  // names/colors/emojis would lie about which persona actually spoke.
+  // Re-enabled in showIdle() when the session ends.
+  if (packSelect) packSelect.disabled = true;
 }
 
 function showIdle() {
   capturing = false;
   sessionId = null;
   capturedTabInfo = null;
+  // Demote the avatar row — cursor goes back to default, title attributes
+  // drop off so hovering an avatar doesn't promise an action that the
+  // click handler will silently refuse (it early-returns on !sessionId).
+  personasRow.classList.remove("interactive");
+  syncAvatarTitles();
+  if (packSelect) packSelect.disabled = false;
   // Session over — trace panel should show the dropdown's pre-session
   // selection again. updateTracePackLabel() reflects both states via the
   // .locked class toggle.
@@ -521,7 +541,9 @@ function buildPersonaAvatars() {
     el.className = "persona-bubble";
     el.id = `bubble-${p.id}`;
     el.dataset.personaId = p.id;
-    el.title = `Make ${p.name} react now`;
+    // Title is set by syncAvatarTitles() so it tracks the interactive state.
+    // When idle, there's no title — hovering won't promise an action the
+    // click handler will refuse to perform.
     // Ordering: avatar → name → role → wave. The wave lives BELOW the text
     // block so the avatar and labels form one tight group with no gap when
     // the persona isn't speaking. The wave's reserved height (CSS) keeps
@@ -544,6 +566,30 @@ function buildPersonaAvatars() {
     `;
     el.addEventListener("click", () => firePersona(p.id));
     personasRow.appendChild(el);
+  }
+  // Sync the title attribute with the current interactive state — a fresh
+  // build picks up whatever showCapturing/showIdle last set on the row.
+  syncAvatarTitles();
+}
+
+/**
+ * Keep each bubble's `title` attribute honest about what a click will do.
+ * During a live session the row has .interactive and bubbles promise
+ * "Make X react now". When idle the attribute is removed entirely so
+ * hovering doesn't tease an action the click handler would refuse.
+ * Called from buildPersonaAvatars (covers initial render + pack swap) and
+ * from showCapturing/showIdle (covers session state transitions).
+ */
+function syncAvatarTitles() {
+  const isInteractive = personasRow.classList.contains("interactive");
+  for (const p of PERSONAS) {
+    const bubble = document.getElementById(`bubble-${p.id}`);
+    if (!bubble) continue;
+    if (isInteractive) {
+      bubble.title = `Make ${p.name} react now`;
+    } else {
+      bubble.removeAttribute("title");
+    }
   }
 }
 
@@ -690,7 +736,12 @@ chrome.runtime.onMessage.addListener((message) => {
         // If the user is waiting on a React-button click, count non-empty
         // responses and restore the button as soon as we've got at least
         // FORCE_REACT_TARGET of them. Empty passes ("-") don't count.
-        if (forceReactActive) {
+        //
+        // Gate on data.fromForceReact: a Director cascade that happens to
+        // finish between click and burst-start would otherwise flip the
+        // button back to idle before the burst's events arrive. Only count
+        // events that were actually emitted by the force-react burst.
+        if (forceReactActive && data.fromForceReact) {
           forceReactReceived++;
           if (forceReactReceived >= FORCE_REACT_TARGET) {
             resetFireButton();
@@ -742,7 +793,10 @@ chrome.runtime.onMessage.addListener((message) => {
         // Backend finished the force-react burst. If the button is still
         // spinning (e.g. fewer than FORCE_REACT_TARGET non-empty responses
         // came back), restore it now rather than waiting on the timeout.
-        if (forceReactActive) resetFireButton();
+        //
+        // Gate on fromForceReact so a tail Director cascade's completion
+        // event doesn't reset the button before the actual burst finishes.
+        if (forceReactActive && data.fromForceReact) resetFireButton();
       }
       break;
   }
@@ -1014,10 +1068,20 @@ function firePersona(personaId) {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sessionId, action: "fire_persona", personaId }),
-  }).catch(() => {
-    // Network error — don't leave the spinner stuck on the avatar.
-    clearPersonaFiring(personaId);
-  });
+  })
+    .then((res) => {
+      // 409 BURST_PENDING = server is in a force-react burst and won't honor a
+      // solo tap. The burst will fire this persona anyway (it fires all 4),
+      // so a persona_done is still coming — but the safer immediate response
+      // is to restore the avatar glyph so the user doesn't stare at a
+      // spinner they can't explain. fetch() doesn't reject on 4xx/5xx, so
+      // the .catch below wouldn't see this.
+      if (!res.ok) clearPersonaFiring(personaId);
+    })
+    .catch(() => {
+      // Network error — don't leave the spinner stuck on the avatar.
+      clearPersonaFiring(personaId);
+    });
 }
 
 // ── Toggle keys ──
@@ -1067,6 +1131,17 @@ if (responseRateSelect) {
 // sessions coherent (no mid-session persona swap).
 if (packSelect) {
   packSelect.addEventListener("change", () => {
+    // Belt-and-braces: showCapturing() already sets disabled=true, but a
+    // rogue script, an extension update, or a programmatic .value change
+    // could still fire a "change" event during a live session. Bail early
+    // so the avatar row NEVER gets rebuilt to a pack the server isn't
+    // running — that desyncs names/colors from the actual responder.
+    if (capturing) {
+      // Snap the dropdown back to the committed session pack so the UI
+      // doesn't silently drift. currentPackId hasn't been mutated yet.
+      packSelect.value = currentPackId;
+      return;
+    }
     const next = packSelect.value;
     currentPackId = next in PACKS_CLIENT ? next : DEFAULT_PACK_ID;
     saveSettings();
