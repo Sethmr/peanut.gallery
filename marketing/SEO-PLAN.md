@@ -2,6 +2,8 @@
 
 > Built from the 20-prompt local-SEO framework, stripped of every local-business assumption that doesn't apply to a free Chrome extension, and re-pointed at the channels that actually move the needle for this product: Chrome Web Store search, Google organic, GitHub, developer communities, and podcast-fan SERPs.
 >
+> **Claude Design (research preview, launched 2026-04-17, Opus 4.7) is the asset production engine for this plan.** Every visual deliverable — CWS screenshots, OG image, README hero, pack page heroes, blog heroes, Product Hunt gallery, pitch decks — gets generated through Claude Design with a single shared design system so the brand doesn't drift. Setup is a Week 1 task. See §3.5.
+>
 > **Read this first, then run prompts in the order in §6.** Every prompt has Peanut Gallery's specifics pre-filled — no `[your business name]` placeholders.
 
 ---
@@ -553,23 +555,94 @@ Then re-run Prompt 1 (CWS category audit), Prompt 6 (keyword gap), and Prompt 13
 
 ---
 
+## 3.5. Claude Design as the asset factory (Week 1 setup, used every week after)
+
+Anthropic's Claude Design launched 2026-04-17 as a research preview on Pro / Max / Team / Enterprise, powered by Claude Opus 4.7. It turns prompts into prototypes, slides, one-pagers, mockups, marketing visuals, social assets, app prototypes, web pages, and "frontier design" (code-powered experiences with voice, video, 3D, special effects). Early reviews are strong for range of output and speed; known rough edges are collaboration (not fully multiplayer yet) and that a messy codebase produces messy output — so we prep a clean design system first.
+
+### Why it belongs early in this plan
+
+The biggest conversion-moving assets in an extension's launch are visual: the CWS first screenshot, the promo tile, the OG image, the README hero, the Product Hunt gallery, and the pack-page hero art. Producing those well used to be a bottleneck (hire a designer, or Figma-wrestle them yourself) — Claude Design collapses that bottleneck. Using one tool with one design system keeps every surface visually coherent, which is itself a trust signal for a new brand with zero brand equity.
+
+### §3.5.1 — One-time design system setup (Week 1, ~1 hour)
+
+Inside Claude Design, create a project called `peanut-gallery` and wire up the design system fields per Anthropic's setup flow. Provide:
+
+- **GitHub repo link:** `https://github.com/Sethmr/peanut.gallery` — Claude Design reads clean codebases to infer visual language.
+- **Tailwind tokens (from `tailwind.config.ts` and `app/globals.css`):**
+  - `bg-primary` #0a0a0a (page background)
+  - `bg-secondary` #141414 (cards)
+  - `bg-tertiary` #1a1a1a (hovers)
+  - Accent — Baba Booey / producer: `#3b82f6` (blue)
+  - Accent — Troll: `#ef4444` (red)
+  - Accent — Fred Norris / soundfx: `#a855f7` (purple)
+  - Accent — Jackie Martling / joker: `#f59e0b` (amber)
+- **Fonts:** Inter (400 / 500 / 600 / 700) for body, Space Grotesk (500 / 600 / 700) for display — matches Google Fonts config already loaded in `app/layout.tsx`.
+- **Logo / glyph:** upload `public/icon-512.png` and `public/apple-touch-icon.png`. If a cleaner vector version exists, prefer that.
+- **Brand voice notes:** paste the short description from [`marketing/cws-listing.md`](cws-listing.md) plus: *"Dark theme. Lives in Chrome's side panel. Booth-producer energy (not Silicon Valley hero-shot energy). Copy sounds like a late-night writer wrote it, not marketing. Never anthropomorphize the personas with fake faces — use bubble avatars, sine-wave speaking indicators, emoji glyphs."*
+- **Reference assets:** upload the current 5 CWS screenshots + `public/og-image.png` so Claude Design has a style baseline.
+
+Save as the default design system for this project. Every asset below inherits from it.
+
+### §3.5.2 — Asset list (mapped to the existing SEO prompts)
+
+Run these through Claude Design once setup is done. Each line is one Claude Design session.
+
+| Priority | Asset | Size / format | Feeds which prompt | Week |
+|---|---|---|---|---|
+| P0 | CWS screenshot #1 (hero) — side panel next to a recognizable TWiST or Stern moment, caption: *"An AI writers' room for any YouTube video"* | 1280×800 PNG | P8 | 1 |
+| P0 | CWS screenshots #2–5 — side panel, live fact-check, silent tab capture, "free, MIT, BYOK" | 1280×800 PNG each | P8 | 1 |
+| P0 | CWS promo tile (small) | 440×280 PNG | P8 | 1 |
+| P0 | CWS promo tile (marquee, optional but higher-impression) | 1400×560 PNG | P8 | 1 |
+| P0 | OG image refresh — replaces `public/og-image.png` | 1200×630 PNG | P7 | 1 |
+| P1 | README hero banner + architecture diagram (YouTube → Deepgram → Director → 4 personas → SSE) | 1600×900 PNG | P5 | 2 |
+| P1 | GitHub social preview image | 1280×640 PNG | P5 | 2 |
+| P1 | Pack page hero — Howard (Stern-booth aesthetic, emoji glyphs in bubbles, not faces) | 1600×900 PNG | P10 | 4 |
+| P1 | Pack page hero — TWiST (All-In / VC aesthetic, same bubble treatment) | 1600×900 PNG | P10 | 4 |
+| P2 | Pack page heroes — All-In, Acquired, Hard Fork, Lex Fridman (produce as placeholders now, mark pages `noindex` until packs ship) | 1600×900 PNG each | P10 | 4–11 |
+| P1 | Director + cascade explainer diagram — for the landing page "how it works" block | SVG + PNG | P7, P14 | 3 |
+| P2 | Blog hero #1 — *Peanut Gallery vs Dmooji* | 1600×900 PNG | P14 | 6 |
+| P2 | Blog hero #2 — engineering writeup on v1.5 Smart Director v2 | 1600×900 PNG | P14 | 9 |
+| P2 | Product Hunt gallery — 6 images (problem, product shot, director diagram, personas, install UX, the bounty story) | 1270×760 PNG each | P13 M1 | 7 |
+| P3 | X thread imagery — 4 slides to pin on `@SethRininger` + cross-post to `@twistartups` tag | 1200×675 PNG each | P17 | 7 |
+| P3 | Pitch deck — 10 slides, for TechCrunch / Matt Wolfe / Jason Calacanis outreach + the bounty-resolution moment | PDF + PPTX | P13 M3 | 11 |
+| P3 | Frontier-design interactive prototype — embedded Director-cascade visualizer (code-powered; Opus 4.7 is specifically strong at this) | React/HTML artifact embeddable in `/` or `/packs/*` | P7, P10 | 10 |
+
+### §3.5.3 — The frontier-design play
+
+Claude Design's marquee differentiator is "frontier design": code-powered, interactive experiences — not just images. For Peanut Gallery, the highest-leverage use is a **Director-cascade visualizer** embedded on the landing page: a tiny animated explainer that shows a sample transcript arriving, the Director scoring each persona, the highest-scoring one firing, and the cascade kicking in with 50% / 35% / 20% probabilities. Nobody in the competitive set has this (Dmooji's "multiple characters react" is narratively shallower). It's the single biggest dwell-time + shareability lever I can think of short of a voice demo. Ship it once the core screenshot + OG work is done.
+
+### §3.5.4 — Where Claude Design does NOT replace existing tools
+
+Keep the boundary clean:
+
+- **Editing the repo's own `app/` UI:** don't let Claude Design regenerate production React components. It's for marketing surfaces, not for your shipping product. The extension + `/watch` UI stays in the normal dev flow.
+- **Real persona voice / audio:** v1.6 TTS per persona is a separate effort; don't try to prototype it in Claude Design.
+- **Running the SEO audits themselves:** Claude Design produces visuals, not competitor spreadsheets. Prompts 1, 3, 6, 9, 11, 13, 14, 15, 19 still need Chrome + SEMrush/Ahrefs + GSC.
+
+---
+
 ## 4. 12-week execution roadmap
 
-**Week 1 — CWS foundation + entity baseline**
+**Week 1 — CWS foundation + entity baseline + Claude Design setup**
+- Set up the Claude Design system per §3.5.1 (GitHub link + tailwind tokens + fonts + voice notes + reference assets). One-hour setup, every later asset inherits from it.
 - Run P1 (CWS category audit), P2 (keyword slots), P18 (entity audit).
-- Ship: short description rewrite (P2 variant A), 3 new CWS screenshots (P8 shot list), Wikidata entry (P18).
+- Ship (Claude Design): 5 new CWS screenshots (P8 shot list), new CWS promo tile(s), new OG image replacing `public/og-image.png`.
+- Ship (copy): short description rewrite (P2 variant A), Wikidata entry (P18).
 
 **Week 2 — CWS reviews + GitHub**
 - Run P3 (review teardown), P4 (response templates), P5 (GitHub repo SEO).
-- Ship: CWS review response batch caught up, GitHub description + topics updated, README hero block rewritten.
+- Ship (Claude Design): README hero banner + architecture diagram, GitHub social preview image.
+- Ship (copy): CWS review response batch caught up, GitHub description + topics updated, README hero block rewritten to sit next to the new banner.
 
 **Week 3 — Website core pages**
 - Run P7 (landing + install + watch audit), P9 (GSC page-2 for the 4 current pages).
-- Ship: new `<title>`+meta for `/`, `/install`, `/watch`; tighten landing page H1 using Prompt 12 language.
+- Ship (Claude Design): Director + cascade explainer diagram for the landing-page "how it works" block (SVG + PNG).
+- Ship (copy): new `<title>`+meta for `/`, `/install`, `/watch`; tighten landing page H1 using Prompt 12 language.
 
 **Week 4 — Pack landing pages wave 1**
 - Run P10 (pack pages) → ship Howard + TWiST pack pages at `/packs/howard` + `/packs/twist`.
 - Run P12 (sentiment analysis) to feed copy into those pages.
+- Ship (Claude Design): Howard + TWiST pack heroes; draft heroes for All-In / Acquired / Hard Fork / Lex Fridman pages (held behind `noindex` until those packs ship).
 
 **Week 5 — Directory + citation push**
 - Run P15 (software directory audit) → submit to the top 8 missing directories in 1 session.
@@ -577,9 +650,11 @@ Then re-run Prompt 1 (CWS category audit), Prompt 6 (keyword gap), and Prompt 13
 
 **Week 6 — Backlink plan + first comparison post**
 - Run P13 (backlink audit) → draft 8 emails for Month 1 links.
+- Ship (Claude Design): blog hero for `dmooji-vs-peanut-gallery`.
 - Ship `dmooji-vs-peanut-gallery` comparison post (P14 deliverable #1).
 
 **Week 7 — Product Hunt launch + HN Show HN**
+- Ship (Claude Design): Product Hunt gallery (6 images) + X thread imagery (4 slides) for launch day.
 - Product Hunt launch. Show HN thread same week. AlternativeTo, Slant, TAAFT submissions batched.
 - Outreach emails from P13 go out Monday morning.
 
@@ -589,14 +664,19 @@ Then re-run Prompt 1 (CWS category audit), Prompt 6 (keyword gap), and Prompt 13
 
 **Week 9 — Pack pages wave 2 + post schedule**
 - Run P17 (posting pattern analysis) → start 4-week posting calendar.
+- Ship (Claude Design): blog hero for the v1.5 Smart Director v2 engineering writeup.
 - If v1.5 Smart Director v2 is shipped by now, publish the engineering writeup on dev.to (natural backlink magnet).
 
 **Week 10 — Keyword gap + content gap second pass**
 - Run P6 (keyword gap) → new list, likely different from Week 1 because the site's footprint is larger now.
 - Update pack page titles/H1s based on new keyword data.
 
+**Week 10 — Frontier-design prototype live**
+- Ship (Claude Design frontier mode): interactive Director-cascade visualizer embedded on `/` and `/packs/*`. This is the dwell-time + shareability unlock described in §3.5.3.
+
 **Week 11 — Intent mapping + authority outreach**
 - Run P16 (intent mapping) to prioritize Stage-4 content.
+- Ship (Claude Design): 10-slide pitch deck for TechCrunch / Matt Wolfe / Jason Calacanis outreach + the bounty-resolution moment.
 - Start Month-3 outreach (TechCrunch pitch for the TWiST bounty story if PG wins it; Matt Wolfe / The AI Advantage pitch for an extension review).
 
 **Week 12 — Measurement + refresh**
