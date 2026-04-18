@@ -166,15 +166,18 @@ Watch any YouTube video with an AI writers' room. 4 personas react in real-time 
 **Detailed description (paste as-is):**
 
 ```
-Peanut Gallery turns any YouTube video into a live show with 4 AI personas watching alongside you — a fact-checker, a sound effects guy, a comedy writer, and a cynical troll. They react in real-time in a native Chrome side panel, next to the video, with no tab switching and no screen-share picker.
+Peanut Gallery is an AI writers' room for your podcasts. 4 personas watch any YouTube video alongside you — a fact-checker, a sound effects guy, a comedy writer, and a cynical troll — reacting live in Chrome's native side panel, with no tab switching and no screen-share picker.
 
-Inspired by the Howard Stern Show staff.
+Built for long-form talk shows, interviews, and pods — where a booth producer actually adds something. Inspired by the Howard Stern Show. Two packs ship out of the box; swap between them in the side panel per session.
 
-THE CAST
+THE HOWARD PACK (default)
 • Baba Booey — fact-checker (Claude Haiku + Brave Search or xAI Live Search). Mid-show corrections and background data on every claim.
 • Fred Norris — sound effects guy (xAI Grok 4.1 Fast). Well-timed cues and the occasional razor-sharp aside.
 • Jackie Martling — comedy writer (Claude Haiku). Setup-punchline jokes and callbacks.
 • The Cynical Troll — contrarian commentator (xAI Grok 4.1 Fast, non-reasoning). Says what the chat is thinking.
+
+THE TWIST PACK (swap in the side panel)
+Tuned for This Week in Startups-style podcasts — Molly Wood (producer), Jason Calacanis (troll), Lon Harris (sound effects), and Alex Wilhelm (joker). Same 4 roles, startup vocabulary.
 
 HOW IT WORKS
 1. Click the peanut icon on any YouTube tab → a native Chrome side panel opens.
