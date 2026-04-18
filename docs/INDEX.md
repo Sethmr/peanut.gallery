@@ -9,6 +9,7 @@ Map of every markdown file in the repo, ordered by when you should read it.
 3. [`docs/SESSION-NOTES-2026-04-16.md`](SESSION-NOTES-2026-04-16.md) — prior handoff. §3 is the **immutable** permissions/gesture setup for the Chrome extension — read it before editing `extension/`.
 4. [`docs/DEBUGGING.md`](DEBUGGING.md) — canonical post-mortem log (ISSUE-001..009). Diagnostic checklist + silent-failure table. Read before chasing any pipeline bug.
 5. [`docs/ROADMAP.md`](ROADMAP.md) — version-staged plan from v1.2.0 through v2.0. v1.2 = QoL + observability, v1.3 = TWiST Pack flagship, v1.4 = Smart Director v2, v1.5 = Voice + Clip Share, v2.0 = 3D avatars. Don't pull work forward across release boundaries without confirming scope.
+6. [`docs/V1.2-PLAN.md`](V1.2-PLAN.md) — step-by-step implementation plan for v1.2.0. Phases, file paths, acceptance criteria, task graph, rollback plan. Read before writing any v1.2 code.
 
 ## Architecture & operations
 
