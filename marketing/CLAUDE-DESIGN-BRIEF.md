@@ -16,22 +16,41 @@ Open Claude Design, create a new project titled **Peanut Gallery — brand kit +
 
 ## Design tokens (paste into the project's tokens / variables panel)
 
-### Brand colors
+### Brand colors — **global palette (what every asset uses by default)**
+
+Aligned to the shipping `app/landing.css` as of 2026-04-18 — the site runs a
+TWiST-broadcast aesthetic: matte black base, burnt orange primary, recording
+red for LIVE cues, amber for soft highlights.
+
 | Token | Hex | Use |
 |---|---|---|
 | `bg.primary` | `#0a0a0a` | Full-bleed backgrounds. The base of every asset. |
-| `bg.secondary` | `#141414` | Panels, cards, layered surfaces. |
-| `bg.tertiary` | `#1a1a1a` | Inner panels, form fields, code blocks. |
+| `bg.secondary` | `#141414` | Panels, cards, layered surfaces, origin ribbon. |
+| `bg.tertiary` | `#1a1a1a` | Inner panels, dark sections, code blocks. |
 | `text.primary` | `#e5e5e5` | Body copy on dark. |
 | `text.dim` | `#9a9a9a` | Captions, metadata, "as seen on". |
 | `text.bright` | `#ffffff` | Headlines, hero text, logo. |
-| `accent.blue` | `#3b82f6` | Fact‑checker persona. Primary CTA on light variants. |
-| `accent.red` | `#ef4444` | Troll persona. Live/recording indicators. |
-| `accent.purple` | `#a855f7` | Comedy writer persona. |
-| `accent.amber` | `#f59e0b` | Sound effects guy persona. Highlighted quotes. |
+| **`accent.primary`** | **`#ff5a1f`** | **TWiST burnt orange — the hero accent. CTAs, section labels, chyron marks, nav CTA, link color.** Use this when no persona is named. |
+| `accent.hot` | `#ef4444` | Recording red. ON-AIR cues, LIVE dots, CTA hover, ticker pulse. |
+| `accent.soft` | `#f59e0b` | Amber. Inline code, highlighted quotes, quiet accent. |
 
-### Persona palette rule
-Each persona owns exactly one accent. Never swap. Never blend. If an asset needs a single "hero" accent and no persona is named, use `accent.blue`.
+### Persona palette — **separate from the global palette**
+
+Each persona owns exactly one accent, used only on persona cards and their
+quote panels. Never swap, never blend, never bleed into global surfaces.
+
+| Persona | Accent | Hex |
+|---|---|---|
+| Fact-checker (Baba Booey / Molly Wood) | Persona-blue | `#3b82f6` |
+| Troll (The Troll / Jason) | Persona-red | `#ef4444` |
+| Comedy writer (Jackie / Alex) | Persona-purple | `#a855f7` |
+| Sound effects (Fred / Lon) | Persona-amber | `#f59e0b` |
+
+**Rule:** If an asset features a named persona, use that persona's accent.
+If the asset is pack-agnostic or cross-cutting, use `accent.primary`
+(`#ff5a1f`). Never use `accent.primary` inside a persona-card surface —
+those stay in their own color. Never use a persona color for a global
+CTA or section label.
 
 ### Type
 | Token | Font | Use |

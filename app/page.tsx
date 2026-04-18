@@ -11,17 +11,17 @@ export default function LandingPage() {
         {/* NAV */}
         <nav>
           <a href="#" className="nav-brand">
-            <span>🥜</span> Peanut Gallery
+            <span className="peanut-mark" aria-hidden="true">🥜</span> Peanut Gallery
           </a>
           <ul className="nav-links">
             <li><a href="#demo">Demo</a></li>
             <li><a href="#install">Install</a></li>
-            <li><a href="#personas">Personas</a></li>
-            <li><a href="#how">How It Works</a></li>
+            <li><a href="#personas">Cast</a></li>
+            <li><a href="#how">How</a></li>
             <li><a href="#stack">Stack</a></li>
             <li>
               <a href="#install" className="nav-cta">
-                Install Extension
+                Add to Chrome
               </a>
             </li>
           </ul>
@@ -32,7 +32,7 @@ export default function LandingPage() {
           <div className="hero-content">
             <div className="hero-badge">
               <div className="pulse"></div>
-              Live on the Chrome Web Store
+              On Air · Live on the Chrome Web Store
             </div>
 
             <h1>
@@ -86,6 +86,33 @@ export default function LandingPage() {
             </p>
           </div>
         </section>
+
+        {/* BROADCAST TICKER — reinforces the live / 4-persona differentiator
+            between the hero and the product demo. Keyed off the persona voice
+            so it reads as "the show is already running," not as a marketing
+            bullet list. Pauses on hover; respects prefers-reduced-motion. */}
+        <div className="ticker" aria-hidden="true">
+          <div className="ticker-track">
+            <span><span className="ticker-accent">● On Air</span></span>
+            <span>Four AI personas — live reactions</span>
+            <span><span className="ticker-accent">Fact-checker</span> / Troll / Comedy Writer / Sound Guy</span>
+            <span>Native Chrome side panel · no tab switching</span>
+            <span><span className="ticker-accent">MIT open source</span> · self-host ready</span>
+            <span>Audio captured silently via <code>chrome.tabCapture</code></span>
+            <span><span className="ticker-accent">Built for the TWiST $5k bounty</span></span>
+            <span>Two packs · Howard Stern crew · This Week in Startups</span>
+            {/* Duplicate run — required for the -50% translateX loop to
+                appear seamless. Keep the two runs identical. */}
+            <span><span className="ticker-accent">● On Air</span></span>
+            <span>Four AI personas — live reactions</span>
+            <span><span className="ticker-accent">Fact-checker</span> / Troll / Comedy Writer / Sound Guy</span>
+            <span>Native Chrome side panel · no tab switching</span>
+            <span><span className="ticker-accent">MIT open source</span> · self-host ready</span>
+            <span>Audio captured silently via <code>chrome.tabCapture</code></span>
+            <span><span className="ticker-accent">Built for the TWiST $5k bounty</span></span>
+            <span>Two packs · Howard Stern crew · This Week in Startups</span>
+          </div>
+        </div>
 
         {/* DEMO — the actual product in action */}
         <section className="content-section" id="demo">
