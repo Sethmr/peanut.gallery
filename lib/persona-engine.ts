@@ -183,6 +183,12 @@ export class PersonaEngine {
    * @param isSilence - If true, persona reacts to dead air / crickets on the
    *   show (the transcript went quiet for a while). NOT a viewer pause.
    * @param cascadeFrom - If this is a cascade, the previous persona's response to riff on
+   * @param isForceReact - If true, the persona is told NOT to pass with "-".
+   *   Used by the emoji-tap path in /api/transcribe: the user clicked that
+   *   specific avatar, so that specific avatar must speak — passing silently
+   *   makes the UI look broken (spinner fires, no text, tap seems ignored).
+   *   Off-limits to the Director cascade path, which still uses "-" to keep
+   *   the sidebar conversational instead of wall-to-wall.
    * @returns The full response text (for feeding into the next cascade)
    */
   async fireSingle(
@@ -190,7 +196,8 @@ export class PersonaEngine {
     transcript: string,
     onStream: StreamCallback,
     isSilence = false,
-    cascadeFrom?: { personaId: string; name: string; emoji: string; text: string }
+    cascadeFrom?: { personaId: string; name: string; emoji: string; text: string },
+    isForceReact = false
   ): Promise<string> {
     const persona = this.personas.find((p) => p.id === personaId);
     if (!persona) {
@@ -245,7 +252,8 @@ export class PersonaEngine {
         onStream,
         otherPersonas,
         isSilence,
-        conversationLog
+        conversationLog,
+        isForceReact
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

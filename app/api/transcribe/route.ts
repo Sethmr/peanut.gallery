@@ -416,6 +416,12 @@ export async function POST(req: NextRequest) {
           };
 
           // ── FORCED SINGLE PERSONA (emoji tap) ──
+          // isForceReact=true: the user explicitly tapped THIS avatar and is
+          // staring at a spinner waiting for a response. A silent "-" pass
+          // here is a footgun — the spinner clears but no feed entry appears,
+          // so the tap looks ignored. Force a visible response the same way
+          // the 🔥 React button does. (Director-driven cascades still use
+          // isForceReact=false so "-" remains available for anti-repetition.)
           if (forcedPersona) {
             send("status", { status: "personas_firing", personaId: forcedPersona });
 
@@ -423,7 +429,9 @@ export async function POST(req: NextRequest) {
               forcedPersona,
               transcript,
               streamCallback,
-              /*isSilence*/ false
+              /*isSilence*/ false,
+              /*cascadeFrom*/ undefined,
+              /*isForceReact*/ true
             );
 
             send("status", { status: "personas_complete" });
@@ -487,10 +495,17 @@ export async function POST(req: NextRequest) {
 
             send("status", { status: "personas_firing", personaId });
 
-            // Build cascade context from previous persona's response
+            // Build cascade context from previous persona's response.
+            // Look the persona up in the session's resolved pack — not the
+            // global `personas` shim, which always resolves to Howard. A
+            // TWiST cascade that used the shim would stamp the cascade
+            // source with Baba Booey's name/emoji instead of Molly's, so
+            // the next persona's prompt would reference a Howard cast
+            // member who isn't in the conversation. Slot ids match across
+            // packs, so .find() still works — only the name/emoji differ.
             const cascadeFrom = i > 0 && lastResponse
               ? (() => {
-                  const p = personas.find((p) => p.id === lastPersonaId);
+                  const p = session.resolvedPack.personas.find((p) => p.id === lastPersonaId);
                   return p ? { personaId: lastPersonaId, name: p.name, emoji: p.emoji, text: lastResponse } : undefined;
                 })()
               : undefined;

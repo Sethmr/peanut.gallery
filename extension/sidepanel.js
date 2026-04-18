@@ -283,8 +283,17 @@ function loadSettings() {
         typeof data.packId === "string" && data.packId in PACKS_CLIENT
           ? data.packId
           : DEFAULT_PACK_ID;
+      // buildPersonaAvatars() ran synchronously at init with the default
+      // pack. If the user's saved pack is different (e.g. TWiST persisted
+      // from a previous session), the avatar row is currently showing the
+      // wrong faces — rebuild it so the avatars, the dropdown, and the
+      // packId we'll send to /api/transcribe all agree on the same pack
+      // before Start. Skip the rebuild when the saved pack matches the
+      // default to avoid a wasted re-render on the common path.
+      const packChanged = savedPack !== currentPackId;
       currentPackId = savedPack;
       if (packSelect) packSelect.value = savedPack;
+      if (packChanged) buildPersonaAvatars();
       // Mirror the restored selection in the trace header so the debug
       // panel reads correctly the first time a user opens it — even
       // before they've started a session. sessionPackId is still null
