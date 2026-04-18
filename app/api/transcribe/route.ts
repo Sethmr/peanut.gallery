@@ -24,6 +24,7 @@ import { TranscriptionManager } from "@/lib/transcription";
 import { PersonaEngine } from "@/lib/persona-engine";
 import { resolvePack } from "@/lib/packs";
 import { Director } from "@/lib/director";
+import { pickPersonaLLM, type LlmRoutingPick } from "@/lib/director-llm";
 import { personas } from "@/lib/personas";
 import type { Pack } from "@/lib/packs/types";
 import { createSessionLogger } from "@/lib/debug-logger";
@@ -515,10 +516,43 @@ export async function POST(req: NextRequest) {
           // Ask the Director who should speak. On a silence tick the Director
           // caps the cascade length so dead air gets one crisp reaction
           // instead of a 4-way pile-on.
+          //
+          // v1.5 (Smart Director v2): when ENABLE_SMART_DIRECTOR=true and an
+          // Anthropic key is available for this session, race a short LLM
+          // routing call against a 400ms budget. If the LLM wins with a
+          // valid pick, its rationale substitutes the rule-based scorer as
+          // the primary pick inside `director.decide(…, { llmPick })`.
+          // Cascade + cooldown + recency bookkeeping is unchanged — the LLM
+          // only decides WHO leads this tick, not whether/how the cascade
+          // rolls.
+          const directorInput = recentTranscript || transcript.slice(-500);
+          let llmPick: LlmRoutingPick | null = null;
+          const smartOn =
+            process.env.ENABLE_SMART_DIRECTOR === "true" && !!anthropicKey;
+          if (smartOn) {
+            const LLM_BUDGET_MS = 400;
+            try {
+              llmPick = await pickPersonaLLM({
+                recentTranscript: directorInput,
+                isSilence: isSilenceTick,
+                recentFirings: director.getRecentFirings(),
+                cooldownsMs: director.getCooldownsMs(),
+                packPersonas: session.resolvedPack.personas,
+                anthropicKey: anthropicKey!,
+                signal: AbortSignal.timeout(LLM_BUDGET_MS),
+                sessionId,
+              });
+            } catch {
+              // pickPersonaLLM never throws by contract — belt-and-suspenders
+              // in case a future refactor drops that invariant.
+              llmPick = null;
+            }
+          }
           const decision = director.decide(
-            recentTranscript || transcript.slice(-500),
+            directorInput,
             isSilenceTick,
-            sessionId
+            sessionId,
+            { llmPick }
           );
 
           // v1.2: emit the Director's decision to the side-panel debug panel
@@ -544,6 +578,9 @@ export async function POST(req: NextRequest) {
               reason: decision.reason,
               isSilence: isSilenceTick,
               isForceReact: false,
+              // v1.5: "rule" | "llm" — which routing path produced this pick.
+              // The debug panel can badge the decision card accordingly.
+              source: decision.source ?? "rule",
             });
           } catch {
             // SSE writer may be closed — ignore and continue the cascade.

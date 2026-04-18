@@ -29,14 +29,15 @@ Director debug panel + `director_decision` SSE, expanded `lib/director.ts` loggi
 
 ---
 
-## v1.5.0 — "Smart Director v2" (next)
+## v1.5.0 — "Smart Director v2" (in progress — scaffolding landed 2026-04-18)
 
 The brains upgrade. Runs on top of the v1.2 observability + tests, and depends on the v1.4 force-react work being verified first.
 
 ### Smart Director v2 — LLM-assisted routing with pattern-match fallback
 - **Why:** The rule-based scorer can't weigh context like "this joke already got roasted 10s ago, pick a different angle." An LLM pick — with a brief routing rationale — wins those cases. The pattern-match scorer stays as the guaranteed-cheap, guaranteed-fast fallback.
-- **Shape:** `lib/director-llm.ts::pickPersona(recent, packPersonas)` runs in parallel with the existing scorer. If it returns under **400 ms**, use its pick + rationale. Otherwise fall back to the rule-based Director. Cascade + cooldown bookkeeping is unchanged. Rationale flows into the v1.2 debug panel automatically.
-- **Touches:** `lib/director.ts`, `lib/director-llm.ts` (new), `app/api/transcribe/route.ts` routing block.
+- **Shape:** `lib/director-llm.ts::pickPersonaLLM(ctx)` runs in parallel with the existing scorer. If it returns under **400 ms**, use its pick + rationale. Otherwise fall back to the rule-based Director. Cascade + cooldown bookkeeping is unchanged. Rationale flows into the v1.2 debug panel automatically.
+- **Touches:** `lib/director.ts`, `lib/director-llm.ts` (new), `app/api/transcribe/route.ts` routing block, `scripts/test-director.ts` (`input.llmPick`, `sourceIn` assertion).
+- **Status (2026-04-18):** Scaffold shipped behind `ENABLE_SMART_DIRECTOR=true` flag. New module, decide-opts passthrough, route race, two new fixtures — harness stays 16/16 green. Remaining for 1.5.0 tag: (1) side-panel `source` badge on the debug panel decision card, (2) canary latency + agreement-rate telemetry from a flag-enabled deploy, (3) `docs/V1.5-PLAN.md` with the rollout + guardrail checklist, (4) decide whether to default the flag ON for self-hosters who have `ANTHROPIC_API_KEY`.
 
 ---
 

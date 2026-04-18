@@ -1,0 +1,23 @@
+{
+  "name": "llm-override-troll-to-joker",
+  "description": "v1.5: transcript that the rule-based scorer would route to the Troll (hype + name-drops). The synthetic LLM pick points at the Joker instead, with a rationale about variety. Asserts the override lands as primary, the rationale flows into reason, and decision.source is 'llm' every run.",
+  "pack": "howard",
+  "input": {
+    "transcript": "Elon is literally a genius. Sequoia led the round and the valuation is insane — 10x what Sam Altman would've paid. Honestly, trust me, this is unprecedented. At the end of the day, nobody else has the runway to compete.",
+    "llmPick": {
+      "personaId": "joker",
+      "rationale": "Troll already fired twice this segment; joker finds fresh angle on the hype"
+    }
+  },
+  "assertions": {
+    "pickIn": ["joker"],
+    "pickInRatio": 1.0,
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true,
+    "reasonContains": "LLM routing:",
+    "sourceIn": ["llm"]
+  }
+}

@@ -6,6 +6,14 @@ All notable changes to Peanut Gallery are recorded here. Format loosely follows 
 
 Tracks in-flight work for the next release.
 
+### Added (in progress — v1.5 / Smart Director v2)
+- **`lib/director-llm.ts` — `pickPersonaLLM(ctx)` routing module.** Claude Haiku routing call with a JSON-only response shape (`{ personaId, rationale }`), input validation against the 4 archetype slot ids, and graceful null-return on timeout / upstream error / malformed output. Never throws. Logs structured `llm_director_pick` / `llm_director_timeout` / `llm_director_error` / `llm_director_parse_fail` events for observability.
+- **`Director.decide(..., opts?: { llmPick })`.** The rule-based scorer still runs every tick; when `opts.llmPick` is present and names a valid archetype, the chosen persona is hoisted to primary and cascade/cooldown/recency bookkeeping proceeds unchanged. `TriggerDecision.source` is now `"rule" | "llm"` so the v1.2 debug panel can badge each decision card. LLM rationale flows into `decision.reason` as `"LLM routing: <rationale> (rule scorer: <fallback>)"`.
+- **`ENABLE_SMART_DIRECTOR` env flag + 400ms race in `/api/transcribe`.** When the flag is on AND an Anthropic key is available for the session, the route races `pickPersonaLLM` against `AbortSignal.timeout(400)` before handing the result (or null on timeout) into `director.decide`. `director_decision` SSE payloads now carry `source` so clients can render the difference.
+- **Director test harness extensions.** `DirectorFixture.input.llmPick` lets fixtures inject a synthetic LLM pick without a live provider call. New strict assertion `sourceIn: ["rule" | "llm"]`. Two new fixtures — `llm-override-troll-to-joker` (LLM pick overrides rule-based primary) and `llm-unknown-id-falls-back` (unknown archetype id silently degrades to rule-based). Suite is now 16 fixtures × 50 runs.
+
+Still to do before v1.5 ships: side-panel badge for `source`, real-world latency telemetry from a flag-enabled canary, and `docs/V1.5-PLAN.md` with the rollout checklist.
+
 ## [1.4.0] — 2026-04-18 — "Grok & Stability"
 
 A provider swap, a new search option, and the stability pass that made v1.3 shippable in real-world sessions. Groq's free-tier TPD cap was silently killing the Troll and Lon — both are now on xAI Grok 4.1 Fast. Fact-checking gains a second engine (xAI Live Search) behind a user-facing toggle. Underneath, the biggest story is invisible: the session-firing loop now survives any upstream hang, so one stalled LLM stream can't strand the avatar spinners for the rest of the session. No breaking changes — existing installs just need to add an xAI key (Brave stays optional).

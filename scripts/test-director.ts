@@ -53,6 +53,14 @@ interface DirectorFixture {
     transcript: string;
     isSilence?: boolean;
     sessionId?: string;
+    /**
+     * v1.5 (Smart Director v2): pre-computed LLM pick handed directly to
+     * `Director.decide`. Fixtures can't actually call Anthropic from the
+     * harness — they inject a synthetic pick to exercise the llm-assisted
+     * code path deterministically. When omitted, the Director falls back
+     * to the rule-based scorer (same shape as a production LLM timeout).
+     */
+    llmPick?: { personaId: string; rationale: string };
   };
   assertions: {
     // pick constraints
@@ -68,6 +76,8 @@ interface DirectorFixture {
     mustNotFire?: string;          // strict — never
     // reason constraints
     reasonContains?: string;
+    // v1.5: decision.source must equal one of these. Strict — checked every run.
+    sourceIn?: Array<"rule" | "llm">;
     // structural invariants
     delaysMonotonic?: boolean;     // strict
     delaysFirstZero?: boolean;     // strict
@@ -197,6 +207,12 @@ function strictChecks(fixture: DirectorFixture, decision: TriggerDecision): stri
   if (a.reasonContains && !decision.reason.includes(a.reasonContains)) {
     fail.push(`reasonContains violated: reason="${decision.reason}" missing "${a.reasonContains}"`);
   }
+  if (a.sourceIn && a.sourceIn.length > 0) {
+    const got = decision.source ?? "rule";
+    if (!a.sourceIn.includes(got)) {
+      fail.push(`sourceIn violated: got source="${got}", expected one of [${a.sourceIn.join(",")}]`);
+    }
+  }
   if (a.delaysFirstZero && decision.delays[0] !== 0) {
     fail.push(`delaysFirstZero violated: got ${decision.delays[0]}`);
   }
@@ -251,9 +267,20 @@ function varianceCheck(fixture: DirectorFixture): string[] {
   let differentCount = 0;
   for (let i = 0; i < v.runs; i++) {
     const d = seedDirector(fixture);
-    const a = d.decide(fixture.input.transcript, fixture.input.isSilence ?? false);
+    const opts = fixture.input.llmPick ? { llmPick: fixture.input.llmPick } : undefined;
+    const a = d.decide(
+      fixture.input.transcript,
+      fixture.input.isSilence ?? false,
+      undefined,
+      opts
+    );
     const secondInput = v.secondInput ?? fixture.input;
-    const b = d.decide(secondInput.transcript, secondInput.isSilence ?? false);
+    const b = d.decide(
+      secondInput.transcript,
+      secondInput.isSilence ?? false,
+      undefined,
+      opts
+    );
     // "Different chain" = either different primary OR different cascade length
     // OR different membership. Cheap stringify is fine for 50-200 runs.
     if (JSON.stringify(a.personaIds) !== JSON.stringify(b.personaIds)) {
@@ -290,7 +317,8 @@ function runFixture(fixture: DirectorFixture): FixtureResult {
     const decision = d.decide(
       fixture.input.transcript,
       fixture.input.isSilence ?? false,
-      fixture.input.sessionId
+      fixture.input.sessionId,
+      fixture.input.llmPick ? { llmPick: fixture.input.llmPick } : undefined
     );
     const runFail = strictChecks(fixture, decision);
     for (const msg of runFail) perRunFailures[msg] = (perRunFailures[msg] ?? 0) + 1;

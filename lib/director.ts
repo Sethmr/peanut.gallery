@@ -181,6 +181,28 @@ export interface TriggerDecision {
   top3?: Array<{ id: string; score: number }>;
   /** Per-persona ms since last fire at decision time. Key covers all 4 personas. */
   cooldownsMs?: Record<string, number>;
+  /**
+   * v1.5: which routing path produced the primary.
+   *   "rule" — the legacy pattern-match scorer (default, always safe).
+   *   "llm"  — Smart Director v2 won the 400ms race.
+   * Omitted on pre-v1.5 call sites that don't pass `opts`.
+   */
+  source?: "rule" | "llm";
+}
+
+/**
+ * v1.5: optional inputs to `Director.decide`. The Smart Director v2
+ * orchestrator (transcribe route) races a short LLM routing call against
+ * a 400ms budget, then hands the winner (or null) to `decide` via this
+ * object. When `llmPick` is provided it substitutes the primary persona;
+ * cascade + cooldown + recency bookkeeping is unchanged.
+ *
+ * Adding fields here is the extension point for future routing layers
+ * (e.g. retrieval-augmented picks, human-in-the-loop overrides).
+ */
+export interface DecideOptions {
+  /** LLM-chosen primary, or null if the LLM lost the race / returned nothing. */
+  llmPick?: { personaId: string; rationale: string } | null;
 }
 
 // ──────────────────────────────────────────────────────
@@ -209,6 +231,31 @@ export class Director {
     const t0 = Date.now();
     return { producer: t0, troll: t0, soundfx: t0, joker: t0 };
   })();
+
+  /**
+   * v1.5: read-only view of recent firings (oldest → newest). Used by the
+   * Smart Director v2 orchestrator to build context for the LLM routing
+   * call. A getter rather than a public field keeps the internal list
+   * mutable without exposing write access.
+   */
+  getRecentFirings(): string[] {
+    return [...this.recentFirings];
+  }
+
+  /**
+   * v1.5: per-persona ms since last fire at the moment of the call.
+   * Mirrors the `cooldownsMs` field on TriggerDecision but available
+   * BEFORE `decide()` runs — so the routing LLM can factor dry spells
+   * into its pick.
+   */
+  getCooldownsMs(): Record<string, number> {
+    const now = Date.now();
+    const out: Record<string, number> = {};
+    for (const id of Object.keys(this.lastFiredAt)) {
+      out[id] = now - this.lastFiredAt[id];
+    }
+    return out;
+  }
 
   /**
    * Score a transcript chunk for a specific persona.
@@ -263,7 +310,12 @@ export class Director {
    *   director_decision log line so entries correlate with the session.
    *   Pre-v1.2 callers that omit it still work — the log just lacks sessionId.
    */
-  decide(recentTranscript: string, isSilence = false, sessionId?: string): TriggerDecision {
+  decide(
+    recentTranscript: string,
+    isSilence = false,
+    sessionId?: string,
+    opts?: DecideOptions
+  ): TriggerDecision {
     const personaIds = Object.keys(PERSONA_PATTERNS);
 
     // Score each persona
@@ -283,6 +335,31 @@ export class Director {
       scores.sort(() => Math.random() - 0.5);
     }
 
+    // v1.5: Smart Director v2. If the LLM routing call won the 400ms
+    // race and returned a valid archetype id, hoist it to the primary
+    // slot — everything downstream (cascade roll, recency penalties,
+    // cooldown updates) proceeds unchanged. If the LLM returned a slot
+    // id the current pack doesn't expose we silently fall through to
+    // the rule-based pick; this is the same as the timeout path.
+    const llmPick = opts?.llmPick;
+    let source: "rule" | "llm" = "rule";
+    let llmRationale: string | undefined;
+    if (llmPick && typeof llmPick.personaId === "string") {
+      const idx = scores.findIndex((s) => s.id === llmPick.personaId);
+      if (idx > 0) {
+        const picked = scores.splice(idx, 1)[0];
+        scores.unshift(picked);
+        source = "llm";
+        llmRationale = llmPick.rationale;
+      } else if (idx === 0) {
+        // LLM agreed with the rule-based scorer. Still annotate source
+        // as "llm" so telemetry correctly credits the routing layer.
+        source = "llm";
+        llmRationale = llmPick.rationale;
+      }
+      // idx === -1: unknown archetype id. Stay with the rule-based pick.
+    }
+
     logPipeline({
       event: "director_scores",
       level: "debug",
@@ -290,6 +367,7 @@ export class Director {
         scores: Object.fromEntries(scores.map((s) => [s.id, s.score])),
         isSilence,
         textPreview: recentTranscript.slice(-100),
+        source,
       },
     });
 
@@ -337,9 +415,17 @@ export class Director {
       delays.length = 2;
     }
 
-    const reason = scores[0].score > 0
-      ? `${scores[0].id} scored highest (${scores[0].score.toFixed(1)}) for content match`
-      : `random pick (no strong content match)`;
+    // v1.5: when the LLM picked, its one-liner wins the reason field so
+    // the debug panel shows the routing brain's actual justification. We
+    // still include the rule-based score for side-by-side comparison.
+    const ruleReason =
+      scores[0].score > 0
+        ? `${scores[0].id} scored highest (${scores[0].score.toFixed(1)}) for content match`
+        : `random pick (no strong content match)`;
+    const reason =
+      source === "llm" && llmRationale
+        ? `LLM routing: ${llmRationale} (rule scorer: ${ruleReason})`
+        : ruleReason;
 
     // v1.2 telemetry — assembled BEFORE the lastFiredAt/cyclesSinceFire update
     // so cooldownsMs + drySpells reflect the state at decision time, not
@@ -365,6 +451,8 @@ export class Director {
         delays,
         cascadeLen: chain.length,
         cooldownsMs,
+        // ── v1.5 ──
+        source,
         // ── preserved for back-compat with pre-v1.2 log consumers ──
         chain: chain.join(" → "),
         reason,
@@ -406,6 +494,7 @@ export class Director {
       score: scores[0].score,
       top3,
       cooldownsMs,
+      source,
     };
   }
 }
