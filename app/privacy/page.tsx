@@ -58,7 +58,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>API keys you type into the side panel</strong> (Deepgram,
-            Groq, optionally Anthropic and Brave Search). These are stored
+            Anthropic, xAI, optionally Brave Search). These are stored
             locally via{" "}
             <code className="px-1 py-0.5 rounded bg-white/5 text-[0.85em]">
               chrome.storage.local
@@ -93,8 +93,9 @@ export default function PrivacyPage() {
             Forwards audio to Deepgram for real-time transcription.
           </li>
           <li>
-            Sends short transcript windows to Claude (Anthropic), Groq, and
-            Brave Search to generate persona reactions and fact-checks.
+            Sends short transcript windows to Claude (Anthropic), xAI Grok,
+            and your chosen search engine (Brave Search or xAI Live Search)
+            to generate persona reactions and fact-checks.
           </li>
           <li>
             Streams results back to your browser via Server-Sent Events (SSE).
@@ -118,7 +119,7 @@ export default function PrivacyPage() {
         <ul className="list-disc pl-6 space-y-2 leading-relaxed">
           <li>
             Your API keys are sent to the server in request headers, forwarded
-            to the relevant providers (Deepgram / Anthropic / Groq / Brave)
+            to the relevant providers (Deepgram / Anthropic / xAI / Brave)
             on that single request, and <strong>discarded at session end</strong>.
             They are never logged or persisted.
           </li>
@@ -180,14 +181,14 @@ export default function PrivacyPage() {
           </li>
           <li>
             <a
-              href="https://groq.com/privacy-policy"
+              href="https://x.ai/legal/privacy-policy"
               target="_blank"
               rel="noopener noreferrer"
               className="text-[#3b82f6] hover:underline"
             >
-              Groq
+              xAI
             </a>{" "}
-            &mdash; low-latency persona responses.
+            &mdash; Grok persona responses and optional Live Search fact-checks.
           </li>
           <li>
             <a

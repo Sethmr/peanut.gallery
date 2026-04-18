@@ -5,11 +5,12 @@ Map of every markdown file in the repo, ordered by when you should read it.
 ## Read first (if you're resuming work)
 
 1. [`docs/CONTEXT.md`](CONTEXT.md) — canonical project context. Stack, personas, file map, SSE protocol, cost table, what's done vs. what's left.
-2. [`docs/SESSION-NOTES-2026-04-17.md`](SESSION-NOTES-2026-04-17.md) — most recent handoff. v1.1.1 shipped. §3 is the **immutable** server-side demo-keys architecture — do not re-embed keys in the extension. §5 is the finish-strong checklist. §6 points at `ROADMAP.md`.
-3. [`docs/SESSION-NOTES-2026-04-16.md`](SESSION-NOTES-2026-04-16.md) — prior handoff. §3 is the **immutable** permissions/gesture setup for the Chrome extension — read it before editing `extension/`.
-4. [`docs/DEBUGGING.md`](DEBUGGING.md) — canonical post-mortem log (ISSUE-001..009). Diagnostic checklist + silent-failure table. Read before chasing any pipeline bug.
-5. [`docs/ROADMAP.md`](ROADMAP.md) — version-staged plan from v1.2.0 through v2.0. v1.2 = QoL + observability, v1.3 = TWiST Pack flagship, v1.4 = Smart Director v2, v1.5 = Voice + Clip Share, v2.0 = 3D avatars. Don't pull work forward across release boundaries without confirming scope.
-6. [`docs/V1.2-PLAN.md`](V1.2-PLAN.md) — step-by-step implementation plan for v1.2.0. Phases, file paths, acceptance criteria, task graph, rollback plan. Read before writing any v1.2 code.
+2. [`docs/SESSION-NOTES-2026-04-18.md`](SESSION-NOTES-2026-04-18.md) — most recent handoff. Post-v1.3.0 force-react / persona-tap debugging. **Read §1 "meta-note" before touching code** — two files on the working tree are modified but unverified-in-production; §5 is the localhost verification checklist to run first. §4 captures Seth's load-bearing principles (model decides *how* not *if*).
+3. [`docs/SESSION-NOTES-2026-04-17.md`](SESSION-NOTES-2026-04-17.md) — prior handoff. v1.1.1 shipped. §3 is the **immutable** server-side demo-keys architecture — do not re-embed keys in the extension. §5 is the finish-strong checklist. §6 points at `ROADMAP.md`.
+4. [`docs/SESSION-NOTES-2026-04-16.md`](SESSION-NOTES-2026-04-16.md) — earlier handoff. §3 is the **immutable** permissions/gesture setup for the Chrome extension — read it before editing `extension/`.
+5. [`docs/DEBUGGING.md`](DEBUGGING.md) — canonical post-mortem log (ISSUE-001..009). Diagnostic checklist + silent-failure table. Read before chasing any pipeline bug.
+6. [`docs/ROADMAP.md`](ROADMAP.md) — version-staged plan from v1.2.0 through v2.0. v1.2 = QoL + observability, v1.3 = TWiST Pack flagship, v1.4 = Smart Director v2, v1.5 = Voice + Clip Share, v2.0 = 3D avatars. Don't pull work forward across release boundaries without confirming scope.
+7. [`docs/V1.2-PLAN.md`](V1.2-PLAN.md) — step-by-step implementation plan for v1.2.0. Phases, file paths, acceptance criteria, task graph, rollback plan. Read before writing any v1.2 code.
 
 ## Architecture & operations
 

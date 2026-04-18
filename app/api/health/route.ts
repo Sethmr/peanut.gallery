@@ -39,8 +39,8 @@ export async function GET() {
     server: true,
     keys: {
       deepgram: !!process.env.DEEPGRAM_API_KEY,
-      groq: !!process.env.GROQ_API_KEY,
       anthropic: !!process.env.ANTHROPIC_API_KEY,
+      xai: !!process.env.XAI_API_KEY,
       brave_search: !!process.env.BRAVE_SEARCH_API_KEY,
     },
     binaries: {

@@ -16,13 +16,14 @@ Last updated: 2026-04-17
 | Extension zip (Chrome Web Store upload) | `peanut-gallery-v*.zip` | No |
 | Git history | — | No (GitHub push protection backstop) |
 
-The four environment variables the backend reads:
+The environment variables the backend reads:
 
 ```
 DEEPGRAM_API_KEY
-GROQ_API_KEY
 ANTHROPIC_API_KEY
-BRAVE_SEARCH_API_KEY
+XAI_API_KEY
+SEARCH_ENGINE                 # `brave` (default) or `xai`
+BRAVE_SEARCH_API_KEY          # required only when SEARCH_ENGINE=brave
 ```
 
 See `.env.example` for the canonical list.
@@ -34,9 +35,9 @@ See `.env.example` for the canonical list.
 | Provider | Dashboard | Where to set caps | Notes |
 |---|---|---|---|
 | Deepgram | https://console.deepgram.com/ | Project → Settings → **Usage & Limits** | Prepaid credit balance acts as a hard ceiling. New accounts get $200 credit. |
-| Groq | https://console.groq.com/settings/limits | Tier-based rate limits; no per-key spend cap on free tier. | For hard cost control stay on free tier or keep prepaid balance low. |
 | Anthropic | https://console.anthropic.com/settings/limits | **Workspace monthly spend limit** + per-key spend limit under Settings → API keys | Per-key limit is the one to use for the shared demo key. Rotate button is right next to the key. |
-| Brave Search | https://api-dashboard.search.brave.com/app/subscriptions | "Data for AI" free tier: 2,000 queries/month hard cap automatically. Paid plans have quota settings on the subscription page. | |
+| xAI | https://console.x.ai | Billing → Credits / Usage limits | Prepaid credit + per-key usage cap. Non-reasoning Grok 4.1 Fast is our runtime model; same key also powers Live Search when `SEARCH_ENGINE=xai`. |
+| Brave Search | https://api-dashboard.search.brave.com/app/subscriptions | "Data for AI" free tier: 2,000 queries/month hard cap automatically. Paid plans have quota settings on the subscription page. | Only needed when `SEARCH_ENGINE=brave`. |
 
 ---
 
@@ -47,7 +48,7 @@ Standard rotation (e.g. after TWiST airs, or after a suspected leak):
 1. **Create the new key on the provider dashboard.** Don't delete the old one yet.
 2. **Add the new key to Vercel.** Project → Settings → Environment Variables → edit the relevant `*_API_KEY` variable → Save.
 3. **Redeploy.** Vercel doesn't pick up env var changes until you redeploy. Trigger a fresh deploy of `main`.
-4. **Verify the new key is in use.** Hit `GET https://peanutgallery.live/api/health` — it reports `{ deepgram: true, groq: true, anthropic: true, brave_search: true }` based on env var presence, so you'll see the env var is set. For functional verification, run a short live session from the extension with empty key fields; if reactions stream in, the server-side demo key fallback is working.
+4. **Verify the new key is in use.** Hit `GET https://peanutgallery.live/api/health` — it reports `{ deepgram: true, anthropic: true, xai: true, brave_search: true }` based on env var presence, so you'll see the env var is set. For functional verification, run a short live session from the extension with empty key fields; if reactions stream in, the server-side demo key fallback is working.
 5. **Update `.env.local` on your dev machine** to match, so local dev uses the new key.
 6. **Delete the old key on the provider dashboard.** After step 4 is confirmed green.
 
@@ -60,7 +61,7 @@ If the old key is actively leaking (e.g. caught in a public commit), reverse the
 After the bounty demo airs, rotate all four shared keys as a matter of hygiene — there's no way to know whether a curious viewer captured the running extension zip between CWS publish and show time.
 
 - [ ] Deepgram: create new key, set usage cap, update Vercel, redeploy, delete old.
-- [ ] Groq: create new key (free tier), update Vercel, redeploy, delete old.
+- [ ] xAI: create new key, set per-key usage cap, update Vercel, redeploy, delete old.
 - [ ] Anthropic: use the Rotate button on the console, copy new value into Vercel, redeploy, confirm, revoke old.
 - [ ] Brave Search: create new key, update Vercel, redeploy, delete old.
 - [ ] Hit `GET /api/health` — confirm `true` on all four.

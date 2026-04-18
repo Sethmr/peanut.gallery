@@ -52,7 +52,7 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, X-Deepgram-Key, X-Groq-Key, X-Anthropic-Key, X-Brave-Key, X-Install-Id",
+    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Search-Engine, X-Install-Id",
   "Access-Control-Expose-Headers": "X-Session-Id",
   "Access-Control-Max-Age": "86400",
 };
@@ -146,17 +146,37 @@ export async function POST(req: NextRequest) {
   // tell "user brought their own (no charge)" from "user is using demo keys".
   const headerDeepgram = req.headers.get("X-Deepgram-Key");
   const headerAnthropic = req.headers.get("X-Anthropic-Key");
-  const headerGroq = req.headers.get("X-Groq-Key");
   const headerBrave = req.headers.get("X-Brave-Key");
+  const headerXai = req.headers.get("X-XAI-Key");
 
   const deepgramKey = headerDeepgram || process.env.DEEPGRAM_API_KEY;
   const anthropicKey = headerAnthropic || process.env.ANTHROPIC_API_KEY;
-  const groqKey = headerGroq || process.env.GROQ_API_KEY;
   const braveKey = headerBrave || process.env.BRAVE_SEARCH_API_KEY;
+  const xaiKey = headerXai || process.env.XAI_API_KEY;
 
-  if (!deepgramKey || !groqKey) {
+  // Search-engine selection. Client sends "brave" or "xai" via X-Search-Engine;
+  // anything else (missing, typo, old client) falls through to Brave — that
+  // preserves pre-v1.4 behavior for any extension that hasn't updated yet.
+  const rawSearchEngine = (req.headers.get("X-Search-Engine") || "").toLowerCase();
+  const searchEngine: "brave" | "xai" = rawSearchEngine === "xai" ? "xai" : "brave";
+
+  if (!deepgramKey) {
     return jsonResponse(
-      { error: "Missing required API keys. Click 'API Keys' to add your Deepgram and Groq keys." },
+      { error: "Missing Deepgram key. Click 'API Keys' to add it." },
+      400
+    );
+  }
+  // xAI now powers Troll/Jason AND the soundfx slot in both packs, so without
+  // a working xAI key half the sidebar is dark. We still allow the request to
+  // proceed (force-react fallback handles per-persona upstream failures and
+  // produces canned bubbles) but we surface the missing key clearly so users
+  // fix it instead of staring at four empty avatars.
+  if (!anthropicKey && !xaiKey) {
+    return jsonResponse(
+      {
+        error:
+          "Missing Anthropic AND xAI keys — every persona needs one of them. Click 'API Keys' to add at least one.",
+      },
       400
     );
   }
@@ -172,8 +192,11 @@ export async function POST(req: NextRequest) {
   const installId = (req.headers.get("X-Install-Id") || "").trim() || null;
   const usingAnyDemoKey =
     (!headerDeepgram && !!process.env.DEEPGRAM_API_KEY) ||
-    (!headerGroq && !!process.env.GROQ_API_KEY) ||
-    (!headerAnthropic && !!process.env.ANTHROPIC_API_KEY);
+    (!headerAnthropic && !!process.env.ANTHROPIC_API_KEY) ||
+    // xAI Grok powers the Troll/Jason/soundfx slots — if the user didn't bring
+    // their own xAI key and the server has one, count this session as demo
+    // usage for free-tier metering purposes.
+    (!headerXai && !!process.env.XAI_API_KEY);
   let chargeableInstallId: string | null = null;
 
   if (isFreeTierLimitEnabled() && usingAnyDemoKey) {
@@ -218,6 +241,8 @@ export async function POST(req: NextRequest) {
     url: youtubeUrl,
     hasAnthropic: !!anthropicKey,
     hasBrave: !!braveKey,
+    hasXai: !!xaiKey,
+    searchEngine,
     usingAnyDemoKey,
     chargeable: !!chargeableInstallId,
     rate: rateClamped,
@@ -245,8 +270,15 @@ export async function POST(req: NextRequest) {
 
   const personaEngine = new PersonaEngine({
     anthropicKey: anthropicKey || "",
-    groqKey: groqKey,
     braveSearchKey: braveKey || "",
+    // xAI key powers the Troll/Jason AND soundfx slots in every pack. Empty
+    // string is still accepted — the force-react fallback catches per-persona
+    // upstream failures — but the sidebar will look sparse without it.
+    xaiKey: xaiKey || "",
+    // User-selected search backend (Brave or xAI). Defaults to Brave on the
+    // engine side too, but we pass it explicitly so logs + future debugging
+    // show exactly which engine THIS session was configured with.
+    searchEngine,
     // Pass the resolved pack (never undefined — resolvePack() guarantees a
     // valid Pack). Engine internally falls back to Howard if pack is unset,
     // so this is also the "self-documenting" seam.
@@ -347,6 +379,15 @@ export async function POST(req: NextRequest) {
 
           const streamCallback = (response: { personaId: string; text: string; done: boolean }) => {
             if (response.done) {
+              // Engine emissions that pair "text + done" in a single callback
+              // (error-path "[technical difficulties]" bubbles, and any future
+              // one-shot finalizers) used to lose their text here — the client
+              // only renders from buffered `persona` events, so a `persona_done`
+              // with no prior content left a silent spinner. Emit the text
+              // first so the client buffers it, then close with `persona_done`.
+              if (response.text) {
+                send("persona", { personaId: response.personaId, text: response.text });
+              }
               send("persona_done", { personaId: response.personaId, fromForceReact: true });
             } else {
               send("persona", { personaId: response.personaId, text: response.text });
@@ -362,19 +403,41 @@ export async function POST(req: NextRequest) {
           // sentinel because it survives event reordering.
           send("status", { status: "personas_firing" });
 
+          // try/finally around the whole fire so that ANY throw or timeout
+          // inside the engine releases the per-session `personasFiring` lock.
+          // Before this, a stalled upstream (Anthropic/xAI stream going
+          // quiet, search fetch hanging) would leave the lock set forever —
+          // every subsequent director tick would early-return and every
+          // avatar tap would queue a `forcedPersonaId` the tick never
+          // processes, stranding the UI until the page was reloaded.
           try {
             await personaEngine.fireAll(transcript, streamCallback, /*isSilence*/ false, /*isForceReact*/ true);
           } catch (err) {
             log.error("force_react_error", { error: err instanceof Error ? err.message : String(err) });
+          } finally {
+            try {
+              send("status", { status: "personas_complete", fromForceReact: true });
+            } catch {
+              // SSE writer may be closed — the lock release is the load-bearing part.
+            }
+            personasFiring = false;
           }
-
-          send("status", { status: "personas_complete", fromForceReact: true });
-          personasFiring = false;
           return;
         }
 
         if (shouldFire || shouldFireSilence || forcedPersona) {
           personasFiring = true;
+          // try/finally around the whole fire. If `fireSingle` or the
+          // cascade loop throws — or hangs on an upstream we couldn't
+          // bound from inside the engine — we MUST release this lock.
+          // Otherwise every subsequent tick early-returns at the
+          // `if (personasFiring) return;` guard and the session silently
+          // stops reacting (director decisions and avatar taps both
+          // queue state the tick never processes). This was the
+          // smoking gun behind the v1.4 "baba button stops responding"
+          // regression: one stalled producer LLM stream killed the
+          // whole session's firing loop.
+          try {
           const transcript = transcriber.transcript;
           const recentTranscript = transcriber.newTranscript;
           // A silence trigger is "sticky" for this one tick — we still pass
@@ -406,6 +469,13 @@ export async function POST(req: NextRequest) {
 
           const streamCallback = (response: { personaId: string; text: string; done: boolean }) => {
             if (response.done) {
+              // Same done+text handling as the force-react burst callback —
+              // one-shot emissions (e.g. upstream-error bubbles) must land
+              // their text before the done frame or the client renders
+              // nothing. See the burst branch for the full rationale.
+              if (response.text) {
+                send("persona", { personaId: response.personaId, text: response.text });
+              }
               send("persona_done", { personaId: response.personaId });
             } else {
               send("persona", {
@@ -434,8 +504,10 @@ export async function POST(req: NextRequest) {
               /*isForceReact*/ true
             );
 
-            send("status", { status: "personas_complete" });
-            personasFiring = false;
+            // NOTE: personas_complete + lock release happen in the outer
+            // `finally` now — keeping them here would duplicate the emit
+            // and leave the lock re-settable if a bug snuck an early
+            // return above the finally.
             return;
           }
 
@@ -521,9 +593,23 @@ export async function POST(req: NextRequest) {
             lastResponse = response;
             lastPersonaId = personaId;
           }
-
-          send("status", { status: "personas_complete" });
-          personasFiring = false;
+          } catch (err) {
+            // Any throw from fireSingle (LLM 5xx, timeout, unmapped model
+            // alias, etc.) used to leak through to the setInterval async
+            // callback's implicit promise rejection and silently deadlock
+            // the session by leaving `personasFiring` stuck at true.
+            log.error("persona_fire_error", {
+              error: err instanceof Error ? err.message : String(err),
+              forcedPersona: forcedPersona ?? null,
+            });
+          } finally {
+            try {
+              send("status", { status: "personas_complete" });
+            } catch {
+              // SSE writer may be closed — the lock release is the load-bearing part.
+            }
+            personasFiring = false;
+          }
         }
         // Poll cadence scales with the rate dial, but only FASTER than the
         // 5s default — we never poll SLOWER than the original because the

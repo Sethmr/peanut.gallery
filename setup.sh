@@ -72,25 +72,31 @@ if [ ! -f ".env.local" ]; then
   read -rp "  Deepgram API key: " DEEPGRAM_KEY
 
   echo ""
-  echo -e "${YELLOW}Groq${RESET} (required) — Fast LLM for Troll + Fred"
-  echo -e "${DIM}Get yours: https://console.groq.com/keys${RESET}"
-  read -rp "  Groq API key: " GROQ_KEY
-
-  echo ""
-  echo -e "${YELLOW}Anthropic${RESET} (optional) — Claude Haiku for Baba Booey + Jackie"
-  echo -e "${DIM}Get yours: https://console.anthropic.com — press Enter to skip${RESET}"
+  echo -e "${YELLOW}Anthropic${RESET} (required) — Claude Haiku for Producer + Joker"
+  echo -e "${DIM}Get yours: https://console.anthropic.com${RESET}"
   read -rp "  Anthropic API key: " ANTHROPIC_KEY
 
   echo ""
-  echo -e "${YELLOW}Brave Search${RESET} (optional) — Live fact-checking"
-  echo -e "${DIM}Get yours: https://brave.com/search/api/ — press Enter to skip${RESET}"
+  echo -e "${YELLOW}xAI${RESET} (required) — Grok 4.1 Fast for Troll + Sound FX (also powers optional Live Search)"
+  echo -e "${DIM}Get yours: https://console.x.ai${RESET}"
+  read -rp "  xAI API key: " XAI_KEY
+
+  echo ""
+  echo -e "${YELLOW}Brave Search${RESET} (optional) — Live fact-checking (only needed if SEARCH_ENGINE=brave)"
+  echo -e "${DIM}Get yours: https://brave.com/search/api/ — press Enter to skip if you're using xAI Live Search${RESET}"
   read -rp "  Brave Search API key: " BRAVE_KEY
+
+  echo ""
+  echo -e "${YELLOW}Search engine${RESET} — 'brave' (default, separate API) or 'xai' (reuses xAI key)"
+  read -rp "  Search engine [brave]: " SEARCH_ENGINE
+  SEARCH_ENGINE="${SEARCH_ENGINE:-brave}"
 
   cat > .env.local <<EOF
 DEEPGRAM_API_KEY=${DEEPGRAM_KEY}
-GROQ_API_KEY=${GROQ_KEY}
 ANTHROPIC_API_KEY=${ANTHROPIC_KEY}
+XAI_API_KEY=${XAI_KEY}
 BRAVE_SEARCH_API_KEY=${BRAVE_KEY}
+SEARCH_ENGINE=${SEARCH_ENGINE}
 EOF
 
   echo ""

@@ -14,7 +14,7 @@
 - **Repo:** github.com/Sethmr/peanut.gallery
 - **Builder:** Seth (sethr@hey.com)
 - **Stack:** Next.js 15 (App Router), TypeScript, Tailwind CSS
-- **LLM providers:** Claude Haiku (Anthropic) + Groq (Llama 70B/8B) — multi-provider by design per Jason's spec
+- **LLM providers:** Claude Haiku (Anthropic) + Grok 4.1 Fast non-reasoning (xAI) — multi-provider by design per Jason's spec
 - **Audio pipeline:** yt-dlp → FFmpeg → Deepgram Nova-3 (WebSocket)
 - **Fact-checking:** Brave Search API → injected into Producer persona context
 
@@ -27,8 +27,8 @@ Per Jason's exact spec from his X post, each persona maps to a Stern Show staff 
 | Persona | Character | Stern Staff | Model | ID | Emoji |
 |---------|-----------|-------------|-------|----|-------|
 | The Fact-Checker | Flustered but smart producer | Gary Dell'Abate ("Baba Booey") | Claude Haiku | `producer` | :dart: |
-| The Cynical Troll | Brutal observer, fan-who-roasts | Artie Lange + callers | Groq Llama 70B | `troll` | :fire: |
-| Sound Effects / Context | Laconic genius, editorial sounds | Fred Norris | Groq Llama 8B | `soundfx` | :headphones: |
+| The Cynical Troll | Brutal observer, fan-who-roasts | Artie Lange + callers | xAI Grok 4.1 Fast | `troll` | :fire: |
+| Sound Effects / Context | Laconic genius, editorial sounds | Fred Norris | xAI Grok 4.1 Fast | `soundfx` | :headphones: |
 | The Comedy Writer | Rapid-fire joke machine | Jackie "The Joke Man" Martling | Claude Haiku | `joker` | :joy: |
 
 All persona system prompts are deeply researched from the actual Stern Show dynamics. They're defined in `lib/personas.ts` with extensive WHO YOU ARE, YOUR VOICE, HOW YOU RESPOND, and PERSONALITY DETAILS sections.
@@ -65,8 +65,8 @@ YouTube URL
     |
     v--- PersonaEngine        -- Fires all 4 personas in parallel
     |     | Claude Haiku (Anthropic SDK) for producer + joker
-    |     | Groq SDK (Llama) for troll + soundfx
-    |     | Brave Search for fact-checking (producer only)
+    |     | xAI Grok 4.1 Fast non-reasoning (OpenAI-compatible) for troll + soundfx
+    |     | Brave Search OR xAI Live Search for fact-checking (producer only)
     v
  4 Persona Columns (UI)     -- PersonaColumn.tsx with bubble avatars + sine wave animation
 ```
@@ -134,7 +134,7 @@ Result: some moments get 1 response, some get 2-3, occasionally all 4 pile on. P
 | `tailwind.config.ts` | Custom colors (bg-primary/secondary/tertiary, accent-blue/red/purple/amber), fonts (Inter, Space Grotesk) |
 | `next.config.ts` | Minimal — just body size limit for server actions |
 | `tsconfig.json` | Strict mode, `@/*` path alias, excludes `scripts/` |
-| `package.json` | Dependencies: next, react, @anthropic-ai/sdk, groq-sdk, ws, @microsoft/fetch-event-source |
+| `package.json` | Dependencies: next, react, @anthropic-ai/sdk, ws, @microsoft/fetch-event-source (xAI uses fetch + SSE directly — no SDK) |
 
 ### Scripts & Fixtures
 | File | Purpose |
@@ -178,9 +178,10 @@ The known-good permissions/gesture setup is documented in [`docs/SESSION-NOTES-2
 ```bash
 # .env.local (never committed)
 DEEPGRAM_API_KEY=...      # Required — pipeline won't start without it
-GROQ_API_KEY=...          # Required — pipeline won't start without it
-ANTHROPIC_API_KEY=...     # Needed for Baba Booey + Jackie (Claude Haiku personas)
-BRAVE_SEARCH_API_KEY=...  # Optional — enables fact-checking for Baba Booey
+ANTHROPIC_API_KEY=...     # Required (unless XAI_API_KEY set) — powers Producer + Joker (Claude Haiku)
+XAI_API_KEY=...           # Required (unless ANTHROPIC_API_KEY set) — powers Troll + Sound FX (Grok 4.1 Fast). Also powers Live Search.
+SEARCH_ENGINE=brave       # Optional, `brave` (default) or `xai` — picks Producer's fact-check backend
+BRAVE_SEARCH_API_KEY=...  # Required when SEARCH_ENGINE=brave. Skip when SEARCH_ENGINE=xai.
 ```
 
 ### System Dependencies (macOS)
@@ -335,7 +336,7 @@ From Jason's X post (@twistartups), the spec calls for:
 ### Done
 - Full audio pipeline (YouTube → yt-dlp → FFmpeg → Deepgram)
 - All 4 personas with deep character research
-- Multi-provider LLM (Claude Haiku + Groq Llama 70B/8B)
+- Multi-provider LLM (Claude Haiku + xAI Grok 4.1 Fast non-reasoning)
 - Fact-checking pipeline (Brave Search → Producer context)
 - Cross-persona awareness (each sees others' responses)
 - Live vs Recorded mode detection + distinct UI
@@ -400,7 +401,7 @@ npx tsx scripts/test-personas.ts --fixture
 |---------|------|
 | Deepgram (transcription) | ~$0.70/2hr episode |
 | Claude Haiku (Producer + Jackie) | ~$0.40/episode |
-| Groq (Troll + Fred) | ~$0.05/episode |
+| xAI Grok 4.1 Fast (Troll + Fred) | ~$0.05/episode |
 | Brave Search (fact-checking) | Free (1000 queries/month) |
 | **Total** | **~$1.15/episode** |
 

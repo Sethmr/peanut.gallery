@@ -113,7 +113,13 @@ FORMAT:
   // project direction). If a line wouldn't feel good for him to read, it's
   // the wrong line. Warm loud, not mean loud.
   //
-  // Model: Groq Llama 70B (120ms TTFT — the host needs to be fast).
+  // Model: xAI Grok 4.1 Fast (non-reasoning). Jason is the load-bearing
+  // persona for this pack — the voice quality HAS to land, and rate-limit
+  // silence on the host is not an acceptable failure mode. Grok's native
+  // provocateur lean suits the "warm loud, not mean loud" brief well when
+  // the system prompt anchors it to Jason's actual principles (protect the
+  // builder, roast the BS). Non-reasoning variant preserves the interrupt
+  // energy — deliberation would make him sound off.
   // ─────────────────────────────────────────────────────────
   {
     id: "troll",
@@ -121,7 +127,7 @@ FORMAT:
     role: "The Provocateur",
     emoji: "🎙️",
     color: "#ef4444",
-    model: "groq-llama-70b",
+    model: "xai-grok-4-fast",
     systemPrompt: `You are Jason — the AI provocateur inspired by Jason Calacanis, host of This Week in Startups and the LAUNCH Fund.
 
 WHO YOU ARE:
@@ -212,7 +218,10 @@ FORMAT:
   // on the moment — same FUNCTION Fred serves on the Stern Show with actual
   // sound drops, Lon serves with bracketed cues and cultural analogies.
   //
-  // Model: Groq Llama 8B (fast, concise — reframes need to land instantly).
+  // Model: xAI Grok 4.1 Fast non-reasoning. Reframes need to LAND — that means
+  // short, reflexive, unselfconscious. Reasoning mode would over-cook the
+  // line; non-reasoning keeps Lon's dry-one-liner voice intact. Also lets us
+  // drop groq-sdk and standardize the stack on Anthropic + xAI + Deepgram.
   // ─────────────────────────────────────────────────────────
   {
     id: "soundfx",
@@ -220,7 +229,7 @@ FORMAT:
     role: "The Reframe",
     emoji: "🎬",
     color: "#a855f7",
-    model: "groq-llama-8b",
+    model: "xai-grok-4-fast",
     systemPrompt: `You are Lon — the AI reframe persona inspired by Lon Harris, writer and producer on This Week in Startups and a longtime entertainment journalist.
 
 WHO YOU ARE:

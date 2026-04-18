@@ -100,9 +100,15 @@ async function startRecording(config) {
     // Step 1: Create server session (SSE)
     const headers = { "Content-Type": "application/json" };
     if (config.apiKeys?.deepgram) headers["X-Deepgram-Key"] = config.apiKeys.deepgram;
-    if (config.apiKeys?.groq) headers["X-Groq-Key"] = config.apiKeys.groq;
     if (config.apiKeys?.anthropic) headers["X-Anthropic-Key"] = config.apiKeys.anthropic;
+    if (config.apiKeys?.xai) headers["X-XAI-Key"] = config.apiKeys.xai;
     if (config.apiKeys?.brave) headers["X-Brave-Key"] = config.apiKeys.brave;
+    // Forward the user-selected search engine so Producer fact-checks go
+    // through Brave Search or xAI Live Search per their choice. Missing
+    // header on the server side falls back to "brave".
+    if (config.searchEngine === "brave" || config.searchEngine === "xai") {
+      headers["X-Search-Engine"] = config.searchEngine;
+    }
     // Install-id lets the hosted backend meter shared demo-key usage per
     // installation (see docs/BUILD-YOUR-OWN-BACKEND.md §non-negotiables).
     // Self-hosters' servers ignore it when ENABLE_FREE_TIER_LIMIT is unset.
@@ -168,7 +174,7 @@ async function startRecording(config) {
       // was stale (SW evicted, extension reloaded, tab navigated, or just
       // expired). Translate into something the user can act on.
       const msg = /tab capture/i.test(err.message)
-        ? "Capture token expired. Click the 🥜 icon on this YouTube tab again, then Start Listening within 60 seconds."
+        ? "Capture token expired. Click the peanut icon on this YouTube tab again, then Start Listening within 60 seconds."
         : err.message;
       throw new Error(msg);
     }

@@ -172,9 +172,13 @@ const stopBtn = document.getElementById("stopBtn");
 const fireBtn = document.getElementById("fireBtn");
 const serverUrlInput = document.getElementById("serverUrl");
 const deepgramKeyInput = document.getElementById("deepgramKey");
-const groqKeyInput = document.getElementById("groqKey");
 const anthropicKeyInput = document.getElementById("anthropicKey");
+const xaiKeyInput = document.getElementById("xaiKey");
 const braveKeyInput = document.getElementById("braveKey");
+// Search-engine selector — controls which backend the Producer uses for
+// fact-checking. Values: "brave" (default) | "xai". Older sidepanel.html
+// without this element drops through to null and we coerce to "brave".
+const searchEngineSelect = document.getElementById("searchEngine");
 const passthroughToggle = document.getElementById("passthroughToggle");
 const outputDeviceSelect = document.getElementById("outputDevice");
 // Response-rate dial (1-10, default 5). If an older build somehow loads a new
@@ -238,9 +242,10 @@ function loadSettings() {
     [
       "serverUrl",
       "deepgramKey",
-      "groqKey",
       "anthropicKey",
+      "xaiKey",
       "braveKey",
+      "searchEngine",
       "passthrough",
       "outputDeviceId",
       "responseRate",
@@ -253,9 +258,15 @@ function loadSettings() {
       // If the user pastes their own key here, the extension forwards it via
       // X-*-Key headers and the backend uses those instead.
       deepgramKeyInput.value = data.deepgramKey || "";
-      groqKeyInput.value = data.groqKey || "";
       anthropicKeyInput.value = data.anthropicKey || "";
+      if (xaiKeyInput) xaiKeyInput.value = data.xaiKey || "";
       braveKeyInput.value = data.braveKey || "";
+      // Search-engine selector. Valid values are "brave" and "xai"; anything
+      // else (or missing) falls back to "brave" to mirror the backend default.
+      if (searchEngineSelect) {
+        const savedEngine = data.searchEngine === "xai" ? "xai" : "brave";
+        searchEngineSelect.value = savedEngine;
+      }
 
       // Audio routing defaults: passthrough ON + system default device.
       // Matches pre-v1.1 behavior exactly for existing users.
@@ -321,9 +332,10 @@ function saveSettings() {
   chrome.storage.local.set({
     serverUrl: serverUrlInput.value.trim(),
     deepgramKey: deepgramKeyInput.value.trim(),
-    groqKey: groqKeyInput.value.trim(),
     anthropicKey: anthropicKeyInput.value.trim(),
+    xaiKey: xaiKeyInput ? xaiKeyInput.value.trim() : "",
     braveKey: braveKeyInput.value.trim(),
+    searchEngine: searchEngineSelect?.value === "xai" ? "xai" : "brave",
     passthrough: passthroughToggle.checked,
     outputDeviceId: currentOutputDeviceId(),
     responseRate: currentResponseRate(),
@@ -871,8 +883,15 @@ startBtn.addEventListener("click", async () => {
   if (!isHostedBackend) {
     const missing = [];
     if (!deepgramKeyInput.value.trim()) missing.push("Deepgram");
-    if (!groqKeyInput.value.trim()) missing.push("Groq");
     if (!anthropicKeyInput.value.trim()) missing.push("Anthropic");
+    if (xaiKeyInput && !xaiKeyInput.value.trim()) missing.push("xAI");
+    // Brave is only required when the user chose Brave as their search engine.
+    // In xAI search mode, fact-check traffic piggybacks on the xAI key.
+    const selectedEngine =
+      searchEngineSelect?.value === "xai" ? "xai" : "brave";
+    if (selectedEngine === "brave" && !braveKeyInput.value.trim()) {
+      missing.push("Brave Search");
+    }
     if (missing.length > 0) {
       // Expand the keys section so user can fill them in
       document.getElementById("keysSection").classList.add("visible");
@@ -920,10 +939,15 @@ startBtn.addEventListener("click", async () => {
         installId: installId || "",
         apiKeys: {
           deepgram: deepgramKeyInput.value.trim(),
-          groq: groqKeyInput.value.trim(),
           anthropic: anthropicKeyInput.value.trim(),
+          xai: xaiKeyInput ? xaiKeyInput.value.trim() : "",
           brave: braveKeyInput.value.trim(),
         },
+        // Which search backend Producer fact-checks through. Forwarded to
+        // /api/transcribe as the X-Search-Engine header. Missing/unknown
+        // values fall back to "brave" server-side for backward-compat.
+        searchEngine:
+          searchEngineSelect?.value === "xai" ? "xai" : "brave",
         audio: {
           passthrough: passthroughToggle.checked,
           outputDeviceId: currentOutputDeviceId(),
@@ -1220,9 +1244,17 @@ function formatTime(ts) {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-// Save settings on input change
-[serverUrlInput, deepgramKeyInput, groqKeyInput, anthropicKeyInput, braveKeyInput].forEach((el) => {
-  el.addEventListener("change", saveSettings);
+// Save settings on input change. Skip any element that isn't present (older
+// sidepanel.html before xai/searchEngine shipped would return null for those).
+[
+  serverUrlInput,
+  deepgramKeyInput,
+  anthropicKeyInput,
+  xaiKeyInput,
+  braveKeyInput,
+  searchEngineSelect,
+].forEach((el) => {
+  if (el) el.addEventListener("change", saveSettings);
 });
 
 // ──────────────────────────────────────────────────────

@@ -57,9 +57,10 @@ them is verified by the acceptance tests at the bottom of this doc.
    These are hard-coded into the extension UI. You can add more, but you
    CANNOT rename these.
 5. **All API keys may come in via request headers,** not just env:
-   `X-Deepgram-Key`, `X-Groq-Key`, `X-Anthropic-Key`, `X-Brave-Key`. Honor
+   `X-Deepgram-Key`, `X-Anthropic-Key`, `X-XAI-Key`, `X-Brave-Key`. Honor
    whichever is set per-request; fall back to env only if the header is
-   missing.
+   missing. The extension also sends `X-Search-Engine` (`brave` | `xai`) to
+   pick the Producer's fact-check backend per session.
 6. **`/api/health` returns a 200 JSON health payload when healthy, 503 when
    degraded.** Monitoring and the extension both rely on this shape.
 7. **Never log API keys.** Log request IDs, persona IDs, and transcript
@@ -115,8 +116,8 @@ If all six behave exactly as specified, the extension works. You do not need
   "server": true,
   "keys": {
     "deepgram": true,
-    "groq": true,
     "anthropic": true,
+    "xai": true,
     "brave_search": false
   },
   "binaries": {
@@ -134,8 +135,9 @@ Rules:
 - `keys` reflects env vars only (not per-request header keys).
 - `binaries` is allowed to be empty `{}` if your implementation doesn't use
   yt-dlp/ffmpeg (e.g. extension-only deployments).
-- `anthropic` and `brave_search` are allowed to be `false` without triggering
-  `degraded` — they're optional. Only `deepgram` and `groq` are required.
+- `brave_search` is allowed to be `false` without triggering `degraded` —
+  it's optional (only required when `SEARCH_ENGINE=brave`). The server
+  needs `deepgram` plus at least one of `anthropic` / `xai` to be healthy.
 
 ### `OPTIONS /api/transcribe`
 
@@ -144,7 +146,7 @@ Must return status `204` and these headers:
 ```
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: POST, PATCH, DELETE, OPTIONS
-Access-Control-Allow-Headers: Content-Type, X-Deepgram-Key, X-Groq-Key, X-Anthropic-Key, X-Brave-Key, X-Install-Id
+Access-Control-Allow-Headers: Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-XAI-Key, X-Brave-Key, X-Search-Engine, X-Install-Id
 Access-Control-Expose-Headers: X-Session-Id
 Access-Control-Max-Age: 86400
 ```
@@ -167,19 +169,24 @@ headers — not just `OPTIONS`.
 **Request headers (all optional if env is set):**
 
 ```
-X-Deepgram-Key:  <key>
-X-Groq-Key:      <key>
-X-Anthropic-Key: <key>   // optional — disables Baba Booey + Jackie if missing
-X-Brave-Key:     <key>   // optional — disables live fact-checking if missing
-X-Install-Id:    <uuid>  // per-installation id. Advisory; used by the
-                         // hosted backend for per-install rate limiting.
-                         // Safe to ignore on self-hosted instances.
+X-Deepgram-Key:   <key>
+X-Anthropic-Key:  <key>   // Claude Haiku — powers Producer + Joker. Required unless xAI is set.
+X-XAI-Key:        <key>   // xAI Grok 4.1 Fast — powers Troll + Sound FX. Required unless Anthropic is set.
+X-Brave-Key:      <key>   // required when X-Search-Engine=brave; ignored otherwise
+X-Search-Engine:  brave | xai   // default: brave. Picks Producer's fact-check backend.
+X-Install-Id:     <uuid>  // per-installation id. Advisory; used by the
+                          // hosted backend for per-install rate limiting.
+                          // Safe to ignore on self-hosted instances.
 ```
 
 **Validation:**
 
-- If no Deepgram key OR no Groq key (from either header or env), return
-  `400 { "error": "Missing required API keys. ..." }`. Do **not** 500.
+- If no Deepgram key OR no LLM key (neither Anthropic nor xAI set, from
+  either header or env), return `400 { "error": "Missing required API keys. ..." }`.
+  Do **not** 500.
+- When `X-Search-Engine=brave` (or omitted, since brave is default), a Brave
+  key is also required if the server is expected to fact-check. Missing it
+  should silently disable Brave search rather than 400 the whole session.
 - If `url` is missing, return `400 { "error": "Missing YouTube URL" }`.
 - If you're running a hosted backend with shared demo keys and you want to
   meter per-install usage, return `402` with
@@ -345,17 +352,19 @@ transcript chunk; emit them as an SSE `transcript` event.
 - Model: `nova-3`.
 - Target latency: <300 ms.
 
-### Groq (The Troll + Fred Norris) — required
+### xAI Grok (The Troll + Fred Norris) — required
 
-- Endpoint: `POST https://api.groq.com/openai/v1/chat/completions`
+- Endpoint: `POST https://api.x.ai/v1/chat/completions`
 - Auth: `Authorization: Bearer <key>`.
-- Models:
-  - `llama-3.3-70b-versatile` for The Troll
-  - `llama-3.1-8b-instant` for Fred Norris
+- Model: `grok-4-1-fast-non-reasoning` for both Troll and Fred. The
+  non-reasoning variant is deliberate — reflexive output is what makes the
+  voices land; reasoning mode kills the timing.
 - Streaming: `stream: true`. Emit deltas into `persona` SSE events as they
   arrive.
+- If no xAI key is configured, `troll` and `soundfx` stay silent — emit
+  `persona_done` immediately. Do not error.
 
-### Anthropic (Baba Booey + Jackie) — optional
+### Anthropic (Baba Booey + Jackie) — required (unless xAI is also missing)
 
 - SDK: `@anthropic-ai/sdk` or direct `POST https://api.anthropic.com/v1/messages`
 - Auth: `x-api-key: <key>`, `anthropic-version: 2023-06-01`.
@@ -363,14 +372,28 @@ transcript chunk; emit them as an SSE `transcript` event.
 - If no Anthropic key is configured, `producer` and `joker` stay silent —
   return `persona_done` immediately without any `persona` events for those IDs
   during their turn. Do not error.
+- The server needs at least one of Anthropic/xAI; if both are missing
+  reject the session with `400 Missing required API keys`.
 
-### Brave Search (fact-checking) — optional
+### Search engines (fact-checking) — one required when fact-checking is on
+
+The Producer persona picks up either **Brave Search** or **xAI Live Search**
+depending on the `X-Search-Engine` header (defaults to `brave`). If no search
+engine is reachable, the Producer still runs — it just relies on the model's
+training knowledge. Never fail the pipeline on a missing search key.
+
+**Brave Search** (default; `X-Search-Engine: brave`)
 
 - Endpoint: `GET https://api.search.brave.com/res/v1/web/search?q=<encoded>`
 - Auth: `X-Subscription-Token: <key>`.
-- Used by the Baba Booey persona to cross-reference claims mid-show. If no
-  Brave key is configured, Baba Booey still runs — it just relies on the
-  model's training knowledge. Never fail the pipeline for a missing Brave key.
+
+**xAI Live Search** (`X-Search-Engine: xai`)
+
+- Uses the same `X-XAI-Key`. Call
+  `POST https://api.x.ai/v1/chat/completions` with
+  `search_parameters: { mode: "on", sources: [{ type: "web" }], max_search_results: 5, return_citations: true }`
+  to get the Producer a search snippet and citations in one round-trip.
+  No separate search signup.
 
 ---
 
@@ -435,15 +458,16 @@ told explicitly NOT to pass.
 
 ## Required environment variables
 
-| Var                       | Required? | Purpose                                   |
-|---------------------------|-----------|-------------------------------------------|
-| `DEEPGRAM_API_KEY`        | ✅        | Transcription (fallback if header absent) |
-| `GROQ_API_KEY`            | ✅        | Troll + Fred                              |
-| `ANTHROPIC_API_KEY`       | Optional  | Baba Booey + Jackie                       |
-| `BRAVE_SEARCH_API_KEY`    | Optional  | Live fact-checking                        |
-| `YT_DLP_COOKIES_FILE`     | Optional  | Server-mode YouTube URL path              |
-| `YT_DLP_COOKIE_BROWSER`   | Optional  | Server-mode YouTube URL path              |
-| `YT_DLP_PLAYER_CLIENT`    | Optional  | Server-mode YouTube URL path              |
+| Var                       | Required?                         | Purpose                                   |
+|---------------------------|-----------------------------------|-------------------------------------------|
+| `DEEPGRAM_API_KEY`        | ✅                                | Transcription (fallback if header absent) |
+| `ANTHROPIC_API_KEY`       | ✅ (unless `XAI_API_KEY` is set)  | Producer + Joker (Claude Haiku)           |
+| `XAI_API_KEY`             | ✅ (unless `ANTHROPIC_API_KEY`)   | Troll + Sound FX (Grok 4.1 Fast); also powers Live Search |
+| `SEARCH_ENGINE`           | Optional (default `brave`)        | `brave` \| `xai` — picks Producer's fact-check backend |
+| `BRAVE_SEARCH_API_KEY`    | Only when `SEARCH_ENGINE=brave`   | Brave Search REST API                     |
+| `YT_DLP_COOKIES_FILE`     | Optional                          | Server-mode YouTube URL path              |
+| `YT_DLP_COOKIE_BROWSER`   | Optional                          | Server-mode YouTube URL path              |
+| `YT_DLP_PLAYER_CLIENT`    | Optional                          | Server-mode YouTube URL path              |
 
 If your server only supports browser-mode (recommended for new backends —
 it's how the extension works), you can ignore everything yt-dlp related.
@@ -493,7 +517,7 @@ end.
 
 1. Implement the four persona prompt builders (see
    [`lib/personas.ts`](../lib/personas.ts)).
-2. Implement provider streaming for Groq and Anthropic.
+2. Implement provider streaming for xAI and Anthropic.
 3. Implement the Director scoring function and the cascade dice.
 4. On a 5 s interval, run the Director against the recent transcript and
    stream `persona` / `persona_done` events.
@@ -505,7 +529,10 @@ end.
 1. Implement `PATCH action: "force_fire"` (director bypass when
    `forceReact: true`).
 2. Implement `PATCH action: "fire_persona"` (queue a specific persona).
-3. Implement optional Brave Search pre-fetch for Baba Booey.
+3. Implement the search-engine branch for the Producer's fact-check pipeline:
+   Brave REST when `X-Search-Engine=brave`, xAI Live Search when
+   `X-Search-Engine=xai`. Both emit the same claim/citation payload into
+   the Producer's context.
 4. **Verify:** with the real Chrome extension pointed at your server, play a
    YouTube video; click the 🔥 button; all four personas should fire.
 
@@ -529,13 +556,13 @@ Run these from a shell. Replace `$SRV` with your server's base URL (e.g.
 # 1. CORS preflight
 curl -sI -X OPTIONS "$SRV/api/transcribe" \
   -H 'Access-Control-Request-Method: POST' \
-  -H 'Access-Control-Request-Headers: X-Deepgram-Key, X-Groq-Key' \
+  -H 'Access-Control-Request-Headers: X-Deepgram-Key, X-Anthropic-Key, X-XAI-Key, X-Search-Engine' \
   -H 'Origin: chrome-extension://abcdef' \
   | grep -i 'access-control'
 # → Must include Allow-Origin, Allow-Methods, Allow-Headers, Expose-Headers.
 
 # 2. Health check
-curl -s "$SRV/api/health" | jq '.status, .keys.deepgram, .keys.groq'
+curl -s "$SRV/api/health" | jq '.status, .keys.deepgram, .keys.anthropic, .keys.xai'
 # → "healthy" | "degraded", booleans present.
 
 # 3. Missing-key error shape
@@ -550,7 +577,8 @@ curl -s -X POST "$SRV/api/transcribe" \
 curl -sN -X POST "$SRV/api/transcribe" \
   -H 'Content-Type: application/json' \
   -H 'X-Deepgram-Key: <key>' \
-  -H 'X-Groq-Key: <key>' \
+  -H 'X-Anthropic-Key: <key>' \
+  -H 'X-XAI-Key: <key>' \
   -d '{"url":"https://youtube.com/watch?v=xxx","mode":"browser"}' \
   | head -n 4
 # → event: status
@@ -560,7 +588,8 @@ curl -sN -X POST "$SRV/api/transcribe" \
 curl -sI -X POST "$SRV/api/transcribe" \
   -H 'Content-Type: application/json' \
   -H 'X-Deepgram-Key: <key>' \
-  -H 'X-Groq-Key: <key>' \
+  -H 'X-Anthropic-Key: <key>' \
+  -H 'X-XAI-Key: <key>' \
   -d '{"url":"x","mode":"browser"}' \
   | grep -iE 'x-session-id|access-control-expose'
 # → Both headers present.

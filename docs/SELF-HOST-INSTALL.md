@@ -122,14 +122,16 @@ when it's up. Keep this terminal open.
 | Variable | Required? | What it's for |
 |----------|-----------|---------------|
 | `DEEPGRAM_API_KEY` | **Yes** | Real-time speech-to-text. Without it, nothing works. |
-| `GROQ_API_KEY` | **Yes** | Powers The Troll + Fred (Llama 70B / 8B). Without it, those two personas stay silent. |
-| `ANTHROPIC_API_KEY` | **Strongly recommended** | Powers Baba Booey (fact-checker) + Jackie (comedy) on Claude Haiku. Without it those two personas stay silent. |
-| `BRAVE_SEARCH_API_KEY` | Optional | Lets Baba Booey fact-check claims against the live web. Without it Baba still fact-checks from training knowledge. |
+| `ANTHROPIC_API_KEY` | **Yes** | Powers Producer (fact-checker) + Joker (comedy) on Claude Haiku. |
+| `XAI_API_KEY` | **Yes** | Powers Troll + Sound FX on Grok 4.1 Fast (non-reasoning). Also powers Live Search when `SEARCH_ENGINE=xai`. |
+| `SEARCH_ENGINE` | Optional | `brave` (default) or `xai`. Picks which backend fact-checks run through. |
+| `BRAVE_SEARCH_API_KEY` | Only if `SEARCH_ENGINE=brave` | Lets Producer fact-check claims against the live web via Brave's REST API. Skip it if you're on xAI Live Search. |
 | `YT_DLP_COOKIE_BROWSER` | Optional (web app only) | Set to `chrome`, `firefox`, `safari`, `edge`, or `brave` if yt-dlp starts failing on age-gated or login-walled videos. Not used by the Chrome extension path. |
 
-Technically the server can run with only `DEEPGRAM_API_KEY` + `GROQ_API_KEY`
-— you'll still get live transcription plus The Troll and Fred. Think of
-those two as the "minimum viable cast."
+Technically the server can run with `DEEPGRAM_API_KEY` plus **either**
+`ANTHROPIC_API_KEY` or `XAI_API_KEY` — you'll still get live transcription
+plus whichever two personas that provider covers. Shipping with both is the
+full cast.
 
 ---
 
@@ -142,27 +144,29 @@ without paying anything.
    - Sign up, confirm email, go to **API Keys → Create a New API Key**.
    - New accounts include **$200** in free credit. That's roughly 400 hours
      of Nova-3 streaming — far more than you need.
-2. **Groq** — <https://console.groq.com/keys>
-   - Sign up with Google/GitHub, click **Create API Key**, name it
-     anything, copy the `gsk_...` string.
-   - Free tier is generous (30 req/min on 70B, higher on 8B).
-3. **Anthropic** — <https://console.anthropic.com/settings/keys>
+2. **Anthropic** — <https://console.anthropic.com/settings/keys>
    - Sign up, verify, click **Create Key**, copy the `sk-ant-...` string.
    - New accounts typically receive starter credit. Haiku is the cheapest
      Claude model — a 2-hour session costs pennies.
-4. **Brave Search** (optional but recommended) —
+3. **xAI** — <https://console.x.ai>
+   - Sign up, verify, create an API key, copy the `xai-...` string.
+   - Grok 4.1 Fast non-reasoning is cheap and fast; it also powers the
+     optional Live Search fact-check pipeline with no separate signup.
+4. **Brave Search** (optional, only for `SEARCH_ENGINE=brave`) —
    <https://api-dashboard.search.brave.com/app/keys>
    - Free tier: **2,000 queries per month.** More than enough for personal
-     use — each fact-check typically uses 1 query.
+     use — each fact-check typically uses 1 query. Skip this if you're
+     routing search through xAI.
 
 Paste each key into the matching line in `.env.local`, no quotes, no spaces.
 Example:
 
 ```bash
 DEEPGRAM_API_KEY=68e...real-key-here
-GROQ_API_KEY=gsk_abc...
 ANTHROPIC_API_KEY=sk-ant-api03-...
-BRAVE_SEARCH_API_KEY=BSA...
+XAI_API_KEY=xai-...
+BRAVE_SEARCH_API_KEY=BSA...   # optional
+SEARCH_ENGINE=brave           # or `xai`
 ```
 
 ---
@@ -214,8 +218,9 @@ extension's **Backend server** field.
 docker build -t peanut-gallery .
 docker run -p 3000:3000 \
   -e DEEPGRAM_API_KEY=... \
-  -e GROQ_API_KEY=... \
   -e ANTHROPIC_API_KEY=... \
+  -e XAI_API_KEY=... \
+  -e SEARCH_ENGINE=brave \
   -e BRAVE_SEARCH_API_KEY=... \
   peanut-gallery
 ```
@@ -280,8 +285,9 @@ then `data: {"type":"done"}`. If you get 401 / 500, check your env vars.
 curl -sSN -X POST http://localhost:3000/api/transcribe \
   -H 'Content-Type: application/json' \
   -H 'X-Deepgram-Key: <your-key>' \
-  -H 'X-Groq-Key: <your-key>' \
   -H 'X-Anthropic-Key: <your-key>' \
+  -H 'X-XAI-Key: <your-key>' \
+  -H 'X-Search-Engine: brave' \
   -d '{"mode": "browser"}' | head -c 4000
 ```
 
@@ -311,7 +317,10 @@ Deepgram key is missing or invalid. Check the server logs for
 `[transcribe] Deepgram WS error` or `401`. Test the key with
 <https://developers.deepgram.com/playground>.
 
-**Only The Troll + Fred react. Baba and Jackie stay silent.**
+**Only Baba and Jackie react. Troll and Fred stay silent.**
+No `XAI_API_KEY`. Add it to `.env.local` and restart the server.
+
+**Only Troll + Fred react. Baba and Jackie stay silent.**
 No `ANTHROPIC_API_KEY`. Add it to `.env.local` and restart the server.
 
 **"yt-dlp: command not found" when pasting a URL at /watch.**
@@ -340,8 +349,8 @@ On the free tiers:
 | Provider | Free tier | Real-world 2-hour session |
 |----------|-----------|---------------------------|
 | Deepgram | $200 credit on signup | ~$0.87 (Nova-3 streaming) |
-| Groq | 30 req/min on 70B, generous | $0 (free tier covers it) |
 | Anthropic | Starter credit on signup | ~$0.25 (Haiku is cheap) |
+| xAI | Free credits on signup | ~$0.05 (Grok 4.1 Fast non-reasoning) |
 | Brave | 2,000 queries/month | ~30 queries (≈1.5% of free tier) |
 
 **Total per 2-hour episode: ~$1.15** once you exhaust free credit.

@@ -188,8 +188,8 @@ export default function InstallPage() {
               playback interference.
             </li>
             <li>
-              <strong>Bring your own API keys.</strong> Deepgram, Groq,
-              Anthropic, Brave — all optional, all have free tiers.
+              <strong>Bring your own API keys.</strong> Deepgram,
+              Anthropic, xAI, Brave — all have free tiers.
             </li>
             <li>
               <strong>Open source, MIT licensed.</strong> Self-host, fork, or

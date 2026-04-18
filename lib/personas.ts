@@ -25,7 +25,19 @@ export interface Persona {
   role: string;
   emoji: string;
   color: string;
-  model: "groq-llama-70b" | "groq-llama-8b" | "claude-haiku";
+  /**
+   * Internal provider/model alias — maps to the real API model string inside
+   * the engine. Not the raw vendor identifier, because the engine needs a
+   * stable routing key (e.g. "claude-haiku" → "claude-haiku-4-5-20251001";
+   * "xai-grok-4-fast" → "grok-4-1-fast-non-reasoning"). Adding a new provider
+   * means adding an alias here AND a branch in `firePersona`.
+   *
+   * Groq was in this union pre-v1.4 (`groq-llama-70b`, `groq-llama-8b`) but
+   * was removed when every persona moved to Claude Haiku or xAI Grok. If we
+   * ever re-add it, revive the aliases here AND the branch in `firePersona`
+   * AND the `groq-sdk` dep in package.json.
+   */
+  model: "claude-haiku" | "xai-grok-4-fast";
   systemPrompt: string;
 }
 
@@ -76,7 +88,29 @@ export function buildPersonaContext(
    */
   isForceReact?: boolean
 ): string {
-  let context = `${persona.systemPrompt}\n\n`;
+  let context = "";
+
+  // ── FORCE-REACT PREAMBLE (read BEFORE the character prompt) ──
+  // When the viewer taps a specific avatar, we want the model to read the
+  // suspension of pass/tag/format rules BEFORE it reads the character's own
+  // tier gate. Otherwise (especially on Claude Haiku) the model internalizes
+  // FORMAT rules like "every response starts with a [TAG] — if none apply,
+  // output '-'" and obeys them even when the later override says not to.
+  // Putting this first makes the tier rules get read in the context of
+  // "these are suspended for this turn." Recency reminder also appears at
+  // the end of the prompt.
+  if (isForceReact) {
+    context += `⚡⚡⚡ READ THIS FIRST — TAP-RESPONSE MODE ⚡⚡⚡\n`;
+    context += `The viewer has explicitly tapped YOUR avatar. What follows is your character prompt, but for THIS one response the following are SUSPENDED:\n`;
+    context += `  • Any rule about outputting "-" / staying silent / passing.\n`;
+    context += `  • Any FORMAT rule requiring a specific [TAG] or prefix (e.g. [FACT CHECK]/[CONTEXT]/[HEADS UP]/[CALLBACK]).\n`;
+    context += `  • Any "only speak when [tier X] fits" gate.\n`;
+    context += `  • Any "prefer silence to a mid take" / "pass to someone funnier" directive.\n`;
+    context += `Read the character prompt below WITH THAT IN MIND. You will produce 1–2 sentences in your voice. An imperfect in-character take beats silence. You do NOT need a tag, a perfect fact, or a perfect dunk — just sound like you.\n\n`;
+    context += `═══════════════════════════════════════════\n\n`;
+  }
+
+  context += `${persona.systemPrompt}\n\n`;
 
   // ── PRIMARY SIGNAL: THE LIVE TRANSCRIPT ──
   // The transcript is the main thing the persona is reacting to. Put it first
@@ -154,13 +188,14 @@ export function buildPersonaContext(
     context += `- DO NOT USE: "pause", "paused", "pausing", "on hold", "hit pause" — the viewer did not pause anything.\n\n`;
     context += `React to the silence. Stay in character. One sentence max.`;
   } else if (isForceReact) {
-    context += `--- ⚡ USER JUST HIT THE REACT BUTTON ⚡ ---\n`;
-    context += `The viewer explicitly asked for a reaction right now. This means:\n`;
-    context += `- DO NOT output "-" to pass. You MUST respond in character.\n`;
-    context += `- If the transcript is thin, react to the vibe, a recent specific, or riff off a co-host's last line — whatever's true to your character.\n`;
-    context += `- Stay in voice. MAX 1-2 sentences. Punchy, not rambly.\n`;
-    context += `- No meta-commentary about being asked to react. Just react.\n\n`;
-    context += `Now react. Stay in character. MAX 1-2 sentences. React to the transcript, a co-host, or the moment — whatever lands.`;
+    context += `--- ⚡ REMINDER: TAP-RESPONSE MODE (see preamble at top) ⚡ ---\n`;
+    context += `Pass / "-" / tag-format rules are SUSPENDED for this turn. You MUST produce 1–2 sentences of in-voice content. Do NOT output "-". Do NOT output nothing. Do NOT add meta commentary like "I'll pass" or "Note: I'm using X to indicate…".\n\n`;
+    context += `Pick whatever feels natural — no priority order:\n`;
+    context += `  • A vibe read on the moment (host's energy, dead air, tone shift).\n`;
+    context += `  • A light riff off the transcript or a co-host's last line.\n`;
+    context += `  • An in-voice aside on the topic — minor / weak is totally fine.\n`;
+    context += `  • Whatever your character would say if someone turned to you and asked "thoughts?"\n\n`;
+    context += `An imperfect in-character take BEATS silence. Now react. Your voice, your tics, 1–2 sentences max. Go.`;
   } else {
     context += `Now react. Stay in character. MAX 1-2 sentences. React mostly to the transcript above — that's where the show is right now. Riffing on another persona is fine when it's natural, as long as you're not re-quoting the same specifics from earlier turns. If you'd just be repeating a recent sidebar line word-for-word, output a single "-" and pass.`;
   }

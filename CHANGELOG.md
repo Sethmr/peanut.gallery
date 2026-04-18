@@ -4,7 +4,48 @@ All notable changes to Peanut Gallery are recorded here. Format loosely follows 
 
 ## [Unreleased]
 
-Tracks in-flight work for the next release. See [`docs/ROADMAP.md`](docs/ROADMAP.md) §v1.4.0.
+Tracks in-flight work for the next release.
+
+## [1.4.0] — 2026-04-18 — "Grok & Stability"
+
+A provider swap, a new search option, and the stability pass that made v1.3 shippable in real-world sessions. Groq's free-tier TPD cap was silently killing the Troll and Lon — both are now on xAI Grok 4.1 Fast. Fact-checking gains a second engine (xAI Live Search) behind a user-facing toggle. Underneath, the biggest story is invisible: the session-firing loop now survives any upstream hang, so one stalled LLM stream can't strand the avatar spinners for the rest of the session. No breaking changes — existing installs just need to add an xAI key (Brave stays optional).
+
+> **Note on the version number.** The original roadmap had v1.4.0 penciled in for Smart Director v2 (LLM-assisted routing). That work is now deferred to v1.5 — the stability fixes in this release were blocking for real-world v1.3 usage and warranted a minor bump of their own rather than sitting in a long-lived Unreleased limbo.
+
+### Added
+- **Search-engine toggle (Brave ↔ xAI Live Search).** New `SEARCH_ENGINE` env var (`brave` default, `xai` alternative) + `X-Search-Engine` header forwarded from the extension. The server routes Producer's fact-check queries through Brave's REST API (raw SERP entries, unchanged v1.3 behavior) OR xAI's Grok Live Search (synthesized answer with inline citations via `search_parameters.mode=on`, `sources=[web]`, `max_search_results=5`, `return_citations=true`). Side-panel setup now exposes the dropdown; Brave's key field becomes optional when xAI is selected.
+- **xAI as first-class LLM provider.** New `"xai-grok-4-fast"` alias on `Persona["model"]`. PersonaEngine gained a private `streamXai` async generator (fetch-based OpenAI-compatible SSE, partial-line buffering, `[DONE]` sentinel, malformed-chunk skip, `finally`-cleanup). `xaiKey` constructor arg is wired through `/api/transcribe` + `/api/personas` + `scripts/test-personas.ts`, reading `X-XAI-Key` header first and falling back to `XAI_API_KEY` env.
+- **Pipeline logging for every value-reducing branch in fact-check search.** New structured events: `search_skip` (force-react path skips search for latency), `search_no_claims_detected` (claim-extraction heuristics found nothing), `search_timeout` (per-engine AbortSignal fired), `search_upstream_error` (non-2xx or thrown fetch error), `search_empty_result` (upstream returned 200 but no usable data), `search_complete` (aggregate outcome with `attempted`/`succeeded`/`emptyOrFailed`/`degraded` flag), and `search_pipeline_error` (outer-catch replaces a previously silent `catch{}`). Observable via the existing `logPipeline` channel.
+
+### Changed
+- **Troll + Sound FX personas migrated from Groq Llama to xAI Grok 4.1 Fast non-reasoning** (both Howard and TWiST packs). Root cause was the Groq free-tier TPD cap on `llama-3.3-70b-versatile` silently returning 429s that read as "persona declined to speak." Anthropic Claude Haiku still powers the Producer + Joker slots (Baba Booey, Jackie, Molly, Alex) — those were never affected.
+- **Baba Booey force-react tap now skips pre-stream search entirely.** A tap commits Baba to speak, and the search round-trip was the single biggest source of latency before any bubble appeared. Search still runs for director-driven cascades where the budget allows it.
+- **"Free" label in the extension side panel now reads "15 minutes free"** to match the rolling 24h limiter's actual quota (was a generic "Free" previously, which read as unlimited).
+
+### Fixed
+- **Session-firing deadlock when any upstream hangs.** `/api/transcribe` had a per-session `personasFiring` boolean with no try/finally around the `fireSingle`/`fireAll` await. A stalled Anthropic stream, a stalled xAI stream, or a stuck Brave fetch would leave the flag pinned at `true` forever — killing every subsequent director tick AND every avatar tap on that session until page reload. Root cause behind the v1.4-preview regression where Baba's avatar animated without responding, then stopped showing a spinner on tap entirely. Fix is layered: (1) Anthropic `messages.stream` now carries `{ signal: AbortSignal.timeout(25_000) }`; (2) `streamXai` accepts an `AbortSignal` and plumbs it into both the initial fetch and its reader loop; (3) both firing branches in the setInterval tick are wrapped in `try { … } finally { personasFiring = false; send("personas_complete") }` so ANY throw or timeout releases the lock.
+- **Search fetches can no longer hang forever.** Node's native `fetch()` has no default timeout; a silently-stalled Brave or xAI response used to block `fireSingle` for the 15s client safety timeout and beyond. Both `searchBrave` and `searchXai` now use `AbortSignal.timeout(5_000)` / `AbortSignal.timeout(8_000)` respectively. Timeouts emit a distinct `search_timeout` event separate from upstream errors so ops dashboards can tell "slow upstream" from "upstream error."
+- **Force-react silent-spin edge cases.** When the Producer bowed out with an explicit `-` pass on a force-react tap, the user would see a spinner that cleared with no bubble. `firePersona` now routes force-react upstream errors AND model-initiated dash-passes through the same deterministic in-voice fallback (`getForceReactFallback`) so tapping an avatar always produces a visible response. Observable via new `force_react_fallback` event.
+- **StreamCallback dropping one-shot `text + done=true` payloads.** Error-path bubbles (`[technical difficulties]`) were emitted with `done=true` in a single callback, and the client only renders from buffered `persona` events — so the text never made it to the DOM. Route now splits into a `persona` event (carrying the text) followed by `persona_done`.
+- **Extension side-panel API Keys section now scrolls** when content overflows (adding xAI to the four-field form was enough to push the footer's Save button off-screen on shorter viewports). `.setup` gained `min-height: 0; overflow-y: auto;` and a 4px scrollbar skin.
+- **Broken peanut emoji in two extension error strings.** `background.js` and `offscreen.js` error messages referencing the toolbar icon were mangling the 4-byte UTF-8 codepoint through `chrome.runtime.sendMessage → textContent` into gibberish. Swapped the emoji for the word "peanut" in both strings (static HTML emojis in the header/empty-state render fine and were left alone).
+
+### Removed
+- **`groq-sdk` dependency** dropped from `package.json` and all references scrubbed from `lib/persona-engine.ts`, `lib/personas.ts`, `app/api/transcribe/route.ts`, `app/api/personas/route.ts`, and `scripts/test-personas.ts`. No runtime code path references Groq anymore. Historical references (CHANGELOG entries, session notes, in-code comments explaining WHY Groq was removed) are intentionally retained.
+
+### Docs + marketing
+- README, landing page (`app/page.tsx`), `/install`, `/watch`, `/privacy`, `components/ApiKeysModal.tsx`, `docs/index.html`, `marketing/cws-listing.md`, `setup.sh`, `lib/packs/types.ts`, `docs/SELF-HOST-INSTALL.md`, `docs/BUILD-YOUR-OWN-BACKEND.md`, `docs/DEBUGGING.md`, `docs/CONTEXT.md`, `docs/OPS.md`, `docs/SERVER-SIDE-DEMO-KEYS.md`, and `SHIP.md` all updated to reflect the xAI requirement, the optional Brave key, and the new search-engine toggle.
+
+### Deferred to a future release
+- **Smart Director v2** (rerouted to v1.5). LLM-assisted routing with a rule-based fallback under a 400ms budget. Scoped out of v1.4 so this release could focus on the stability + provider story.
+- **Pack-creation installer** (still targeting v1.4.x / v1.5). Sideload pack JSON, validation pipeline, pack management UI.
+- **Cascade-delay retune** (carried over from v1.2). Still waiting on two real-session captures.
+- **ESLint migration** to flat-config CLI (carried over from v1.3).
+
+### Future roadmap (post-v1.4.0)
+- **v1.5.0 — Smart Director v2:** LLM-assisted routing with rule-based fallback under a 400ms budget.
+- **v1.6.0 — Voice + Clip Share:** TTS per persona; highlight/clip export.
+- **v2.0.0 — Bobbleheads:** 3D persona avatars with procedural animation.
 
 ## [1.3.0] — 2026-04-17 — "TWiST Pack"
 

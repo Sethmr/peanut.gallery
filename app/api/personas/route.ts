@@ -25,15 +25,25 @@ export async function POST(req: NextRequest) {
   }
 
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const groqKey = process.env.GROQ_API_KEY;
   const braveKey = process.env.BRAVE_SEARCH_API_KEY;
+  const xaiKey = process.env.XAI_API_KEY;
 
-  if (!groqKey) {
+  // Need at least one of the two model providers — otherwise every persona
+  // will hit the force-react fallback and the sidebar is all canned lines.
+  if (!anthropicKey && !xaiKey) {
     return new Response(
-      JSON.stringify({ error: "Missing GROQ_API_KEY" }),
+      JSON.stringify({
+        error: "Missing ANTHROPIC_API_KEY and XAI_API_KEY — need at least one.",
+      }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
+
+  // Client may override the default search engine per request (useful for
+  // the harness). Anything other than "xai" falls back to "brave" to match
+  // the engine-level default.
+  const rawSearchEngine = (req.headers.get("X-Search-Engine") || "").toLowerCase();
+  const searchEngine: "brave" | "xai" = rawSearchEngine === "xai" ? "xai" : "brave";
 
   // resolvePack() never throws — unknown / missing / empty packId falls back
   // to Howard (see lib/packs/index.ts). Safe to call with any user input.
@@ -41,8 +51,9 @@ export async function POST(req: NextRequest) {
 
   const engine = new PersonaEngine({
     anthropicKey: anthropicKey || "",
-    groqKey: groqKey,
     braveSearchKey: braveKey || "",
+    xaiKey: xaiKey || "",
+    searchEngine,
     pack: resolvedPack,
   });
 

@@ -23,18 +23,23 @@ The extension's key input fields are **empty by default**. The backend (`peanutg
 ```js
 // Only send the header if the user actually entered a key
 if (config.apiKeys?.deepgram)  headers["X-Deepgram-Key"]  = config.apiKeys.deepgram;
-if (config.apiKeys?.groq)      headers["X-Groq-Key"]      = config.apiKeys.groq;
 if (config.apiKeys?.anthropic) headers["X-Anthropic-Key"] = config.apiKeys.anthropic;
+if (config.apiKeys?.xai)       headers["X-XAI-Key"]       = config.apiKeys.xai;
 if (config.apiKeys?.brave)     headers["X-Brave-Key"]     = config.apiKeys.brave;
+// Search engine is always forwarded (server defaults to "brave" if missing)
+if (config.searchEngine === "brave" || config.searchEngine === "xai") {
+  headers["X-Search-Engine"] = config.searchEngine;
+}
 ```
 
 `extension/sidepanel.js::loadSettings()` defaults each input to empty string, not to a hard-coded key:
 
 ```js
 deepgramKeyInput.value  = data.deepgramKey  || "";
-groqKeyInput.value      = data.groqKey      || "";
 anthropicKeyInput.value = data.anthropicKey || "";
+xaiKeyInput.value       = data.xaiKey       || "";
 braveKeyInput.value     = data.braveKey     || "";
+searchEngineSelect.value = data.searchEngine || "brave";
 ```
 
 ### Server side
@@ -43,9 +48,10 @@ braveKeyInput.value     = data.braveKey     || "";
 
 ```ts
 const deepgramKey  = req.headers.get("X-Deepgram-Key")  || process.env.DEEPGRAM_API_KEY;
-const groqKey      = req.headers.get("X-Groq-Key")      || process.env.GROQ_API_KEY;
 const anthropicKey = req.headers.get("X-Anthropic-Key") || process.env.ANTHROPIC_API_KEY;
+const xaiKey       = req.headers.get("X-XAI-Key")       || process.env.XAI_API_KEY;
 const braveKey     = req.headers.get("X-Brave-Key")     || process.env.BRAVE_SEARCH_API_KEY;
+const searchEngine = (req.headers.get("X-Search-Engine") || process.env.SEARCH_ENGINE || "brave") === "xai" ? "xai" : "brave";
 ```
 
 Net effect:
@@ -84,7 +90,8 @@ A self-hoster pointing the extension at their own server won't have demo env var
 ```js
 const isHostedBackend = /(^|\/\/)peanutgallery\.live(\/|$)/i.test(serverUrl);
 if (!isHostedBackend) {
-  // Require Deepgram/Groq/Anthropic keys from the user, show an error if missing
+  // Require Deepgram + Anthropic + xAI keys from the user, and a Brave key
+  // when SEARCH_ENGINE=brave. Show an error if missing.
   ...
 }
 ```

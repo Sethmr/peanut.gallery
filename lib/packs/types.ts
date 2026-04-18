@@ -5,8 +5,8 @@
  * through. Every pack fills the same 4 archetype slots, keyed by fixed IDs:
  *
  *   producer  — the fact-checker foil           (Claude Haiku)
- *   troll     — the cynical commentator         (Groq Llama 70B)
- *   soundfx   — the sound-effects quiet genius  (Groq Llama 8B)
+ *   troll     — the cynical commentator         (xAI Grok 4.1 Fast)
+ *   soundfx   — the sound-effects quiet genius  (xAI Grok 4.1 Fast)
  *   joker     — the comedy writer               (Claude Haiku)
  *
  * The slot IDs are load-bearing: `lib/director.ts`'s `PERSONA_PATTERNS`,

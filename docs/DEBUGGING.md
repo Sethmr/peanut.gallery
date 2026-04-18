@@ -235,12 +235,13 @@ These are places in the code where errors are caught but not surfaced. If you're
 
 | Variable | Required | Used by | Failure mode if missing |
 |----------|----------|---------|------------------------|
-| `DEEPGRAM_API_KEY` | Yes | transcription.ts | Pipeline won't start (returns 500) |
-| `GROQ_API_KEY` | Yes | persona-engine.ts | Pipeline won't start (returns 500) |
-| `ANTHROPIC_API_KEY` | No* | persona-engine.ts | Producer + Joke Writer fire with empty key → API error |
-| `BRAVE_SEARCH_API_KEY` | No | persona-engine.ts | Fact-checking silently disabled |
+| `DEEPGRAM_API_KEY` | Yes | transcription.ts | Pipeline won't start (returns 400) |
+| `ANTHROPIC_API_KEY` | Yes (unless xAI set) | persona-engine.ts | Producer + Joker fire with empty key → API error |
+| `XAI_API_KEY` | Yes (unless Anthropic set) | persona-engine.ts | Troll + Sound FX fire with empty key → API error. Also powers xAI Live Search when `SEARCH_ENGINE=xai`. |
+| `SEARCH_ENGINE` | No (defaults to `brave`) | persona-engine.ts | — |
+| `BRAVE_SEARCH_API_KEY` | Only when `SEARCH_ENGINE=brave` | persona-engine.ts | Fact-checking falls back to training knowledge |
 
-*Anthropic key is treated as optional in the route handler but the Producer and Joke Writer personas use Claude Haiku. Without it, those two personas will fail with "technical difficulties" messages.
+The route requires `DEEPGRAM_API_KEY` plus at least one of Anthropic/xAI. Missing both is a 400. Missing just one just silences the two personas that provider powers.
 
 ---
 

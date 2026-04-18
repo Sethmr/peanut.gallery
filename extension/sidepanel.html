@@ -43,13 +43,24 @@
     .header .emoji { font-size: 16px; }
     .header-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 
-    /* ── SETUP SECTION ── */
+    /* ── SETUP SECTION ──
+     * Scrolls internally when content exceeds the side panel's height.
+     * The side panel itself is `body { height: 100vh; overflow: hidden }` so
+     * nothing above the setup is allowed to scroll. Without `min-height: 0`
+     * a flex child refuses to shrink below its content size, which would
+     * defeat `overflow-y: auto`; the pair is what lets the Start button at
+     * the bottom stay reachable on short viewports. */
     .setup {
       padding: 12px;
       border-bottom: 1px solid var(--border);
       background: var(--bg-secondary);
-      flex-shrink: 0;
+      min-height: 0;
+      overflow-y: auto;
     }
+    .setup::-webkit-scrollbar { width: 4px; }
+    .setup::-webkit-scrollbar-track { background: transparent; }
+    .setup::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+    .setup::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
     .setup label {
       display: block;
       font-size: 10px;
@@ -671,7 +682,7 @@
     <span class="emoji">🥜</span>
     <h1>Peanut Gallery</h1>
     <div class="header-right">
-      <span id="versionBadge" style="font-size:8px; color:rgba(255,255,255,0.15); font-family:monospace;">v1.3.0</span>
+      <span id="versionBadge" style="font-size:8px; color:rgba(255,255,255,0.15); font-family:monospace;">v1.4.0</span>
     </div>
   </div>
 
@@ -686,10 +697,10 @@
 
     <!-- FREE WHILE WE GROW -->
     <div class="free-banner" role="status">
-      <span class="badge">Free</span>
+      <span class="badge">15 min free</span>
       <div class="copy">
-        <strong>Peanut Gallery is free to try while we grow.</strong>
-        API keys are optional right now &mdash; we&rsquo;re covering the hosted backend for early users. When that changes, you&rsquo;ll get plenty of notice and can drop in your own free-tier keys below, or
+        <strong>15 minutes free per day on the hosted backend.</strong>
+        No signup, no card &mdash; just hit Start. When you hit the cap (or you want unlimited), paste your own free-tier API keys below, or
         <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>.
       </div>
     </div>
@@ -750,39 +761,53 @@
 
       <div class="key-row">
         <div class="key-label-row">
-          <label>Groq</label>
-          <span class="key-tag required">required</span>
-          <span class="key-tag">troll + fred</span>
-        </div>
-        <input type="text" id="groqKey" class="key-input" placeholder="gsk_..." />
-        <p class="field-hint">
-          Powers The Troll &amp; Fred Norris on Llama for sub-200ms reactions. Without it, those two stay silent. Free tier is generous.
-          <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
-        </p>
-      </div>
-
-      <div class="key-row">
-        <div class="key-label-row">
           <label>Anthropic</label>
           <span class="key-tag required">required</span>
-          <span class="key-tag">baba + jackie</span>
+          <span class="key-tag">producer + joker</span>
         </div>
         <input type="text" id="anthropicKey" class="key-input" placeholder="sk-ant-..." />
         <p class="field-hint">
-          Powers Baba Booey (fact-checker) &amp; Jackie Martling (comedy) on Claude Haiku. Without it, those two stay silent. New accounts get free credit.
+          Powers the Producer and Joker slots (Baba/Molly and Jackie/Alex) on Claude Haiku. Without it, those two stay silent. New accounts get free credit.
           <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Get a key &#8599;</a>
         </p>
       </div>
 
       <div class="key-row">
         <div class="key-label-row">
+          <label>xAI</label>
+          <span class="key-tag required">required</span>
+          <span class="key-tag">troll + soundfx</span>
+        </div>
+        <input type="text" id="xaiKey" class="key-input" placeholder="xai-..." />
+        <p class="field-hint">
+          Powers the Troll and Sound-FX slots (Troll/Jason and Fred/Lon) on Grok 4.1 Fast — sub-200ms reflex voices. Without it, those two stay silent.
+          <a href="https://console.x.ai/" target="_blank" rel="noopener noreferrer">Get a key &#8599;</a>
+        </p>
+      </div>
+
+      <div class="key-row">
+        <div class="key-label-row">
+          <label>Search engine</label>
+          <span class="key-tag">fact-check</span>
+        </div>
+        <select id="searchEngine" class="key-input">
+          <option value="brave" selected>Brave Search</option>
+          <option value="xai">xAI Live Search (uses your xAI key)</option>
+        </select>
+        <p class="field-hint">
+          How the Producer fact-checks claims. <strong>Brave</strong> uses the classic Brave Search API — requires its own key below. <strong>xAI</strong> uses Grok Live Search — no extra key beyond the xAI key above. Takes effect on your next <em>Start Listening</em>.
+        </p>
+      </div>
+
+      <div class="key-row">
+        <div class="key-label-row">
           <label>Brave Search</label>
-          <span class="key-tag optional">optional</span>
+          <span class="key-tag optional">only for Brave mode</span>
           <span class="key-tag">live facts</span>
         </div>
         <input type="text" id="braveKey" class="key-input" placeholder="BSA..." />
         <p class="field-hint">
-          Lets Baba Booey fact-check claims against the live web. Optional — without it, Baba still fact-checks from training knowledge. Free tier: 2,000 queries/month.
+          Only needed when the search-engine selector above is set to Brave. Free tier: 2,000 queries/month.
           <a href="https://api-dashboard.search.brave.com/app/keys" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
         </p>
       </div>

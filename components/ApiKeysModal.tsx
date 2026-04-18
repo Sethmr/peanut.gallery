@@ -5,13 +5,13 @@ import { useState, useEffect, useCallback } from "react";
 export interface ApiKeys {
   deepgram: string;
   anthropic: string;
-  groq: string;
+  xai: string;
   brave: string;
 }
 
 const STORAGE_KEY = "peanut-gallery-keys";
 
-const EMPTY_KEYS: ApiKeys = { deepgram: "", anthropic: "", groq: "", brave: "" };
+const EMPTY_KEYS: ApiKeys = { deepgram: "", anthropic: "", xai: "", brave: "" };
 
 /** Load keys from localStorage (returns empty strings if missing) */
 export function loadApiKeys(): ApiKeys {
@@ -27,7 +27,9 @@ export function loadApiKeys(): ApiKeys {
 
 /** True if the minimum required keys are set */
 export function hasRequiredKeys(keys: ApiKeys): boolean {
-  return !!(keys.deepgram && keys.groq);
+  // Deepgram is mandatory for transcription. At least one LLM provider
+  // (Anthropic or xAI) must also be present or no persona fires.
+  return !!(keys.deepgram && (keys.anthropic || keys.xai));
 }
 
 interface Props {
@@ -54,19 +56,20 @@ export default function ApiKeysModal({ open, onClose, onSave }: Props) {
 
   const fields: { key: keyof ApiKeys; label: string; required: boolean; hint: string; url: string }[] = [
     { key: "deepgram", label: "Deepgram", required: true, hint: "Real-time transcription", url: "https://console.deepgram.com/signup" },
-    { key: "groq", label: "Groq", required: true, hint: "Fast LLM (Troll + Fred)", url: "https://console.groq.com/keys" },
-    { key: "anthropic", label: "Anthropic", required: false, hint: "Claude Haiku (Baba Booey + Jackie)", url: "https://console.anthropic.com" },
-    { key: "brave", label: "Brave Search", required: false, hint: "Live fact-checking", url: "https://brave.com/search/api/" },
+    { key: "anthropic", label: "Anthropic", required: true, hint: "Claude Haiku (Producer + Joker)", url: "https://console.anthropic.com" },
+    { key: "xai", label: "xAI", required: true, hint: "Grok 4.1 Fast (Troll + Sound FX)", url: "https://console.x.ai" },
+    { key: "brave", label: "Brave Search", required: false, hint: "Live fact-checking (optional — xAI Live Search is used otherwise)", url: "https://brave.com/search/api/" },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="bg-bg-secondary border border-white/10 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
-        <div className="flex items-center justify-between mb-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="bg-bg-secondary border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-6 pt-6 pb-3 shrink-0">
           <h2 className="font-display font-bold text-lg text-white">API Keys</h2>
           <button onClick={onClose} className="text-white/40 hover:text-white/70 text-lg">✕</button>
         </div>
 
+        <div className="flex-1 min-h-0 overflow-y-auto px-6">
         {/* Trust / Transparency Banner */}
         <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg px-3 py-2.5 mb-4">
           <div className="flex items-start gap-2">
@@ -89,7 +92,7 @@ export default function ApiKeysModal({ open, onClose, onSave }: Props) {
                   <p>
                     Your keys are stored in your browser&apos;s localStorage and sent
                     via request headers when you start a session. The server
-                    passes them directly to Deepgram, Groq, Anthropic, and Brave — then
+                    passes them directly to Deepgram, Anthropic, xAI, and Brave — then
                     discards them when the session ends.
                   </p>
                   <p>
@@ -153,10 +156,11 @@ export default function ApiKeysModal({ open, onClose, onSave }: Props) {
             </div>
           ))}
         </form>
+        </div>
 
-        <div className="flex items-center justify-between mt-5">
+        <div className="flex items-center justify-between px-6 pt-4 pb-6 border-t border-white/5 shrink-0">
           <span className="text-[10px] text-white/20">
-            {hasRequiredKeys(keys) ? "Ready to go" : "Deepgram + Groq required"}
+            {hasRequiredKeys(keys) ? "Ready to go" : "Deepgram + Anthropic or xAI required"}
           </span>
           <button
             onClick={handleSave}

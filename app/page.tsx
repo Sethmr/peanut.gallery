@@ -221,7 +221,7 @@ export default function LandingPage() {
 
         {/* PERSONAS */}
         <section className="dark" id="personas">
-          <div className="section-label">The Cast &middot; v1.3.0</div>
+          <div className="section-label">The Cast &middot; v1.4.0</div>
           <h2 className="fade-in">Two packs. Four slots. One dropdown.</h2>
           <p className="section-sub fade-in">
             Every pack ships four archetype slots — <strong>producer, troll, sound FX, joker</strong>.
@@ -258,7 +258,7 @@ export default function LandingPage() {
             <div className="persona-card troll fade-in">
               <div className="persona-icon">🔥</div>
               <h3>The Cynical Troll</h3>
-              <div className="persona-role">Commentary &middot; Groq Llama 70B &middot; 120ms</div>
+              <div className="persona-role">Commentary &middot; xAI Grok 4.1 Fast</div>
               <p>
                 The &ldquo;chaotic or negative cynical&rdquo; commentator. Says what the audience
                 is thinking but won&apos;t type. Dunks with internet-brain energy.
@@ -271,7 +271,7 @@ export default function LandingPage() {
             <div className="persona-card fred fade-in">
               <div className="persona-icon">🎧</div>
               <h3>Fred Norris</h3>
-              <div className="persona-role">Sound Effects &middot; Groq Llama 8B</div>
+              <div className="persona-role">Sound Effects &middot; xAI Grok 4.1 Fast</div>
               <p>
                 Supplies background context and sound effects. Communicates through
                 precisely timed sound cues and the occasional razor-sharp one-liner.
@@ -325,7 +325,7 @@ export default function LandingPage() {
             <div className="persona-card troll fade-in">
               <div className="persona-icon">🎙️</div>
               <h3>Jason Calacanis</h3>
-              <div className="persona-role">Provocateur &middot; Groq Llama 70B &middot; 120ms</div>
+              <div className="persona-role">Provocateur &middot; xAI Grok 4.1 Fast</div>
               <p>
                 Confident takes framed around founder-market fit. Warm, never mean.
                 Self-aware self-promotion as a character fingerprint, not a bug. Will
@@ -339,7 +339,7 @@ export default function LandingPage() {
             <div className="persona-card fred fade-in">
               <div className="persona-icon">🎬</div>
               <h3>Lon Harris</h3>
-              <div className="persona-role">The Reframe &middot; Groq Llama 8B</div>
+              <div className="persona-role">The Reframe &middot; xAI Grok 4.1 Fast</div>
               <p>
                 Bracket-delimited sound cues and cultural analogies as primary languages.
                 Reacts to moments, never monologues. The one who turns a dry term sheet
@@ -431,12 +431,12 @@ export default function LandingPage() {
               <div className="stack-role">Baba Booey + Jackie</div>
             </div>
             <div className="stack-item fade-in">
-              <div className="stack-name">Groq + Llama</div>
-              <div className="stack-role">Troll + Fred (120ms TTFT)</div>
+              <div className="stack-name">xAI Grok 4.1 Fast</div>
+              <div className="stack-role">Troll + Fred (non-reasoning, reflexive)</div>
             </div>
             <div className="stack-item fade-in">
-              <div className="stack-name">Brave Search</div>
-              <div className="stack-role">Live fact-checking</div>
+              <div className="stack-name">Brave or xAI Live Search</div>
+              <div className="stack-role">Fact-checking — user choice</div>
             </div>
             <div className="stack-item fade-in">
               <div className="stack-name">Docker + Railway</div>

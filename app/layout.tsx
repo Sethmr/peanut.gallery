@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     "Jason Calacanis",
     "Deepgram",
     "Claude",
-    "Groq",
+    "xAI Grok",
   ],
   authors: [{ name: "Seth Rininger", url: "https://sethrininger.dev" }],
   creator: "Seth Rininger",
@@ -176,7 +176,7 @@ export default function RootLayout({
                   name: "Is Peanut Gallery free?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Yes. The Chrome extension is free, the source code is MIT-licensed on GitHub, and you can self-host the backend. You can bring your own API keys (Deepgram, Groq, Anthropic, Brave Search) or use the hosted backend at peanutgallery.live.",
+                    text: "Yes. The Chrome extension is free, the source code is MIT-licensed on GitHub, and you can self-host the backend. You can bring your own API keys (Deepgram, Anthropic, xAI, optional Brave Search) or use the hosted backend at peanutgallery.live.",
                   },
                 },
                 {
@@ -200,7 +200,7 @@ export default function RootLayout({
                   name: "What AI models does Peanut Gallery use?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Deepgram Nova-3 for real-time transcription, Claude Haiku for the fact-checker and comedy writer, Groq-hosted Llama 70B and 8B for the cynical troll and sound effects guy, and Brave Search API for live fact verification.",
+                    text: "Deepgram Nova-3 for real-time transcription, Claude Haiku (Anthropic) for the fact-checker and comedy writer, xAI Grok 4.1 Fast (non-reasoning) for the cynical troll and sound effects guy, and either Brave Search or xAI Live Search for live fact verification — viewer's choice.",
                   },
                 },
                 {

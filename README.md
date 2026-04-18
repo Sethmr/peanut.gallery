@@ -50,7 +50,7 @@ Before the extension, Peanut Gallery was a Next.js web app where you pasted a Yo
 
 **Run the web app locally:** `npm run dev`, open `localhost:3000`, paste a URL.
 
-**Hosted:** [peanutgallery.live](https://peanutgallery.live) — your keys get sent to the server via headers, forwarded to Deepgram/Groq/Anthropic/Brave, and discarded at session end. Never logged, never persisted. [Audit the route](https://github.com/Sethmr/peanut.gallery/blob/main/app/api/transcribe/route.ts) if you want zero trust required.
+**Hosted:** [peanutgallery.live](https://peanutgallery.live) — your keys get sent to the server via headers, forwarded to Deepgram/Anthropic/xAI/Brave, and discarded at session end. Never logged, never persisted. [Audit the route](https://github.com/Sethmr/peanut.gallery/blob/main/app/api/transcribe/route.ts) if you want zero trust required.
 
 The web app uses `yt-dlp` + `ffmpeg` to pull audio server-side:
 
@@ -71,9 +71,9 @@ Inspired by the Stern staff, per Jason's original spec.
 
 | Slot | Character | Model | Role |
 |------|-----------|-------|------|
-| **Producer** | Baba Booey (Gary Dell'Abate) | Claude Haiku + Brave Search | Fact-Checker. Pulls receipts mid-show on numbers, dates, attributions. |
-| **Troll** | The Cynical Troll | Groq Llama 70B | Contrarian. Internet-brain energy. Says what the audience is thinking. |
-| **Sound FX** | Fred Norris | Groq Llama 8B | Bracket-delimited sound cues + deadpan one-liners. |
+| **Producer** | Baba Booey (Gary Dell'Abate) | Claude Haiku + Brave Search (or xAI Live Search) | Fact-Checker. Pulls receipts mid-show on numbers, dates, attributions. |
+| **Troll** | The Cynical Troll | xAI Grok 4.1 Fast | Contrarian. Internet-brain energy. Says what the audience is thinking. |
+| **Sound FX** | Fred Norris | xAI Grok 4.1 Fast | Bracket-delimited sound cues + deadpan one-liners. |
 | **Joker** | Jackie Martling | Claude Haiku | Setup-punchline jokes, callbacks, observational comedy. |
 
 Sample fires:
@@ -92,9 +92,9 @@ Researched from public TWiST transcripts and episode clips. Anti-impersonation g
 
 | Slot | Character | Model | Role |
 |------|-----------|-------|------|
-| **Producer** | Molly Wood | Claude Haiku + Brave Search | Fact-Checker. Calm journalistic corrections, "according to" framing, receipts-first. |
-| **Troll** | Jason Calacanis | Groq Llama 70B | Provocateur. Confident takes, founder-market-fit framing, warm-not-mean. |
-| **Sound FX** | Lon Harris | Groq Llama 8B | The Reframe. Bracket-delimited sound cues + cultural analogies. |
+| **Producer** | Molly Wood | Claude Haiku + Brave Search (or xAI Live Search) | Fact-Checker. Calm journalistic corrections, "according to" framing, receipts-first. |
+| **Troll** | Jason Calacanis | xAI Grok 4.1 Fast | Provocateur. Confident takes, founder-market-fit framing, warm-not-mean. |
+| **Sound FX** | Lon Harris | xAI Grok 4.1 Fast | The Reframe. Bracket-delimited sound cues + cultural analogies. |
 | **Joker** | Alex Wilhelm | Claude Haiku | Data Comedian. Eight joke techniques built on data + absurdity. |
 
 Pack choice lives in the side-panel setup dropdown and persists across sessions. Change takes effect on the next Start Listening — no mid-session persona swap.
@@ -116,7 +116,7 @@ YouTube URL → yt-dlp → FFmpeg → Deepgram Nova-3 → Director → AI Person
 
 In both, the **Director** (a rule-based booth producer) reads each transcript chunk and picks the best persona to respond — then cascades to others with decreasing probability and staggered timing. Some moments get 1 response, some get 2-3, and occasionally all 4 pile on.
 
-The **Fact-Checker** has an extra step: it scores sentences for factual claims and runs parallel Brave Search queries to cross-reference.
+The **Fact-Checker** has an extra step: it scores sentences for factual claims and runs parallel search queries to cross-reference — pick **Brave Search** (separate key, dedicated search API) or **xAI Live Search** (reuses your xAI key, no extra signup) in the side-panel settings.
 
 ---
 
@@ -129,8 +129,8 @@ Multi-provider by design. No platform trap.
 | Frontend | Next.js 15, Tailwind | App Router + SSE streaming |
 | Transcription | Deepgram Nova-3 | Sub-300ms, WebSocket native |
 | Fact-Checker + Comedy Writer | Claude Haiku (Anthropic) | Reasoning + nuance |
-| Troll + Sound Effects Guy | Groq + Llama 70B/8B | 120ms TTFT |
-| Fact-Checking | Brave Search API | Real-time claim verification |
+| Troll + Sound Effects Guy | xAI Grok 4.1 Fast (non-reasoning) | Reflexive, punchy output without deliberation |
+| Fact-Checking | Brave Search API **or** xAI Live Search | User-selectable per-session |
 
 **Cost per 2-hour episode: ~$1.15**
 
@@ -143,9 +143,9 @@ All services have free tiers:
 | Key | Sign up | Required? |
 |-----|---------|-----------|
 | Deepgram | [console.deepgram.com](https://console.deepgram.com/signup) | Yes |
-| Groq | [console.groq.com/keys](https://console.groq.com/keys) | Yes |
-| Anthropic | [console.anthropic.com](https://console.anthropic.com) | Optional (enables Baba Booey + Jackie) |
-| Brave Search | [brave.com/search/api](https://brave.com/search/api/) | Optional (enables live fact-checking) |
+| Anthropic | [console.anthropic.com](https://console.anthropic.com) | Yes (Baba Booey + Jackie) |
+| xAI | [console.x.ai](https://console.x.ai) | Yes (Troll + Fred, plus optional Live Search) |
+| Brave Search | [brave.com/search/api](https://brave.com/search/api/) | Optional (only when `SEARCH_ENGINE=brave`; skip it if you're routing search through xAI) |
 
 ---
 
@@ -189,8 +189,9 @@ Your job:
 2. Implement the 6 endpoints under the exact contracts in that doc:
    POST /api/transcribe, PATCH /api/transcribe, DELETE /api/transcribe,
    POST /api/personas, GET /api/health, GET /api/config.
-3. Wire Deepgram Nova-3 (WebSocket), Groq (Llama 70B + 8B), Anthropic
-   (Claude Haiku), and Brave Search exactly as the spec describes.
+3. Wire Deepgram Nova-3 (WebSocket), xAI Grok 4.1 Fast (non-reasoning),
+   Anthropic (Claude Haiku), and your search engine (Brave Search REST
+   or xAI Live Search) exactly as the spec describes.
 4. Honor every "Non-negotiable" in the spec, especially:
    - CORS for chrome-extension:// origins
    - SSE content-type, X-Session-Id header, no buffering

@@ -32,8 +32,7 @@ import { personas } from "@/lib/personas";
 
 const modelDisplay: Record<string, string> = {
   "claude-haiku": "Claude Haiku",
-  "groq-llama-70b": "Groq · Llama 70B",
-  "groq-llama-8b": "Groq · Llama 8B",
+  "xai-grok-4-fast": "xAI · Grok 4.1 Fast",
 };
 
 interface PersonaState {
@@ -55,7 +54,7 @@ export default function Home() {
   const [statusDetail, setStatusDetail] = useState<string | null>(null);
   const [pipelineStages, setPipelineStages] = useState<string[]>([]);
   const [showKeysModal, setShowKeysModal] = useState(false);
-  const [apiKeys, setApiKeys] = useState<ApiKeys>({ deepgram: "", anthropic: "", groq: "", brave: "" });
+  const [apiKeys, setApiKeys] = useState<ApiKeys>({ deepgram: "", anthropic: "", xai: "", brave: "" });
 
   // Audio capture mode: "server" = yt-dlp, "extension" = Chrome extension tab capture
   const [captureMode, setCaptureMode] = useState<"server" | "extension">("server");
@@ -191,7 +190,7 @@ export default function Home() {
           "Content-Type": "application/json",
           "X-Deepgram-Key": apiKeys.deepgram,
           "X-Anthropic-Key": apiKeys.anthropic,
-          "X-Groq-Key": apiKeys.groq,
+          "X-XAI-Key": apiKeys.xai,
           "X-Brave-Key": apiKeys.brave,
         },
         body: JSON.stringify({
@@ -902,7 +901,7 @@ export default function Home() {
         }`}
       >
         <p className="text-[10px] text-white/20">
-          Powered by Deepgram · Claude Haiku · Groq · Brave Search
+          Powered by Deepgram · Claude Haiku · xAI Grok · Brave Search
           {" · "}
           <a
             href="https://github.com/Sethmr/peanut.gallery"

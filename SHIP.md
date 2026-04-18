@@ -171,10 +171,10 @@ Peanut Gallery turns any YouTube video into a live show with 4 AI personas watch
 Inspired by the Howard Stern Show staff.
 
 THE CAST
-• Baba Booey — fact-checker (Claude Haiku + Brave Search). Mid-show corrections and background data on every claim.
-• Fred Norris — sound effects guy (Groq Llama 8B). Well-timed cues and the occasional razor-sharp aside.
+• Baba Booey — fact-checker (Claude Haiku + Brave Search or xAI Live Search). Mid-show corrections and background data on every claim.
+• Fred Norris — sound effects guy (xAI Grok 4.1 Fast). Well-timed cues and the occasional razor-sharp aside.
 • Jackie Martling — comedy writer (Claude Haiku). Setup-punchline jokes and callbacks.
-• The Cynical Troll — contrarian commentator (Groq Llama 70B, 120ms response time). Says what the chat is thinking.
+• The Cynical Troll — contrarian commentator (xAI Grok 4.1 Fast, non-reasoning). Says what the chat is thinking.
 
 HOW IT WORKS
 1. Click the peanut icon on any YouTube tab → a native Chrome side panel opens.
@@ -183,7 +183,7 @@ HOW IT WORKS
 4. Responses stream back token-by-token via Server-Sent Events and appear in the side panel alongside the transcript.
 
 OPEN SOURCE — BRING YOUR OWN KEYS
-Peanut Gallery is MIT licensed. Your API keys (Deepgram, Groq, optionally Anthropic and Brave Search) live in chrome.storage.local on your machine and are passed directly to your own server. Nothing is logged, nothing is persisted, nothing is sent to a third party beyond the AI providers you configure.
+Peanut Gallery is MIT licensed. Your API keys (Deepgram, Anthropic, xAI, optionally Brave Search) live in chrome.storage.local on your machine and are passed directly to your own server. Nothing is logged, nothing is persisted, nothing is sent to a third party beyond the AI providers you configure.
 
 Source + install instructions: https://github.com/Sethmr/peanut.gallery
 Hosted reference web app: https://peanutgallery.live
@@ -235,7 +235,7 @@ Capture audio from the current browser tab so it can be transcribed in real-time
 
 - **`storage`** —
   ```
-  Stores the user's server URL and API keys (Deepgram, Groq, optional Anthropic, optional Brave Search) in chrome.storage.local so they don't have to retype them every session. Stores a pending tabCapture stream ID in chrome.storage.session (cleared on browser restart). Nothing is synced, nothing leaves the browser except via the user's own fetch calls to their configured server.
+  Stores the user's server URL and API keys (Deepgram, Anthropic, xAI, optional Brave Search) plus the selected search-engine preference (`brave` or `xai`) in chrome.storage.local so they don't have to retype them every session. Stores a pending tabCapture stream ID in chrome.storage.session (cleared on browser restart). Nothing is synced, nothing leaves the browser except via the user's own fetch calls to their configured server.
   ```
 
 - **`sidePanel`** —

@@ -119,7 +119,12 @@ FORMAT:
   //
   // The callers: Stern Show callers are famous for calling in specifically to
   // roast the staff, challenge guests, and say the thing nobody else will say.
-  // Model: Groq Llama 70B (120ms TTFT — cynics are fast)
+  //
+  // Model: xAI Grok 4.1 Fast (non-reasoning). Natively trained to be
+  // sarcastic and willing to punch at absurdity — the voice fit is closer
+  // than Llama 70B's, and the non-reasoning variant keeps the instinctual
+  // caller energy intact (no deliberation latency). Also gets us off the
+  // Groq free-tier TPD cap that was silent-spinning taps on this slot.
   // ─────────────────────────────────────────────────────────
   {
     id: "troll",
@@ -127,7 +132,7 @@ FORMAT:
     role: "Cynical Commentator",
     emoji: "🔥",
     color: "#ef4444",
-    model: "groq-llama-70b",
+    model: "xai-grok-4-fast",
     systemPrompt: `You are The Troll — the cynical commentator inspired by the brutally honest callers of the Howard Stern Show and the sardonic wit of Artie Lange.
 
 WHO YOU ARE:
@@ -207,7 +212,11 @@ FORMAT:
   // Money") because he's genuinely brilliant. His rare on-air comments are bone-dry
   // and perfectly timed. The "uh" he interjects during chaos is iconic.
   //
-  // Model: Groq Llama 8B (fast, concise — sound cues need to hit instantly)
+  // Model: xAI Grok 4.1 Fast non-reasoning. Sound cues need to hit INSTANTLY —
+  // reasoning mode would second-guess the drop and kill the timing. The
+  // non-reasoning variant is built for reflexive, punchy output, which is
+  // exactly Fred's whole voice. Also lets us drop groq-sdk and standardize
+  // the stack on Anthropic + xAI + Deepgram.
   // ─────────────────────────────────────────────────────────
   {
     id: "soundfx",
@@ -215,7 +224,7 @@ FORMAT:
     role: "Sound Effects & Context",
     emoji: "🎧",
     color: "#a855f7",
-    model: "groq-llama-8b",
+    model: "xai-grok-4-fast",
     systemPrompt: `You are Fred — the AI sound effects and context persona inspired by Fred Norris, the longest-serving member of the Howard Stern Show (since 1981, before even Gary).
 
 WHO YOU ARE:

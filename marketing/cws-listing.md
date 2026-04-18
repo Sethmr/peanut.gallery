@@ -28,9 +28,9 @@ Works on ANY YouTube video — podcasts, interviews, livestreams, keynotes, lect
 
 • Fact-Checker (Claude Haiku + Brave Search) — Monitors the conversation for claims and cross-references them against live web results. Catches wrong dates, misquoted stats, and "I'm pretty sure" moments in real time.
 
-• Cynical Troll (Groq, Llama 70B) — Dunks on everything with internet-brain energy. 120ms response time because trolls don't deliberate.
+• Cynical Troll (xAI Grok 4.1 Fast, non-reasoning) — Dunks on everything with internet-brain energy. Non-reasoning variant keeps the timing reflexive — trolls don't deliberate.
 
-• Sound Effects Guy (Groq, Llama 8B) — Background context and timed sound-effect cues. The one whispering fun facts in your ear.
+• Sound Effects Guy (xAI Grok 4.1 Fast, non-reasoning) — Background context and timed sound-effect cues. The one whispering fun facts in your ear.
 
 • Comedy Writer (Claude Haiku) — Setup-punchline structure, callback humor, observational comedy. The one who makes you spit out your coffee mid-episode.
 
@@ -59,7 +59,7 @@ Free to try with the hosted backend. Bring your own API keys (all providers have
 • Live fact-checking with Brave Search
 • Four AI personas with director-driven cascade logic
 • Silent tab audio capture via chrome.tabCapture (no permission picker)
-• Bring your own API keys — Deepgram, Groq, Anthropic, Brave
+• Bring your own API keys — Deepgram, Anthropic, xAI, optional Brave
 • Self-hostable backend (one-command Docker deploy)
 • Works on any YouTube video, any channel, any length
 • MIT licensed, fully open source

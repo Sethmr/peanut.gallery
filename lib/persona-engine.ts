@@ -4,17 +4,21 @@
  * Takes transcript chunks, fans out to 4 LLM calls in parallel,
  * and streams responses back via callbacks.
  *
- * Multi-provider: Groq (Llama) for speed, Claude Haiku for nuance.
+ * Multi-provider: xAI Grok (non-reasoning) for fast/reflexive voices (Troll,
+ * Jason, Fred, Lon) and Claude Haiku for the nuanced ones (Baba/Molly
+ * producer, Jackie/Alex joker). Groq was in the mix pre-v1.4 but hit free-tier
+ * TPD caps in production; swapped out for Grok which has a better-fitting
+ * voice for the sarcastic/reflex slots anyway.
  *
  * FACT-CHECKING PIPELINE (for Producer persona):
  * 1. Extract verifiable claims from recent transcript
- * 2. Run parallel Brave Search queries for each claim
+ * 2. Run parallel search queries for each claim (Brave Search or xAI Live
+ *    Search — chosen per session by the viewer)
  * 3. Inject search results into Producer's context
  * 4. Producer cross-references and corrects in real-time
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import Groq from "groq-sdk";
 import { logPipeline, logTimed } from "./debug-logger";
 import {
   buildPersonaContext,
@@ -46,6 +50,28 @@ interface LogEntry {
   timestamp: number;
 }
 
+/**
+ * Archetype-keyed fallback lines used when the model tries to pass on a
+ * user-initiated tap (isForceReact = true). The viewer promised themselves
+ * a response by tapping; we owe them visible output no matter what the
+ * model decided.
+ *
+ * Keyed by archetype slot id (`producer` / `troll` / `soundfx` / `joker`)
+ * so they work across any pack (Howard, TWiST, future). Lines are
+ * deliberately short + hedge-shaped — enough to fill the bubble, easy on
+ * the eye, not trying to impersonate the specific persona's sharp voice.
+ */
+const FORCE_REACT_FALLBACKS: Record<string, string> = {
+  producer: "Eh — nothing clean on that one. Let me keep my ears open.",
+  troll: "Not enough meat on that bone. I'll get the next one.",
+  soundfx: "[crickets]",
+  joker: "*still writing — hold.*",
+};
+
+function getForceReactFallback(persona: Persona): string {
+  return FORCE_REACT_FALLBACKS[persona.id] ?? `[${persona.name} is still thinking.]`;
+}
+
 // Patterns that indicate a verifiable factual claim
 const CLAIM_PATTERNS = [
   // Numbers, dates, statistics
@@ -62,10 +88,34 @@ const CLAIM_PATTERNS = [
   /(?:is worth|was worth|valued at|market cap|founded by|CEO of|invented|created by)/i,
 ];
 
+/**
+ * Which search backend to use for Producer fact-checking. User-selectable per
+ * session — Brave hits the Brave Search REST API; "xai" uses xAI's Grok Live
+ * Search (`search_parameters` on a chat completion) which returns a synthesized
+ * answer + citations in one round-trip. Default is "brave" to preserve the
+ * existing behavior for users who haven't flipped the toggle.
+ */
+export type SearchEngine = "brave" | "xai";
+
 export class PersonaEngine {
   private anthropic: Anthropic;
-  private groq: Groq;
   private braveApiKey: string;
+  /**
+   * xAI Grok uses an OpenAI-compatible REST API, so we call it with raw
+   * fetch + SSE parsing instead of pulling in another SDK. Keys flow in the
+   * same way as the other providers (header override → env var). Empty
+   * string means "not configured" — the xai branch in firePersona will throw
+   * a clear error, which the force-react fallback will then catch and
+   * convert into a visible canned bubble.
+   */
+  private xaiKey: string;
+
+  /**
+   * Which search engine the Producer uses for fact-checking. Fixed at
+   * construction time so a single session has deterministic behavior; the
+   * route picks this up from the client header and hands it to us.
+   */
+  private searchEngine: SearchEngine;
 
   /**
    * The active pack. Defaults to the Howard pack so pre-v1.3 call sites that
@@ -96,8 +146,15 @@ export class PersonaEngine {
 
   constructor(config: {
     anthropicKey: string;
-    groqKey: string;
     braveSearchKey: string;
+    /**
+     * xAI Grok key. Every pack's Troll/Jason AND soundfx slot routes through
+     * Grok as of v1.4, so a working xAI key is required for both packs to
+     * fire cleanly. Empty-string is still accepted (force-react fallback
+     * catches the resulting throw into a visible canned bubble), but the
+     * sidebar will look sparse.
+     */
+    xaiKey: string;
     /**
      * Optional. Defaults to the Howard pack (pre-v1.3 behavior). When v1.3's
      * pack selector forwards a user-chosen pack from the extension, the
@@ -106,10 +163,19 @@ export class PersonaEngine {
      * so this argument is either a valid Pack or unset.
      */
     pack?: Pack;
+    /**
+     * Optional. Search backend for Producer fact-checking. "brave" preserves
+     * the pre-v1.4 behavior (Brave Search REST API); "xai" uses Grok Live
+     * Search and folds the whole search+synthesize step into one Grok call
+     * (removes the second network hop + removes the Brave-Search dependency
+     * for users who only want one key). Defaults to "brave".
+     */
+    searchEngine?: SearchEngine;
   }) {
     this.anthropic = new Anthropic({ apiKey: config.anthropicKey });
-    this.groq = new Groq({ apiKey: config.groqKey });
     this.braveApiKey = config.braveSearchKey;
+    this.xaiKey = config.xaiKey;
+    this.searchEngine = config.searchEngine ?? "brave";
     this.pack = config.pack ?? howardPack;
 
     // Initialize response history for every persona in the active pack
@@ -236,11 +302,35 @@ export class PersonaEngine {
       }
     }
 
-    // Fetch search results for producer
-    const searchResults =
-      persona.id === "producer" && !isSilence
-        ? await this.fetchSearchResults(transcript)
-        : undefined;
+    // Fetch search results for producer.
+    //
+    // Explicitly SKIPPED on isForceReact: a tap on Baba's avatar must feel
+    // instant, and search is the only pre-stream I/O this persona does. A
+    // slow or hung upstream (Brave 500, xAI Live Search drag) would block
+    // `firePersona` from ever starting, leaving the avatar's spinner running
+    // with no bubble to show for it — the exact "animates and doesn't
+    // respond" symptom we shipped in v1.4. Baba's prompt already handles the
+    // no-search case (context / callback / heads-up / self-deprecating), so
+    // skipping on force-react costs us a fact but never the response itself.
+    // Director-driven fires still fetch search — that path has budget for
+    // the round-trip and benefits from cited facts.
+    // Decide + log separately so a force-react skip is trackable. Baba fires
+    // without citation context in that branch, which degrades his value
+    // prop; if tap frequency is high we may want to revisit (e.g. serve a
+    // cached recent-fact lookup on tap instead of skipping entirely).
+    let searchResults: string | undefined;
+    if (persona.id === "producer" && !isSilence) {
+      if (isForceReact) {
+        logPipeline({
+          event: "search_skip",
+          level: "info",
+          personaId: persona.id,
+          data: { reason: "force_react", engine: this.searchEngine },
+        });
+      } else {
+        searchResults = await this.fetchSearchResults(transcript);
+      }
+    }
 
     const conversationLog = this.buildConversationLogView();
 
@@ -423,35 +513,108 @@ export class PersonaEngine {
       }
     };
 
-    if (persona.model === "claude-haiku") {
-      const stream = this.anthropic.messages.stream({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 200,
-        messages: [{ role: "user", content: context }],
-      });
-      for await (const event of stream) {
-        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-          handleDelta(event.delta.text);
+    // Pick the concrete xAI model id for any persona whose alias routes to
+    // Grok. Kept local to firePersona so the alias→id mapping stays next to
+    // the call site rather than scattered across the file. Easy to extend
+    // later (grok-4-fast-reasoning for a director, etc.) by branching here.
+    const xaiModelId = (alias: Persona["model"]): string => {
+      switch (alias) {
+        case "xai-grok-4-fast":
+          // Non-reasoning variant: The Troll is instinctual/fast, not
+          // deliberative. Reasoning mode would add latency and push the
+          // voice toward over-considered takes — wrong gear for this slot.
+          return "grok-4-1-fast-non-reasoning";
+        default:
+          throw new Error(`No xAI model mapping for alias: ${alias}`);
+      }
+    };
+
+    // ── UPSTREAM STREAM (with force-react error fallback) ──
+    // A force-react tap has already committed to "this persona speaks." If the
+    // provider errors out BEFORE we've flushed any content to the client
+    // (rate limit, 5xx, network blip), a raw throw here would bubble to
+    // fireSingle's outer catch and emit "[technical difficulties]" — which is
+    // both unhelpful voice and, historically, got swallowed entirely by a
+    // streamCallback bug that dropped text on done=true. So: for force-react,
+    // we route upstream failures to the same deterministic fallback we already
+    // use for model-initiated "-" passes. For non-force-react paths, we still
+    // rethrow — the director's caller decides how to present failures.
+    // 25s upstream-stream ceiling. Typical responses finish in 2-4s; this
+    // only trips when the provider gets stuck mid-stream or never ACKs.
+    // Without it, the Anthropic SDK's default ~10 min timeout would lock
+    // the route's per-session `personasFiring` flag for that entire window
+    // and strand every director tick + avatar tap on the session. 25s is
+    // comfortably under the route-level safety budget but well past the
+    // 99th-percentile response time, so healthy streams never see it.
+    const STREAM_TIMEOUT_MS = 25_000;
+    try {
+      if (persona.model === "claude-haiku") {
+        const stream = this.anthropic.messages.stream(
+          {
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 200,
+            messages: [{ role: "user", content: context }],
+          },
+          { signal: AbortSignal.timeout(STREAM_TIMEOUT_MS) }
+        );
+        for await (const event of stream) {
+          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+            handleDelta(event.delta.text);
+          }
         }
+      } else if (persona.model === "xai-grok-4-fast") {
+        // xAI Grok via raw fetch against the OpenAI-compatible endpoint.
+        // System-role carries the persona prompt so Grok's native voice
+        // training gets a clean anchor; the `context` in user-role carries
+        // transcript + force-react preamble + self-check.
+        for await (const delta of this.streamXai(
+          xaiModelId(persona.model),
+          [
+            { role: "system", content: persona.systemPrompt },
+            { role: "user", content: context },
+          ],
+          AbortSignal.timeout(STREAM_TIMEOUT_MS)
+        )) {
+          handleDelta(delta);
+        }
+      } else {
+        // TypeScript-exhaustiveness guard. If Persona["model"] gets a new
+        // alias and someone forgets to add a branch above, this throws
+        // loudly at fire time instead of silently no-op'ing the persona.
+        const _exhaustive: never = persona.model;
+        throw new Error(`Unrouted persona model alias: ${String(_exhaustive)}`);
       }
-    } else {
-      const model =
-        persona.model === "groq-llama-70b"
-          ? "llama-3.3-70b-versatile"
-          : "llama-3.1-8b-instant";
-      const stream = await this.groq.chat.completions.create({
-        model,
-        messages: [
-          { role: "system", content: persona.systemPrompt },
-          { role: "user", content: context },
-        ],
-        max_tokens: 200,
-        stream: true,
-      });
-      for await (const chunk of stream) {
-        const delta = chunk.choices[0]?.delta?.content;
-        if (delta) handleDelta(delta);
+    } catch (streamErr) {
+      const errMsg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+      // Only intercept when the tap hasn't already seen visible content.
+      // If passDecided is true we've already streamed a partial bubble; in
+      // that case preserve what the viewer saw and let the done frame close
+      // it cleanly rather than double-bubbling the fallback on top.
+      if (isForceReact && !passDecided) {
+        const fallback = getForceReactFallback(persona);
+        logPipeline({
+          event: "force_react_fallback",
+          level: "warn",
+          personaId: persona.id,
+          data: { reason: "upstream_error", error: errMsg, fallback },
+        });
+        onStream({ personaId: persona.id, text: fallback, done: false });
+        onStream({ personaId: persona.id, text: "", done: true });
+        this.storeResponse(persona.id, fallback);
+        this.conversationLog.push({
+          personaId: persona.id,
+          text: fallback,
+          timestamp: Date.now(),
+        });
+        this.trimLog();
+        donePersona({ responseLength: fallback.length, fallback: true, upstreamError: errMsg });
+        return;
       }
+      // Non-force-react (director cascades, 🔥 burst individual failures):
+      // rethrow so the existing outer catch emits its technical-difficulties
+      // message. With the route's streamCallback fix, that message now
+      // actually reaches the client instead of being dropped.
+      throw streamErr;
     }
 
     // Final decision if we never left the buffer phase (tiny responses)
@@ -465,6 +628,34 @@ export class PersonaEngine {
     }
 
     if (passed) {
+      // ── FORCE-REACT SAFETY NET ──
+      // The model is NOT allowed to decide IF it responds on an explicit tap —
+      // only HOW it responds. If the model tried to pass with "-" anyway, we
+      // override that decision with a deterministic in-voice fallback so the
+      // viewer always sees something after tapping. Pass behavior is fine for
+      // director-driven fires (where the director hasn't committed to a
+      // response yet); it's not fine for user-initiated taps.
+      if (isForceReact) {
+        const fallback = getForceReactFallback(persona);
+        logPipeline({
+          event: "force_react_fallback",
+          level: "warn",
+          personaId: persona.id,
+          data: { reason: "model_returned_dash_pass_on_force_react", fallback },
+        });
+        onStream({ personaId: persona.id, text: fallback, done: false });
+        onStream({ personaId: persona.id, text: "", done: true });
+        this.storeResponse(persona.id, fallback);
+        this.conversationLog.push({
+          personaId: persona.id,
+          text: fallback,
+          timestamp: Date.now(),
+        });
+        this.trimLog();
+        donePersona({ responseLength: fallback.length, fallback: true });
+        return;
+      }
+
       logPipeline({
         event: "persona_pass",
         level: "info",
@@ -492,6 +683,94 @@ export class PersonaEngine {
     this.trimLog();
   }
 
+  /**
+   * Stream a chat completion from xAI's Grok API (OpenAI-compatible SSE).
+   * Yields text deltas only — the caller is responsible for buffering and
+   * pass-detection. Throws on missing key, non-2xx response, or malformed
+   * stream. All error shapes are caught by the upstream-stream try/catch
+   * inside firePersona, which routes force-react taps to the deterministic
+   * fallback and rethrows for director-driven calls.
+   *
+   * Kept SDK-free on purpose: xAI's surface area we need is one endpoint
+   * with one message shape, and the `openai` package would be another
+   * ~5MB dep for a ~50-line fetch wrapper.
+   */
+  private async *streamXai(
+    modelId: string,
+    messages: Array<{ role: string; content: string }>,
+    signal?: AbortSignal
+  ): AsyncGenerator<string> {
+    if (!this.xaiKey) {
+      throw new Error("xAI API key not configured (set X-XAI-Key header or XAI_API_KEY env)");
+    }
+
+    // The caller passes an AbortSignal backed by AbortSignal.timeout so a
+    // stalled or silent-midstream xAI connection can't hang firePersona
+    // forever. Plumbed through to both the initial fetch AND every
+    // reader.read() via the body-stream tie — aborting the signal cancels
+    // both. See firePersona's STREAM_TIMEOUT_MS comment for the reasoning.
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.xaiKey}`,
+      },
+      body: JSON.stringify({
+        model: modelId,
+        messages,
+        max_tokens: 200,
+        stream: true,
+      }),
+      signal,
+    });
+
+    if (!response.ok) {
+      // Preserve the body in the error so rate-limit / auth failures surface
+      // readably in the force_react_fallback log line.
+      const body = await response.text().catch(() => "<unreadable body>");
+      throw new Error(`xAI API ${response.status}: ${body.slice(0, 500)}`);
+    }
+    if (!response.body) {
+      throw new Error("xAI API returned no response body");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    // SSE chunks can split across network frames mid-line. Buffer everything
+    // that isn't terminated by a newline and carry it into the next read.
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        // Keep the (possibly partial) last line in the buffer.
+        buffer = lines.pop() ?? "";
+
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line || !line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if (payload === "[DONE]") return;
+          try {
+            const parsed = JSON.parse(payload);
+            const delta: string | undefined = parsed?.choices?.[0]?.delta?.content;
+            if (delta) yield delta;
+          } catch {
+            // Malformed individual chunk — skip rather than abort the stream.
+            // xAI occasionally includes keepalive or metadata frames that
+            // don't parse; losing one delta is better than killing the fire.
+          }
+        }
+      }
+    } finally {
+      // Be kind to the connection pool even on early termination.
+      reader.releaseLock();
+    }
+  }
+
   private storeResponse(personaId: string, response: string): void {
     const prev = this.previousResponses.get(personaId) || [];
     prev.push(response);
@@ -512,8 +791,18 @@ export class PersonaEngine {
   private async fetchSearchResults(
     transcript: string
   ): Promise<string | undefined> {
-    if (!this.braveApiKey) {
-      logPipeline({ event: "brave_search_skip", level: "debug", data: { reason: "no_api_key" } });
+    // Route on the session's configured search engine. Both branches share
+    // the same claim-extraction logic — they differ only in how the actual
+    // "look this up on the web" step runs. That keeps the Producer's prompt
+    // shape identical whether we're using Brave or xAI under the hood.
+    const engine = this.searchEngine;
+    const requiredKey = engine === "brave" ? this.braveApiKey : this.xaiKey;
+    if (!requiredKey) {
+      logPipeline({
+        event: "search_skip",
+        level: "debug",
+        data: { reason: "no_api_key", engine },
+      });
       return undefined;
     }
 
@@ -527,7 +816,14 @@ export class PersonaEngine {
         .map((s) => s.trim())
         .filter((s) => s.length > 15);
 
-      if (sentences.length === 0) return undefined;
+      if (sentences.length === 0) {
+        logPipeline({
+          event: "search_no_claims_detected",
+          level: "info",
+          data: { reason: "no_sentences", engine, transcriptLength: transcript.length },
+        });
+        return undefined;
+      }
 
       // Score each sentence by how likely it is to contain a verifiable claim
       const scoredClaims = sentences
@@ -548,21 +844,38 @@ export class PersonaEngine {
         .filter((c) => c.score > 0)
         .sort((a, b) => b.score - a.score);
 
-      if (scoredClaims.length === 0) return undefined;
+      if (scoredClaims.length === 0) {
+        // This is a value-reducing branch: Baba fires without search context
+        // because our claim-extraction heuristics flagged nothing. If this
+        // fires too often, the CLAIM_PATTERNS regex set probably needs a
+        // new rule (common in new domains — see how many TWiST episodes
+        // lean on startup-speak the old Howard patterns never caught).
+        logPipeline({
+          event: "search_no_claims_detected",
+          level: "info",
+          data: { reason: "no_claims_scored", engine, sentenceCount: sentences.length },
+        });
+        return undefined;
+      }
 
       // Take top 2-3 claims and search in parallel
       const topClaims = scoredClaims.slice(0, 3);
 
       const searchTasks = topClaims.map(async ({ sentence }) => {
-        // Build a focused search query from the claim
         const query = this.buildSearchQuery(sentence);
-        return this.searchBrave(query);
+        return engine === "brave"
+          ? this.searchBrave(query)
+          : this.searchXai(query);
       });
 
       const results = await Promise.allSettled(searchTasks);
 
-      // Combine all successful search results
+      // Combine all successful search results + count outcomes so we can
+      // see the hit rate per engine at the aggregate level. Individual
+      // failure reasons are logged inside searchBrave/searchXai.
       const allResults: string[] = [];
+      let succeeded = 0;
+      let emptyOrFailed = 0;
       results.forEach((result, i) => {
         if (result.status === "fulfilled" && result.value) {
           allResults.push(
@@ -570,11 +883,42 @@ export class PersonaEngine {
           );
           allResults.push(result.value);
           allResults.push("");
+          succeeded++;
+        } else {
+          emptyOrFailed++;
         }
       });
 
+      logPipeline({
+        event: "search_complete",
+        level: succeeded === 0 ? "warn" : "info",
+        data: {
+          engine,
+          attempted: topClaims.length,
+          succeeded,
+          emptyOrFailed,
+          // Flag the value-reducing outcome so we can alert on it: Baba
+          // fires without citation context even though we had claims to
+          // check, which usually means the upstream is degraded.
+          degraded: succeeded === 0,
+        },
+      });
+
       return allResults.length > 0 ? allResults.join("\n") : undefined;
-    } catch {
+    } catch (err) {
+      // The outer try/catch used to swallow everything silently — meaning a
+      // regex bug or an unexpected throw inside claim extraction would
+      // silently neuter Baba's fact-checking. Log the shape so we can tell
+      // "upstream blew up" (handled per-engine below) from "our own
+      // pipeline threw" (handled here).
+      logPipeline({
+        event: "search_pipeline_error",
+        level: "error",
+        data: {
+          engine,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      });
       return undefined;
     }
   }
@@ -619,7 +963,14 @@ export class PersonaEngine {
    * Execute a single Brave Search query and format results.
    */
   private async searchBrave(query: string): Promise<string | undefined> {
+    const BRAVE_TIMEOUT_MS = 5000;
     try {
+      // 5-second hard timeout. Node's native fetch has no default timeout,
+      // so a silently-stalled upstream would hang the producer's fireSingle
+      // forever and strand the avatar's spinner. 5s is generous for Brave
+      // (typical <1s) and well below the client's 15s safety timeout, so
+      // even a director-driven fact-check that bails out still gives
+      // firePersona time to produce a visible in-voice fallback.
       const response = await fetch(
         `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=3&freshness=py`,
         {
@@ -628,15 +979,39 @@ export class PersonaEngine {
             "Accept-Encoding": "gzip",
             "X-Subscription-Token": this.braveApiKey,
           },
+          signal: AbortSignal.timeout(BRAVE_TIMEOUT_MS),
         }
       );
 
-      if (!response.ok) return undefined;
+      if (!response.ok) {
+        logPipeline({
+          event: "search_upstream_error",
+          level: "warn",
+          data: {
+            engine: "brave",
+            status: response.status,
+            query: query.slice(0, 100),
+          },
+        });
+        return undefined;
+      }
 
       const data = await response.json();
       const results = data.web?.results || [];
 
-      if (results.length === 0) return undefined;
+      if (results.length === 0) {
+        // Brave returned 200 but no hits. This isn't an error, but it IS
+        // value-reducing: the Producer will have to fall back to its own
+        // knowledge for this claim. Track frequency so we can tune the
+        // query builder (freshness window, term extraction, etc.) if the
+        // empty-hit rate climbs.
+        logPipeline({
+          event: "search_empty_result",
+          level: "info",
+          data: { engine: "brave", query: query.slice(0, 100) },
+        });
+        return undefined;
+      }
 
       return results
         .map(
@@ -644,7 +1019,138 @@ export class PersonaEngine {
             `• [${r.title}] ${r.description}`
         )
         .join("\n");
-    } catch {
+    } catch (err) {
+      // AbortSignal.timeout() throws a DOMException with name "TimeoutError"
+      // in Node 18+. Split timeout from generic network errors so operational
+      // dashboards can distinguish a slow upstream (actionable: raise the
+      // ceiling or switch engines) from a transient failure.
+      const isTimeout =
+        err instanceof DOMException && err.name === "TimeoutError";
+      logPipeline({
+        event: isTimeout ? "search_timeout" : "search_upstream_error",
+        level: "warn",
+        data: {
+          engine: "brave",
+          query: query.slice(0, 100),
+          ...(isTimeout
+            ? { timeoutMs: BRAVE_TIMEOUT_MS }
+            : { error: err instanceof Error ? err.message : String(err) }),
+        },
+      });
+      return undefined;
+    }
+  }
+
+  /**
+   * Execute a single fact-check query using xAI's Grok Live Search.
+   *
+   * Unlike Brave — which returns raw SERP entries — xAI's search returns a
+   * synthesized answer with inline citations in one call. We force
+   * `search_parameters.mode = "on"` so Grok ALWAYS consults the web for this
+   * call (otherwise Grok's "auto" heuristic sometimes answers from training
+   * data alone, which is exactly what we're trying to avoid for fact checks).
+   *
+   * We use the non-reasoning variant here — fact-checking is fetch-and-cite,
+   * not multi-step reasoning, and the non-reasoning model is cheaper and
+   * faster. If we ever need chained reasoning on a claim, swap to the
+   * reasoning variant on this one call without touching the persona models.
+   */
+  private async searchXai(query: string): Promise<string | undefined> {
+    if (!this.xaiKey) return undefined;
+    const XAI_TIMEOUT_MS = 8000;
+    try {
+      // 8-second hard timeout. xAI Live Search is a search + synthesis
+      // round-trip, so it's inherently slower than Brave — we give it a
+      // little more headroom but still well under the client's 15s safety
+      // timeout. Without this, a stalled upstream would block the
+      // producer's fireSingle forever (see the Baba silent-spin bug that
+      // shipped in v1.4 when this function was first introduced).
+      const response = await fetch("https://api.x.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.xaiKey}`,
+        },
+        body: JSON.stringify({
+          model: "grok-4-1-fast-non-reasoning",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are a terse fact-check assistant. For the given claim, answer with 1-3 bullet points of verified facts, each followed by its source URL in parens. Do not editorialize. If the search returns no reliable data, say so and stop.",
+            },
+            { role: "user", content: `Fact-check this claim: ${query}` },
+          ],
+          max_tokens: 300,
+          stream: false,
+          search_parameters: {
+            mode: "on",
+            sources: [{ type: "web" }],
+            max_search_results: 5,
+            return_citations: true,
+          },
+        }),
+        signal: AbortSignal.timeout(XAI_TIMEOUT_MS),
+      });
+
+      if (!response.ok) {
+        logPipeline({
+          event: "search_upstream_error",
+          level: "warn",
+          data: {
+            engine: "xai",
+            status: response.status,
+            query: query.slice(0, 100),
+          },
+        });
+        return undefined;
+      }
+
+      const data = await response.json();
+      const answer: string | undefined =
+        data?.choices?.[0]?.message?.content?.trim();
+      if (!answer) {
+        // xAI returned 200 with no synthesized answer — the call cost money
+        // and time but gave the Producer nothing to cite. Log so we can
+        // spot patterns (e.g. specific claim shapes that consistently
+        // produce empty synths) and tune the prompt or fall back to Brave.
+        logPipeline({
+          event: "search_empty_result",
+          level: "info",
+          data: { engine: "xai", query: query.slice(0, 100) },
+        });
+        return undefined;
+      }
+
+      // xAI may attach citations either as top-level `citations` or on the
+      // message itself — we accept either and append unique URLs so the
+      // Producer can quote them if the bullet text alone isn't clear.
+      const citations: string[] = Array.isArray(data?.citations)
+        ? data.citations
+        : Array.isArray(data?.choices?.[0]?.message?.citations)
+          ? data.choices[0].message.citations
+          : [];
+      const uniqueCites = Array.from(
+        new Set(citations.filter((c) => typeof c === "string"))
+      ).slice(0, 3);
+
+      return uniqueCites.length > 0
+        ? `${answer}\n(sources: ${uniqueCites.join(", ")})`
+        : answer;
+    } catch (err) {
+      const isTimeout =
+        err instanceof DOMException && err.name === "TimeoutError";
+      logPipeline({
+        event: isTimeout ? "search_timeout" : "search_upstream_error",
+        level: "warn",
+        data: {
+          engine: "xai",
+          query: query.slice(0, 100),
+          ...(isTimeout
+            ? { timeoutMs: XAI_TIMEOUT_MS }
+            : { error: err instanceof Error ? err.message : String(err) }),
+        },
+      });
       return undefined;
     }
   }

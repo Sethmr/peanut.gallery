@@ -8,9 +8,13 @@
  *   npx tsx scripts/test-personas.ts --fixture   # Use real TWiST episode transcript
  *
  * Requires:
- *   - GROQ_API_KEY in .env.local (required)
- *   - ANTHROPIC_API_KEY in .env.local (optional — skips Claude personas if missing)
- *   - BRAVE_SEARCH_API_KEY in .env.local (optional — skips fact-checking if missing)
+ *   - XAI_API_KEY in .env.local (required — powers Troll/Jason + soundfx slot)
+ *   - ANTHROPIC_API_KEY in .env.local (required — powers Producer + Joker slots)
+ *   - BRAVE_SEARCH_API_KEY in .env.local (optional — needed only if you set
+ *     SEARCH_ENGINE=brave; with SEARCH_ENGINE=xai the Producer uses Grok
+ *     Live Search and you don't need a Brave key)
+ *   - SEARCH_ENGINE=brave|xai (optional; defaults to brave to match the
+ *     engine's pre-v1.4 behavior)
  */
 
 import { config } from "dotenv";
@@ -48,25 +52,30 @@ if (process.argv[2] === "--fixture") {
   transcript = process.argv[2] || SAMPLE_TRANSCRIPT;
 }
 
-const groqKey = process.env.GROQ_API_KEY;
 const anthropicKey = process.env.ANTHROPIC_API_KEY;
 const braveKey = process.env.BRAVE_SEARCH_API_KEY;
+const xaiKey = process.env.XAI_API_KEY;
+const rawEngine = (process.env.SEARCH_ENGINE || "").toLowerCase();
+const searchEngine: "brave" | "xai" = rawEngine === "xai" ? "xai" : "brave";
 
-if (!groqKey) {
-  console.error("Missing GROQ_API_KEY in .env.local");
+if (!anthropicKey && !xaiKey) {
+  console.error("Missing ANTHROPIC_API_KEY and XAI_API_KEY — need at least one.");
   process.exit(1);
 }
 
 console.log("🥜 Peanut Gallery — Persona Test");
 console.log("─".repeat(60));
 console.log(`📝 Transcript: ${transcript.trim().slice(0, 100)}...`);
-console.log(`🔑 Groq: ✅  Anthropic: ${anthropicKey ? "✅" : "⏭️  (skipping Claude personas)"}  Brave: ${braveKey ? "✅" : "⏭️  (no fact-checking)"}`);
+console.log(
+  `🔑 Anthropic: ${anthropicKey ? "✅" : "⏭️  (producer/joker will fallback)"}  xAI: ${xaiKey ? "✅" : "⏭️  (troll/soundfx will fallback)"}  Brave: ${braveKey ? "✅" : "⏭️  (no Brave fact-checking)"}  Search: ${searchEngine}`
+);
 console.log("─".repeat(60));
 
 const engine = new PersonaEngine({
   anthropicKey: anthropicKey || "",
-  groqKey: groqKey,
   braveSearchKey: braveKey || "",
+  xaiKey: xaiKey || "",
+  searchEngine,
 });
 
 // Track which personas are currently streaming
