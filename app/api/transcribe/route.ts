@@ -381,15 +381,37 @@ export async function POST(req: NextRequest) {
           // instead of a 4-way pile-on.
           const decision = director.decide(
             recentTranscript || transcript.slice(-500),
-            isSilenceTick
+            isSilenceTick,
+            sessionId
           );
 
-          log.info("director_decision", {
-            chain: decision.personaIds.join(" → "),
-            reason: decision.reason,
-            cascadeCount: decision.personaIds.length,
-            isSilence: isSilenceTick,
-          });
+          // v1.2: emit the Director's decision to the side-panel debug panel
+          // as an SSE event. The Director already writes a structured log
+          // line with the same shape via its own logPipeline call (now
+          // sessionId-tagged), so we don't re-log here — that was the
+          // pre-v1.2 duplicate.
+          //
+          // Wrapped defensively: an aborted stream must not break the
+          // cascade path below. If send() throws on a closed writer, we
+          // swallow and keep going.
+          try {
+            send("director_decision", {
+              sessionId,
+              ts: new Date().toISOString(),
+              pick: decision.personaIds[0] ?? null,
+              score: decision.score ?? 0,
+              top3: decision.top3 ?? [],
+              chain: decision.personaIds,
+              delays: decision.delays,
+              cascadeLen: decision.personaIds.length,
+              cooldownsMs: decision.cooldownsMs ?? {},
+              reason: decision.reason,
+              isSilence: isSilenceTick,
+              isForceReact: false,
+            });
+          } catch {
+            // SSE writer may be closed — ignore and continue the cascade.
+          }
 
           // Fire the cascade chain with staggered delays
           let lastResponse = "";

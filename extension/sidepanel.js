@@ -582,6 +582,14 @@ chrome.runtime.onMessage.addListener((message) => {
       break;
     }
 
+    case "director_decision":
+      // v1.2: buffer the director's decision for the debug panel. Silent by
+      // default — the panel only renders after the user long-presses the
+      // version badge. Push even when the panel is closed so opening it
+      // shows recent history.
+      pushDirectorTrace(data);
+      break;
+
     case "error":
       showError(data.message);
       break;
@@ -965,3 +973,191 @@ function formatTime(ts) {
 [serverUrlInput, deepgramKeyInput, groqKeyInput, anthropicKeyInput, braveKeyInput].forEach((el) => {
   el.addEventListener("change", saveSettings);
 });
+
+// ──────────────────────────────────────────────────────
+// DIRECTOR TRACE (v1.2 debug panel)
+// ──────────────────────────────────────────────────────
+//
+// A developer-grade window into the Director's decisions. Hidden behind a
+// long-press on the version badge so normal users never see it, but when
+// tuning cascade timing or investigating a "why did that persona fire?"
+// regression, it's the single most useful thing in the extension.
+//
+// Design notes:
+//   - Ring buffer is in-memory only; closing the side panel resets it. The
+//     only bit we persist is whether the panel was open, so reopening the
+//     panel after reload doesn't lose the user's setup.
+//   - Events are pushed whether or not the panel is visible, so opening it
+//     mid-session shows the last 20 decisions in context.
+//   - Forward-compat: if we're talking to an older backend that doesn't send
+//     top3/cooldownsMs, the row still renders with whatever fields exist.
+//   - No framework dependency. Raw DOM + a render function that rebuilds on
+//     each push. N ≤ 20, cost is trivial.
+const TRACE_MAX = 20;
+const LONG_PRESS_MS = 750;
+let directorTrace = [];          // ring buffer: newest at index 0
+let debugPanelOpen = false;
+let longPressTimer = null;
+
+const traceSection = document.getElementById("directorTrace");
+const traceListEl = document.getElementById("traceList");
+const traceClearBtn = document.getElementById("traceClear");
+const versionBadgeEl = document.getElementById("versionBadge");
+
+// Map persona ids to their brand colors for left-border tint.
+const PERSONA_COLOR_BY_ID = PERSONAS.reduce((acc, p) => {
+  acc[p.id] = p.color;
+  return acc;
+}, {});
+
+function pushDirectorTrace(payload) {
+  // Newest-first ring buffer. Trim from the tail to maintain TRACE_MAX.
+  directorTrace.unshift(payload);
+  if (directorTrace.length > TRACE_MAX) {
+    directorTrace.length = TRACE_MAX;
+  }
+  // Only pay render cost if the panel is visible. Buffer always updates.
+  if (debugPanelOpen) renderDirectorTrace();
+}
+
+function renderDirectorTrace() {
+  if (!traceListEl) return;
+
+  if (directorTrace.length === 0) {
+    traceListEl.innerHTML =
+      '<div class="trace-empty">Waiting for director decisions…</div>';
+    return;
+  }
+
+  // Build a fragment off-DOM, swap in atomically. Keeps scroll jank low even
+  // though N is tiny — the habit matters more than the savings here.
+  const frag = document.createDocumentFragment();
+
+  for (const d of directorTrace) {
+    const row = document.createElement("div");
+    row.className = "trace-row";
+
+    const pick = d?.pick ?? "?";
+    const score = typeof d?.score === "number" ? d.score.toFixed(1) : "—";
+    const cascadeLen =
+      typeof d?.cascadeLen === "number"
+        ? d.cascadeLen
+        : Array.isArray(d?.chain)
+        ? d.chain.length
+        : 1;
+    const color = PERSONA_COLOR_BY_ID[pick] || "rgba(255,255,255,0.1)";
+    row.style.borderLeftColor = color;
+
+    // Top-3 short form, e.g. "troll:4.3 · producer:2.1 · joker:1.0". Falls
+    // back to empty string when the backend omits top3 (forward-compat with
+    // older backends). Always drop the pick (index 0) since it's already
+    // displayed above.
+    let top3Str = "";
+    if (Array.isArray(d?.top3) && d.top3.length > 1) {
+      top3Str = d.top3
+        .slice(1)
+        .map((t) => `${t.id}:${(t.score ?? 0).toFixed(1)}`)
+        .join(" · ");
+    }
+
+    // Line 1: pick · score · top3 · cascadeLen
+    const line1 = document.createElement("div");
+    line1.className = "trace-line1";
+    line1.innerHTML =
+      `<span class="trace-pick" style="color:${color}">${escapeHtml(pick)}</span>` +
+      ` <span class="trace-score">${escapeHtml(String(score))}</span>` +
+      (top3Str ? ` <span class="trace-top3">(${escapeHtml(top3Str)})</span>` : "") +
+      ` <span class="trace-cascade">×${cascadeLen}${d?.isSilence ? " · silence" : ""}${d?.isForceReact ? " · force" : ""}</span>`;
+    row.appendChild(line1);
+
+    // Line 2: chain, e.g. "troll → joker → producer"
+    if (Array.isArray(d?.chain) && d.chain.length > 0) {
+      const line2 = document.createElement("div");
+      line2.className = "trace-line2";
+      line2.textContent = d.chain.join(" → ");
+      row.appendChild(line2);
+    }
+
+    // Line 3: reason (always present from backend).
+    if (d?.reason) {
+      const line3 = document.createElement("div");
+      line3.className = "trace-line3";
+      line3.textContent = d.reason;
+      row.appendChild(line3);
+    }
+
+    frag.appendChild(row);
+  }
+
+  traceListEl.innerHTML = "";
+  traceListEl.appendChild(frag);
+}
+
+function setDebugPanelOpen(open, persist = true) {
+  debugPanelOpen = !!open;
+  if (!traceSection) return;
+  traceSection.classList.toggle("hidden", !debugPanelOpen);
+  traceSection.setAttribute("aria-hidden", debugPanelOpen ? "false" : "true");
+  if (debugPanelOpen) renderDirectorTrace();
+  if (persist && chrome.storage?.local) {
+    try {
+      chrome.storage.local.set({ debugPanelOpen });
+    } catch {
+      // chrome.storage may be unavailable on unpacked dev loads — ignore.
+    }
+  }
+}
+
+function toggleDebugPanel() {
+  setDebugPanelOpen(!debugPanelOpen);
+}
+
+// Long-press detection. pointerdown starts the timer; pointerup/pointerleave
+// cancel it. 750ms is short enough to feel intentional, long enough to avoid
+// accidental toggling from click-through interactions.
+function startLongPress() {
+  if (longPressTimer) clearTimeout(longPressTimer);
+  longPressTimer = setTimeout(() => {
+    longPressTimer = null;
+    toggleDebugPanel();
+  }, LONG_PRESS_MS);
+}
+function cancelLongPress() {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+}
+
+if (versionBadgeEl) {
+  versionBadgeEl.addEventListener("pointerdown", (e) => {
+    // Only react to primary button to avoid right-click weirdness.
+    if (e.button !== undefined && e.button !== 0) return;
+    startLongPress();
+  });
+  versionBadgeEl.addEventListener("pointerup", cancelLongPress);
+  versionBadgeEl.addEventListener("pointerleave", cancelLongPress);
+  versionBadgeEl.addEventListener("pointercancel", cancelLongPress);
+  // Preempt the context menu on long press-and-hold — some platforms interpret
+  // it as a right-click gesture after a delay.
+  versionBadgeEl.addEventListener("contextmenu", (e) => e.preventDefault());
+}
+
+if (traceClearBtn) {
+  traceClearBtn.addEventListener("click", () => {
+    directorTrace = [];
+    renderDirectorTrace();
+  });
+}
+
+// Restore the panel's open/closed state from storage. Default = closed.
+if (chrome.storage?.local) {
+  try {
+    chrome.storage.local.get(["debugPanelOpen"], (res) => {
+      if (chrome.runtime.lastError) return;
+      setDebugPanelOpen(!!res?.debugPanelOpen, /*persist=*/ false);
+    });
+  } catch {
+    // Storage unavailable — leave panel closed (the default).
+  }
+}

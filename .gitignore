@@ -41,3 +41,7 @@ next-env.d.ts
 
 # commit message scratch (used when committing multi-line messages via -F)
 .commit-msg.txt
+
+# local smoke / scratch harnesses (never meant to ship)
+scratch-*.ts
+scratch-*.js

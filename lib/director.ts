@@ -172,6 +172,15 @@ export interface TriggerDecision {
   reason: string;
   /** Delays in ms before each persona fires (first is always 0) */
   delays: number[];
+  // ── v1.2: richer telemetry for debug panel + structured logs. ──
+  // All optional for backwards compatibility with pre-v1.2 consumers
+  // that only destructure { personaIds, reason, delays }.
+  /** Final score for the primary (picked) persona */
+  score?: number;
+  /** Top-3 scored personas (sorted desc), always includes pick at [0] */
+  top3?: Array<{ id: string; score: number }>;
+  /** Per-persona ms since last fire at decision time. Key covers all 4 personas. */
+  cooldownsMs?: Record<string, number>;
 }
 
 // ──────────────────────────────────────────────────────
@@ -191,6 +200,15 @@ export class Director {
     soundfx: 0,
     joker: 0,
   };
+
+  // v1.2: per-persona timestamp of last fire, for cooldownsMs in the
+  // director_decision telemetry. Seeded to the Director's construction
+  // time so "never fired" reads as "cold since session start" instead of
+  // a 54-year-old Unix epoch cooldown in the debug panel.
+  private lastFiredAt: Record<string, number> = ((): Record<string, number> => {
+    const t0 = Date.now();
+    return { producer: t0, troll: t0, soundfx: t0, joker: t0 };
+  })();
 
   /**
    * Score a transcript chunk for a specific persona.
@@ -240,8 +258,12 @@ export class Director {
   /**
    * Decide who speaks for this transcript chunk.
    * Returns an ordered list of personas with staggered delays.
+   *
+   * @param sessionId Optional. When provided, attached to the structured
+   *   director_decision log line so entries correlate with the session.
+   *   Pre-v1.2 callers that omit it still work — the log just lacks sessionId.
    */
-  decide(recentTranscript: string, isSilence = false): TriggerDecision {
+  decide(recentTranscript: string, isSilence = false, sessionId?: string): TriggerDecision {
     const personaIds = Object.keys(PERSONA_PATTERNS);
 
     // Score each persona
@@ -319,10 +341,31 @@ export class Director {
       ? `${scores[0].id} scored highest (${scores[0].score.toFixed(1)}) for content match`
       : `random pick (no strong content match)`;
 
+    // v1.2 telemetry — assembled BEFORE the lastFiredAt/cyclesSinceFire update
+    // so cooldownsMs + drySpells reflect the state at decision time, not
+    // after-the-fact. The debug panel reads top3 + cooldownsMs to show why
+    // this pick beat the alternatives.
+    const now = Date.now();
+    const top3 = scores.slice(0, 3).map((s) => ({ id: s.id, score: s.score }));
+    const cooldownsMs: Record<string, number> = {};
+    for (const id of Object.keys(this.lastFiredAt)) {
+      cooldownsMs[id] = now - this.lastFiredAt[id];
+    }
+
     logPipeline({
       event: "director_decision",
       level: "info",
+      sessionId,
       data: {
+        // ── v1.2 enriched fields (new) ──
+        pick: chain[0],
+        score: scores[0].score,
+        top3,
+        chainIds: chain,
+        delays,
+        cascadeLen: chain.length,
+        cooldownsMs,
+        // ── preserved for back-compat with pre-v1.2 log consumers ──
         chain: chain.join(" → "),
         reason,
         cascadeCount: chain.length,
@@ -342,6 +385,12 @@ export class Director {
       }
     }
 
+    // v1.2: stamp lastFiredAt for every persona in the chain. Cooldowns
+    // reset for them on the next decision.
+    for (const id of chain) {
+      this.lastFiredAt[id] = now;
+    }
+
     // Track ALL personas in the chain (not just primary) to prevent domination
     for (const id of chain) {
       this.recentFirings.push(id);
@@ -354,6 +403,9 @@ export class Director {
       personaIds: chain,
       reason,
       delays,
+      score: scores[0].score,
+      top3,
+      cooldownsMs,
     };
   }
 }

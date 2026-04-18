@@ -555,6 +555,85 @@
       cursor: pointer;
       font-size: 12px;
     }
+
+    /* ── DEBUG PANEL (v1.2) ──
+     * Hidden by default. Revealed only when the user long-presses the version
+     * badge — a deliberately obscure gesture so normal users never see this.
+     * Consumes `director_decision` SSE events and shows the last 20 picks.
+     * Purely observational: no control over the director, just a window into
+     * what it's doing. Off by default, buffered even while hidden so opening
+     * it shows recent history.
+     */
+    #versionBadge {
+      -webkit-user-select: none;
+      user-select: none;
+      cursor: pointer;
+      padding: 4px 2px;
+    }
+    #directorTrace {
+      border-top: 1px solid var(--border);
+      background: var(--bg-secondary);
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      max-height: 40vh;
+    }
+    #directorTrace.hidden { display: none; }
+    .trace-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+    .trace-header-label { flex: 1; }
+    .trace-clear {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 9px;
+      font-family: monospace;
+      padding: 2px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .trace-clear:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+    #traceList {
+      overflow-y: auto;
+      flex: 1;
+      padding: 4px 0;
+    }
+    .trace-row {
+      padding: 6px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      border-left: 2px solid transparent;
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      font-size: 10px;
+      line-height: 1.35;
+    }
+    .trace-row:last-child { border-bottom: none; }
+    .trace-line1 { color: var(--text); }
+    .trace-line1 .trace-pick { font-weight: 700; }
+    .trace-line1 .trace-score { color: var(--text-muted); }
+    .trace-line1 .trace-top3 { color: var(--text-dim); margin-left: 4px; }
+    .trace-line1 .trace-cascade { color: var(--text-muted); margin-left: 4px; }
+    .trace-line2 { color: var(--text-dim); margin-top: 1px; font-size: 9px; }
+    .trace-line3 { color: var(--text-muted); margin-top: 1px; padding-left: 10px; font-size: 9px; }
+    .trace-empty {
+      padding: 20px 12px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 10px;
+      font-family: monospace;
+    }
   </style>
 </head>
 <body>
@@ -750,6 +829,17 @@
     <div class="big-emoji">🥜</div>
     <p>Open a YouTube video and click <strong>Start Listening</strong> to get real-time AI commentary from the Peanut Gallery.</p>
   </div>
+
+  <!-- DEBUG TRACE (v1.2) · hidden by default · long-press version badge to toggle -->
+  <section id="directorTrace" class="hidden" aria-hidden="true">
+    <div class="trace-header">
+      <span class="trace-header-label">Director trace · last 20</span>
+      <button id="traceClear" class="trace-clear" type="button">Clear</button>
+    </div>
+    <div id="traceList">
+      <div class="trace-empty">Waiting for director decisions…</div>
+    </div>
+  </section>
 
   <script src="sidepanel.js"></script>
 </body>
