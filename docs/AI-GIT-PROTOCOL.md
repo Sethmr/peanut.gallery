@@ -165,6 +165,54 @@ All of these have one thing in common: they are AI-generated rationalizations fo
 
 ---
 
+## Pre-flight: know the lay of the land before any cross-branch op
+
+Seth's ask, 2026-04-19 verbatim: *"take what we learned here and document it before interacting with git/github so this doesn't happen again. You should know branch names. It jsut what you name something, main and develop."*
+
+A different failure class from the lock-file loop, but just as corrosive to trust: proposing a multi-step `git` or `gh` command set that assumes branch state you haven't actually verified. The 2026-04-19 incident went like this — a `feat/protect-main-branch → develop` PR failed twice because (a) Claude didn't check `origin/develop` vs `origin/main` before proposing the push, (b) `origin/develop` turned out to be stale (stuck at a pre-PR-#8 commit) while `origin/main` had moved forward, and (c) Claude then proposed a `--force-with-lease` reset without first confirming whether the sandbox's view of the remote was even current (it wasn't).
+
+Three rules cover this class. These run **before** any git write that touches more than one branch, and before any `gh pr create`.
+
+### F1. Know the canonical branch names — don't guess
+
+This repo has exactly two long-lived branches. This is settled and documented in [`RELEASE.md`](RELEASE.md) — if you find yourself wondering "what's the branch called again," open that file, don't improvise.
+
+- **`main`** — release-only. Only @Sethmr merges. Every merge ships a tagged build to the Chrome Web Store. Auto-protected by [`protect-main-branch.yml`](../.github/workflows/protect-main-branch.yml).
+- **`develop`** — integration. Claude self-merges from `feature/*` / `fix/*` / `chore/*` / `docs/*` / `refactor/*` / `test/*` / `ci/*` under the self-merge contract in [`RELEASE.md`](RELEASE.md). Seth also merges here when convenient.
+
+Feature branches use conventional-commit prefixes (`feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/`, `ci/`). `hotfix/*` is the only non-`develop` path into `main`.
+
+Do not invent names like "staging," "release," "qa," "main-dev." There are exactly two. If the branch model ever changes, `RELEASE.md` is the source of truth — refresh your understanding there before acting.
+
+### F2. Verify cross-branch state BEFORE proposing a command set
+
+Before proposing any multi-step sequence involving push / reset / rebase / `gh pr create` across branches, run this read-only pre-flight **yourself** (from your sandbox if auth works, or by asking Seth to paste the output if it doesn't):
+
+```bash
+git fetch origin
+git log origin/main..origin/develop --oneline     # what's on develop, not on main
+git log origin/develop..origin/main --oneline     # what's on main, not on develop
+git log origin/<base>..<head> --oneline           # what the PR would contain
+```
+
+If any of those three shows divergence you weren't expecting — especially if `main` has commits develop doesn't — **STOP and diagnose before proposing a command**. GitHub's error messages for diverged-history PRs are opaque (`"No commits between ..."`, `"Base ref must be a branch"`). Parsing those errors after the fact is strictly more expensive than understanding the state up front.
+
+Rule of thumb: if a `gh pr create --base develop --head feature/foo` is coming up in your next response, you have already run the three commands above and know the answer. If you haven't, run them first.
+
+### F3. Recognize when the sandbox can't see the real remote
+
+The Cowork sandbox mounts this repo read-write, but **authenticated access to `github.com` from inside the sandbox is not reliable**. Symptoms:
+
+- `git fetch origin` completes with no error but returns stale refs.
+- `git ls-remote origin` errors with `Host key verification failed` or hangs.
+- `git push origin <branch> --force-with-lease` rejects with `stale info` because the lease is computed from refs the sandbox never actually refreshed against the real remote.
+
+When you need remote truth and the sandbox may be blind, say so plainly: *"The sandbox can't reliably fetch from GitHub. Can you paste the output of `git fetch origin && git log origin/main..origin/develop --oneline` from your terminal?"* Seth's terminal wins every time. Don't draft a command sequence that assumes the sandbox's refs match reality.
+
+If the sandbox has stale `--force-with-lease` data, the plain-`--force` fallback is sometimes the right answer — but only after confirming with Seth what the real remote state is, and only with his explicit OK.
+
+---
+
 ## Scope
 
 This strict protocol is for **Peanut Gallery**. Other Cowork projects may have more permissive mounts where the simpler `rm` pattern works — do not over-generalize these rules outside this repo.
@@ -182,3 +230,4 @@ This strict protocol is for **Peanut Gallery**. Other Cowork projects may have m
 ## History
 
 - 2026-04-18 — Initial version. Written after Seth surfaced the "circular logic" failure mode: AI repeatedly proposing `rm` variants against a FUSE-blocked lock instead of escalating. Protocol formalizes prevention-first + one-shot escalation, and adds R2 as an unconditional rule against the failure mode.
+- 2026-04-19 — Added the "Pre-flight" section (F1–F3) after a `feat/protect-main-branch → develop` PR failed twice. Root cause: Claude proposed a multi-step push/reset/PR sequence without first verifying that `origin/develop` was in sync with `origin/main`. Branches had diverged (develop was stuck at a pre-PR-#8 governance commit while main had moved forward via PR #8), and the sandbox's stale view of the remote made `--force-with-lease` reject with `stale info`. F1 codifies that the canonical branches are `main` and `develop` — don't guess; F2 mandates a read-only state check before any cross-branch command set; F3 captures the sandbox-blindness failure mode.

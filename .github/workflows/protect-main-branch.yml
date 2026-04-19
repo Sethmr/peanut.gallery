@@ -1,0 +1,144 @@
+# ═══════════════════════════════════════════════════════════════════════
+# 🔒 PROTECTED FILE — only @Sethmr can edit.
+# This workflow auto-closes PRs that target `main` from anyone except
+# @Sethmr (release author) or Dependabot (carve-out), and from any head
+# branch that isn't `develop` or `hotfix/*`. Modifying this workflow is
+# itself protected (`.github/workflows/**` is in the protected-paths
+# regex of protect-ai-instructions.yml). Full policy:
+# docs/AI-INSTRUCTIONS-POLICY.md
+# ═══════════════════════════════════════════════════════════════════════
+
+name: Protect Main Branch
+
+# Auto-closes PRs targeting `main` from any path other than the
+# documented release flow. The branch model in `docs/RELEASE.md` says:
+# `feature/* → develop → main → tag + CWS zip`. Only `develop → main`
+# release PRs (and `hotfix/* → main` direct-to-main PRs) belong here,
+# and only @Sethmr authors them.
+#
+# Without this workflow, a contributor could open a PR against `main`,
+# get the PR-checklist comment, get partway through the rule list, and
+# only discover at the end that it can't merge because branch protection
+# requires a CODEOWNERS approval @Sethmr has to grant. That's a wasted
+# trip. This workflow stops the trip at step 1 with a kind redirect.
+#
+# === Carve-outs ===
+#
+# - @Sethmr — release author and only person who merges to main.
+# - dependabot[bot] — if Dependabot ever opens a main-targeted PR (e.g.
+#   the existing PRs from before we set target-branch: develop), let it
+#   pass. Branch protection requires Seth's review either way; the
+#   triage bot's verdict comment still fires; nothing automated lands.
+# - Any head branch starting with `develop` or `hotfix/` — these are
+#   the canonical paths into main per the release flow.
+#
+# === Security model ===
+#
+# Same `pull_request_target` model as protect-ai-instructions.yml:
+# workflow file is frozen at the base-branch version, so a PR cannot
+# modify this workflow to disable itself. We do not checkout PR head
+# (one fewer attack surface) — we only need PR metadata, which the
+# event payload provides.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, edited]
+    branches: [main]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+# Only one main-protection check per PR at a time.
+concurrency:
+  group: protect-main-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR author + head branch and auto-close if needed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const author = pr.user.login;
+            const headRef = pr.head.ref;
+            const headRepoFull = pr.head.repo ? pr.head.repo.full_name : null;
+            const baseRepoFull = pr.base.repo.full_name;
+
+            // ─── ALLOWED AUTHORS ─────────────────────────────────────────
+            // Handles that may target `main` directly. Add a co-maintainer
+            // here if/when one joins. Dependabot is here so that the
+            // existing in-flight Dependabot PRs (opened before we set
+            // dependabot.yml target-branch: develop) can still be triaged
+            // and closed/merged manually rather than being auto-closed
+            // with a confusing reason.
+            const allowedAuthors = new Set(['Sethmr', 'dependabot[bot]']);
+
+            // ─── ALLOWED HEAD BRANCH PATTERNS ─────────────────────────────
+            // The release flow says: develop → main (the normal release
+            // PR) and hotfix/* → main (the rare direct fix). Anything
+            // else targeting main is wrong by the documented model.
+            const allowedHeadPatterns = [
+              /^develop$/,
+              /^hotfix\//,
+            ];
+
+            // ─── DECISION ────────────────────────────────────────────────
+            if (allowedAuthors.has(author)) {
+              console.log(`PR author ${author} is allowed to target main. Pass.`);
+              return;
+            }
+
+            const headOk = allowedHeadPatterns.some(re => re.test(headRef));
+            if (headOk) {
+              console.log(`PR head branch ${headRef} matches the release-flow pattern. Pass.`);
+              return;
+            }
+
+            // ─── COMPOSE COMMENT ─────────────────────────────────────────
+            const isBot = author.endsWith('[bot]');
+            const greet = isBot
+              ? `Hey ${author},`
+              : `Hi @${author} — thanks for caring enough to send a PR.`;
+
+            const isFork = headRepoFull && headRepoFull !== baseRepoFull;
+            const retargetHint = isFork
+              ? `In your fork, retarget this PR's base branch to **\`develop\`** using GitHub's "Edit" button next to the title (changes the base; doesn't lose your work).`
+              : `Retarget this PR to **\`develop\`** using GitHub's "Edit" button next to the title (changes the base; doesn't lose your work).`;
+
+            const commentBody = [
+              greet,
+              ``,
+              `**\`main\` is release-only — only @Sethmr merges into it.** Contributor PRs land on **\`develop\`** instead, and reach \`main\` later as part of a versioned release.`,
+              ``,
+              `### How to fix`,
+              ``,
+              `${retargetHint} The PR's commits, comments, and review state all carry over.`,
+              ``,
+              `### Why we do this`,
+              ``,
+              `Branch model: \`feature/* → develop → main → tag + CWS\`. Each merge into \`main\` is a release: it gets a version tag and ships to the Chrome Web Store. Pinning that step to one human keeps releases coherent and the changelog honest. Full details: [\`docs/RELEASE.md\`](https://github.com/Sethmr/peanut.gallery/blob/main/docs/RELEASE.md).`,
+              ``,
+              `**Auto-closing this PR.** No judgment of the work — re-open against \`develop\` and we'll get it through. If you've already done so, ignore this message; you're good.`,
+              ``,
+              `<sub>— Posted by [\`.github/workflows/protect-main-branch.yml\`](https://github.com/Sethmr/peanut.gallery/blob/main/.github/workflows/protect-main-branch.yml). Policy lives in [\`docs/RELEASE.md\`](https://github.com/Sethmr/peanut.gallery/blob/main/docs/RELEASE.md) and [\`docs/AI-INSTRUCTIONS-POLICY.md\`](https://github.com/Sethmr/peanut.gallery/blob/main/docs/AI-INSTRUCTIONS-POLICY.md).</sub>`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body: commentBody,
+            });
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              state: 'closed',
+            });
+
+            console.log(`Auto-closed PR #${pr.number} from ${author} (head: ${headRef}): not a Sethmr-authored release PR.`);

@@ -20,8 +20,17 @@
 1. [`../CLAUDE.md`](../CLAUDE.md) — non-negotiable rules + the "Running as bot-Claude (CI)" section that scopes your authority.
 2. **This file** — the decision tree.
 3. [`ROADMAP.md § Future framework + dependency upgrades`](ROADMAP.md#future-framework--dependency-upgrades) — the queue + the policy.
-4. [`../.github/dependabot.yml`](../.github/dependabot.yml) — current grouping + ignore rules.
-5. The PR diff and metadata for the PR you're triaging.
+4. [`RELEASE.md`](RELEASE.md) — branch model (`feature/* → develop → main → tag + CWS`). Important context: only @Sethmr merges to `main`, and [`../.github/workflows/protect-main-branch.yml`](../.github/workflows/protect-main-branch.yml) auto-closes any non-Sethmr PR targeting `main`.
+5. [`../.github/dependabot.yml`](../.github/dependabot.yml) — current grouping + ignore rules. Note `target-branch: "develop"` — Dependabot PRs land on `develop`, not `main`.
+6. The PR diff and metadata for the PR you're triaging.
+
+---
+
+## Branch-model context
+
+Dependabot PRs target **`develop`** (per `dependabot.yml`). They will reach `main` later as part of @Sethmr's versioned release PR — **never directly**. If you ever see a Dependabot PR opened against `main` (legacy / pre-2026-04-19), that's a transitional artifact: still triage it normally, but mention in your comment that future bumps will land on `develop` thanks to the new `target-branch` config.
+
+If you ever see a *non-Dependabot* PR targeting `main` reach you, something is unusual — `protect-main-branch.yml` should have closed it before triage. Verdict NEEDS-HUMAN with a note.
 
 ---
 
