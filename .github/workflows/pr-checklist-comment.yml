@@ -123,6 +123,25 @@ jobs:
               }
             }
 
+            // --- Early exit: skip PRs destined for auto-close by protect-main-branch.yml ---
+            // If a non-Sethmr / non-Dependabot author targets `main` from a
+            // branch that isn't `develop` or `hotfix/*`, protect-main-branch.yml
+            // is going to close the PR with a redirect to `develop`. The
+            // checklist would just be noise on top of a closed PR.
+            //
+            // Must mirror the allowedAuthors + allowedHeadPatterns in
+            // protect-main-branch.yml. If that list changes, change this too.
+            if (targetingMain) {
+              const mainAllowedAuthors = new Set(['Sethmr', 'dependabot[bot]']);
+              const mainAllowedHeadPatterns = [/^develop$/, /^hotfix\//];
+              const authorOk = mainAllowedAuthors.has(author);
+              const headOk = mainAllowedHeadPatterns.some(re => re.test(headRef));
+              if (!authorOk && !headOk) {
+                console.log(`Skipping comment: PR from ${author} (head: ${headRef}) targets main and will be auto-closed by protect-main-branch.yml. No piling-on from the checklist bot.`);
+                return;
+              }
+            }
+
             // --- Check: signed commits ---
             const unsigned = commits.filter(c => !c.commit.verification || !c.commit.verification.verified);
             const signedOk = unsigned.length === 0;
@@ -186,8 +205,13 @@ jobs:
             ];
 
             // --- Conditional blocks ---
+            // Main-only PRs get an extra callout: only @Sethmr merges to main,
+            // and any unauthorized PR against main is auto-closed by
+            // protect-main-branch.yml. This block only renders when the PR
+            // made it past that guard (Sethmr, Dependabot, or a develop/hotfix
+            // head branch) — otherwise the early-exit above fires first.
             const mainOnlyNote = targetingMain ? `
-            > **Heads up:** this PR targets \`main\`, so it also needs a CODEOWNERS review from @Sethmr, a CHANGELOG entry in the PR body, and a planned version tag (\`vX.Y.Z\`) for post-merge. Those are release-gate, not contributor-gate — Seth will drive them.
+            > **Heads up:** this PR targets \`main\`. **Only @Sethmr merges into \`main\`** — it's a release-only branch, and every merge ships a tagged build to the Chrome Web Store. PRs from anyone else (with any head branch other than \`develop\` or \`hotfix/*\`) are auto-closed by [\`protect-main-branch.yml\`](../blob/develop/.github/workflows/protect-main-branch.yml) with a redirect to \`develop\`. This one cleared that guard, so it also needs: a CODEOWNERS review from @Sethmr, a CHANGELOG entry in the PR body, and a planned version tag (\`vX.Y.Z\`) for post-merge. Those are release-gate, not contributor-gate — Seth will drive them.
             ` : '';
 
             const dependabotNote = isDependabot ? `

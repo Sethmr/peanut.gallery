@@ -3,6 +3,14 @@ updates:
   # npm — weekly, group lockstep updates so the PR queue stays sane
   - package-ecosystem: "npm"
     directory: "/"
+    # Target develop, not main. The branch model in docs/RELEASE.md
+    # routes everything (including dep bumps) through develop and into
+    # main only via versioned release PRs. Without target-branch:
+    # develop here, Dependabot would default to the repo's default
+    # branch (main) and its PRs would either get auto-closed by
+    # protect-main-branch.yml or sit there blocking on a Sethmr review
+    # that won't come until release time.
+    target-branch: "develop"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -37,6 +45,7 @@ updates:
   # without spamming the PR queue.
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
       day: "monday"
