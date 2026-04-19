@@ -120,11 +120,14 @@ Wires the `develop → main` model from [`RELEASE.md`](RELEASE.md) into GitHub's
 
 - [x] Require pull request before merging
 - [ ] Require approvals — off ← what enables Claude's self-merge
+- [x] **Require review from Code Owners** ← second gate on AI-instruction files; the auto-reject workflow is the first
 - [x] Require linear history
 - [x] Require signed commits
 - [x] Include administrators
 - [ ] Allow force pushes — off
 - [ ] Allow deletions — off
+
+The "Require review from Code Owners" box on **both** rules is what makes [`CODEOWNERS`](../.github/CODEOWNERS) load-bearing for AI-instruction protection. It's defense-in-depth: [`protect-ai-instructions.yml`](../.github/workflows/protect-ai-instructions.yml) is the primary gate (auto-closes external PRs touching protected paths); CODEOWNERS is the fallback in the unlikely case that workflow is ever disabled. Without this checkbox, CODEOWNERS becomes advisory rather than enforced.
 
 No status checks required yet — CI is intentionally local-only. `.claude/settings.json` handles tool-level defense. If/when CI lands, add it as a required check on both rules.
 
@@ -253,5 +256,9 @@ Per Seth's audit reframe: **this audit is about GitHub-facing pages architecture
 - Lint / test automation in CI — pre-PR local checks only; Seth runs them before merge.
 
 One deliberate exception (added 2026-04-19 on Seth's direct ask): `.github/workflows/pr-checklist-comment.yml` posts a fresh merge-requirements comment on every PR open + every new commit. It doesn't run tests or gate anything — pure signal to the author about what needs to be true to land. Rules live in `docs/RELEASE.md`; the comment links rather than duplicates. `.github/dependabot.yml` now also tracks the `github-actions` ecosystem weekly so the action versions used here stay current.
+
+Second deliberate exception (also 2026-04-19, Seth's direct ask): `.github/workflows/claude-triage.yml` fires fresh-Claude on Dependabot PRs for triage (comment-only first iteration, per [`BOT-TRIAGE-RUBRIC.md`](BOT-TRIAGE-RUBRIC.md)).
+
+Third deliberate exception (also 2026-04-19): `.github/workflows/protect-ai-instructions.yml` auto-closes external PRs that touch AI-instruction files (CLAUDE.md, .claude/, CODEOWNERS, dependabot.yml, .github/workflows/, the four AI-facing docs under docs/). These files tell AI bots how to behave; letting external PRs edit them is a prompt-injection / safety-bypass risk. Full policy: [`AI-INSTRUCTIONS-POLICY.md`](AI-INSTRUCTIONS-POLICY.md). The auto-close is the first gate; CODEOWNERS + branch protection (step 8) is the second.
 
 If/when broader code automation is in scope, the code-quality audit is a separate conversation — this doc stays page-architecture-only.

@@ -74,6 +74,55 @@ jobs:
               return;
             }
 
+            // --- Early exit: skip PRs destined for auto-close by protect-ai-instructions.yml ---
+            // If a non-Sethmr author touches a protected AI-instruction file,
+            // .github/workflows/protect-ai-instructions.yml will close the PR
+            // with a clear, warm explanation. Piling a rule-checklist on top
+            // of that would feel like we're lecturing on the way out the
+            // door. Stay quiet here and let the auto-reject do the talking.
+            //
+            // Must mirror the protectedPatterns + allowedAuthors + botBypasses
+            // in protect-ai-instructions.yml. If that list changes, change
+            // this block too.
+            const allowedAuthors = new Set(['Sethmr']);
+            const dependabotWorkflowBypass = (filename) => filename.startsWith('.github/workflows/');
+            const botBypasses = {
+              'dependabot[bot]': dependabotWorkflowBypass,
+            };
+            const protectedPatterns = [
+              /^CLAUDE\.md$/,
+              /^\.claude\//,
+              /^\.github\/CODEOWNERS$/,
+              /^\.github\/dependabot\.yml$/,
+              /^\.github\/workflows\//,
+              /^docs\/AI-GIT-PROTOCOL\.md$/,
+              /^docs\/AI-INSTRUCTIONS-POLICY\.md$/,
+              /^docs\/BOT-TRIAGE-RUBRIC\.md$/,
+              /^docs\/RELEASE\.md$/,
+            ];
+
+            if (!allowedAuthors.has(author)) {
+              const { data: files } = await github.rest.pulls.listFiles({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                per_page: 300,
+              });
+              const touchedProtected = files.filter(f =>
+                protectedPatterns.some(re => re.test(f.filename))
+              );
+              if (touchedProtected.length > 0) {
+                const bypass = botBypasses[author];
+                const stillProtected = bypass
+                  ? touchedProtected.filter(f => !bypass(f.filename))
+                  : touchedProtected;
+                if (stillProtected.length > 0) {
+                  console.log(`Skipping comment: PR from ${author} touches ${stillProtected.length} protected file(s); protect-ai-instructions.yml will auto-close and explain. No piling-on from the checklist bot.`);
+                  return;
+                }
+              }
+            }
+
             // --- Check: signed commits ---
             const unsigned = commits.filter(c => !c.commit.verification || !c.commit.verification.verified);
             const signedOk = unsigned.length === 0;
