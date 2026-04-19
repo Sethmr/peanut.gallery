@@ -75,3 +75,5 @@ Seth reviews + merges. Claude never self-merges into `main`.
 ### 2. Be kind to contributors, firm on rules
 
 The PR merge-checklist bot ([`.github/workflows/pr-checklist-comment.yml`](.github/workflows/pr-checklist-comment.yml)) exists to help contributors enjoy the process, not to police them. Tone is warm on every comment. Rules are non-negotiable; the presentation of them is always generous. If a contributor seems stuck, Claude drops a human-voice reply alongside the bot — contributors should always feel welcome, even when we're asking them to rebase.
+
+The bot **skips Claude-authored PRs by default** (detection: every commit carries a `Co-Authored-By: Claude` trailer). Seth doesn't need Claude lecturing itself — the self-merge contract already enforces the same rules pre-push. If there's a real reason to want a post-push re-evaluation on a Claude-authored PR (a long-lived branch, a rebase that might have broken history, a late collaborator commit), add `<!-- bot-review -->` to the PR body to force the bot to run.

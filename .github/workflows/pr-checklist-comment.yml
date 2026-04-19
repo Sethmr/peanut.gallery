@@ -50,6 +50,30 @@ jobs:
               per_page: 100,
             });
 
+            // --- Early exit: skip Claude-authored PRs ---
+            // Seth, 2026-04-19: "I don't need you commenting on your own prs
+            // unless you think its a good idea for you to review them at that
+            // point with some advantage you didn't have prior to push."
+            //
+            // A PR is Claude-authored if every commit carries a Co-Authored-By
+            // trailer for Claude. That's the signal Claude adds on its own
+            // commits; when it's on everything, this PR came out of Claude's
+            // pen and doesn't need a self-lecture. Dependabot and external
+            // contributor PRs still get the full treatment.
+            //
+            // Escape hatch: if the PR body contains `<!-- bot-review -->`,
+            // the workflow runs anyway. Use this when there's a real reason
+            // to re-evaluate post-push (e.g. a long-lived branch, a rebase
+            // that might have broken history, a late collab commit).
+            const forceReview = /<!--\s*bot-review\s*-->/i.test(body);
+            const claudeAuthored = commits.length > 0 && commits.every(c =>
+              /co-authored-by:\s*claude\b/i.test(c.commit.message || '')
+            );
+            if (claudeAuthored && !forceReview) {
+              console.log(`Skipping comment: PR is Claude-authored (all ${commits.length} commits carry a Co-Authored-By: Claude trailer). Add <!-- bot-review --> to the PR body to force a review.`);
+              return;
+            }
+
             // --- Check: signed commits ---
             const unsigned = commits.filter(c => !c.commit.verification || !c.commit.verification.verified);
             const signedOk = unsigned.length === 0;
