@@ -36,7 +36,6 @@ Map of every markdown file in the repo, ordered by when you should read it.
 ## In progress
 
 - [`docs/V1.5-PLAN.md`](V1.5-PLAN.md) — step-by-step implementation plan for v1.5.0 "Smart Director v2." Scaffold landed `4b5cd2c` (2026-04-18); canary + tag outstanding. See §4 for the roll-up metrics that gate the release.
-- [`docs/TWIST-ORACLE-PLAN.md`](TWIST-ORACLE-PLAN.md) — working spec for v1.7.0 "TWiST Oracle." Full-archive RAG over ~2,400 TWiST episodes, corpus-enriched live reactions, ask mode, deep links to clips. Born from Jason's explicit green light (2026-04-18). Depends on v1.5 canary + v1.6 Voice + Clip Share shipping first.
 
 ## Strategy & research
 
@@ -85,7 +84,6 @@ To avoid the duplication that prompted this audit, each topic has ONE canonical 
 | Known bugs / post-mortems | [`DEBUGGING.md`](DEBUGGING.md) |
 | Roadmap / pending work | [`ROADMAP.md`](ROADMAP.md) |
 | Competitive landscape / positioning | [`COMPETITIVE-LANDSCAPE-2026-04-18.md`](COMPETITIVE-LANDSCAPE-2026-04-18.md) (refresh every ~90 days) |
-| TWiST Oracle (corpus + RAG + ask mode) | [`TWIST-ORACLE-PLAN.md`](TWIST-ORACLE-PLAN.md) |
 | Finish-strong checklist for the bounty | [`SESSION-NOTES-2026-04-17.md §5`](SESSION-NOTES-2026-04-17.md) |
 
 If you find yourself duplicating any of these into a new file, stop and link instead.
