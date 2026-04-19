@@ -242,6 +242,16 @@ Built for **[This Week in Startups](https://x.com/twistartups)** | Jason Calacan
 
 ---
 
+## Marketing site
+
+The public landing pages at **[peanutgallery.live](https://peanutgallery.live)** are served from a separate repo — plain static HTML on GitHub Pages, no build step:
+
+**[Sethmr/peanut.gallery.site](https://github.com/Sethmr/peanut.gallery.site)**
+
+Kept out of this repo on purpose: the extension ships on a code-review cadence, the site iterates on a copy-and-design cadence, and separating them means marketing changes never sit behind a CWS review queue.
+
+---
+
 ## Contributing
 
 **Always commit after finishing a workload worth pushing to test.** Don't let changes pile up across multiple features — commit after each logical unit of work so it can be tested, reviewed, and reverted independently if needed.
