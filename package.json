@@ -17,7 +17,7 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
+    "@anthropic-ai/sdk": "^0.90.0",
     "@microsoft/fetch-event-source": "^2.0.1",
     "bufferutil": "^4.1.0",
     "dotenv": "^17.4.2",
