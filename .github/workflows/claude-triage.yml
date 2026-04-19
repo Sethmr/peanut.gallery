@@ -53,7 +53,7 @@ name: Claude Triage
 #    the GA tag; pinning to SHA prevents a future tag move from changing
 #    behavior under us. (Dependabot github-actions block will keep the SHA
 #    fresh once we pin.)
-# 2. Pin actions/checkout@v4 to a SHA for the same reason.
+# 2. Pin actions/checkout@v6 to a SHA for the same reason.
 # 3. Once iteration 2 lands (close-PR authority), add `issues: write` only
 #    if needed and revisit the permissions block.
 
@@ -78,7 +78,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout PR head (read-only)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # Check out the PR's head so Claude reads the proposed changes,
           # not the base branch. pull_request_target's default ref is base;
