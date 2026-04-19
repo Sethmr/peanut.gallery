@@ -1,0 +1,57 @@
+name: "💡 Feature request"
+description: "Idea for a new pack, persona, feature, or tweak."
+title: "[feat] "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Pitch the idea like you're pitching Jason: what problem, who feels it, why now.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: "What's the pain you're feeling? Concrete > abstract."
+      placeholder: "I want to watch All-In podcasts but the TWiST pack doesn't sound like Chamath / Sacks / Friedberg."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you want
+      description: "The shape of the feature. Draw it if you can."
+      placeholder: "Ship an All-In pack with the four hosts mapped onto producer/troll/soundfx/joker archetype slots."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - "Chrome extension UI"
+        - "Persona pack (new pack)"
+        - "Persona pack (tune existing)"
+        - "Backend / API"
+        - "Docs"
+        - "Marketing site"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: "If you rolled your own workaround or saw something similar elsewhere, link it."
+
+  - type: checkboxes
+    id: engagement
+    attributes:
+      label: Willing to help
+      options:
+        - label: "I'd ship a PR for this with guidance."
+        - label: "I can supply reference material (transcripts, style notes, screenshots)."
+        - label: "Idea only — posting so someone else can grab it."

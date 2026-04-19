@@ -10,7 +10,7 @@
 
 **Peanut Gallery** is an open-source AI sidebar that watches podcasts in real-time and generates commentary from 4 distinct AI personas — inspired by the Howard Stern Show staff. It's being built to win a **$5,000 bounty + guest spot** from **Jason Calacanis** on **This Week in Startups (TWiST)**.
 
-- **Domain:** peanutgallery.live
+- **Domains:** `www.peanutgallery.live` (marketing — GitHub Pages), `api.peanutgallery.live` (backend — Railway). Apex `peanutgallery.live` currently 301s to `www.` during the Path-1 transition; Path 2 completes the split.
 - **Repo:** github.com/Sethmr/peanut.gallery
 - **Builder:** Seth (sethr@hey.com)
 - **Stack:** Next.js 15 (App Router), TypeScript, Tailwind CSS
@@ -173,7 +173,7 @@ Result: some moments get 1 response, some get 2-3, occasionally all 4 pile on. *
 | `docs/packs/twist/RESEARCH.md` | Character research for the TWiST pack — source of truth for voice/tone when the TWiST personas feel off |
 | `extension/README.md` | Chrome extension install + architecture overview |
 | `TWIST-AI-SIDEBAR-BUILD-PLAN.md` | ARCHIVED — original pre-build plan. Do not trust; kept for history only. |
-| `docs/index.html` | Landing page for peanutgallery.live (GitHub Pages) |
+| `docs/index.html` | Legacy in-repo landing page (self-host preview only). Production marketing now lives at `www.peanutgallery.live` and is served from the [`Sethmr/peanut.gallery.site`](https://github.com/Sethmr/peanut.gallery.site) repo. |
 
 ---
 
@@ -396,7 +396,7 @@ From Jason's X post (@twistartups), the spec calls for:
 - Landing page (docs/index.html)
 - Test scripts for pipeline and personas
 - Chrome extension built (background + offscreen + side panel + icons)
-- Railway deploy live at peanutgallery.live
+- Railway deploy live at `api.peanutgallery.live` (apex `peanutgallery.live` currently 301s to `www.` during the Path-1 → Path-2 URL transition; see [`ROADMAP.md`](ROADMAP.md#in-flight--v150-canary--tag--cws-upload))
 - BYOK flow — users bring their own API keys via the side panel
 
 ### Not Done / Post-v1.4 priorities

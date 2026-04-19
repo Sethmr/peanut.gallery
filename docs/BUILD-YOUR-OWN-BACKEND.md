@@ -97,8 +97,9 @@ The Chrome extension does all of the following against your server:
 | `POST`   | `/api/personas`              | (Optional) Fire all personas against a string |
 
 If all six behave exactly as specified, the extension works. You do not need
-`/api/personas` for the extension itself — it's only used by the web app at
-`peanutgallery.live/watch` and by the internal test scripts.
+`/api/personas` for the extension itself — it's only used by the legacy
+reference web app (`/watch` on the self-hosted backend) and by the internal
+test scripts.
 
 ---
 

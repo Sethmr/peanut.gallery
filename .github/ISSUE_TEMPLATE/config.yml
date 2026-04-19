@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "Chrome Web Store listing"
+    url: https://chrome.google.com/webstore/detail/peanut-gallery
+    about: "Install Peanut Gallery directly from the Chrome Web Store."
+  - name: "Marketing site + install guide"
+    url: https://www.peanutgallery.live
+    about: "Peanut Gallery's landing page. Install flow, pack gallery, roadmap."
+  - name: "Self-host + build-your-own backend"
+    url: https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md
+    about: "Wire spec + acceptance tests for running or reimplementing the backend."
+  - name: "Discussions"
+    url: https://github.com/Sethmr/peanut.gallery/discussions
+    about: "Ideas, questions, pack requests, show-and-tell. Not a bug? Start here."

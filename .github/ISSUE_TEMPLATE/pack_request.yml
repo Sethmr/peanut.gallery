@@ -1,0 +1,52 @@
+name: "🎭 New persona pack"
+description: "Request or propose a new persona pack (All-In, Acquired, Lex, your podcast, etc.)."
+title: "[pack] "
+labels: ["pack-request", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Every pack is four archetype slots: **producer** (fact-checker), **troll** (contrarian), **soundfx** (cues + asides), **joker** (setup-punchline). Map your four voices onto those slots.
+
+  - type: input
+    id: pack-name
+    attributes:
+      label: Pack name
+      placeholder: "All-In"
+    validations:
+      required: true
+
+  - type: input
+    id: show
+    attributes:
+      label: Source show / reference
+      placeholder: "All-In Podcast — YouTube channel link"
+    validations:
+      required: true
+
+  - type: textarea
+    id: cast
+    attributes:
+      label: The cast — four archetype slots
+      description: "Map four voices onto the archetypes. Include a one-line characterization for each."
+      value: |
+        - **Producer (fact-checker):**
+        - **Troll (contrarian):**
+        - **Sound FX (cues + asides):**
+        - **Joker (comedy writer):**
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: Reference material
+      description: "Public transcripts, representative episodes, style notes. The more concrete, the better the pack will sound."
+
+  - type: checkboxes
+    id: guardrails
+    attributes:
+      label: Anti-impersonation acknowledgement
+      options:
+        - label: "I understand packs are *inspired by* public figures, not impressions. Characterization comes from public transcripts / clips and prompts include anti-impersonation guardrails."
+          required: true
