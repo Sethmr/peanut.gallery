@@ -1,0 +1,92 @@
+name: PR Merge Checklist
+
+# Posts a fresh comment on every PR open + every new commit, telling the
+# author exactly what needs to be true for the PR to land. Links canonical
+# docs rather than duplicating them — if the rules change, update RELEASE.md
+# and the comment updates itself by reference.
+#
+# Rationale: Seth, 2026-04-19 — "comment on anyone who puts up or updates a
+# pr and tell them what's required for it to be merged, so every new commit
+# gets a new message from you."
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post merge checklist
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const baseRef = context.payload.pull_request.base.ref;
+            const headRef = context.payload.pull_request.head.ref;
+            const author = context.payload.pull_request.user.login;
+            const event = context.payload.action; // opened | synchronize | reopened
+            const sha = context.payload.pull_request.head.sha.substring(0, 7);
+
+            const trigger = event === 'opened'
+              ? `PR opened targeting \`${baseRef}\``
+              : event === 'reopened'
+                ? `PR reopened targeting \`${baseRef}\``
+                : `New commit \`${sha}\` on \`${headRef}\``;
+
+            const targetingMain = baseRef === 'main';
+            const isDependabot = author === 'dependabot[bot]';
+
+            const mainOnlyGates = targetingMain ? `
+
+            **Because this targets \`main\`, also required:**
+
+            - [ ] Branching from \`develop\`, not a feature branch (hotfixes are the only exception — see [\`RELEASE.md\`](../blob/develop/docs/RELEASE.md#hotfixes-direct-to-main))
+            - [ ] CODEOWNERS review from @Sethmr — auto-requested
+            - [ ] CHANGELOG / release notes in the PR body
+            - [ ] Version tag planned (\`git tag -a vX.Y.Z\`) for post-merge
+            ` : '';
+
+            const dependabotNote = isDependabot ? `
+
+            ---
+
+            **Dependabot heads-up:** this repo has a framework-upgrade policy. Patch + minor bumps are candidates to merge after \`npm run check\` passes. Major-version bumps default to **close + queue** under [ROADMAP.md → Future framework + dependency upgrades](../blob/develop/docs/ROADMAP.md#future-framework--dependency-upgrades) with a matching ignore rule added to \`.github/dependabot.yml\`. See the [triage rubric](../blob/develop/docs/ROADMAP.md#future-framework--dependency-upgrades) before expecting a merge.
+            ` : '';
+
+            const body = `### 🥜 Peanut Gallery — Merge Checklist
+
+            _${trigger}._
+
+            **Required for every PR:**
+
+            - [ ] \`npm run check\` passes locally (typecheck + extension lint + 17 director fixtures)
+            - [ ] Commits are signed (\`git commit -S\`) — branch protection enforces this
+            - [ ] Linear history — rebase onto the base branch; no merge commits in the branch
+            - [ ] Conventional commit prefix (\`feat:\` / \`fix:\` / \`docs:\` / \`chore:\` / \`refactor:\`)
+            - [ ] [PR template](../blob/develop/.github/PULL_REQUEST_TEMPLATE.md) filled in: **What / Why / How / Testing / Risk**
+            - [ ] The commit body + PR body explain the _why_ and any _alternatives considered_ — fresh-context Claude should be able to reconstruct the decision from the diff + the words
+
+            **Touching git from an AI agent?** Read [\`docs/AI-GIT-PROTOCOL.md\`](../blob/develop/docs/AI-GIT-PROTOCOL.md) before any \`git\` write. The \`.git/index.lock\` rule is a hard no-exceptions rule.
+
+            **Bumping a framework or major dep?** Read the [upgrade policy](../blob/develop/docs/ROADMAP.md#future-framework--dependency-upgrades) first — major bumps queue to post-v2.0 unless they're load-bearing for the current task.${mainOnlyGates}${dependabotNote}
+
+            ---
+
+            Full release model: [\`docs/RELEASE.md\`](../blob/develop/docs/RELEASE.md) · Contributing: [\`.github/CONTRIBUTING.md\`](../blob/develop/.github/CONTRIBUTING.md) · Self-merge contract: [\`RELEASE.md § Claude's self-merge contract\`](../blob/develop/docs/RELEASE.md#claudes-self-merge-contract)
+
+            <sub>This comment is posted fresh on every new commit by \`.github/workflows/pr-checklist-comment.yml\`.</sub>`;
+
+            // Normalise leading indentation — the template literal is indented
+            // for YAML readability, not for GitHub rendering.
+            const normalized = body.split('\n').map(line => line.replace(/^ {12}/, '')).join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: normalized,
+            });

@@ -50,6 +50,10 @@ Claude never hotfixes directly to `main`. If Seth is away, Claude prepares the P
 
 [`.claude/settings.json`](../.claude/settings.json) deny-lists the destructive commands: direct push to `main`/`master`, force push, hard reset, branch/tag/release/repo deletions. This is the belt to branch protection's suspenders — it fails fast inside the Claude Code session before GitHub ever sees the command.
 
+## PR-time enforcement
+
+[`.github/workflows/pr-checklist-comment.yml`](../.github/workflows/pr-checklist-comment.yml) posts a fresh comment on every PR open + every new commit, telling the author exactly what needs to be true to merge. Comment text links the canonical docs (this file, CONTRIBUTING.md, AI-GIT-PROTOCOL.md, the upgrade policy) instead of duplicating them — when the rules change here, the comment changes by reference. The workflow also flags Dependabot PRs with the framework-upgrade triage rubric, and adds `main`-only gates (CODEOWNERS approval, CHANGELOG, tag plan) when the PR targets `main`.
+
 ## Manual setup Seth still owns
 
 Branch protection rules live in the GitHub web UI. The exact click-path — both rules, copy-paste — is in [`GITHUB-MANUAL-STEPS.md § 8`](GITHUB-MANUAL-STEPS.md#8-branch-protection--asymmetric-main-strict-develop-lighter).

@@ -31,3 +31,18 @@ updates:
           - "@anthropic-ai/*"
     labels:
       - "dependencies"
+
+  # github-actions — added 2026-04-19 alongside our first workflow
+  # (pr-checklist-comment.yml). Weekly cadence keeps action versions current
+  # without spamming the PR queue.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Los_Angeles"
+    open-pull-requests-limit: 2
+    labels:
+      - "dependencies"
+      - "area: ci"

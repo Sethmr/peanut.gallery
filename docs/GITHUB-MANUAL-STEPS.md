@@ -205,9 +205,10 @@ These are committed in `chrome-extension/` and landed as part of the audit:
 
 Per Seth's audit reframe: **this audit is about GitHub-facing pages architecture, not code automation.** Items explicitly not touched:
 
-- CI workflow files (`.github/workflows/`) — nothing shipped.
 - CodeQL / security scanning workflows — nothing shipped.
 - Release-tagging automation — manual for now.
-- Lint / test automation — pre-PR local checks only; Seth runs them before merge.
+- Lint / test automation in CI — pre-PR local checks only; Seth runs them before merge.
 
-If/when code automation is in scope, the code-quality audit is a separate conversation — this doc stays page-architecture-only.
+One deliberate exception (added 2026-04-19 on Seth's direct ask): `.github/workflows/pr-checklist-comment.yml` posts a fresh merge-requirements comment on every PR open + every new commit. It doesn't run tests or gate anything — pure signal to the author about what needs to be true to land. Rules live in `docs/RELEASE.md`; the comment links rather than duplicates. `.github/dependabot.yml` now also tracks the `github-actions` ecosystem weekly so the action versions used here stay current.
+
+If/when broader code automation is in scope, the code-quality audit is a separate conversation — this doc stays page-architecture-only.
