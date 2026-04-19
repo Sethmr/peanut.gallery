@@ -46,6 +46,46 @@ function packDisplayName(id) {
   return PACK_DISPLAY_NAMES[id] || id || "—";
 }
 
+// Pretty-print label for the masthead pack badge (the little tag that sits
+// under the nameplate). Kept separate from PACK_DISPLAY_NAMES (which is
+// the lowercased trace-panel label) so the masthead can show a more
+// "newsstand" version — "Howard" / "TWiST" — without reshaping the trace.
+const PACK_BADGE_NAMES = {
+  howard: "Howard",
+  twist: "TWiST",
+};
+function packBadgeName(id) {
+  return PACK_BADGE_NAMES[id] || id || "—";
+}
+
+// Map archetype slot → tabloid role tag. These are LOAD-BEARING for the
+// feed-entry CSS classes (fact/dunk/cue/bit each have their own tag color
+// in sidepanel.html) and the footer filter pills. Every pack uses the same
+// four slots, so one map serves all packs.
+const ROLE_FOR_SLOT = {
+  producer: "fact",
+  troll: "dunk",
+  soundfx: "cue",
+  joker: "bit",
+};
+function roleForSlot(id) {
+  return ROLE_FOR_SLOT[id] || "bit";
+}
+
+// Compute the block-letter initials shown on a mug avatar. Takes the first
+// letter of each whitespace-separated token in the persona name, caps at
+// 2 characters, uppercases the result. Falls back to "PG" for anything
+// empty so the mug never renders as a void.
+function personaInitials(name) {
+  if (!name || typeof name !== "string") return "PG";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "PG";
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
 // Mutable reference to the active pack's persona array. The server picks up
 // the pack id from the /api/transcribe body and never reads names — so any
 // mismatch between client names and server personas degrades to "unknown
@@ -127,10 +167,26 @@ let capturing = false;
 let sessionId = null;
 let transcriptFinal = "";
 let transcriptInterim = "";
-let feedEntries = []; // { id, personaId, text, timestamp }
+let feedEntries = []; // { id, personaId, role, text, timestamp }
 let streamBuffers = {}; // personaId → accumulated streaming text
 let streamingPersonaId = null;
 let messageCount = 0;
+
+// Per-persona mute set. Persisted in chrome.storage.local as a plain array
+// under `mutedPersonas`. Client-side filter for v1 — muted personas still
+// stream on the server (the pack LLM doesn't know), but their persona +
+// persona_done events are suppressed from the feed + streaming UI, and
+// their mug carries a `.muted` strike-through.
+let mutedPersonas = new Set();
+
+// Active theme token. "paper" (default) or "night". Applied to
+// body.dataset.theme on load + on button click, persisted under `theme`.
+let currentTheme = "paper";
+
+// Footer filter state. Each role flag toggles visibility of its feed-entry
+// class. Rendered into the gallery via data attribute — the CSS does the
+// hiding so we don't have to churn individual entries on every flip.
+const activeFilters = new Set(["fact", "dunk", "cue", "bit"]);
 
 // React button force-state tracking.
 // When the user taps 🔥 React, the button flips to a spinner until at least
@@ -189,6 +245,26 @@ const responseRateSelect = document.getElementById("responseRate");
 const packSelect = document.getElementById("packSelect");
 const capturedTabBanner = document.getElementById("capturedTabBanner");
 const capturedTabTitle = document.getElementById("capturedTabTitle");
+
+// v1.4 masthead + drawer refs. Grabbed defensively — if we're running in
+// an older extension context with the previous HTML, these return null
+// and every handler below no-ops rather than throwing.
+const packBadgeEl = document.getElementById("packBadge");
+const footer = document.getElementById("footer");
+const settingsToggleBtn = document.getElementById("settingsToggle");
+const settingsDrawer = document.getElementById("settingsDrawer");
+const drawerCloseBtn = document.getElementById("drawerCloseBtn");
+const drawerBackBtn = document.getElementById("drawerBackBtn");
+const mutesContainer = document.getElementById("mutesContainer");
+const themePaperBtn = document.getElementById("themePaperBtn");
+const themeNightBtn = document.getElementById("themeNightBtn");
+const exportCopyBtn = document.getElementById("exportCopyBtn");
+const exportDownloadBtn = document.getElementById("exportDownloadBtn");
+// Footer filter pills — indexed by data-filter. One `All` master plus four
+// per-role toggles. Collected once at load; the HTML renders all five.
+const filterPillEls = Array.from(
+  document.querySelectorAll("#footer .pill[data-filter]")
+);
 
 // ── Install ID ──
 // Stable per-installation UUID. Generated on first load, persisted in
@@ -250,6 +326,8 @@ function loadSettings() {
       "outputDeviceId",
       "responseRate",
       "packId",
+      "theme",
+      "mutedPersonas",
     ],
     (data) => {
       if (data.serverUrl) serverUrlInput.value = data.serverUrl;
@@ -294,22 +372,43 @@ function loadSettings() {
         typeof data.packId === "string" && data.packId in PACKS_CLIENT
           ? data.packId
           : DEFAULT_PACK_ID;
+      // Theme: paper (default) or night. Applied to body.dataset.theme so
+      // the CSS variable cascade flips without a class rename. Unknown
+      // values coerce to paper to keep the default consistent.
+      currentTheme = data.theme === "night" ? "night" : "paper";
+      document.body.dataset.theme = currentTheme;
+
+      // Muted personas — persisted as an array, rehydrated into a Set for
+      // O(1) membership checks in the stream/feed hot path. Defensive
+      // against an older shape or a hand-edited storage value.
+      mutedPersonas = new Set(
+        Array.isArray(data.mutedPersonas) ? data.mutedPersonas : []
+      );
+
       // buildPersonaAvatars() ran synchronously at init with the default
       // pack. If the user's saved pack is different (e.g. TWiST persisted
       // from a previous session), the avatar row is currently showing the
       // wrong faces — rebuild it so the avatars, the dropdown, and the
       // packId we'll send to /api/transcribe all agree on the same pack
       // before Start. Skip the rebuild when the saved pack matches the
-      // default to avoid a wasted re-render on the common path.
+      // default to avoid a wasted re-render on the common path. We also
+      // ALWAYS rebuild if any personas are muted, so the strike-through
+      // `.muted` class lands on the right mug from the jump.
       const packChanged = savedPack !== currentPackId;
       currentPackId = savedPack;
       if (packSelect) packSelect.value = savedPack;
-      if (packChanged) buildPersonaAvatars();
+      if (packChanged || mutedPersonas.size > 0) buildPersonaAvatars();
+      updatePackBadge();
       // Mirror the restored selection in the trace header so the debug
       // panel reads correctly the first time a user opens it — even
       // before they've started a session. sessionPackId is still null
       // here, so this renders the muted pre-session style.
       updateTracePackLabel();
+
+      // Theme buttons — reflect the restored selection visually. Safe to
+      // call before the DOM refs are resolved; the helper no-ops if the
+      // elements are missing (e.g. drawer not yet attached).
+      syncThemeButtons();
 
       // Keys section stays collapsed by default — the backend handles demo
       // access, so first-time users never need to open the panel.
@@ -340,6 +439,8 @@ function saveSettings() {
     outputDeviceId: currentOutputDeviceId(),
     responseRate: currentResponseRate(),
     packId: currentPackId,
+    theme: currentTheme,
+    mutedPersonas: Array.from(mutedPersonas),
   });
 }
 
@@ -428,6 +529,7 @@ function showCapturing() {
   controlsRow.style.display = "block";
   transcriptSection.style.display = "block";
   gallery.style.display = "flex";
+  if (footer) footer.classList.remove("hidden");
   // Avatar clicks only do work during a live session — promote the row
   // to the interactive visual state (pointer cursor, hover transform,
   // "Make X react now" tooltip). See .personas-row.interactive rules in
@@ -465,6 +567,12 @@ function showIdle() {
   controlsRow.style.display = "none";
   transcriptSection.style.display = "none";
   gallery.style.display = "none";
+  if (footer) footer.classList.add("hidden");
+  // Close the drawer if it was open when capture stopped — no session
+  // means the settings drawer's "wire paused" framing no longer makes
+  // sense. The user can reopen it from setup via the footer gear once
+  // they start again.
+  closeSettingsDrawer();
   statusBar.classList.remove("active", "live");
   // Capture stopped — make sure the React button can't be stuck spinning,
   // and no avatar can be stuck on its tap-to-fire spinner.
@@ -555,37 +663,45 @@ function checkStatus() {
 }
 
 // ── Persona avatars ──
+//
+// Tabloid-era mug shots: initials on a halftone-hatch ground, with the
+// persona's archetype glyph overlaid in a small stack underneath. Each
+// bubble's role tag (FACT/DUNK/CUE/BIT) is derived from the archetype
+// slot id via ROLE_FOR_SLOT so it's guaranteed to match the feed-entry
+// classes downstream.
 function buildPersonaAvatars() {
   personasRow.innerHTML = "";
   for (const p of PERSONAS) {
     const el = document.createElement("div");
     el.className = "persona-bubble";
+    if (mutedPersonas.has(p.id)) el.classList.add("muted");
     el.id = `bubble-${p.id}`;
     el.dataset.personaId = p.id;
+    el.dataset.role = roleForSlot(p.id);
+    const initials = personaInitials(p.name);
+    const roleTag = roleForSlot(p.id).toUpperCase();
     // Title is set by syncAvatarTitles() so it tracks the interactive state.
-    // When idle, there's no title — hovering won't promise an action the
-    // click handler will refuse to perform.
-    // Ordering: avatar → name → role → wave. The wave lives BELOW the text
-    // block so the avatar and labels form one tight group with no gap when
-    // the persona isn't speaking. The wave's reserved height (CSS) keeps
-    // the row height stable between idle and speaking states. The glyph is
-    // wrapped in a stack with a spinner layer for the tap-to-fire crossfade
-    // (id `stack-<personaId>` so we can add/remove `.firing` directly).
+    // The glyph stack stays for the tap-to-fire crossfade — we keep its
+    // `id="stack-<personaId>"` so all the firing/cleared/force-react paths
+    // below keep working without change. We tuck it into a small overlay
+    // corner of the mug so the initials remain the dominant identity.
     el.innerHTML = `
-      <div class="persona-avatar" id="avatar-${p.id}" style="background:${p.color}20; color:${p.color}">
+      <div class="persona-avatar" id="avatar-${p.id}">
         <div class="ring"></div>
-        <span id="stack-${p.id}">${personaGlyphHTML(p, "1.3em", null, true)}</span>
+        <span class="initials">${escapeHtml(initials)}</span>
+        <span class="persona-glyph-overlay" id="stack-${p.id}" style="color:${p.color}">${personaGlyphHTML(p, "0.9em", null, true)}</span>
       </div>
-      <span class="persona-name" style="color:${p.color}">${p.name}</span>
-      <span class="persona-role">${p.role}</span>
-      <div class="persona-wave" style="color:${p.color}">
-        <svg viewBox="0 0 200 20" preserveAspectRatio="none">
-          <path d="M 0 10 Q 12.5 0, 25 10 T 50 10 T 75 10 T 100 10 T 125 10 T 150 10 T 175 10 T 200 10"
-                stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" />
-        </svg>
-      </div>
+      <span class="persona-name">${escapeHtml(p.name)}</span>
+      <span class="persona-role">${escapeHtml(roleTag)}</span>
     `;
-    el.addEventListener("click", () => firePersona(p.id));
+    el.addEventListener("click", () => {
+      // Muted personas get a quick un-mute hint instead of firing. Tapping
+      // a muted mug in the settings drawer is the canonical way to undo,
+      // but doing it here would break the "tap mug = make X react" mental
+      // model — so we just silently decline.
+      if (mutedPersonas.has(p.id)) return;
+      firePersona(p.id);
+    });
     personasRow.appendChild(el);
   }
   // Sync the title attribute with the current interactive state — a fresh
@@ -616,15 +732,16 @@ function syncAvatarTitles() {
 
 function updatePersonaSpeaking(activeId) {
   for (const p of PERSONAS) {
-    // Toggle on the bubble (parent of avatar + wave), since the wave is no
-    // longer adjacent to the avatar — the CSS now targets
-    // `.persona-bubble.speaking .persona-wave` instead of an adjacent-sibling.
+    // Toggle on the bubble — v1.4 tabloid CSS targets
+    // `.persona-bubble.speaking .persona-avatar .ring` for the red-ring
+    // pulse, and `.persona-bubble.speaking .persona-avatar` for the
+    // stamp-red hatch backdrop swap.
     const bubble = document.getElementById(`bubble-${p.id}`);
     const avatar = document.getElementById(`avatar-${p.id}`);
     const speaking = p.id === activeId;
     if (bubble) bubble.classList.toggle("speaking", speaking);
-    // Keep .speaking on the avatar too — the ring-pulse animation still keys
-    // off it via `.persona-avatar.speaking .ring`.
+    // Mirror on the avatar too — any legacy rules that keyed off
+    // `.persona-avatar.speaking` still work without a sweep.
     if (avatar) avatar.classList.toggle("speaking", speaking);
   }
 }
@@ -662,24 +779,30 @@ function clearAllPersonaFiring() {
 }
 
 // ── Gallery feed ──
+//
+// Tabloid wire-service rows: time · role tag · "Persona — text". Role
+// (fact/dunk/cue/bit) is derived from the archetype slot via ROLE_FOR_SLOT
+// so it always agrees with the corresponding mug. Muted personas drop out
+// here — the gallery never receives their entries — and the streaming
+// buffer for that persona is left intact server-side; we just don't paint.
 function addFeedEntry(personaId, text) {
   const p = PERSONAS.find((x) => x.id === personaId);
   if (!p) return;
+  if (mutedPersonas.has(personaId)) return;
 
+  const role = roleForSlot(personaId);
   const id = `${personaId}-${messageCount++}`;
   const now = Date.now();
-  feedEntries.push({ id, personaId, text, timestamp: now });
+  feedEntries.push({ id, personaId, role, text, timestamp: now });
 
   const el = document.createElement("div");
-  el.className = "feed-entry";
+  el.className = `feed-entry ${role}`;
   el.id = `feed-${id}`;
+  el.dataset.role = role;
   el.innerHTML = `
-    <div class="feed-header">
-      <span class="feed-emoji" style="color:${p.color}">${personaGlyphHTML(p, "1em", p.color)}</span>
-      <span class="feed-name" style="color:${p.color}">${p.name}</span>
-      <span class="feed-time">${formatTime(now)}</span>
-    </div>
-    <div class="feed-text">${escapeHtml(text)}</div>
+    <span class="ts">${escapeHtml(formatTime(now))}</span>
+    <span class="tag">${escapeHtml(role.toUpperCase())}</span>
+    <span class="msg"><span class="nm">${escapeHtml(p.name)}</span> ${escapeHtml(text)}</span>
   `;
 
   gallery.appendChild(el);
@@ -689,21 +812,27 @@ function addFeedEntry(personaId, text) {
 function updateStreamingEntry(personaId, text) {
   const p = PERSONAS.find((x) => x.id === personaId);
   if (!p) return;
+  if (mutedPersonas.has(personaId)) return;
 
+  const role = roleForSlot(personaId);
   let el = document.getElementById("feed-streaming");
   if (!el) {
     el = document.createElement("div");
-    el.className = "feed-entry feed-streaming";
+    el.className = `feed-entry feed-streaming ${role}`;
     el.id = "feed-streaming";
+    el.dataset.role = role;
     gallery.appendChild(el);
+  } else {
+    // Persona switched mid-stream (rare): retag the row so role styling and
+    // dataset.role stay consistent with whatever's actually streaming.
+    el.className = `feed-entry feed-streaming ${role}`;
+    el.dataset.role = role;
   }
 
   el.innerHTML = `
-    <div class="feed-header">
-      <span class="feed-emoji" style="color:${p.color}">${personaGlyphHTML(p, "1em", p.color)}</span>
-      <span class="feed-name" style="color:${p.color}">${p.name}</span>
-    </div>
-    <div class="feed-text">${escapeHtml(text)}</div>
+    <span class="ts">live</span>
+    <span class="tag">${escapeHtml(role.toUpperCase())}</span>
+    <span class="msg"><span class="nm">${escapeHtml(p.name)}</span> ${escapeHtml(text)}</span>
   `;
 
   gallery.scrollTop = gallery.scrollHeight;
@@ -733,6 +862,11 @@ chrome.runtime.onMessage.addListener((message) => {
 
     case "persona": {
       const pid = data.personaId;
+      // Muted critic — discard incoming chunks entirely. We don't even
+      // accumulate into streamBuffers, so an unmute mid-burst won't dump
+      // a partial reply into the feed (which would be confusing). The
+      // server has no idea about mutes; the LLM still ran, that's fine.
+      if (mutedPersonas.has(pid)) break;
       if (!streamBuffers[pid]) streamBuffers[pid] = "";
       streamBuffers[pid] += data.text;
       streamingPersonaId = pid;
@@ -752,6 +886,10 @@ chrome.runtime.onMessage.addListener((message) => {
       // linger on the avatar.
       clearPersonaFiring(pid);
       finalizeStreamingEntry();
+      // Muted critic — same logic as the streaming case. The buffer was
+      // never populated so finalText is empty; this is just belt-and-braces
+      // in case a race let chunks through.
+      if (mutedPersonas.has(pid)) break;
       if (finalText.trim()) {
         addFeedEntry(pid, finalText.trim());
         // If the user is waiting on a React-button click, count non-empty
@@ -877,9 +1015,12 @@ startBtn.addEventListener("click", async () => {
 
   // Pre-flight: self-hosters must supply their own keys (their server has no
   // demo env vars to fall back on). For the default peanutgallery.live backend
-  // we skip the check — the server has demo keys in its env vars and will use
-  // them whenever the extension sends no key headers.
-  const isHostedBackend = /(^|\/\/)peanutgallery\.live(\/|$)/i.test(serverUrl);
+  // (legacy apex OR new api. subdomain — the URL transition can leave either
+  // configured during the rollout window) we skip the check — the server has
+  // demo keys in its env vars and will use them whenever the extension sends
+  // no key headers.
+  const isHostedBackend =
+    /(^|\/\/)(api\.|www\.)?peanutgallery\.live(\/|$)/i.test(serverUrl);
   if (!isHostedBackend) {
     const missing = [];
     if (!deepgramKeyInput.value.trim()) missing.push("Deepgram");
@@ -1181,6 +1322,13 @@ if (packSelect) {
     saveSettings();
     // Rebuild the persona row so the names/emojis match the chosen pack.
     buildPersonaAvatars();
+    // Keep the masthead pack badge in sync with whatever's queued up.
+    updatePackBadge();
+    // Re-render the drawer mute grid — if the drawer is open it's already
+    // showing the previous pack's names, and any muted ids from the old
+    // pack that don't exist in the new pack should still persist in
+    // storage (the user might swap back) but just not render here.
+    renderMutesList();
     // Mirror the new pre-session selection in the trace panel header so
     // power users who open the debug panel see the change reflected
     // immediately. Won't clobber the .locked state — updateTracePackLabel
@@ -1240,8 +1388,15 @@ function escapeHtml(text) {
 }
 
 function formatTime(ts) {
+  // Zero-padded 24h HH:MM. Matches the tabloid/wire-service aesthetic and
+  // keeps the feed's time column width predictable across locales — before
+  // we were hitting "03:45 PM" overflow on en-US. Kept as a simple string
+  // build (not Intl) so it never ships whitespace/separators that depend
+  // on the user's locale.
   const d = new Date(ts);
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
 }
 
 // Save settings on input change. Skip any element that isn't present (older
@@ -1255,6 +1410,271 @@ function formatTime(ts) {
   searchEngineSelect,
 ].forEach((el) => {
   if (el) el.addEventListener("change", saveSettings);
+});
+
+// ──────────────────────────────────────────────────────
+// MASTHEAD + FOOTER + DRAWER (v1.4 tabloid rebrand)
+// ──────────────────────────────────────────────────────
+//
+// All the chrome outside the main content stack lives here:
+//   • pack badge in the masthead subrail
+//   • role filter pills in the footer
+//   • settings drawer (mute-a-critic, theme, export)
+//
+// Every handler no-ops if its DOM ref is missing. That keeps the extension
+// robust against a stale cached HTML that doesn't know about these elements
+// yet — rare in practice but Chrome's extension cache is stubborn.
+
+function updatePackBadge() {
+  if (!packBadgeEl) return;
+  packBadgeEl.textContent = packBadgeName(currentPackId);
+}
+
+// ── Footer filter pills ──
+//
+// `All` is a master toggle that flips every role simultaneously. The four
+// role pills each own a single role tag. When any role is off, `All` flips
+// to off too (so the UI reads honestly as "showing a subset"). The actual
+// hide/show is done entirely in CSS via a data attribute on #gallery —
+// `[data-hide-fact] .feed-entry.fact { display: none }` etc. — so flipping
+// a pill is O(1) regardless of how many feed entries are rendered.
+function applyFilterState() {
+  const roles = ["fact", "dunk", "cue", "bit"];
+  for (const r of roles) {
+    if (activeFilters.has(r)) gallery.removeAttribute(`data-hide-${r}`);
+    else gallery.setAttribute(`data-hide-${r}`, "true");
+  }
+  // Sync pill .on states.
+  for (const pill of filterPillEls) {
+    const f = pill.dataset.filter;
+    if (f === "all") {
+      pill.classList.toggle("on", activeFilters.size === roles.length);
+    } else {
+      pill.classList.toggle("on", activeFilters.has(f));
+    }
+  }
+}
+for (const pill of filterPillEls) {
+  pill.addEventListener("click", () => {
+    const f = pill.dataset.filter;
+    const roles = ["fact", "dunk", "cue", "bit"];
+    if (f === "all") {
+      // If anything is currently off, `All` becomes "turn everything on".
+      // If everything is already on, `All` becomes "turn everything off"
+      // — useful as a quick "hide all" when scanning for a specific type.
+      const allOn = activeFilters.size === roles.length;
+      activeFilters.clear();
+      if (!allOn) for (const r of roles) activeFilters.add(r);
+    } else {
+      if (activeFilters.has(f)) activeFilters.delete(f);
+      else activeFilters.add(f);
+    }
+    applyFilterState();
+  });
+}
+applyFilterState();
+
+// ── Settings drawer ──
+function openSettingsDrawer() {
+  if (!settingsDrawer) return;
+  renderMutesList();
+  syncThemeButtons();
+  settingsDrawer.classList.add("visible");
+  settingsDrawer.setAttribute("aria-hidden", "false");
+}
+function closeSettingsDrawer() {
+  if (!settingsDrawer) return;
+  settingsDrawer.classList.remove("visible");
+  settingsDrawer.setAttribute("aria-hidden", "true");
+}
+if (settingsToggleBtn) {
+  settingsToggleBtn.addEventListener("click", openSettingsDrawer);
+}
+if (drawerCloseBtn) drawerCloseBtn.addEventListener("click", closeSettingsDrawer);
+if (drawerBackBtn) drawerBackBtn.addEventListener("click", closeSettingsDrawer);
+
+// ── Mute-a-critic rows ──
+//
+// Built from the currently-active pack so names/roles always match the mug
+// row above. Toggling a row flips mutedPersonas + persists + re-paints the
+// mug's strike-through state. We do NOT retroactively remove feed entries
+// that were already posted — that would feel like hiding history; the mute
+// takes effect forward only, which also matches how the CSS strike-through
+// reads ("from now on, ignore this critic").
+function renderMutesList() {
+  if (!mutesContainer) return;
+  mutesContainer.innerHTML = "";
+  for (const p of currentPersonas()) {
+    const row = document.createElement("div");
+    const isMuted = mutedPersonas.has(p.id);
+    row.className = "mute-row" + (isMuted ? " off" : "");
+    row.dataset.personaId = p.id;
+    const roleTag = roleForSlot(p.id).toUpperCase();
+    row.innerHTML = `
+      <div class="av">${escapeHtml(personaInitials(p.name))}</div>
+      <div class="meta">
+        <div class="nm">${escapeHtml(p.name)}</div>
+        <div class="rl">${escapeHtml(roleTag)} · ${escapeHtml(p.role)}</div>
+      </div>
+      <div class="tog">${isMuted ? "MUTED" : "ON"}</div>
+    `;
+    row.addEventListener("click", () => toggleMute(p.id));
+    mutesContainer.appendChild(row);
+  }
+}
+function toggleMute(personaId) {
+  if (mutedPersonas.has(personaId)) mutedPersonas.delete(personaId);
+  else mutedPersonas.add(personaId);
+  // Persist ONLY the muted-personas field so we don't accidentally race
+  // against an in-flight loadSettings and overwrite empty key inputs back
+  // into storage. Same strategy used by applyTheme.
+  chrome.storage.local.set({ mutedPersonas: Array.from(mutedPersonas) });
+  renderMutesList();
+  // Update the mug strike-through live — no full rebuild needed; we just
+  // toggle .muted on the existing bubble element so the feed's streaming
+  // entry for this persona can also be dropped cleanly on the next chunk.
+  const bubble = document.getElementById(`bubble-${personaId}`);
+  if (bubble) bubble.classList.toggle("muted", mutedPersonas.has(personaId));
+  // If the muted persona was currently streaming, drop the in-flight
+  // streaming entry so the last buffered text doesn't sit there orphaned.
+  if (streamingPersonaId === personaId && mutedPersonas.has(personaId)) {
+    finalizeStreamingEntry();
+    streamingPersonaId = null;
+    streamBuffers[personaId] = "";
+  }
+}
+
+// ── Theme toggle ──
+function applyTheme(theme) {
+  const next = theme === "night" ? "night" : "paper";
+  currentTheme = next;
+  document.body.dataset.theme = next;
+  // Persist ONLY the theme field — saveSettings() reads every input on the
+  // page, so calling it here before loadSettings has populated those inputs
+  // could wipe real keys with empty strings. The theme can be flipped from
+  // the drawer's Paper/Night buttons the instant the panel opens, so this
+  // race is reachable in practice.
+  chrome.storage.local.set({ theme: next });
+  syncThemeButtons();
+}
+function syncThemeButtons() {
+  if (themePaperBtn) themePaperBtn.classList.toggle("primary", currentTheme === "paper");
+  if (themeNightBtn) themeNightBtn.classList.toggle("primary", currentTheme === "night");
+}
+if (themePaperBtn) themePaperBtn.addEventListener("click", () => applyTheme("paper"));
+if (themeNightBtn) themeNightBtn.addEventListener("click", () => applyTheme("night"));
+
+// ── Session export (Copy + Download as Markdown) ──
+//
+// Builds one Markdown document from the current session state. The backend
+// doesn't store transcripts, so this is literally the only way the user
+// can keep a record of what happened. Included: a frontmatter-style header
+// with pack + source URL + install id, the final transcript, and a
+// chronological list of every critic reaction with timestamp + persona.
+function buildSessionMarkdown() {
+  const now = new Date();
+  const src = capturedTabInfo?.url || "";
+  const title = capturedTabInfo?.title || "";
+  const pack = packBadgeName(sessionPackId || currentPackId);
+  const lines = [];
+  lines.push(`# Peanut Gallery — session`);
+  lines.push("");
+  lines.push(`- Exported: ${now.toISOString()}`);
+  if (title) lines.push(`- Source: ${title}`);
+  if (src) lines.push(`- URL: ${src}`);
+  lines.push(`- Pack: ${pack}`);
+  if (installId) lines.push(`- Install: ${installId}`);
+  lines.push("");
+
+  const transcript = (transcriptFinal || "").trim();
+  lines.push("## Transcript");
+  lines.push("");
+  lines.push(transcript ? transcript : "_(no final transcript captured)_");
+  lines.push("");
+
+  lines.push("## Reactions");
+  lines.push("");
+  if (feedEntries.length === 0) {
+    lines.push("_(no reactions yet)_");
+  } else {
+    for (const entry of feedEntries) {
+      const p = currentPersonas().find((x) => x.id === entry.personaId);
+      const name = p?.name || entry.personaId;
+      const role = (entry.role || roleForSlot(entry.personaId) || "bit").toUpperCase();
+      const ts = formatTime(entry.timestamp);
+      // Escape any pipe chars that would mess up Markdown table renderers
+      // downstream; keep the text otherwise verbatim so what the user sees
+      // on-screen is what lands in the file.
+      const safe = (entry.text || "").replace(/\|/g, "\\|");
+      lines.push(`- \`${ts}\` **${name}** (${role}) — ${safe}`);
+    }
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
+function flashExportButton(btn, label) {
+  if (!btn) return;
+  const original = btn.innerHTML;
+  btn.innerHTML = label;
+  btn.disabled = true;
+  setTimeout(() => {
+    btn.innerHTML = original;
+    btn.disabled = false;
+  }, 1400);
+}
+
+if (exportCopyBtn) {
+  exportCopyBtn.addEventListener("click", async () => {
+    const md = buildSessionMarkdown();
+    try {
+      await navigator.clipboard.writeText(md);
+      flashExportButton(exportCopyBtn, "✓ Copied");
+    } catch {
+      // Clipboard API can reject in some extension contexts — fall back to
+      // a textarea + execCommand so the user still gets the export.
+      const ta = document.createElement("textarea");
+      ta.value = md;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+        flashExportButton(exportCopyBtn, "✓ Copied");
+      } catch {
+        flashExportButton(exportCopyBtn, "× Failed");
+      }
+      document.body.removeChild(ta);
+    }
+  });
+}
+
+if (exportDownloadBtn) {
+  exportDownloadBtn.addEventListener("click", () => {
+    const md = buildSessionMarkdown();
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `peanut-gallery-session-${stamp}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // URL.revokeObjectURL is safe once the download has been dispatched.
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+    flashExportButton(exportDownloadBtn, "✓ Downloaded");
+  });
+}
+
+// Tap outside the drawer body to close — since the drawer is full-screen
+// this only fires when the drawer-head or drawer-foot backgrounds are
+// clicked on, but keyboard Escape is the other obvious close vector.
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && settingsDrawer?.classList.contains("visible")) {
+    closeSettingsDrawer();
+  }
 });
 
 // ──────────────────────────────────────────────────────

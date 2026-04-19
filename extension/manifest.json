@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Peanut Gallery",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "AI writers' room for YouTube. 4 personas react live — fact-checker, troll, sound guy, comedy writer. Howard or TWiST pack.",
   "permissions": [
     "tabCapture",
@@ -11,7 +11,9 @@
     "sidePanel"
   ],
   "host_permissions": [
-    "https://peanutgallery.live/*"
+    "https://peanutgallery.live/*",
+    "https://api.peanutgallery.live/*",
+    "https://www.peanutgallery.live/*"
   ],
   "optional_host_permissions": [
     "http://*/*",
@@ -33,7 +35,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://peanutgallery.live/*"],
+      "matches": ["https://peanutgallery.live/*", "https://www.peanutgallery.live/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }

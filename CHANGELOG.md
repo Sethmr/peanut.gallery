@@ -6,6 +6,31 @@ All notable changes to Peanut Gallery are recorded here. Format loosely follows 
 
 Tracks in-flight work for the next release.
 
+## [1.5.0] — 2026-04-19 — "The Broadsheet"
+
+A full aesthetic reinvention. The side panel is no longer a chat app — it's a late-night newspaper desk. Anton slab masthead, cream paper stock, ink-grey rules, four critics in mug shots with role tags (FACT / DUNK / CUE / BIT), and a wire-service feed where every quip lands with a 24h timestamp and a stamped role tag. Underneath the redesign: a Paper/Night theme toggle for late-session eyes, per-critic mute, and a one-click "Download Session" that ships the whole broadcast as Markdown. Smart Director v2's client-side scaffolding is in — the rule vs. LLM source badge is wired and ready — but the server flag stays off until the canary bands land.
+
+### Added
+- **URL transition readiness (Path 2 wiring).** In lockstep with moving the marketing site to GitHub Pages, the backend is moving from the apex (`peanutgallery.live`) to the api. subdomain (`api.peanutgallery.live`). v1.5 ships the extension side of that move: `manifest.json` `host_permissions` now covers the old apex + the new api subdomain + `www.`; the side-panel's default `serverUrl` is `https://api.peanutgallery.live`; `content_scripts` matches `www.` in addition to the legacy apex so the "already installed" pill keeps working on whichever host serves marketing at a given time. A one-shot migration in `background.js` (`migrateServerUrl`, gated on `details.reason === "update"`) rewrites stored `serverUrl === "https://peanutgallery.live"` → `"https://api.peanutgallery.live"` — but only for the literal old default, so self-hosters and custom URLs are left alone. `isHostedBackend` in `sidepanel.js` updated to match both old-apex + api + www so the keys-optional path keeps working across the rollout window.
+- **Tabloid / newsprint rebrand of the side panel** (`sidepanel.html`, ~1300 lines). Anton + Source Serif 4 + Special Elite + JetBrains Mono from Google Fonts; `--paper` / `--ink` / `--n-*` token sets scoped via `body[data-theme="paper|night"]`; masthead carries `Vol. I · No. 001` + version badge + SVG title + pack nameplate. Empty state is a "Wire Quiet" wire-service slug, not a chat placeholder.
+- **Mug-row critic avatars with role tags.** Each persona renders as initials + a glyph-overlay corner crest colored by pack; role tag underneath (fact/dunk/cue/bit) comes from a new `ROLE_FOR_SLOT` map so the newspaper language is slot-driven, not pack-driven. All existing firing / force-react / director-trace paths keep working against the same element IDs.
+- **Wire-service feed with role-tagged rows.** `.feed-entry` is a three-column grid (ts / role stamp / message). Zero-padded 24h `HH:MM` timestamps so the time column is locale-stable. Footer carries filter pills (ALL / FACT / DUNK / CUE / BIT) that hide rows via CSS data attributes on `#gallery` — O(1) regardless of feed length.
+- **Paper ↔ Night theme toggle.** Full-screen settings drawer (accessible via footer gear mid-capture) flips `body.dataset.theme` and persists the choice as a single field in `chrome.storage.local`, race-safe against `loadSettings` so it never clobbers API keys.
+- **Mute-a-critic.** Per-persona toggles in the drawer. Muted critics get a strike-through on the mug and their stream entries are suppressed client-side — SSE handlers short-circuit on `mutedPersonas.has(pid)`. No server-side change; purely client-side v1.
+- **Download Session as Markdown.** Copy-to-clipboard AND download-as-`.md` handlers build a single document with session metadata, the transcript, and every persona quip tagged by role. Export is one click and needs no server round-trip.
+- **Smart Director v2 client scaffolding** — `RULE` / `LLM` source badge wired on every decision-trace row; reads `source` off `director_decision` SSE payloads; ready for the server flag to flip.
+
+### Changed
+- **`sidepanel.js` reorganized** (~1900 lines) around the new structure: `ROLE_FOR_SLOT`, `personaInitials`, `packBadgeName`, `buildPersonaAvatars`, `addFeedEntry`/`updateStreamingEntry`, `renderMutesList` / `toggleMute`, `applyTheme`, `buildSessionMarkdown`. All SSE handlers untouched at the network layer; only rendering targets changed.
+- **Time format** switched from locale 12h to zero-padded 24h `HH:MM` so the feed timestamp column is a fixed width across locales.
+- **Settings persistence** uses `chrome.storage.local.set({ field })` single-field writes for theme and mutes (avoids `saveSettings()`'s full read-form-write round trip, which would wipe API keys if `loadSettings` hadn't completed).
+
+### Fixed
+- **Feed entries rendered horizontally instead of stacking.** `.gallery` gets `display: flex` inline from the JS capture-start path but the CSS rule was missing `flex-direction: column`, so entries flowed as a row. Added the direction declaration; entries now stack top-to-bottom as intended.
+
+### Deferred (still in [Unreleased] below)
+- **Smart Director v2 server flip** — client scaffolding ships in 1.5.0; the 48h hosted canary with `ENABLE_SMART_DIRECTOR=true` is still the gate before flipping the server flag. Bands per `docs/V1.5-PLAN.md §4`. If/when bands clear → tag 1.5.1 (or 1.6 depending on scope at the time).
+
 ### Added — v1.5 "Smart Director v2" (feature-complete; canary-pending)
 - **`lib/director-llm.ts` — `pickPersonaLLM(ctx)` routing module.** Claude Haiku routing call with a JSON-only response shape (`{ personaId, rationale }`), input validation against the 4 archetype slot ids, and graceful null-return on timeout / upstream error / malformed output. Never throws. Logs structured `llm_director_pick` / `llm_director_timeout` / `llm_director_error` / `llm_director_parse_fail` events for observability.
 - **`Director.decide(..., opts?: { llmPick })`.** The rule-based scorer still runs every tick; when `opts.llmPick` is present and names a valid archetype, the chosen persona is hoisted to primary and cascade/cooldown/recency bookkeeping proceeds unchanged. `TriggerDecision.source` is now `"rule" | "llm"` so the v1.2 debug panel can badge each decision card. LLM rationale flows into `decision.reason` as `"LLM routing: <rationale> (rule scorer: <fallback>)"`.

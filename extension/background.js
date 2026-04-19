@@ -36,6 +36,38 @@ chrome.runtime.onStartup.addListener(ensurePanelBehavior);
 // without needing a browser restart.
 ensurePanelBehavior();
 
+// ── v1.5 URL transition migration (Path 2) ──
+// Pre-v1.5 installs hardcoded `serverUrl` to "https://peanutgallery.live"
+// (the bare apex). v1.5+ defaults to "https://api.peanutgallery.live" because
+// the apex is being repurposed for the marketing site (GH Pages) while the
+// backend lives at the api. subdomain on Vercel.
+//
+// On UPDATE, rewrite stored serverUrl from the old default to the new default
+// — but ONLY if the user is on the literal old default. If they self-hosted
+// (custom URL), localhost'd, or already opted into api.* manually, leave them
+// alone. Runs once per update; the migration is idempotent if it runs again.
+const OLD_HOSTED_BACKEND = "https://peanutgallery.live";
+const NEW_HOSTED_BACKEND = "https://api.peanutgallery.live";
+async function migrateServerUrl(reason) {
+  if (reason !== "update") return;
+  try {
+    const { serverUrl } = await chrome.storage.local.get("serverUrl");
+    if (!serverUrl) return; // fresh install path or never-saved case — nothing to migrate
+    const trimmed = String(serverUrl).trim().replace(/\/$/, "");
+    if (trimmed === OLD_HOSTED_BACKEND) {
+      await chrome.storage.local.set({ serverUrl: NEW_HOSTED_BACKEND });
+      console.log(
+        `[PG:bg] migrateServerUrl: rewrote ${OLD_HOSTED_BACKEND} → ${NEW_HOSTED_BACKEND}`
+      );
+    }
+  } catch (err) {
+    console.warn("[PG:bg] migrateServerUrl failed:", err?.message || err);
+  }
+}
+chrome.runtime.onInstalled.addListener((details) => {
+  migrateServerUrl(details.reason);
+});
+
 // ── storage helpers ──
 // Session storage persists for the browser session but clears on restart.
 // Survives service-worker eviction. Perfect for single-use stream IDs.

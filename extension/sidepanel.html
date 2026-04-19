@@ -2,738 +2,1009 @@
 <html>
 <head>
   <meta charset="utf-8" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@500;600;700&family=Special+Elite&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    *{margin:0; padding:0; box-sizing:border-box}
 
-    :root {
-      --bg: #0f0f14;
-      --bg-secondary: #16161e;
-      --bg-tertiary: #1e1e2a;
-      --text: #e0e0e0;
-      --text-muted: rgba(255,255,255,0.4);
-      --text-dim: rgba(255,255,255,0.2);
-      --border: rgba(255,255,255,0.06);
-      --blue: #3b82f6;
-      --red: #ef4444;
-      --amber: #f59e0b;
-      --purple: #a855f7;
+    :root{
+      /* paper (light) — matches proof */
+      --p-paper:   #f1ead8;
+      --p-paper-2: #e9e0c5;
+      --p-paper-3: #dfd4b3;
+      --p-ink:     #111111;
+      --p-ink-2:   #2a2824;
+      --p-ink-3:   #5a564c;
+      --p-rule:    #111111;
+      --p-stamp:   #c8261d;
+      --p-yellow:  #f6d74b;
+      --p-green:   #3f6b2a;
+      --p-green-bg:#d7e5c4;
+
+      /* night (dark) */
+      --n-paper:   #141210;
+      --n-paper-2: #1c1815;
+      --n-paper-3: #26221e;
+      --n-ink:     #efe7d0;
+      --n-ink-2:   #c9bfa6;
+      --n-ink-3:   #847d6b;
+      --n-rule:    #efe7d0;
+      --n-stamp:   #ff5545;
+      --n-yellow:  #f6d74b;
+      --n-green:   #b4dc82;
+      --n-green-bg:#23311a;
+
+      --slab:   'Anton', 'Oswald', sans-serif;
+      --slab-2: 'Oswald', sans-serif;
+      --serif:  'Source Serif 4', Georgia, serif;
+      --type:   'Special Elite', 'JetBrains Mono', monospace;
+      --mono:   'JetBrains Mono', monospace;
     }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
+    /* Default to paper; body[data-theme="night"] flips tokens */
+    body{
+      --paper: var(--p-paper); --paper-2: var(--p-paper-2); --paper-3: var(--p-paper-3);
+      --ink: var(--p-ink); --ink-2: var(--p-ink-2); --ink-3: var(--p-ink-3);
+      --rule: var(--p-rule); --stamp: var(--p-stamp); --yellow: var(--p-yellow);
+      --green: var(--p-green); --green-bg: var(--p-green-bg);
+      background: var(--paper);
+      color: var(--ink);
+      background-image:
+        radial-gradient(rgba(0,0,0,.04) 1px, transparent 1px),
+        radial-gradient(rgba(0,0,0,.03) 1px, transparent 1px);
+      background-size: 3px 3px, 7px 7px;
+      background-position: 0 0, 1px 2px;
+    }
+    body[data-theme="night"]{
+      --paper: var(--n-paper); --paper-2: var(--n-paper-2); --paper-3: var(--n-paper-3);
+      --ink: var(--n-ink); --ink-2: var(--n-ink-2); --ink-3: var(--n-ink-3);
+      --rule: var(--n-rule); --stamp: var(--n-stamp); --yellow: var(--n-yellow);
+      --green: var(--n-green); --green-bg: var(--n-green-bg);
+      background: var(--paper);
+      background-image: radial-gradient(rgba(255,220,180,.025) 1px, transparent 1px);
+      background-size: 3px 3px;
+    }
+
+    body{
+      font-family: var(--serif);
+      -webkit-font-smoothing:antialiased;
       height: 100vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
 
-    /* ── HEADER ── */
-    .header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg-secondary);
+    /* ── MASTHEAD ── */
+    .masthead{
       flex-shrink: 0;
+      border-bottom: 2px solid var(--rule);
+      background: var(--paper);
     }
-    .header h1 { font-size: 14px; font-weight: 700; color: white; }
-    .header .emoji { font-size: 16px; }
-    .header-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
-
-    /* ── SETUP SECTION ──
-     * Scrolls internally when content exceeds the side panel's height.
-     * The side panel itself is `body { height: 100vh; overflow: hidden }` so
-     * nothing above the setup is allowed to scroll. Without `min-height: 0`
-     * a flex child refuses to shrink below its content size, which would
-     * defeat `overflow-y: auto`; the pair is what lets the Start button at
-     * the bottom stay reachable on short viewports. */
-    .setup {
-      padding: 12px;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg-secondary);
-      min-height: 0;
-      overflow-y: auto;
+    .masthead .rails{
+      display:flex; justify-content:space-between; align-items:center;
+      padding: 7px 12px 5px;
+      font-family: var(--type); font-size: 9px; letter-spacing: .2em;
+      text-transform: uppercase; color: var(--ink-3);
+      border-bottom: 1px solid var(--ink-3);
     }
-    .setup::-webkit-scrollbar { width: 4px; }
-    .setup::-webkit-scrollbar-track { background: transparent; }
-    .setup::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-    .setup::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
-    .setup label {
-      display: block;
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--text-muted);
-      margin-bottom: 3px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+    .masthead .rails .ver{
+      cursor: pointer; -webkit-user-select: none; user-select: none;
+      padding: 2px 4px;
     }
-    .setup input {
-      width: 100%;
-      background: rgba(0,0,0,0.3);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 7px 10px;
-      color: white;
-      font-size: 12px;
-      margin-bottom: 8px;
-      outline: none;
+    .masthead .title-row{
+      padding: 8px 12px 8px;
+      display:flex; justify-content:center; align-items:center;
     }
-    .setup input:focus { border-color: rgba(255,255,255,0.2); }
-    .setup input::placeholder { color: var(--text-dim); }
-    .key-input { -webkit-text-security: disc; }
-
-    .toggle-keys {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      background: none;
-      border: none;
-      font-size: 10px;
-      color: var(--text-muted);
-      cursor: pointer;
-      padding: 4px 0;
-      margin-top: 2px;
-      margin-bottom: 6px;
+    .masthead .title-row svg{display:block; width:100%; height:auto; max-height: 38px}
+    .masthead .title-row svg text{font-family: var(--slab); fill: var(--ink)}
+    .masthead .subrail{
+      display:flex; justify-content:space-between; align-items:center;
+      padding: 5px 12px;
+      border-top: 1px solid var(--rule);
+      font-family: var(--slab-2); font-size: 10px; letter-spacing: .2em;
+      text-transform: uppercase; color: var(--ink);
     }
-    .toggle-keys:hover { color: rgba(255,255,255,0.7); }
-    .toggle-keys .caret {
-      display: inline-block;
-      font-size: 8px;
-      transition: transform 0.15s ease;
-    }
-    .toggle-keys.open .caret { transform: rotate(90deg); }
-    .keys-section { display: none; }
-    .keys-section.visible { display: block; }
-
-    /* Audio routing section (mirrors the keys-section styling) */
-    .audio-section { display: none; }
-    .audio-section.visible { display: block; }
-
-    .toggle-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 3px;
-    }
-    .toggle-row input[type="checkbox"] {
-      width: 13px;
-      height: 13px;
-      accent-color: var(--blue);
-      cursor: pointer;
-      margin: 0;
-    }
-    .toggle-row label {
-      font-size: 11px;
-      color: var(--text);
-      text-transform: none;
-      letter-spacing: normal;
-      font-weight: 500;
-      margin: 0;
-      cursor: pointer;
+    .masthead .subrail .mid{
+      font-family: var(--serif); font-style: italic; letter-spacing: 0;
+      text-transform: none; font-size: 11px; color: var(--ink-2);
     }
 
-    .setup select {
-      width: 100%;
-      background: rgba(0,0,0,0.3);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 7px 10px;
-      color: white;
-      font-size: 12px;
-      margin-bottom: 8px;
-      outline: none;
-      cursor: pointer;
-      appearance: none;
-      -webkit-appearance: none;
-      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23888' d='M0 0l5 6 5-6z'/></svg>");
-      background-repeat: no-repeat;
-      background-position: right 10px center;
-      padding-right: 28px;
-    }
-    .setup select:focus { border-color: rgba(255,255,255,0.2); }
-    .setup select:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* Inline help text */
-    .field-hint {
-      font-size: 9.5px;
-      line-height: 1.45;
-      color: var(--text-muted);
-      margin-top: -4px;
-      margin-bottom: 10px;
-    }
-    .field-hint a {
-      color: var(--blue);
-      text-decoration: none;
-      white-space: nowrap;
-    }
-    .field-hint a:hover { text-decoration: underline; }
-
-    /* Intro blurb above the keys grid */
-    .keys-intro {
-      font-size: 10px;
-      line-height: 1.5;
-      color: var(--text-muted);
-      background: rgba(59,130,246,0.06);
-      border: 1px solid rgba(59,130,246,0.15);
-      border-radius: 6px;
-      padding: 7px 9px;
-      margin-bottom: 10px;
-    }
-    .keys-intro strong {
-      color: rgba(255,255,255,0.78);
-      font-weight: 600;
-    }
-
-    /* Free-while-we-grow banner — top of setup */
-    .free-banner {
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
-      font-size: 10.5px;
-      line-height: 1.45;
-      color: rgba(255,255,255,0.82);
-      background: linear-gradient(180deg, rgba(34,197,94,0.10) 0%, rgba(34,197,94,0.06) 100%);
-      border: 1px solid rgba(34,197,94,0.22);
-      border-radius: 7px;
-      padding: 9px 10px;
-      margin-bottom: 12px;
-    }
-    .free-banner .badge {
-      flex-shrink: 0;
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 0.3px;
-      text-transform: uppercase;
-      background: rgba(34,197,94,0.25);
-      color: #86efac;
-      padding: 3px 6px;
-      border-radius: 4px;
-      line-height: 1.1;
-      margin-top: 1px;
-    }
-    .free-banner .copy {
-      flex: 1;
-    }
-    .free-banner .copy strong {
-      color: rgba(255,255,255,0.95);
-      font-weight: 600;
-    }
-    .free-banner .copy a {
-      color: #86efac;
-      text-decoration: none;
-      white-space: nowrap;
-    }
-    .free-banner .copy a:hover { text-decoration: underline; }
-
-    /* Per-key grouping */
-    .key-row { margin-bottom: 8px; }
-    .key-label-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 3px;
-    }
-    .key-label-row label { margin-bottom: 0; }
-    .key-tag {
-      font-size: 8px;
-      font-weight: 600;
-      padding: 2px 5px;
-      border-radius: 3px;
-      background: rgba(255,255,255,0.06);
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-    .key-tag.optional {
-      background: rgba(168,85,247,0.12);
-      color: var(--purple);
-    }
-    .key-tag.required {
-      background: rgba(239,68,68,0.15);
-      color: #fca5a5;
-    }
-
-    .btn-row { display: flex; gap: 6px; }
-    .btn {
-      flex: 1;
-      padding: 8px;
-      border: none;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .btn-start { background: var(--blue); color: white; }
-    .btn-start:hover { background: #2563eb; }
-    .btn-start:disabled { opacity: 0.3; cursor: not-allowed; }
-    .btn-stop { background: var(--red); color: white; }
-    .btn-stop:hover { background: #dc2626; }
-    .btn-fire { background: rgba(245,158,11,0.15); color: var(--amber); }
-    .btn-fire:hover { background: rgba(245,158,11,0.25); }
-
-    /* ── CAPTURED TAB BANNER ──
-       Sits just below the status bar when a session is live. Shows the title
-       of the tab Peanut Gallery is listening to, so the user doesn't lose
-       track of "which tab is it on?" after switching to a different tab. */
-    .captured-tab {
+    /* ── ERROR BANNER ── */
+    .error-banner{
       display: none;
+      align-items: center; gap: 8px;
+      padding: 8px 12px;
+      background: var(--stamp); color: var(--paper);
+      font-family: var(--slab-2); font-size: 11px; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+      border-bottom: 1px solid var(--ink);
+      flex-shrink: 0;
+    }
+    .error-banner.visible{display: flex}
+    .error-banner #errorText{flex: 1; line-height: 1.35}
+    .error-dismiss{
+      background: transparent; border: 1px solid var(--paper);
+      color: var(--paper); cursor: pointer;
+      font-family: var(--slab-2); font-size: 12px; font-weight: 700;
+      padding: 0 6px; line-height: 1.2;
+    }
+
+    /* ── STATUS STRIP (shown when capturing) ── */
+    .status-bar{
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--rule);
+      background: var(--paper-2);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 10px;
+      flex-shrink: 0;
       align-items: center;
-      gap: 8px;
-      padding: 6px 12px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(59,130,246,0.06);
-      font-size: 10px;
+    }
+    .status-bar .dot{
+      display: inline-block;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--ink-3);
+      margin-right: 8px; vertical-align: middle;
+    }
+    .status-bar.active .dot{
+      background: var(--yellow);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--yellow) 25%, transparent);
+      animation: blink 1.4s infinite;
+    }
+    .status-bar.live .dot{
+      background: var(--stamp);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--stamp) 25%, transparent);
+      animation: blink 1.4s infinite;
+    }
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+    .status-bar #statusText{
+      font-family: var(--slab-2); font-size: 11px;
+      letter-spacing: .15em; text-transform: uppercase; color: var(--ink);
+      display: flex; align-items: center;
+    }
+
+    /* ── CAPTURED TAB BANNER ── */
+    .captured-tab{
+      display: none;
+      align-items: center; gap: 8px;
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--rule);
+      background: var(--paper-2);
+      font-family: var(--type); font-size: 10px;
+      color: var(--ink-2);
       flex-shrink: 0;
       cursor: pointer;
       transition: background 0.15s;
     }
-    .captured-tab.visible { display: flex; }
-    .captured-tab:hover { background: rgba(59,130,246,0.1); }
-    .captured-tab .icon { font-size: 12px; flex-shrink: 0; }
-    .captured-tab .label {
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      font-weight: 600;
+    .captured-tab.visible{display: flex}
+    .captured-tab:hover{background: var(--paper-3)}
+    .captured-tab .icon{font-size: 12px; flex-shrink: 0}
+    .captured-tab .label{
+      font-family: var(--slab-2); font-weight: 600; font-size: 9px;
+      color: var(--ink); text-transform: uppercase; letter-spacing: .15em;
       flex-shrink: 0;
     }
-    .captured-tab .title {
-      color: rgba(255,255,255,0.75);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      flex: 1;
-      min-width: 0;
+    .captured-tab .title{
+      color: var(--ink-2);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      flex: 1; min-width: 0; font-family: var(--serif); font-size: 11px;
     }
-    .captured-tab .jump {
-      color: var(--blue);
-      font-size: 9px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+    .captured-tab .jump{
+      font-family: var(--slab-2); font-size: 9px; font-weight: 700;
+      color: var(--stamp); text-transform: uppercase; letter-spacing: .2em;
       flex-shrink: 0;
-      padding-left: 4px;
-      border-left: 1px solid rgba(255,255,255,0.08);
+      padding-left: 6px; border-left: 1px solid var(--ink-3);
     }
-    .captured-tab.on-tab .jump { display: none; }
-    .btn.loading { cursor: wait; opacity: 0.9; }
-    .btn.loading:hover { background: rgba(245,158,11,0.15); }
-    .btn-spinner {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border: 2px solid rgba(245,158,11,0.25);
-      border-top-color: var(--amber);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      vertical-align: middle;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .captured-tab.on-tab .jump{display: none}
 
-    /* ── STATUS BAR ── */
-    .status-bar {
-      padding: 6px 12px;
-      font-size: 10px;
-      font-family: monospace;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 6px;
+    /* ── PERSONA (MUG) ROW ── */
+    .personas-row{
+      padding: 10px 10px 12px;
+      border-bottom: 1px solid var(--rule);
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
       flex-shrink: 0;
+      background: var(--paper);
     }
-    .status-bar .dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: #666;
-      flex-shrink: 0;
-    }
-    .status-bar.live .dot { background: var(--red); animation: pulse 2s ease-in-out infinite; }
-    .status-bar.active .dot { background: #4ade80; animation: pulse 2s ease-in-out infinite; }
-    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
-
-    /* ── PERSONA AVATARS ROW ── */
-    .personas-row {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      padding: 8px 12px;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-    .persona-bubble {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
-      cursor: default; /* only .interactive rows promote to pointer */
+    .persona-bubble{
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 6px 2px;
+      border: 1px solid var(--rule);
+      background: var(--paper);
+      position: relative;
+      cursor: default;
       transition: transform 0.15s;
     }
-    /* Avatars are tap-to-fire only during a live session. Outside a session
-       the persona row is visible (so users can preview a pack's lineup
-       before Start), but the click handler short-circuits on !sessionId —
-       .interactive gates the affordance so the cursor/hover/active states
-       match that reality instead of advertising a dead button. Toggled in
-       sidepanel.js from showCapturing() / showIdle(). */
-    .personas-row.interactive .persona-bubble { cursor: pointer; }
-    .personas-row.interactive .persona-bubble:hover { transform: scale(1.1); }
-    .personas-row.interactive .persona-bubble:active { transform: scale(0.95); }
-    .persona-avatar {
-      width: 32px; height: 32px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      position: relative;
+    .personas-row.interactive .persona-bubble{cursor: pointer}
+    .personas-row.interactive .persona-bubble:hover{transform: translateY(-1px)}
+    .personas-row.interactive .persona-bubble:active{transform: translateY(0) scale(.98)}
+    .persona-bubble.muted{opacity: .45}
+    .persona-bubble.muted::before{
+      content:""; position:absolute;
+      left:6px; right:6px; top:26px;
+      height: 1.5px; background: var(--ink);
+      transform: rotate(-8deg);
+      pointer-events: none;
     }
+    .persona-avatar{
+      width: 40px; height: 40px;
+      border: 1px solid var(--rule);
+      display: grid; place-items: center;
+      overflow: hidden; position: relative;
+      background:
+        repeating-linear-gradient(45deg, var(--ink) 0 1px, transparent 1px 4px),
+        var(--paper-3);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .persona-avatar::after{
+      content:""; position: absolute; inset: 0;
+      background: radial-gradient(circle at 50% 40%, transparent 35%, color-mix(in srgb, var(--ink) 35%, transparent) 100%);
+      mix-blend-mode: multiply; pointer-events: none;
+    }
+    body[data-theme="night"] .persona-avatar::after{mix-blend-mode: normal; opacity: .5}
+    .persona-avatar .initials{
+      font-family: var(--slab); font-size: 20px; line-height: 1;
+      color: var(--ink); z-index: 1; position: relative;
+    }
+    .persona-avatar .ring{
+      position: absolute; inset: -2px;
+      border: 2px solid transparent;
+      transition: border-color 0.3s;
+      pointer-events: none;
+    }
+    .persona-bubble.speaking .persona-avatar .ring{
+      border-color: var(--stamp);
+      animation: ring-pulse 1s ease-in-out infinite;
+    }
+    @keyframes ring-pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-    /* Persona icon stack — glyph layer + spinner layer for tap-to-fire
-       crossfade. Mirror of components/PersonaIcon.tsx in the web app so
-       the extension gets the same "fade to spinner" affordance when the
-       user taps an avatar. */
-    .persona-icon-stack {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 1.3em;
-      height: 1.3em;
+    /* Tiny archetype glyph tucked into the mug's bottom-right corner.
+       Keeps the "which of the four" signal while the initials dominate. */
+    .persona-glyph-overlay{
+      position: absolute; z-index: 2;
+      right: 2px; bottom: 2px;
+      width: 14px; height: 14px;
+      display: grid; place-items: center;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      color: currentColor;
       line-height: 0;
     }
-    .persona-icon-layer {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    body[data-theme="night"] .persona-glyph-overlay{
+      background: var(--paper-3);
+    }
+
+    /* Persona icon stack — glyph + spinner for tap-to-fire crossfade */
+    .persona-icon-stack{
+      position: relative; display: inline-flex;
+      align-items: center; justify-content: center;
+      width: 1em; height: 1em; line-height: 0;
+    }
+    .persona-icon-layer{
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
       transition: opacity 0.25s ease;
     }
-    .persona-icon-glyph { opacity: 1; }
-    .persona-icon-spinner {
+    .persona-icon-glyph{opacity: 1}
+    .persona-icon-spinner{
       opacity: 0;
       animation: spin 0.8s linear infinite;
       animation-play-state: paused;
     }
-    .persona-icon-stack.firing .persona-icon-glyph { opacity: 0; }
-    .persona-icon-stack.firing .persona-icon-spinner {
+    .persona-icon-stack.firing .persona-icon-glyph{opacity: 0}
+    .persona-icon-stack.firing .persona-icon-spinner{
       opacity: 1;
       animation-play-state: running;
     }
-    .persona-avatar .ring {
-      position: absolute;
-      inset: -2px;
-      border-radius: 50%;
-      border: 2px solid transparent;
-      transition: border-color 0.3s;
-    }
-    .persona-avatar.speaking .ring { border-color: currentColor; animation: ring-pulse 1s ease-in-out infinite; }
-    @keyframes ring-pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
-    .persona-name { font-size: 9px; font-weight: 600; }
-    .persona-role { font-size: 7px; color: var(--text-dim); }
-
-    /* ── SINE WAVE (shown when persona is speaking) ──
-       Sits below the name/role so the avatar hugs the label block with no
-       visible gap. A reserved `height` keeps layout stable between
-       speaking and idle states. Triggered off a `.speaking` class on the
-       parent bubble rather than adjacent-sibling matching, since the wave
-       is no longer adjacent to the avatar after reordering. */
-    .persona-wave {
-      width: 36px;
-      height: 10px;
-      margin-top: 2px;
-      overflow: hidden;
-      opacity: 0;
-      transition: opacity 0.2s ease;
-      pointer-events: none;
-    }
-    .persona-wave svg {
-      display: block;
-      width: 200%;
-      height: 100%;
-      overflow: visible;
-      animation: wave-scroll 1s linear infinite;
-      animation-play-state: paused;
-    }
-    .persona-bubble.speaking .persona-wave { opacity: 1; }
-    .persona-bubble.speaking .persona-wave svg { animation-play-state: running; }
-    @keyframes wave-scroll {
-      from { transform: translateX(0); }
-      to   { transform: translateX(-50%); }
+    @keyframes spin{to{transform: rotate(360deg)}}
+    .persona-bubble.speaking .persona-avatar{
+      background:
+        repeating-linear-gradient(45deg, var(--stamp) 0 1px, transparent 1px 4px),
+        var(--paper-3);
     }
 
-    /* ── TRANSCRIPT ── */
-    .transcript-section {
+    .persona-name{
+      font-family: var(--slab-2); font-size: 10px; font-weight: 600;
+      letter-spacing: .06em; text-transform: uppercase;
+      color: var(--ink); text-align: center;
+    }
+    .persona-role{
+      font-family: var(--type); font-size: 8px;
+      color: var(--ink-3); letter-spacing: .12em;
+      text-transform: uppercase; text-align: center;
+      line-height: 1.2;
+    }
+    .persona-count{
+      position: absolute; top: -5px; right: -5px;
+      background: var(--stamp); color: var(--paper);
+      font-family: var(--slab-2); font-size: 9px; font-weight: 700;
+      letter-spacing: .04em;
+      min-width: 16px; height: 16px; border-radius: 50%;
+      display: grid; place-items: center;
+      border: 1px solid var(--rule);
+    }
+
+    /* ── TRANSCRIPT TICKER ── */
+    .transcript-section{
       padding: 8px 12px;
-      border-bottom: 1px solid var(--border);
-      max-height: 220px;
-      overflow-y: auto;
+      background: var(--paper-2);
+      border-bottom: 1px solid var(--ink-3);
+      font-family: var(--type); font-size: 11px; line-height: 1.45;
+      color: var(--ink-2);
+      max-height: 90px; overflow: hidden;
+      position: relative;
       flex-shrink: 0;
     }
-    .transcript-label {
-      font-size: 9px;
-      font-weight: 600;
-      color: var(--text-muted);
+    .transcript-label{
+      position: absolute; top: 2px; right: 10px;
+      font-family: var(--slab-2); font-size: 8px; font-weight: 700;
+      letter-spacing: .25em; color: var(--ink-3);
+      background: var(--paper-2); padding: 0 3px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 3px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
     }
-    .transcript-text {
-      font-size: 11px;
-      color: var(--text-muted);
-      line-height: 1.5;
+    .transcript-text{
+      font-family: var(--type); font-size: 11.5px; line-height: 1.45;
+      color: var(--ink-2);
     }
-    .transcript-text .interim { color: var(--text-dim); font-style: italic; }
+    .transcript-text .interim{color: var(--ink-3); font-style: italic}
 
-    /* ── GALLERY FEED ── */
-    .gallery {
-      flex: 1;
+    /* ── SETUP (idle) ── */
+    .setup{
+      flex: 1 1 auto;
       overflow-y: auto;
-      padding: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+      min-height: 0;
+      padding: 14px 12px 16px;
+      display: flex; flex-direction: column; gap: 14px;
+      background: var(--paper);
     }
-    .gallery::-webkit-scrollbar { width: 4px; }
-    .gallery::-webkit-scrollbar-track { background: transparent; }
-    .gallery::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+    .setup::-webkit-scrollbar{width: 6px}
+    .setup::-webkit-scrollbar-track{background: transparent}
+    .setup::-webkit-scrollbar-thumb{background: var(--ink-3); opacity: .3}
 
-    .feed-entry {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 10px;
+    .free-banner{
+      padding: 10px;
+      border: 2px solid var(--green);
+      background: var(--green-bg);
+      color: var(--ink);
+      display: flex; gap: 10px; align-items: flex-start;
+    }
+    .free-banner .lede{
+      font-family: var(--slab); font-size: 22px; line-height: .95;
+      color: var(--green); text-transform: uppercase; letter-spacing: -.005em;
+      min-width: 64px; text-align: center; flex-shrink: 0;
+    }
+    .free-banner .lede small{
+      display: block; font-family: var(--slab-2); font-size: 8px;
+      font-weight: 700; letter-spacing: .25em; margin-top: 3px;
+      color: var(--ink-3);
+    }
+    .free-banner .copy{
+      font-family: var(--serif); font-size: 11.5px; line-height: 1.45;
+      color: var(--ink);
+    }
+    .free-banner .copy strong{
+      font-family: var(--slab-2); letter-spacing: .06em;
+      text-transform: uppercase; font-size: 10.5px; font-weight: 700;
+      display: inline-block; margin-bottom: 2px;
+    }
+    .free-banner .copy a{
+      color: var(--stamp); text-decoration: underline;
+      text-underline-offset: 2px; white-space: nowrap;
+    }
+
+    /* Field groups */
+    .key-row{display: flex; flex-direction: column; gap: 5px}
+    .key-label-row{
+      display: flex; justify-content: space-between;
+      align-items: center; gap: 8px;
+    }
+    .key-label-row label{
+      font-family: var(--slab-2); font-weight: 700;
+      font-size: 10px; letter-spacing: .2em;
+      text-transform: uppercase; color: var(--ink);
+      display: inline-flex; align-items: center; gap: 8px;
+      flex: 1;
+    }
+    .key-tag{
+      font-family: var(--mono); font-size: 9px;
+      color: var(--ink-3); background: var(--paper-3);
+      padding: 1px 5px; border: 1px solid var(--ink-3);
+      text-transform: lowercase; letter-spacing: .04em;
+      font-weight: 400;
+    }
+    .key-tag.required{
+      color: var(--stamp); border-color: var(--stamp);
+      background: var(--paper);
+    }
+    .key-tag.optional{
+      color: var(--ink-3); background: var(--paper);
+    }
+
+    .setup input[type="text"],
+    .setup input[type="password"],
+    .setup select{
+      width: 100%;
+      font-family: var(--mono); font-size: 12px; color: var(--ink);
+      background: var(--paper);
+      border: 1.5px solid var(--rule);
+      padding: 8px 10px; outline: none;
+      appearance: none; -webkit-appearance: none;
+    }
+    .setup input[type="text"]:focus,
+    .setup input[type="password"]:focus,
+    .setup select:focus{
+      border-color: var(--stamp);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--stamp) 20%, transparent);
+    }
+    .setup select{
+      font-family: var(--slab-2); font-weight: 600; font-size: 12px;
+      letter-spacing: .04em; text-transform: uppercase;
+      cursor: pointer;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23111' d='M0 0l5 6 5-6z'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+    }
+    body[data-theme="night"] .setup select{
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23efe7d0' d='M0 0l5 6 5-6z'/></svg>");
+    }
+    .key-input{-webkit-text-security: disc}
+
+    .field-hint{
+      font-family: var(--serif); font-style: italic;
+      font-size: 11px; line-height: 1.45; color: var(--ink-2);
+    }
+    .field-hint a{
+      color: var(--stamp); text-decoration: underline;
+      text-underline-offset: 2px; font-style: normal;
+    }
+    .field-hint strong{
+      font-family: var(--slab-2); font-style: normal;
+      font-weight: 700; font-size: 10px; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--ink);
+    }
+
+    /* Collapsed section toggle */
+    .toggle-keys{
+      background: transparent; border: 0;
+      padding: 7px 0;
+      border-top: 1px solid var(--ink-3);
+      border-bottom: 1px solid var(--ink-3);
+      font-family: var(--slab-2); font-size: 10px;
+      font-weight: 700; letter-spacing: .2em;
+      text-transform: uppercase; color: var(--ink-2);
+      cursor: pointer; text-align: left;
+      display: flex; justify-content: space-between;
+      align-items: center; width: 100%;
+    }
+    .toggle-keys .caret{
+      display: inline-block;
+      font-family: var(--serif); font-size: 11px;
+      color: var(--ink-3);
+      transition: transform 0.15s ease;
+      margin-right: 6px;
+    }
+    .toggle-keys.open .caret{transform: rotate(90deg)}
+    .keys-section{display: none; flex-direction: column; gap: 10px}
+    .keys-section.visible{display: flex}
+    .audio-section{display: none; flex-direction: column; gap: 10px}
+    .audio-section.visible{display: flex}
+
+    .keys-intro{
+      padding: 9px 10px;
+      background: var(--paper-2);
+      border: 1px solid var(--ink-3);
+      font-family: var(--serif); font-style: italic;
+      font-size: 11.5px; line-height: 1.45; color: var(--ink-2);
+    }
+    .keys-intro strong{
+      font-family: var(--slab-2); font-weight: 700;
+      font-size: 10.5px; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--ink);
+      font-style: normal;
+    }
+    .keys-intro a{
+      color: var(--stamp); text-decoration: underline;
+      text-underline-offset: 2px; font-style: normal;
+    }
+
+    .toggle-row{
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 3px;
+    }
+    .toggle-row input[type="checkbox"]{
+      width: 14px; height: 14px;
+      accent-color: var(--stamp);
+      cursor: pointer; margin: 0;
+    }
+    .toggle-row label{
+      font-family: var(--serif); font-size: 12px;
+      color: var(--ink); font-weight: 400;
+      cursor: pointer; margin: 0;
+      letter-spacing: normal; text-transform: none;
+    }
+
+    /* Detected tab pill */
+    #detectedTab{
       padding: 8px 10px;
+      background: var(--paper-2);
+      border: 1px solid var(--ink-3);
+      display: none;
+    }
+    #detectedTab[data-visible="true"]{display: block}
+    #detectedTab .label{
+      font-family: var(--slab-2); font-size: 9px;
+      font-weight: 700; letter-spacing: .2em;
+      text-transform: uppercase; color: var(--ink-3);
+      margin-bottom: 3px;
+    }
+    #detectedTab #detectedTitle{
+      font-family: var(--serif); font-size: 12px;
+      color: var(--ink);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* ── BUTTONS ── */
+    .btn{
+      font-family: var(--slab-2); font-weight: 700;
+      font-size: 12px; letter-spacing: .15em;
+      text-transform: uppercase;
+      padding: 10px 14px;
+      border: 1.5px solid var(--ink);
+      background: var(--paper);
+      color: var(--ink);
+      cursor: pointer; text-align: center;
+      display: inline-flex; justify-content: center;
+      align-items: center; gap: 6px;
+      transition: all 0.15s;
+    }
+    .btn:hover{background: var(--paper-2)}
+    .btn.primary,
+    .btn.btn-start{
+      background: var(--ink); color: var(--paper);
+      border-color: var(--ink);
+    }
+    .btn.primary:hover,
+    .btn.btn-start:hover{
+      background: var(--stamp); border-color: var(--stamp);
+    }
+    .btn.btn-stop, .btn-stop{
+      background: var(--stamp); color: var(--paper);
+      border-color: var(--stamp);
+    }
+    .btn.btn-stop:hover, .btn-stop:hover{
+      background: var(--ink); border-color: var(--ink);
+    }
+    .btn.btn-fire, .btn-fire{
+      background: var(--yellow); color: var(--ink);
+      border-color: var(--ink);
+    }
+    .btn.btn-fire:hover, .btn-fire:hover{
+      background: var(--ink); color: var(--yellow);
+    }
+    .btn:disabled{opacity: .35; cursor: not-allowed}
+    .btn.loading{cursor: wait; opacity: .9}
+    .btn.small{
+      padding: 6px 10px; font-size: 10px;
+      letter-spacing: .12em;
+    }
+    .btn-row{display: flex; gap: 6px}
+    .btn-row .btn, .btn-row button{flex: 1}
+
+    .btn-spinner{
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid color-mix(in srgb, var(--stamp) 35%, transparent);
+      border-top-color: var(--stamp);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+    }
+
+    .start-caption{
+      font-family: var(--type); font-size: 10px;
+      letter-spacing: .05em;
+      color: var(--ink-3); text-align: center;
+      margin-top: 4px;
+    }
+
+    /* ── CONTROLS ROW (during capture) ── */
+    #controlsRow{
+      display: none;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--rule);
+      background: var(--paper-2);
+      flex-shrink: 0;
+    }
+
+    /* ── GALLERY / FEED ── */
+    .gallery{
+      flex: 1; overflow-y: auto;
+      background: var(--paper);
+      font-family: var(--type); font-size: 11.5px;
+      line-height: 1.45; color: var(--ink);
+      min-height: 0;
+      flex-direction: column;
+    }
+    .gallery::-webkit-scrollbar{width: 6px}
+    .gallery::-webkit-scrollbar-track{background: transparent}
+    .gallery::-webkit-scrollbar-thumb{background: var(--ink-3); opacity: .3}
+
+    .feed-entry{
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--ink-3);
+      display: grid;
+      grid-template-columns: 54px 46px 1fr;
+      gap: 8px; align-items: baseline;
       animation: fadeIn 0.3s ease-out;
     }
-    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-
-    .feed-header {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 4px;
+    @keyframes fadeIn{
+      from{opacity: 0; transform: translateY(4px)}
+      to{opacity: 1; transform: translateY(0)}
     }
-    .feed-emoji { font-size: 12px; }
-    .feed-name { font-size: 10px; font-weight: 600; }
-    .feed-time { font-size: 8px; color: var(--text-dim); margin-left: auto; }
-
-    .feed-text {
-      font-size: 12px;
-      line-height: 1.5;
-      color: rgba(255,255,255,0.8);
+    .feed-entry .ts{
+      font-family: var(--mono); font-size: 10px;
+      letter-spacing: .04em; color: var(--ink-3);
     }
-
-    .feed-streaming {
-      border-color: rgba(255,255,255,0.1);
-      background: var(--bg-tertiary);
+    .feed-entry .tag{
+      font-family: var(--slab-2); font-size: 9px;
+      font-weight: 700; letter-spacing: .18em;
+      text-transform: uppercase;
+      padding: 1px 5px;
+      border: 1px solid currentColor;
+      text-align: center; height: fit-content;
+      margin-top: 2px;
     }
-    .feed-streaming .feed-text::after {
+    .feed-entry.fact .tag{color: var(--stamp); border-color: var(--stamp)}
+    .feed-entry.dunk .tag{
+      background: var(--yellow); color: var(--ink);
+      border-color: var(--ink);
+    }
+    .feed-entry.cue .tag{color: var(--ink); border-color: var(--ink)}
+    .feed-entry.bit .tag{
+      background: var(--ink); color: var(--paper);
+      border-color: var(--ink);
+    }
+    .feed-entry .msg{
+      font-family: var(--serif); font-size: 13px;
+      line-height: 1.45; color: var(--ink);
+    }
+    .feed-entry .msg .nm{
+      font-family: var(--slab-2); font-weight: 600;
+      font-size: 10px; text-transform: uppercase;
+      letter-spacing: .08em; margin-right: 5px;
+      color: var(--ink-2);
+    }
+    .feed-entry.fact .msg .nm{color: var(--stamp)}
+    .feed-streaming{
+      background: color-mix(in srgb, var(--yellow) 18%, transparent);
+    }
+    .feed-streaming .msg::after{
       content: "▍";
       animation: blink 0.7s step-end infinite;
-      color: var(--text-muted);
+      color: var(--ink-3);
     }
-    @keyframes blink { 50% { opacity:0; } }
+
+    /* Footer filter pills hide entries via data attributes on #gallery.
+       One CSS rule per role keeps the JS trivial — the pill handler just
+       flips the attribute on/off. */
+    #gallery[data-hide-fact] .feed-entry.fact{display: none}
+    #gallery[data-hide-dunk] .feed-entry.dunk{display: none}
+    #gallery[data-hide-cue] .feed-entry.cue{display: none}
+    #gallery[data-hide-bit] .feed-entry.bit{display: none}
 
     /* ── EMPTY STATE ── */
-    .empty-state {
+    .empty-state{
       flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 24px;
-      color: var(--text-dim);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 30px 24px;
+      background: var(--paper);
     }
-    .empty-state .big-emoji { font-size: 48px; margin-bottom: 12px; }
-    .empty-state p { font-size: 12px; line-height: 1.6; max-width: 240px; }
+    .empty-state .lg{
+      font-family: var(--slab); font-size: 44px;
+      line-height: .88; letter-spacing: -.01em;
+      text-transform: uppercase; color: var(--ink-3);
+      margin-bottom: 14px;
+    }
+    .empty-state .dk{
+      font-family: var(--type); font-size: 10px;
+      letter-spacing: .15em; text-transform: uppercase;
+      color: var(--ink-3);
+      padding-top: 12px; border-top: 1px dotted var(--ink-3);
+      max-width: 220px; line-height: 1.5;
+    }
 
-    /* ── ERROR ── */
-    .error-banner {
-      background: rgba(239,68,68,0.08);
-      border-bottom: 1px solid rgba(239,68,68,0.15);
-      padding: 6px 12px;
-      font-size: 10px;
-      color: #fca5a5;
+    /* ── FOOTER ── */
+    .footer{
+      flex-shrink: 0;
+      border-top: 2px solid var(--rule);
+      background: var(--paper-2);
+      padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .footer.hidden{display: none}
+    .footer .tools{
+      display: flex; gap: 5px;
+      justify-content: space-between; align-items: center;
+    }
+    .footer .pill{
+      font-family: var(--slab-2); font-size: 9px;
+      font-weight: 700; letter-spacing: .18em;
+      text-transform: uppercase;
+      padding: 4px 7px;
+      border: 1px solid var(--rule);
+      color: var(--ink); background: var(--paper);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .footer .pill.on{
+      background: var(--ink); color: var(--paper);
+    }
+    .footer .pill.fact.on{
+      background: var(--stamp); color: var(--paper);
+      border-color: var(--stamp);
+    }
+    .footer .pill.dunk.on{
+      background: var(--yellow); color: var(--ink);
+      border-color: var(--ink);
+    }
+    .footer .gear{
+      background: transparent; border: 1px solid var(--rule);
+      padding: 4px 8px; cursor: pointer;
+      font-family: var(--serif); font-size: 14px;
+      color: var(--ink); line-height: 1;
+    }
+    .footer .gear:hover{background: var(--paper-3)}
+
+    /* ── SETTINGS DRAWER ── */
+    .drawer{
+      position: fixed; inset: 0;
       display: none;
+      flex-direction: column;
+      background: var(--paper);
+      z-index: 30;
+    }
+    .drawer.visible{display: flex}
+    .drawer-head{
+      padding: 10px 12px;
+      border-bottom: 2px solid var(--rule);
+      background: var(--paper-2);
+      display: flex; justify-content: space-between;
+      align-items: center;
       flex-shrink: 0;
     }
-    .error-banner.visible { display: flex; align-items: center; gap: 6px; }
-    .error-dismiss {
-      margin-left: auto;
-      background: none;
-      border: none;
-      color: #fca5a5;
-      cursor: pointer;
-      font-size: 12px;
+    .drawer-head .title{
+      font-family: var(--slab); font-size: 22px;
+      line-height: 1; text-transform: uppercase;
+      letter-spacing: -.005em;
+      color: var(--ink);
+    }
+    .drawer-head .sub{
+      font-family: var(--slab-2); font-size: 9px;
+      font-weight: 700; letter-spacing: .22em;
+      text-transform: uppercase; color: var(--ink-3);
+      margin-top: 2px;
+    }
+    .drawer-body{
+      flex: 1; overflow-y: auto;
+      padding: 12px 12px 16px;
+      display: flex; flex-direction: column; gap: 14px;
+      min-height: 0;
+    }
+    .drawer-body::-webkit-scrollbar{width: 6px}
+    .drawer-body::-webkit-scrollbar-thumb{background: var(--ink-3); opacity: .3}
+    .drawer-body::-webkit-scrollbar-track{background: transparent}
+    .drawer-foot{
+      flex-shrink: 0;
+      border-top: 2px solid var(--rule);
+      background: var(--paper-2);
+      padding: 10px 12px;
+    }
+    .drawer .group{display: flex; flex-direction: column; gap: 6px}
+    .drawer .lbl{
+      display: flex; justify-content: space-between;
+      align-items: center;
+      font-family: var(--slab-2); font-weight: 700;
+      font-size: 10px; letter-spacing: .2em;
+      text-transform: uppercase; color: var(--ink);
+    }
+    .drawer .chip{
+      font-family: var(--mono); font-size: 9px;
+      font-weight: 400; letter-spacing: .08em;
+      color: var(--ink-3);
+      background: var(--paper-3);
+      padding: 1px 5px;
+      border: 1px solid var(--ink-3);
+    }
+    .drawer .help{
+      font-family: var(--serif); font-style: italic;
+      font-size: 11.5px; line-height: 1.45;
+      color: var(--ink-2);
     }
 
-    /* ── DEBUG PANEL (v1.2) ──
-     * Hidden by default. Revealed only when the user long-presses the version
-     * badge — a deliberately obscure gesture so normal users never see this.
-     * Consumes `director_decision` SSE events and shows the last 20 picks.
-     * Purely observational: no control over the director, just a window into
-     * what it's doing. Off by default, buffered even while hidden so opening
-     * it shows recent history.
-     */
-    #versionBadge {
-      -webkit-user-select: none;
-      user-select: none;
-      cursor: pointer;
-      padding: 4px 2px;
+    /* Mute-a-critic list */
+    .mutes{
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
     }
-    #directorTrace {
-      border-top: 1px solid var(--border);
-      background: var(--bg-secondary);
+    .mute-row{
+      display: flex; gap: 8px; align-items: center;
+      padding: 6px;
+      border: 1.5px solid var(--rule);
+      background: var(--paper);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .mute-row:hover{background: var(--paper-2)}
+    .mute-row.off{opacity: .55}
+    .mute-row .av{
+      width: 26px; height: 26px;
+      border: 1px solid var(--rule);
+      background: var(--paper-3);
+      display: grid; place-items: center;
+      font-family: var(--slab); font-size: 13px;
+      color: var(--ink); line-height: 1;
       flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
+    }
+    .mute-row .meta{flex: 1; min-width: 0}
+    .mute-row .nm{
+      font-family: var(--slab-2); font-size: 11px;
+      font-weight: 600; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--ink);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .mute-row .rl{
+      font-family: var(--type); font-size: 9px;
+      color: var(--ink-3); letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .mute-row .tog{
+      font-family: var(--slab-2); font-size: 9px;
+      font-weight: 700; letter-spacing: .15em;
+      border: 1px solid var(--ink);
+      padding: 2px 5px;
+      background: var(--paper); color: var(--ink);
+      flex-shrink: 0;
+    }
+    .mute-row.off .tog{background: var(--ink); color: var(--paper)}
+
+    /* Theme buttons */
+    .theme-grid{
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+    }
+
+    /* ── DEBUG TRACE PANEL (unchanged functionally) ── */
+    #directorTrace{
+      border-top: 1px solid var(--rule);
+      background: var(--paper-2);
+      flex-shrink: 0;
+      display: flex; flex-direction: column;
       max-height: 40vh;
     }
-    #directorTrace.hidden { display: none; }
-    .trace-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    #directorTrace.hidden{display: none}
+    .trace-header{
+      display: flex; align-items: center; gap: 8px;
       padding: 6px 10px;
-      border-bottom: 1px solid var(--border);
-      font-size: 10px;
-      color: var(--text-muted);
-      font-family: monospace;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--ink-3);
+      font-family: var(--mono); font-size: 10px;
+      color: var(--ink-3); text-transform: uppercase;
+      letter-spacing: .1em;
       flex-shrink: 0;
     }
-    .trace-header-label { flex: 1; }
-    .trace-pack-label {
-      /* Muted by default — shows the dropdown's selection. Flips to the
-         accent tint via .locked once a session commits the pack, so the
-         user can tell at a glance whether the decisions they're reading
-         are from the active session or queued for the next Start. */
-      color: var(--text-dim);
-      font-size: 9px;
-      font-family: monospace;
-      letter-spacing: 0.4px;
+    .trace-header-label{flex: 1}
+    .trace-pack-label{
+      color: var(--ink-3); font-size: 9px;
+      font-family: var(--mono); letter-spacing: .1em;
       text-transform: lowercase;
       padding: 2px 6px;
-      border-radius: 4px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid transparent;
+      background: var(--paper-3);
+      border: 1px solid var(--ink-3);
       white-space: nowrap;
     }
-    .trace-pack-label.locked {
-      color: var(--text);
-      background: rgba(245,158,11,0.08);
-      border-color: rgba(245,158,11,0.25);
+    .trace-pack-label.locked{
+      color: var(--ink);
+      background: color-mix(in srgb, var(--yellow) 30%, var(--paper-3));
+      border-color: var(--ink);
     }
-    .trace-clear {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      font-size: 9px;
-      font-family: monospace;
+    .trace-clear{
+      background: var(--paper);
+      border: 1px solid var(--ink-3);
+      color: var(--ink-3);
+      font-size: 9px; font-family: var(--mono);
       padding: 2px 6px;
-      border-radius: 4px;
       cursor: pointer;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      text-transform: uppercase; letter-spacing: .1em;
     }
-    .trace-clear:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
-    #traceList {
-      overflow-y: auto;
-      flex: 1;
+    .trace-clear:hover{color: var(--ink); border-color: var(--ink)}
+    #traceList{
+      overflow-y: auto; flex: 1;
       padding: 4px 0;
     }
-    .trace-row {
+    .trace-row{
       padding: 6px 10px;
-      border-bottom: 1px solid rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--ink-3);
       border-left: 2px solid transparent;
-      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-      font-size: 10px;
+      font-family: var(--mono); font-size: 10px;
       line-height: 1.35;
     }
-    .trace-row:last-child { border-bottom: none; }
-    .trace-line1 { color: var(--text); }
-    .trace-line1 .trace-pick { font-weight: 700; }
-    .trace-line1 .trace-score { color: var(--text-muted); }
-    .trace-line1 .trace-top3 { color: var(--text-dim); margin-left: 4px; }
-    .trace-line1 .trace-cascade { color: var(--text-muted); margin-left: 4px; }
-    /* v1.5: Smart Director v2 routing source. RULE is a soft neutral; LLM is
-       a highlighted accent so the eye can scan a batch of rows and gauge how
-       often the LLM is actually winning the 400ms race. */
-    .trace-line1 .trace-source {
+    .trace-row:last-child{border-bottom: 0}
+    .trace-line1{color: var(--ink)}
+    .trace-line1 .trace-pick{font-weight: 700}
+    .trace-line1 .trace-score{color: var(--ink-2)}
+    .trace-line1 .trace-top3{color: var(--ink-3); margin-left: 4px}
+    .trace-line1 .trace-cascade{color: var(--ink-2); margin-left: 4px}
+    .trace-line1 .trace-source{
       display: inline-block;
-      font-size: 8px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
+      font-size: 8px; font-weight: 700;
+      letter-spacing: .08em;
       padding: 1px 4px;
-      border-radius: 3px;
       margin-left: 4px;
       vertical-align: 1px;
     }
-    .trace-line1 .trace-source.src-rule {
-      color: var(--text-dim);
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
+    .trace-line1 .trace-source.src-rule{
+      color: var(--ink-3);
+      background: var(--paper-3);
+      border: 1px solid var(--ink-3);
     }
-    .trace-line1 .trace-source.src-llm {
-      color: #101012;
-      background: #f5c36b;
-      border: 1px solid #f5c36b;
+    .trace-line1 .trace-source.src-llm{
+      color: var(--ink);
+      background: var(--yellow);
+      border: 1px solid var(--ink);
     }
-    .trace-line2 { color: var(--text-dim); margin-top: 1px; font-size: 9px; }
-    .trace-line3 { color: var(--text-muted); margin-top: 1px; padding-left: 10px; font-size: 9px; }
-    .trace-empty {
-      padding: 20px 12px;
-      text-align: center;
-      color: var(--text-dim);
-      font-size: 10px;
-      font-family: monospace;
+    .trace-line2{color: var(--ink-3); margin-top: 1px; font-size: 9px}
+    .trace-line3{
+      color: var(--ink-2); margin-top: 1px;
+      padding-left: 10px; font-size: 9px;
+    }
+    .trace-empty{
+      padding: 20px 12px; text-align: center;
+      color: var(--ink-3); font-size: 10px;
+      font-family: var(--mono);
     }
   </style>
 </head>
-<body>
+<body data-theme="paper">
 
-  <!-- HEADER -->
-  <div class="header">
-    <span class="emoji">🥜</span>
-    <h1>Peanut Gallery</h1>
-    <div class="header-right">
-      <span id="versionBadge" style="font-size:8px; color:rgba(255,255,255,0.15); font-family:monospace;">v1.4.0</span>
+  <!-- ── MASTHEAD ── -->
+  <header class="masthead">
+    <div class="rails">
+      <span>Vol. I · No. 001</span>
+      <span id="versionBadge" class="ver" title="Long-press to toggle debug">v1.5.0</span>
     </div>
-  </div>
+    <div class="title-row">
+      <svg viewBox="0 0 320 48" preserveAspectRatio="xMidYMid meet" aria-label="The Peanut Gallery">
+        <text x="160" y="38" text-anchor="middle" font-size="44" textLength="310" lengthAdjust="spacingAndGlyphs">THE PEANUT GALLERY</text>
+      </svg>
+    </div>
+    <div class="subrail">
+      <span id="packBadge">Howard</span>
+      <span class="mid">"Four critics. One tab."</span>
+      <span>Wire</span>
+    </div>
+  </header>
 
-  <!-- ERROR BANNER -->
+  <!-- ── ERROR BANNER ── -->
   <div id="errorBanner" class="error-banner">
     <span id="errorText"></span>
     <button class="error-dismiss" id="errorDismiss">&times;</button>
   </div>
 
-  <!-- SETUP (shown when not capturing) -->
+  <!-- ── SETUP (shown when not capturing) ── -->
   <div id="setupSection" class="setup">
 
-    <!-- FREE WHILE WE GROW -->
+    <!-- 15-min free banner -->
     <div class="free-banner" role="status">
-      <span class="badge">15 min free</span>
+      <div class="lede">15<br>MIN<small>FREE</small></div>
       <div class="copy">
-        <strong>15 minutes free per day on the hosted backend.</strong>
-        No signup, no card &mdash; just hit Start. When you hit the cap (or you want unlimited), paste your own free-tier API keys below, or
+        <strong>Fifteen minutes per day, on us.</strong>
+        No signup, no card. Tap <em>Start Listening</em> on any tab with audio. When the meter runs out,
+        paste your own keys below or
         <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>.
       </div>
     </div>
 
-    <!-- Persona pack — top of setup so it's the FIRST thing a user sees.
-         The Director is pack-agnostic (operates on 4 fixed archetype slots
-         producer/troll/soundfx/joker), so swapping packs is content-only —
-         new voices, no engine change. Howard is the default pack: unknown
-         pack ids fall back to Howard on the server via resolvePack(), which
-         keeps old extensions + new servers backward-compatible. -->
+    <!-- Persona pack -->
     <div class="key-row">
       <div class="key-label-row">
         <label for="packSelect">Persona pack</label>
@@ -744,100 +1015,105 @@
         <option value="twist">This Week in Startups — Molly, Jason, Lon, Alex</option>
       </select>
       <p class="field-hint">
-        Which four personas show up in the sidebar. You can switch mid-day — new pack applies the next time you hit <em>Start Listening</em>.
+        Which four critics show up in the feed. Swap anytime — the new pack applies next time you hit <em>Start Listening</em>.
       </p>
     </div>
 
-    <label>Backend server</label>
-    <input type="text" id="serverUrl" placeholder="https://peanutgallery.live" value="https://peanutgallery.live" />
-    <p class="field-hint">
-      Where audio is transcribed and persona replies are generated. The default is our free hosted backend. Self-hosting? Point this at your own URL &mdash; see the
-      <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/SELF-HOST-INSTALL.md" target="_blank" rel="noopener noreferrer">install guide&nbsp;&#8599;</a>
-      or the
-      <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">build-your-own spec&nbsp;&#8599;</a>.
-    </p>
+    <!-- Backend server -->
+    <div class="key-row">
+      <div class="key-label-row">
+        <label for="serverUrl">Backend server</label>
+        <span class="key-tag">hosted</span>
+      </div>
+      <input type="text" id="serverUrl" placeholder="https://api.peanutgallery.live" value="https://api.peanutgallery.live" />
+      <p class="field-hint">
+        Where audio is transcribed and reactions are generated. Point at your own URL — see the
+        <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/SELF-HOST-INSTALL.md" target="_blank" rel="noopener noreferrer">install guide&nbsp;&#8599;</a>
+        or the
+        <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">build-your-own spec&nbsp;&#8599;</a>.
+      </p>
+    </div>
 
+    <!-- Collapsible keys -->
     <button class="toggle-keys" id="toggleKeys">
-      <span class="caret">&#9656;</span>
-      <span>API keys &mdash; temporarily optional</span>
+      <span><span class="caret">&#9656;</span>&nbsp; API keys — temporarily optional</span>
+      <span style="font-family:var(--type); font-size:10px; color:var(--ink-3)">—</span>
     </button>
     <div id="keysSection" class="keys-section">
       <p class="keys-intro">
         <strong>Your own keys are temporarily optional.</strong>
-        While we&rsquo;re in the early window, peanutgallery.live covers the providers so you can try it without signing up for anything. That shared access is rate-limited and will be retired &mdash; every provider below takes about 90 seconds to sign up for, and bringing your own keys now means zero downtime when the shared pool goes away. Or
-        <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>
-        for full control.
+        While we're in the early window, peanutgallery.live covers the providers so you can try it without signing up. That shared access is rate-limited and will be retired. Every provider below takes ~90 seconds to sign up for. Or
+        <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>.
       </p>
 
       <div class="key-row">
         <div class="key-label-row">
-          <label>Deepgram</label>
+          <label for="deepgramKey">Deepgram</label>
           <span class="key-tag required">required</span>
           <span class="key-tag">transcription</span>
         </div>
         <input type="text" id="deepgramKey" class="key-input" placeholder="dg_..." />
         <p class="field-hint">
-          Turns tab audio into real-time text. Without this, nothing works. Free tier: $200 credit, plenty for testing.
+          Turns tab audio into real-time text. Free tier: $200 credit.
           <a href="https://console.deepgram.com/signup" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
         </p>
       </div>
 
       <div class="key-row">
         <div class="key-label-row">
-          <label>Anthropic</label>
+          <label for="anthropicKey">Anthropic</label>
           <span class="key-tag required">required</span>
-          <span class="key-tag">producer + joker</span>
+          <span class="key-tag">fact + comedy</span>
         </div>
         <input type="text" id="anthropicKey" class="key-input" placeholder="sk-ant-..." />
         <p class="field-hint">
-          Powers the Producer and Joker slots (Baba/Molly and Jackie/Alex) on Claude Haiku. Without it, those two stay silent. New accounts get free credit.
+          Powers the Fact and Bit slots on Claude Haiku.
           <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Get a key &#8599;</a>
         </p>
       </div>
 
       <div class="key-row">
         <div class="key-label-row">
-          <label>xAI</label>
+          <label for="xaiKey">xAI</label>
           <span class="key-tag required">required</span>
-          <span class="key-tag">troll + soundfx</span>
+          <span class="key-tag">dunk + cue</span>
         </div>
         <input type="text" id="xaiKey" class="key-input" placeholder="xai-..." />
         <p class="field-hint">
-          Powers the Troll and Sound-FX slots (Troll/Jason and Fred/Lon) on Grok 4.1 Fast — sub-200ms reflex voices. Without it, those two stay silent.
+          Powers the Dunk and Cue slots on Grok 4.1 Fast — sub-200ms reflex voices.
           <a href="https://console.x.ai/" target="_blank" rel="noopener noreferrer">Get a key &#8599;</a>
         </p>
       </div>
 
       <div class="key-row">
         <div class="key-label-row">
-          <label>Search engine</label>
+          <label for="searchEngine">Search engine</label>
           <span class="key-tag">fact-check</span>
         </div>
-        <select id="searchEngine" class="key-input">
+        <select id="searchEngine">
           <option value="brave" selected>Brave Search</option>
           <option value="xai">xAI Live Search (uses your xAI key)</option>
         </select>
         <p class="field-hint">
-          How the Producer fact-checks claims. <strong>Brave</strong> uses the classic Brave Search API — requires its own key below. <strong>xAI</strong> uses Grok Live Search — no extra key beyond the xAI key above. Takes effect on your next <em>Start Listening</em>.
+          How the Fact-Checker verifies claims. <strong>Brave</strong> uses the classic Brave API — requires its own key below. <strong>xAI</strong> uses Grok Live Search — no extra key.
         </p>
       </div>
 
       <div class="key-row">
         <div class="key-label-row">
-          <label>Brave Search</label>
-          <span class="key-tag optional">only for Brave mode</span>
+          <label for="braveKey">Brave Search</label>
+          <span class="key-tag optional">Brave mode only</span>
           <span class="key-tag">live facts</span>
         </div>
         <input type="text" id="braveKey" class="key-input" placeholder="BSA..." />
         <p class="field-hint">
-          Only needed when the search-engine selector above is set to Brave. Free tier: 2,000 queries/month.
+          Only needed when the selector above is set to Brave. Free tier: 2,000 queries/month.
           <a href="https://api-dashboard.search.brave.com/app/keys" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
         </p>
       </div>
     </div>
 
-    <!-- Response-rate dial — controls persona cadence. Placed outside the
-         accordions so everyone sees it before starting. Default is 5. -->
+    <!-- Response rate -->
     <div class="key-row" id="responseRateRow">
       <div class="key-label-row">
         <label for="responseRate">Response rate</label>
@@ -856,101 +1132,156 @@
         <option value="10">10 — Nonstop · ~403k tok/hr</option>
       </select>
       <p class="field-hint">
-        How often the personas chime in. 1 = slow, occasional quips. 10 = nonstop banter. Token estimates are ballpark per hour across all models (input + output). Takes effect on your next <em>Start Listening</em>.
+        How often the critics chime in. 1 = occasional quips, 10 = nonstop. Takes effect on your next <em>Start Listening</em>.
       </p>
     </div>
 
+    <!-- Collapsible audio routing -->
     <button class="toggle-keys" id="toggleAudio">
-      <span class="caret">&#9656;</span>
-      <span>Audio routing — podcaster options</span>
+      <span><span class="caret">&#9656;</span>&nbsp; Audio routing — podcaster options</span>
+      <span style="font-family:var(--type); font-size:10px; color:var(--ink-3)">—</span>
     </button>
     <div id="audioSection" class="audio-section">
       <p class="keys-intro">
         <strong>Recording a podcast?</strong>
-        By default Peanut Gallery plays captured audio back through your speakers so you hear the video normally. If your recording software (OBS, Riverside, etc.) or a virtual cable (BlackHole, VB-Audio) is already routing the audio, turn passthrough off to avoid doubling. You can also send passthrough to a specific output device your recording rig doesn&rsquo;t capture.
+        By default Peanut Gallery plays captured audio back through your speakers so you hear the video normally. Turn passthrough off if your recording software is already routing the audio.
       </p>
-
       <div class="key-row">
         <div class="toggle-row">
           <input type="checkbox" id="passthroughToggle" checked />
           <label for="passthroughToggle">Passthrough — play captured audio through speakers</label>
         </div>
         <p class="field-hint">
-          On (default): you hear the video as normal. Off: tab is captured silently — use this if another app is already playing the audio.
+          On (default): you hear the video as normal. Off: tab is captured silently.
         </p>
       </div>
-
       <div class="key-row">
         <div class="key-label-row">
-          <label>Output device</label>
+          <label for="outputDevice">Output device</label>
           <span class="key-tag">passthrough</span>
         </div>
         <select id="outputDevice">
           <option value="default">System default</option>
         </select>
         <p class="field-hint">
-          Route passthrough to a specific device — useful for sending it to monitor-only headphones or a virtual cable. Device names show after you start capture once.
+          Route passthrough to a specific device. Device names show after you start capture once.
         </p>
       </div>
     </div>
 
-    <div id="detectedTab" style="background:rgba(59,130,246,0.06); border:1px solid rgba(59,130,246,0.12); border-radius:6px; padding:6px 10px; margin-bottom:8px; display:none;">
-      <div style="font-size:9px; color:rgba(255,255,255,0.3); margin-bottom:2px;">CAPTURING FROM</div>
-      <div id="detectedTitle" style="font-size:11px; color:rgba(255,255,255,0.7); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+    <!-- Detected tab -->
+    <div id="detectedTab">
+      <div class="label">Capturing from</div>
+      <div id="detectedTitle">&mdash;</div>
     </div>
 
+    <!-- Start button -->
     <div class="btn-row">
-      <button id="startBtn" class="btn btn-start">Start Listening</button>
+      <button id="startBtn" class="btn btn-start">&#9654; Start Listening</button>
     </div>
-    <p style="font-size:9px; color:rgba(255,255,255,0.15); text-align:center; margin-top:6px;">
-      Captures audio from the current tab. No interference with playback.
-    </p>
+    <p class="start-caption">Captures the active tab's audio. No interference with playback.</p>
   </div>
 
-  <!-- STATUS BAR (shown when capturing) -->
+  <!-- ── STATUS STRIP (shown when capturing) ── -->
   <div id="statusBar" class="status-bar" style="display:none;">
-    <span class="dot"></span>
-    <span id="statusText">Connecting...</span>
+    <span><span class="dot"></span><span id="statusText">Connecting...</span></span>
   </div>
 
-  <!-- CAPTURED TAB BANNER (shown when capturing) -->
+  <!-- ── CAPTURED TAB BANNER ── -->
   <div id="capturedTabBanner" class="captured-tab" title="Click to switch to the tab Peanut Gallery is listening to">
-    <span class="icon">🎧</span>
+    <span class="icon">&#127911;</span>
     <span class="label">Listening to</span>
     <span id="capturedTabTitle" class="title">&mdash;</span>
     <span class="jump">Jump &rarr;</span>
   </div>
 
-  <!-- CONTROLS (shown when capturing) -->
-  <div id="controlsRow" style="display:none; padding:6px 12px; border-bottom:1px solid var(--border); flex-shrink:0;">
+  <!-- ── CONTROLS (during capture) ── -->
+  <div id="controlsRow">
     <div class="btn-row">
-      <button id="fireBtn" class="btn btn-fire">🔥 React</button>
-      <button id="stopBtn" class="btn btn-stop">Stop</button>
+      <button id="fireBtn" class="btn btn-fire">&#9876;&#xFE0F; React</button>
+      <button id="stopBtn" class="btn btn-stop">&#9632; Stop</button>
     </div>
   </div>
 
-  <!-- PERSONA AVATARS (always visible) -->
+  <!-- ── PERSONA MUG ROW ── -->
   <div id="personasRow" class="personas-row"></div>
 
-  <!-- TRANSCRIPT -->
+  <!-- ── TRANSCRIPT ── -->
   <div id="transcriptSection" class="transcript-section" style="display:none;">
-    <div class="transcript-label">
-      <span>📝</span>
-      <span>Transcript</span>
-    </div>
-    <div id="transcriptText" class="transcript-text">Listening...</div>
+    <span class="transcript-label">Transcript</span>
+    <div id="transcriptText" class="transcript-text">Listening&hellip;</div>
   </div>
 
-  <!-- GALLERY FEED -->
+  <!-- ── GALLERY FEED ── -->
   <div id="gallery" class="gallery" style="display:none;"></div>
 
-  <!-- EMPTY STATE -->
-  <div id="emptyState" class="empty-state">
-    <div class="big-emoji">🥜</div>
-    <p>Open a YouTube video and click <strong>Start Listening</strong> to get real-time AI commentary from the Peanut Gallery.</p>
+  <!-- ── EMPTY STATE ── -->
+  <div id="emptyState" class="empty-state" style="display:none;">
+    <div class="lg">Wire<br>Quiet.</div>
+    <div class="dk">Staff is standing by. Commentary posts here as the transcript comes in.</div>
   </div>
 
-  <!-- DEBUG TRACE (v1.2) · hidden by default · long-press version badge to toggle -->
+  <!-- ── FOOTER (shown during capture) ── -->
+  <div id="footer" class="footer hidden">
+    <div class="tools">
+      <span>
+        <button class="pill on" data-filter="all">All</button>
+        <button class="pill fact on" data-filter="fact">Fact</button>
+        <button class="pill dunk on" data-filter="dunk">Dunk</button>
+        <button class="pill on" data-filter="cue">Cue</button>
+        <button class="pill on" data-filter="bit">Bit</button>
+      </span>
+      <button id="settingsToggle" class="gear" title="Settings">&#9881;</button>
+    </div>
+  </div>
+
+  <!-- ── SETTINGS DRAWER ── -->
+  <aside id="settingsDrawer" class="drawer" aria-hidden="true">
+    <header class="drawer-head">
+      <div>
+        <div class="title">Settings</div>
+        <div class="sub">Drawer · wire paused</div>
+      </div>
+      <button id="drawerCloseBtn" class="btn small">&times;&nbsp; Close</button>
+    </header>
+
+    <div class="drawer-body">
+
+      <!-- Mute a critic -->
+      <div class="group">
+        <div class="lbl"><span>Mute a critic</span><span class="chip">instant</span></div>
+        <div id="mutesContainer" class="mutes"></div>
+        <div class="help">Muted critics won't post to the feed. Toggles save instantly; the wire keeps running in the background.</div>
+      </div>
+
+      <!-- Export session -->
+      <div class="group">
+        <div class="lbl"><span>Export session</span><span class="chip">markdown</span></div>
+        <div style="display:flex; gap:6px">
+          <button id="exportCopyBtn" class="btn small" style="flex:1">&#9113; Copy</button>
+          <button id="exportDownloadBtn" class="btn small" style="flex:1">&#8595; Download .md</button>
+        </div>
+        <div class="help">Full session — transcript + every critic reaction — with timestamps, personas, and the source URL. Markdown, portable anywhere.</div>
+      </div>
+
+      <!-- Appearance -->
+      <div class="group">
+        <div class="lbl"><span>Appearance</span><span class="chip">theme</span></div>
+        <div class="theme-grid">
+          <button id="themePaperBtn" class="btn small">Paper</button>
+          <button id="themeNightBtn" class="btn small">Night</button>
+        </div>
+        <div class="help">Paper is the cream-newsprint default. Night flips to ink-on-black for late-shift wires.</div>
+      </div>
+
+    </div>
+
+    <div class="drawer-foot">
+      <button id="drawerBackBtn" class="btn primary" style="width:100%">&#9664; Back to wire</button>
+    </div>
+  </aside>
+
+  <!-- ── DEBUG TRACE (long-press version badge to toggle) ── -->
   <section id="directorTrace" class="hidden" aria-hidden="true">
     <div class="trace-header">
       <span class="trace-header-label">Director trace · last 20</span>

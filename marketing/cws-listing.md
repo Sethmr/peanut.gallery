@@ -20,13 +20,17 @@ AI writers' room for YouTube. 4 personas react live — fact-checker, troll, sou
 
 ## Long description
 
-Peanut Gallery is an AI writers' room for your podcasts. 4 personas watch any YouTube video alongside you — a fact-checker, a sound effects guy, a comedy writer, and a cynical troll — reacting live in Chrome's native side panel. No tab switching. No screen-share picker. Audio captured silently while you watch.
+Four critics. One tab. Your AI writers' room for YouTube — filed like a late-night newspaper desk.
+
+Peanut Gallery mounts in Chrome's native side panel as a broadsheet: cream paper stock, Anton slab masthead, four mug-shot avatars standing by. A fact-checker. A sound effects guy. A comedy writer. A cynical troll. They watch any YouTube video alongside you and file their reactions as a wire-service feed — every quip stamped with a 24-hour timestamp and a role tag (FACT, DUNK, CUE, BIT).
+
+No tab switching. No screen-share picker. No interference with playback. Audio is captured silently while you watch.
 
 Built for long-form talk shows, interviews, and pods — where a booth producer actually adds something. Inspired by the Howard Stern Show. Two packs ship out of the box; swap between them in the side panel per session.
 
 THE HOWARD PACK (default)
 
-- Baba Booey — fact-checker. Mid-show corrections and background data on every claim. Searches the web via Brave Search to verify stats, dates, and attributions.
+- Baba Booey — fact-checker. Mid-show corrections and background data on every claim. Searches the web via Brave Search or xAI Live Search to verify stats, dates, and attributions.
 - Fred Norris — sound effects guy. Well-timed cues and the occasional razor-sharp aside.
 - Jackie Martling — comedy writer. Setup-punchline jokes, callbacks, observational humor.
 - The Cynical Troll — contrarian commentator, 120ms response time. Says what the chat is thinking.
@@ -35,12 +39,19 @@ THE TWIST PACK (swap in the side panel)
 
 Tuned for This Week in Startups-style podcasts — Molly Wood (producer), Jason Calacanis (troll), Lon Harris (sound effects), and Alex Wilhelm (joker). Same 4 roles, startup vocabulary.
 
+THE BROADSHEET UI (new in v1.5)
+
+- Role-stamped wire feed — every reaction filed with FACT / DUNK / CUE / BIT and a 24h timestamp. Filter pills in the footer hide any tag you want to tune out.
+- Paper theme for daylight, Night theme for 2am captures. Toggle in the drawer.
+- Mute a critic with one tap — their mug gets a strike-through, their stream goes silent. No server round-trip.
+- Download the whole session as Markdown when you're done — full transcript plus every quip, role-tagged, ready to paste into a doc.
+
 HOW IT WORKS
 
 1. Install. Click the peanut icon on any YouTube tab — a native Chrome side panel opens.
 2. Enter your API keys (Deepgram, Anthropic, xAI, and optionally Brave Search). Keys are stored locally in your browser and sent only to the providers you configure.
 3. Click Start Listening. Tab audio is captured silently via chrome.tabCapture — the same API used by Otter.ai, Fireflies, and Recall.ai. No permission picker, no interference with playback. You hear the video; the AI hears it too.
-4. Responses stream back token-by-token and appear in the side panel alongside a live transcript.
+4. Responses stream back token-by-token into the wire feed alongside a live transcript. Mute, filter, or download the session at any time.
 
 PRIVACY-FIRST BY DESIGN
 
@@ -101,8 +112,10 @@ discovery. Pick Productivity unless data says otherwise after 2-4 weeks.
 
 ## Screenshot caption text (for the 5 required 1280x800 images)
 
-1. "An AI booth producer for your podcasts"
-2. "4 personas react in real time — Howard or TWiST pack, your pick"
-3. "Live fact-checking with Brave Search — catches wrong dates mid-sentence"
-4. "Silent tab capture. No screen-share picker. No playback interference."
-5. "Free, open source, bring-your-own-keys. MIT licensed."
+Updated for v1.5 "The Broadsheet" UI. Each caption is ≤80 chars so it won't truncate on CWS.
+
+1. "Four critics, one tab. Your AI writers' room for YouTube."
+2. "Role-stamped wire feed. Howard pack default, TWiST pack one click away."
+3. "Live fact-checking with Brave or xAI Live Search — stats, dates, attributions."
+4. "Paper or Night theme. Mute any critic. Download the session as Markdown."
+5. "Silent tab capture. MIT licensed. Bring your own keys."
