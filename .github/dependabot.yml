@@ -37,6 +37,30 @@ updates:
       anthropic-stack:
         patterns:
           - "@anthropic-ai/*"
+    # Major bumps on framework-tier deps go through an intentional migration
+    # pass per docs/ROADMAP.md § Future framework + dependency upgrades, not
+    # weekly auto-PRs. Minor + patch still flow through normally.
+    ignore:
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@eslint/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@anthropic-ai/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     labels:
       - "dependencies"
 
@@ -52,6 +76,11 @@ updates:
       time: "09:00"
       timezone: "America/Los_Angeles"
     open-pull-requests-limit: 2
+    # Major bumps on actions used inside protected workflow files want
+    # deliberate review — minor + patch still flow through.
+    ignore:
+      - dependency-name: "actions/github-script"
+        update-types: ["version-update:semver-major"]
     labels:
       - "dependencies"
       - "area: ci"
