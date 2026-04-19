@@ -63,7 +63,11 @@ Claude never hotfixes directly to `main`. If Seth is away, Claude prepares the P
 
 ## PR-time enforcement
 
-[`.github/workflows/pr-checklist-comment.yml`](../.github/workflows/pr-checklist-comment.yml) posts a fresh comment on every PR open + every new commit, telling the author exactly what needs to be true to merge. Comment text links the canonical docs (this file, CONTRIBUTING.md, AI-GIT-PROTOCOL.md, the upgrade policy) instead of duplicating them — when the rules change here, the comment changes by reference. The workflow also flags Dependabot PRs with the framework-upgrade triage rubric, and adds `main`-only gates (CODEOWNERS approval, CHANGELOG, tag plan) when the PR targets `main`.
+Two workflows run the checks Seth used to do by hand:
+
+- [`.github/workflows/pr-checklist-comment.yml`](../.github/workflows/pr-checklist-comment.yml) posts a fresh comment on every PR open + every new commit, telling the author exactly what needs to be true to merge. Comment text links the canonical docs (this file, CONTRIBUTING.md, AI-GIT-PROTOCOL.md, the upgrade policy) instead of duplicating them — when the rules change here, the comment changes by reference. The workflow skips Claude-authored PRs by default (escape hatch: `<!-- bot-review -->` in the PR body), flags Dependabot PRs with the framework-upgrade heads-up inline, and adds `main`-only gates (CODEOWNERS approval, CHANGELOG, tag plan) when the PR targets `main`.
+
+- [`.github/workflows/claude-triage.yml`](../.github/workflows/claude-triage.yml) fires fresh-Claude (via `anthropics/claude-code-action@v1`) on Dependabot PRs and emits a single triage verdict comment — MERGE-NOW / QUEUE-AND-CLOSE / NEEDS-HUMAN — following [`BOT-TRIAGE-RUBRIC.md`](BOT-TRIAGE-RUBRIC.md). First iteration is comment-only; scope expands once Seth has confirmed the first batch of verdicts match his. Requires `ANTHROPIC_API_KEY` repo secret ([`GITHUB-MANUAL-STEPS.md § 16`](GITHUB-MANUAL-STEPS.md#16-add-anthropic_api_key-repo-secret-for-claude-triage-bot)).
 
 ## Manual setup Seth still owns
 

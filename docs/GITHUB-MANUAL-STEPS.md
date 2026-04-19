@@ -187,6 +187,49 @@ The marketing site at `www.peanutgallery.live` should link to this repo with pro
 
 ---
 
+## Priority 1.5 — Claude triage bot setup
+
+### 16. Add `ANTHROPIC_API_KEY` repo secret (for Claude triage bot)
+
+Without this secret, [`.github/workflows/claude-triage.yml`](../.github/workflows/claude-triage.yml) cannot fire — the workflow falls silent and Dependabot PRs will only get the regular PR-checklist comment. Nothing breaks, but the auto-triage doesn't happen.
+
+**Exact path:** `github.com/Sethmr/peanut.gallery` → Settings → Secrets and variables → Actions → **New repository secret**.
+
+- **Name:** `ANTHROPIC_API_KEY` (exact string, case-sensitive)
+- **Value:** paste from [console.anthropic.com](https://console.anthropic.com/) → Settings → API Keys. Create a fresh key named `peanut.gallery triage bot` so it's easy to revoke independently if needed.
+
+**Why a repo Actions secret (not a Dependabot secret, not env var):**
+
+- The triage workflow uses `pull_request_target`, which runs the workflow file from the **base branch** and has access to repo Actions secrets — even on PRs from forks and even on Dependabot PRs (which by default have zero Actions-secret access on plain `pull_request` events).
+- GitHub encrypts secrets at rest with libsodium, only decrypts them at workflow-run time, and auto-redacts the value from every line of workflow logs. The key is injected as an env var into the `claude-code-action` runtime; the value is NEVER passed into the `prompt:` field and NEVER printed anywhere.
+- A malicious or compromised PR cannot modify the workflow file to exfiltrate the secret, because the workflow is frozen at the base-branch version under `pull_request_target`.
+
+**Open-source safety checklist (one-time):**
+
+- [ ] Confirm the secret is scoped to **Actions**, not to **Codespaces** or **Dependabot** tabs (those are separate stores — adding it elsewhere doesn't help and clutters your secrets UI).
+- [ ] Do NOT add the secret to any workflow's `env:` block or `inputs:` — only pass it via `${{ secrets.ANTHROPIC_API_KEY }}` into the action's `anthropic_api_key:` parameter.
+- [ ] Do NOT echo or print the secret anywhere, even for debugging.
+- [ ] Enable branch protection on `main` and `develop` (step 8) before flipping this on — that prevents a malicious PR from landing a workflow edit without review.
+
+**Cost discipline:**
+
+- Each triage run is capped at `--max-turns 5`. Typical run: $0.05–$0.15 in API tokens.
+- Dependabot cadence is weekly, usually 2–5 PRs per run. Budget: under $5/month under normal cadence.
+- Set a hard monthly spend cap on the key in console.anthropic.com → Billing → Limits if you want belt-and-suspenders.
+
+**To rotate:**
+
+1. Generate new key in console.anthropic.com → API Keys.
+2. Update this secret (same name, new value). GitHub preserves the name and swaps the value.
+3. Delete the old key in console.anthropic.com. Any still-running workflow using the old value will fail; new workflow runs pick up the new value immediately.
+
+**To kill-switch:**
+
+- Delete the secret (Settings → Secrets and variables → Actions → `ANTHROPIC_API_KEY` → trash icon). The workflow will fail on the next Dependabot PR with a clear "anthropic_api_key is required" error. Nothing else breaks.
+- Or disable the workflow entirely: Actions tab → "Claude Triage" → `…` → Disable workflow.
+
+---
+
 ## What I handled for you (no action needed)
 
 These are committed in `chrome-extension/` and landed as part of the audit:
