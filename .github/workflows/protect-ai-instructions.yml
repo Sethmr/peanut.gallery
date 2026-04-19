@@ -1,0 +1,168 @@
+# ═══════════════════════════════════════════════════════════════════════
+# 🔒 PROTECTED FILE — only @Sethmr can edit.
+# This workflow auto-closes external PRs that modify AI-instruction files.
+# Modifying it is itself protected (it's listed in its own regex below).
+# Full policy: docs/AI-INSTRUCTIONS-POLICY.md
+# ═══════════════════════════════════════════════════════════════════════
+
+name: Protect AI Instructions
+
+# Auto-closes PRs from non-Sethmr authors that touch files which tell an
+# AI bot how to behave inside this repo. These files are exclusively
+# Seth's territory because changes to them could inject prompts, weaken
+# safety gates, or bypass review automation.
+#
+# Carve-out: Dependabot can edit .github/workflows/** files (it bumps
+# action versions there). Anything outside .github/workflows/** is
+# off-limits to Dependabot too.
+#
+# === Security model ===
+#
+# Why pull_request_target (vs. pull_request):
+#   - We need pull-requests:write to close + comment, and pull_request_target
+#     grants that even on first-time-contributor PRs.
+#   - The workflow file is frozen at the base-branch version under
+#     pull_request_target — a PR cannot modify this workflow to disable
+#     itself.
+#   - Same security model as claude-triage.yml. See its header for the
+#     longer treatment.
+#
+# Why we DO NOT checkout the PR head:
+#   - We only need the file list, which comes from the GitHub API. No
+#     PR code is executed by this workflow.
+#   - Avoiding checkout is one less attack surface.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+# Only one protection check per PR at a time.
+concurrency:
+  group: protect-ai-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for protected-path edits and auto-close if needed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const author = pr.user.login;
+
+            // ─── ALLOWED AUTHORS ─────────────────────────────────────────
+            // Handles that may edit protected files. Add a co-maintainer
+            // here if/when one joins.
+            const allowedAuthors = new Set(['Sethmr']);
+
+            // ─── BOT BYPASS ──────────────────────────────────────────────
+            // Bots that may edit a SUBSET of protected files. Dependabot
+            // is allowed to bump action versions inside .github/workflows/
+            // but is NOT allowed to edit any other protected path.
+            const dependabotWorkflowBypass = (filename) =>
+              filename.startsWith('.github/workflows/');
+
+            const botBypasses = {
+              'dependabot[bot]': dependabotWorkflowBypass,
+            };
+
+            // ─── PROTECTED PATHS ─────────────────────────────────────────
+            // Canonical source of truth for what's off-limits to external
+            // editors. Mirror this list in docs/AI-INSTRUCTIONS-POLICY.md
+            // when it changes.
+            const protectedPatterns = [
+              /^CLAUDE\.md$/,
+              /^\.claude\//,
+              /^\.github\/CODEOWNERS$/,
+              /^\.github\/dependabot\.yml$/,
+              /^\.github\/workflows\//,
+              /^docs\/AI-GIT-PROTOCOL\.md$/,
+              /^docs\/AI-INSTRUCTIONS-POLICY\.md$/,
+              /^docs\/BOT-TRIAGE-RUBRIC\.md$/,
+              /^docs\/RELEASE\.md$/,
+            ];
+
+            // ─── FETCH FILES TOUCHED BY THIS PR ──────────────────────────
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 300,
+            });
+
+            const touchedProtected = files.filter(f =>
+              protectedPatterns.some(re => re.test(f.filename))
+            );
+
+            if (touchedProtected.length === 0) {
+              console.log(`No protected paths touched by PR #${pr.number}. Pass.`);
+              return;
+            }
+
+            // ─── AUTHORIZATION CHECK ─────────────────────────────────────
+            if (allowedAuthors.has(author)) {
+              console.log(`Protected paths touched but author ${author} is in allowedAuthors. Pass.`);
+              return;
+            }
+
+            const bypass = botBypasses[author];
+            if (bypass) {
+              const stillProtected = touchedProtected.filter(f => !bypass(f.filename));
+              if (stillProtected.length === 0) {
+                console.log(`Bot ${author} touched only allowed protected paths (workflow version bumps). Pass.`);
+                return;
+              }
+              // Bot touched protected paths outside its bypass — fall through and close.
+              console.log(`Bot ${author} touched protected paths outside its bypass. Closing.`);
+            }
+
+            // ─── COMPOSE COMMENT ─────────────────────────────────────────
+            const protectedList = touchedProtected
+              .map(f => `- \`${f.filename}\``)
+              .join('\n');
+
+            const isBot = author.endsWith('[bot]');
+            const greet = isBot
+              ? `Hey ${author},`
+              : `Hi @${author} — thanks for caring enough to send a PR.`;
+
+            const commentBody = [
+              greet,
+              ``,
+              `This PR changes files that are owned exclusively by @Sethmr because they tell the AI bots in this repo how to behave. Changes there can inject prompts, weaken safety gates, or bypass review automation — so we keep the surface small and visibly protected.`,
+              ``,
+              `**Protected files in this PR:**`,
+              protectedList,
+              ``,
+              `**Auto-closing this PR.** No judgment of the work — this is a security posture.`,
+              ``,
+              `**If you'd like to propose a change to one of these files,** please open an issue with the \`type: docs\` or \`type: security\` label and include the diff you had in mind. Seth will evaluate and make the edit himself if he agrees. Full policy: [\`docs/AI-INSTRUCTIONS-POLICY.md\`](https://github.com/Sethmr/peanut.gallery/blob/main/docs/AI-INSTRUCTIONS-POLICY.md).`,
+              ``,
+              `**If your PR also contains changes to non-protected files** that you'd like to land, please re-open with only those non-protected changes — they'll go through the normal review flow.`,
+              ``,
+              `Thanks again for the contribution. The signal-to-noise on this repo depends on protections like this; we appreciate you working with us on it.`,
+              ``,
+              `<sub>— Posted by [\`.github/workflows/protect-ai-instructions.yml\`](https://github.com/Sethmr/peanut.gallery/blob/main/.github/workflows/protect-ai-instructions.yml).</sub>`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body: commentBody,
+            });
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              state: 'closed',
+            });
+
+            console.log(`Auto-closed PR #${pr.number} from ${author}: touched ${touchedProtected.length} protected file(s).`);

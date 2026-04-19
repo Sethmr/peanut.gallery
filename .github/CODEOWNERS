@@ -1,14 +1,54 @@
+# ═══════════════════════════════════════════════════════════════════════
+# 🔒 PROTECTED FILE — only @Sethmr can edit.
+# External PRs touching this file will be auto-closed by
+# .github/workflows/protect-ai-instructions.yml. Full policy:
+# docs/AI-INSTRUCTIONS-POLICY.md
+# ═══════════════════════════════════════════════════════════════════════
+
+# CODEOWNERS — who must review what.
+#
+# Paired with branch-protection "Require review from Code Owners" on main
+# and develop (see docs/GITHUB-MANUAL-STEPS.md § 8). The auto-reject
+# workflow (protect-ai-instructions.yml) is the first gate; CODEOWNERS
+# review is defense-in-depth if that workflow is ever disabled.
+
 # Default — Seth owns everything. Scope down per-area as the project grows.
-*                          @Sethmr
+*                                             @Sethmr
 
-# Extension surface — high-blast-radius, double-check on changes
-/extension/                @Sethmr
-/extension/manifest.json   @Sethmr
+# ─── Extension surface — high-blast-radius, double-check on changes ───
+/extension/                                   @Sethmr
+/extension/manifest.json                      @Sethmr
 
-# Marketing + listing copy — review for brand consistency
-/marketing/                @Sethmr
+# ─── Marketing + listing copy — review for brand consistency ───
+/marketing/                                   @Sethmr
 
-# Docs — ROADMAP / CHANGELOG / SHIP / CONTEXT are the load-bearing ones
-/docs/ROADMAP.md           @Sethmr
-/CHANGELOG.md              @Sethmr
-/SHIP.md                   @Sethmr
+# ─── Load-bearing product docs ───
+/docs/ROADMAP.md                              @Sethmr
+/CHANGELOG.md                                 @Sethmr
+/SHIP.md                                      @Sethmr
+
+# ═══════════════════════════════════════════════════════════════════════
+# AI-INSTRUCTION PROTECTION ZONE
+#
+# The paths below tell AI bots how to behave inside this repo. They are
+# also guarded by .github/workflows/protect-ai-instructions.yml, which
+# auto-closes PRs that touch them from any author except @Sethmr (and
+# Dependabot for action-version bumps inside .github/workflows/).
+#
+# CODEOWNERS here is the second gate: even if the auto-reject workflow
+# is ever disabled, branch protection will still require @Sethmr's
+# explicit review before any change to these paths can merge.
+#
+# If you believe one of these files should change, open an issue —
+# don't submit a PR. See docs/AI-INSTRUCTIONS-POLICY.md.
+# ═══════════════════════════════════════════════════════════════════════
+
+/CLAUDE.md                                    @Sethmr
+/.claude/                                     @Sethmr
+/.github/CODEOWNERS                           @Sethmr
+/.github/dependabot.yml                       @Sethmr
+/.github/workflows/                           @Sethmr
+/docs/AI-GIT-PROTOCOL.md                      @Sethmr
+/docs/AI-INSTRUCTIONS-POLICY.md               @Sethmr
+/docs/BOT-TRIAGE-RUBRIC.md                    @Sethmr
+/docs/RELEASE.md                              @Sethmr

@@ -4,12 +4,12 @@
 
 [![Version](https://img.shields.io/badge/version-1.5.0-000000?style=flat-square&label=version&labelColor=444)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
-[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-coming%20soon-yellow?style=flat-square&logo=googlechrome&logoColor=white)](https://www.peanutgallery.live)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-v1.4%20live%20(v1.5%20in%20review)-34a853?style=flat-square&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/peanut-gallery/jjlpinlhfiheegiddmddkgfialcknagh)
 [![Site](https://img.shields.io/badge/site-peanutgallery.live-000?style=flat-square)](https://www.peanutgallery.live)
 
 Peanut Gallery is a Chrome Manifest-V3 extension. It captures the active tab's audio silently (`chrome.tabCapture` — no permission picker, no playback interference), streams PCM to a local or hosted backend, transcribes with Deepgram Nova-3, and routes each chunk through a rule-based Director that picks which of four personas gets to fire next. Text reactions stream back via SSE and stack in the native Chrome side panel right next to the video.
 
-Built in response to [Jason Calacanis](https://x.com/Jason) and Lon Harris's $5K open bounty on [This Week in Startups](https://www.youtube.com/@ThisWeekInStartups). The TWiST pack (v1.3.0) puts Jason, Molly Wood, Lon Harris, and Alex Wilhelm on the panel — inspired by, not impersonating, with anti-impersonation guardrails baked into every prompt.
+Built in response to [Jason Calacanis](https://x.com/Jason) and [Lon Harris](https://x.com/Lons)'s $5K open bounty on [This Week in Startups](https://www.youtube.com/@ThisWeekInStartups). The TWiST pack (v1.3.0) puts Jason, Molly Wood, Lon Harris, and Alex Wilhelm on the panel — inspired by, not impersonating, with anti-impersonation guardrails baked into every prompt.
 
 ---
 
@@ -29,7 +29,7 @@ Load the extension in Chrome:
 3. Click **Load unpacked** → select the `extension/` folder at the repo root
 4. Open any YouTube video → click the 🥜 icon → **Start Listening**
 
-Your keys live in `.env.local` on your machine — git-ignored, never uploaded. A Chrome Web Store listing is in review; once live, most users won't need to clone anything.
+Your keys live in `.env.local` on your machine — git-ignored, never uploaded. Most users don't need to clone anything: [**install v1.4 from the Chrome Web Store**](https://chromewebstore.google.com/detail/peanut-gallery/jjlpinlhfiheegiddmddkgfialcknagh) (v1.5 currently in CWS review).
 
 **Prerequisites:** Node.js 18+. No yt-dlp or ffmpeg required for the extension flow.
 

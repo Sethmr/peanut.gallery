@@ -100,16 +100,36 @@ Keeps the "what's next" story visible on the repo without requiring someone to r
 
 ## Priority 2 — governance
 
-### 8. Branch protection for `main`
+### 8. Branch protection — asymmetric (`main` strict, `develop` lighter)
 
-Settings → Branches → Branch protection rules → Add rule for `main`:
+Wires the `develop → main` model from [`RELEASE.md`](RELEASE.md) into GitHub's enforcement layer. Two rules — copy-paste each.
+
+**Rule 1 — `main`.** Settings → Branches → Add rule → pattern `main`:
 
 - [x] Require pull request before merging
+- [x] **Require approvals: 1** ← keeps Claude out of `main` even with write access
+- [x] Dismiss stale approvals on new commits
+- [x] Require review from Code Owners
 - [x] Require linear history
 - [x] Require signed commits
 - [x] Include administrators
+- [ ] Allow force pushes — off
+- [ ] Allow deletions — off
 
-Nothing to require status checks on yet — CI is intentionally local-only per the page-architecture audit (the audit scope was pages, not code automation). If/when you add CI later, add it as a required check here.
+**Rule 2 — `develop`.** Same page → Add another rule → pattern `develop`:
+
+- [x] Require pull request before merging
+- [ ] Require approvals — off ← what enables Claude's self-merge
+- [x] **Require review from Code Owners** ← second gate on AI-instruction files; the auto-reject workflow is the first
+- [x] Require linear history
+- [x] Require signed commits
+- [x] Include administrators
+- [ ] Allow force pushes — off
+- [ ] Allow deletions — off
+
+The "Require review from Code Owners" box on **both** rules is what makes [`CODEOWNERS`](../.github/CODEOWNERS) load-bearing for AI-instruction protection. It's defense-in-depth: [`protect-ai-instructions.yml`](../.github/workflows/protect-ai-instructions.yml) is the primary gate (auto-closes external PRs touching protected paths); CODEOWNERS is the fallback in the unlikely case that workflow is ever disabled. Without this checkbox, CODEOWNERS becomes advisory rather than enforced.
+
+No status checks required yet — CI is intentionally local-only. `.claude/settings.json` handles tool-level defense. If/when CI lands, add it as a required check on both rules.
 
 ### 9. Enable Sponsors
 
@@ -170,6 +190,49 @@ The marketing site at `www.peanutgallery.live` should link to this repo with pro
 
 ---
 
+## Priority 1.5 — Claude triage bot setup
+
+### 16. Add `ANTHROPIC_API_KEY` repo secret (for Claude triage bot)
+
+Without this secret, [`.github/workflows/claude-triage.yml`](../.github/workflows/claude-triage.yml) cannot fire — the workflow falls silent and Dependabot PRs will only get the regular PR-checklist comment. Nothing breaks, but the auto-triage doesn't happen.
+
+**Exact path:** `github.com/Sethmr/peanut.gallery` → Settings → Secrets and variables → Actions → **New repository secret**.
+
+- **Name:** `ANTHROPIC_API_KEY` (exact string, case-sensitive)
+- **Value:** paste from [console.anthropic.com](https://console.anthropic.com/) → Settings → API Keys. Create a fresh key named `peanut.gallery triage bot` so it's easy to revoke independently if needed.
+
+**Why a repo Actions secret (not a Dependabot secret, not env var):**
+
+- The triage workflow uses `pull_request_target`, which runs the workflow file from the **base branch** and has access to repo Actions secrets — even on PRs from forks and even on Dependabot PRs (which by default have zero Actions-secret access on plain `pull_request` events).
+- GitHub encrypts secrets at rest with libsodium, only decrypts them at workflow-run time, and auto-redacts the value from every line of workflow logs. The key is injected as an env var into the `claude-code-action` runtime; the value is NEVER passed into the `prompt:` field and NEVER printed anywhere.
+- A malicious or compromised PR cannot modify the workflow file to exfiltrate the secret, because the workflow is frozen at the base-branch version under `pull_request_target`.
+
+**Open-source safety checklist (one-time):**
+
+- [ ] Confirm the secret is scoped to **Actions**, not to **Codespaces** or **Dependabot** tabs (those are separate stores — adding it elsewhere doesn't help and clutters your secrets UI).
+- [ ] Do NOT add the secret to any workflow's `env:` block or `inputs:` — only pass it via `${{ secrets.ANTHROPIC_API_KEY }}` into the action's `anthropic_api_key:` parameter.
+- [ ] Do NOT echo or print the secret anywhere, even for debugging.
+- [ ] Enable branch protection on `main` and `develop` (step 8) before flipping this on — that prevents a malicious PR from landing a workflow edit without review.
+
+**Cost discipline:**
+
+- Each triage run is capped at `--max-turns 5`. Typical run: $0.05–$0.15 in API tokens.
+- Dependabot cadence is weekly, usually 2–5 PRs per run. Budget: under $5/month under normal cadence.
+- Set a hard monthly spend cap on the key in console.anthropic.com → Billing → Limits if you want belt-and-suspenders.
+
+**To rotate:**
+
+1. Generate new key in console.anthropic.com → API Keys.
+2. Update this secret (same name, new value). GitHub preserves the name and swaps the value.
+3. Delete the old key in console.anthropic.com. Any still-running workflow using the old value will fail; new workflow runs pick up the new value immediately.
+
+**To kill-switch:**
+
+- Delete the secret (Settings → Secrets and variables → Actions → `ANTHROPIC_API_KEY` → trash icon). The workflow will fail on the next Dependabot PR with a clear "anthropic_api_key is required" error. Nothing else breaks.
+- Or disable the workflow entirely: Actions tab → "Claude Triage" → `…` → Disable workflow.
+
+---
+
 ## What I handled for you (no action needed)
 
 These are committed in `chrome-extension/` and landed as part of the audit:
@@ -188,9 +251,14 @@ These are committed in `chrome-extension/` and landed as part of the audit:
 
 Per Seth's audit reframe: **this audit is about GitHub-facing pages architecture, not code automation.** Items explicitly not touched:
 
-- CI workflow files (`.github/workflows/`) — nothing shipped.
 - CodeQL / security scanning workflows — nothing shipped.
 - Release-tagging automation — manual for now.
-- Lint / test automation — pre-PR local checks only; Seth runs them before merge.
+- Lint / test automation in CI — pre-PR local checks only; Seth runs them before merge.
 
-If/when code automation is in scope, the code-quality audit is a separate conversation — this doc stays page-architecture-only.
+One deliberate exception (added 2026-04-19 on Seth's direct ask): `.github/workflows/pr-checklist-comment.yml` posts a fresh merge-requirements comment on every PR open + every new commit. It doesn't run tests or gate anything — pure signal to the author about what needs to be true to land. Rules live in `docs/RELEASE.md`; the comment links rather than duplicates. `.github/dependabot.yml` now also tracks the `github-actions` ecosystem weekly so the action versions used here stay current.
+
+Second deliberate exception (also 2026-04-19, Seth's direct ask): `.github/workflows/claude-triage.yml` fires fresh-Claude on Dependabot PRs for triage (comment-only first iteration, per [`BOT-TRIAGE-RUBRIC.md`](BOT-TRIAGE-RUBRIC.md)).
+
+Third deliberate exception (also 2026-04-19): `.github/workflows/protect-ai-instructions.yml` auto-closes external PRs that touch AI-instruction files (CLAUDE.md, .claude/, CODEOWNERS, dependabot.yml, .github/workflows/, the four AI-facing docs under docs/). These files tell AI bots how to behave; letting external PRs edit them is a prompt-injection / safety-bypass risk. Full policy: [`AI-INSTRUCTIONS-POLICY.md`](AI-INSTRUCTIONS-POLICY.md). The auto-close is the first gate; CODEOWNERS + branch protection (step 8) is the second.
+
+If/when broader code automation is in scope, the code-quality audit is a separate conversation — this doc stays page-architecture-only.

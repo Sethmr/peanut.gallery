@@ -8,7 +8,7 @@ Peanut Gallery stands on a lot of shoulders. This is the short ledger.
 
 ## The bounty that started it
 
-**[Jason Calacanis](https://x.com/Jason)** and **Lon Harris** — the TWiST AI sidebar bounty on *This Week in Startups* is the reason this project exists. $5,000 plus a guest spot; the spec was tight; the deadline was real. [Original brief](https://www.youtube.com/@ThisWeekInStartups).
+**[Jason Calacanis](https://x.com/Jason)** and **[Lon Harris](https://x.com/Lons)** — the TWiST AI sidebar bounty on *This Week in Startups* is the reason this project exists. $5,000 plus a guest spot; the spec was tight; the deadline was real. [Original brief](https://www.youtube.com/@ThisWeekInStartups).
 
 The TWiST persona pack in v1.3.0 (Molly Wood / Jason Calacanis / Lon Harris / Alex Wilhelm) is an inside-baseball thank-you, researched from public transcripts and shipped with anti-impersonation guardrails in every prompt. Characterization source: [`docs/packs/twist/RESEARCH.md`](docs/packs/twist/RESEARCH.md).
 

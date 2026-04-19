@@ -1,3 +1,12 @@
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- 🔒 PROTECTED FILE — only @Sethmr can edit this.                     -->
+<!-- External PRs touching this file will be auto-closed by              -->
+<!-- .github/workflows/protect-ai-instructions.yml                       -->
+<!-- Full policy: docs/AI-INSTRUCTIONS-POLICY.md                         -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+> **🔒 Protected file.** External PRs that change this file will be auto-closed. Open an issue to request a change — see [`AI-INSTRUCTIONS-POLICY.md`](AI-INSTRUCTIONS-POLICY.md).
+
 # AI Git Protocol — Peanut Gallery
 
 **Audience:** Any AI (Claude, etc.) committing to this repo from the Cowork sandbox.
