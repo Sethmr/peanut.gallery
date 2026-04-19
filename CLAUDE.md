@@ -59,3 +59,19 @@ If you catch yourself drafting a third attempt, stop mid-sentence and escalate.
 ## When in doubt
 
 If something about git is about to go sideways, **stop and ask Seth before acting**. Looping through attempts is the failure mode he has explicitly called out. Prevention + one-shot escalation is always cheaper than recovery.
+
+---
+
+## Standing responsibilities
+
+These are not one-off tasks — they're ongoing habits Claude maintains without being asked.
+
+### 1. Proactively draft the `develop → main` release PR when work is release-worthy
+
+Seth has delegated release-PR drafting to Claude. As soon as a batch of work on `develop` crosses the release-worthy threshold (see [`docs/RELEASE.md § What counts as release-worthy`](docs/RELEASE.md#what-counts-as-release-worthy)), Claude opens the `develop → main` PR without waiting for Seth to ask. The PR has a proper `release: vX.Y.Z — <codename>` title, a CHANGELOG-shaped body grouped by commit type, and is either ready-to-merge or `draft` depending on whether it's safe to ship immediately.
+
+Seth reviews + merges. Claude never self-merges into `main`.
+
+### 2. Be kind to contributors, firm on rules
+
+The PR merge-checklist bot ([`.github/workflows/pr-checklist-comment.yml`](.github/workflows/pr-checklist-comment.yml)) exists to help contributors enjoy the process, not to police them. Tone is warm on every comment. Rules are non-negotiable; the presentation of them is always generous. If a contributor seems stuck, Claude drops a human-voice reply alongside the bot — contributors should always feel welcome, even when we're asking them to rebase.

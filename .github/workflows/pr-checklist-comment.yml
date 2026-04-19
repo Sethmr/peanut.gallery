@@ -1,13 +1,19 @@
 name: PR Merge Checklist
 
 # Posts a fresh comment on every PR open + every new commit, telling the
-# author exactly what needs to be true for the PR to land. Links canonical
-# docs rather than duplicating them — if the rules change, update RELEASE.md
-# and the comment updates itself by reference.
+# author exactly where their PR stands on our rule system. Comments are
+# warm on tone, firm on rules. When everything we can verify machine-side
+# passes, the comment shifts to "looks merge-ready" so Seth has a clear
+# signal to do the final human pass + merge.
 #
-# Rationale: Seth, 2026-04-19 — "comment on anyone who puts up or updates a
-# pr and tell them what's required for it to be merged, so every new commit
-# gets a new message from you."
+# The goal is to help contributors enjoy the process — never to steal
+# their work, never to be condescending, always to appreciate the effort.
+#
+# Rationale: Seth, 2026-04-19 — "the new rule will just say something
+# like approved and testing when it is merge worthy. then I will merge.
+# The goal is not to steel work from those trying to contribute but help
+# them to enjoy the process, so be very kind and generous to people
+# always, but firm in following our rule system."
 
 on:
   pull_request_target:
@@ -21,72 +27,166 @@ jobs:
   comment:
     runs-on: ubuntu-latest
     steps:
-      - name: Post merge checklist
+      - name: Evaluate PR and post comment
         uses: actions/github-script@v7
         with:
           script: |
-            const baseRef = context.payload.pull_request.base.ref;
-            const headRef = context.payload.pull_request.head.ref;
-            const author = context.payload.pull_request.user.login;
-            const event = context.payload.action; // opened | synchronize | reopened
-            const sha = context.payload.pull_request.head.sha.substring(0, 7);
+            const pr = context.payload.pull_request;
+            const baseRef = pr.base.ref;
+            const headRef = pr.head.ref;
+            const author = pr.user.login;
+            const authorName = author === 'dependabot[bot]' ? 'Dependabot' : `@${author}`;
+            const event = context.payload.action;
+            const sha = pr.head.sha.substring(0, 7);
+            const body = pr.body || '';
+            const isDependabot = author === 'dependabot[bot]';
+            const targetingMain = baseRef === 'main';
 
+            // --- Fetch commits for verification / linear-history / convention checks ---
+            const { data: commits } = await github.rest.pulls.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+
+            // --- Check: signed commits ---
+            const unsigned = commits.filter(c => !c.commit.verification || !c.commit.verification.verified);
+            const signedOk = unsigned.length === 0;
+
+            // --- Check: linear history (no merge commits in the branch) ---
+            const mergeCommits = commits.filter(c => (c.parents || []).length > 1);
+            const linearOk = mergeCommits.length === 0;
+
+            // --- Check: conventional commit prefix on every commit ---
+            const conventionalRe = /^(feat|fix|docs|chore|refactor|test|ci|style|build|perf|revert)(\([^)]+\))?!?: .+/;
+            const nonConventional = commits.filter(c => {
+              const title = (c.commit.message || '').split('\n')[0];
+              return !conventionalRe.test(title);
+            });
+            const conventionalOk = nonConventional.length === 0;
+
+            // --- Check: PR body has What / Why / How / Testing / Risk sections ---
+            const sectionsFound = {
+              What: /^#{1,6}\s*what\b/im.test(body),
+              Why: /^#{1,6}\s*why\b/im.test(body),
+              How: /^#{1,6}\s*how\b/im.test(body),
+              Testing: /^#{1,6}\s*testing\b/im.test(body),
+              Risk: /^#{1,6}\s*risk/im.test(body),
+            };
+            const missingSections = Object.entries(sectionsFound).filter(([, v]) => !v).map(([k]) => k);
+            const pullTemplateOk = missingSections.length === 0;
+
+            // Dependabot PRs are generated — skip the PR template check for them.
+            const pullTemplateApplicable = !isDependabot;
+
+            // --- Compose trigger line ---
             const trigger = event === 'opened'
               ? `PR opened targeting \`${baseRef}\``
               : event === 'reopened'
                 ? `PR reopened targeting \`${baseRef}\``
                 : `New commit \`${sha}\` on \`${headRef}\``;
 
-            const targetingMain = baseRef === 'main';
-            const isDependabot = author === 'dependabot[bot]';
+            // --- Aggregate ---
+            const checks = [
+              { name: 'Signed commits', ok: signedOk, detail: signedOk ? null : `${unsigned.length} commit(s) unsigned. Branch protection will block merge. See [git signed commit setup](https://docs.github.com/en/authentication/managing-commit-signature-verification).` },
+              { name: 'Linear history', ok: linearOk, detail: linearOk ? null : `${mergeCommits.length} merge commit(s) in the branch. Rebase onto the base branch instead of merging in.` },
+              { name: 'Conventional commit titles', ok: conventionalOk, detail: conventionalOk ? null : `${nonConventional.length} commit(s) without a conventional prefix. Use \`feat:\` / \`fix:\` / \`docs:\` / \`chore:\` / \`refactor:\` / \`test:\` / \`ci:\`.` },
+            ];
+            if (pullTemplateApplicable) {
+              checks.push({
+                name: 'PR template filled',
+                ok: pullTemplateOk,
+                detail: pullTemplateOk ? null : `Missing section(s): ${missingSections.join(', ')}. See [PR template](../blob/develop/.github/PULL_REQUEST_TEMPLATE.md).`,
+              });
+            }
 
-            const mainOnlyGates = targetingMain ? `
+            const failing = checks.filter(c => !c.ok);
+            const allMachineChecksPass = failing.length === 0;
 
-            **Because this targets \`main\`, also required:**
+            // --- Author-confirmation boxes (can't be machine-verified) ---
+            const authorConfirmBoxes = [
+              '`npm run check` passes on your machine (typecheck + extension lint + 17 director fixtures)',
+              'Loaded the unpacked extension and verified the affected flow works',
+              'If persona / director changed: added or updated a fixture in `scripts/test-director.ts`',
+              'If backend wire-spec changed: bumped the wire protocol version + updated `docs/BUILD-YOUR-OWN-BACKEND.md`',
+            ];
 
-            - [ ] Branching from \`develop\`, not a feature branch (hotfixes are the only exception — see [\`RELEASE.md\`](../blob/develop/docs/RELEASE.md#hotfixes-direct-to-main))
-            - [ ] CODEOWNERS review from @Sethmr — auto-requested
-            - [ ] CHANGELOG / release notes in the PR body
-            - [ ] Version tag planned (\`git tag -a vX.Y.Z\`) for post-merge
+            // --- Conditional blocks ---
+            const mainOnlyNote = targetingMain ? `
+            > **Heads up:** this PR targets \`main\`, so it also needs a CODEOWNERS review from @Sethmr, a CHANGELOG entry in the PR body, and a planned version tag (\`vX.Y.Z\`) for post-merge. Those are release-gate, not contributor-gate — Seth will drive them.
             ` : '';
 
             const dependabotNote = isDependabot ? `
-
-            ---
-
-            **Dependabot heads-up:** this repo has a framework-upgrade policy. Patch + minor bumps are candidates to merge after \`npm run check\` passes. Major-version bumps default to **close + queue** under [ROADMAP.md → Future framework + dependency upgrades](../blob/develop/docs/ROADMAP.md#future-framework--dependency-upgrades) with a matching ignore rule added to \`.github/dependabot.yml\`. See the [triage rubric](../blob/develop/docs/ROADMAP.md#future-framework--dependency-upgrades) before expecting a merge.
+            > **Dependabot triage rubric:** patch + minor bumps with a clean \`npm run check\` can merge now. Major-version bumps default to **close + queue** under [ROADMAP.md → Future framework + dependency upgrades](../blob/develop/docs/ROADMAP.md#future-framework--dependency-upgrades) with a matching ignore rule added to \`.github/dependabot.yml\`. Not a reflection on the update — just the rhythm of this repo.
             ` : '';
 
-            const body = `### 🥜 Peanut Gallery — Merge Checklist
+            // --- Warm opener (rotates to avoid robotic feel) ---
+            const openers = isDependabot ? [
+              `Thanks for the keep-things-fresh, Dependabot 🤖`,
+              `Another dependency nudge from Dependabot — appreciated 🤖`,
+              `Dependabot dropping off an update 🤖`,
+            ] : [
+              `Thanks for the contribution, ${authorName}! 🥜`,
+              `Appreciate you putting this up, ${authorName} 🥜`,
+              `Nice — thanks for the PR, ${authorName} 🥜`,
+            ];
+            const opener = openers[Math.floor(Math.random() * openers.length)];
+
+            // --- Compose body depending on pass/fail state ---
+            let commentBody;
+
+            if (allMachineChecksPass) {
+              // Happy path: rules clear, just needs author confirmation + Seth's eyes.
+              commentBody = `
+            ### 🥜 ${opener}
 
             _${trigger}._
 
-            **Required for every PR:**
+            **Rule checks: ✅ all clear.**
 
-            - [ ] \`npm run check\` passes locally (typecheck + extension lint + 17 director fixtures)
-            - [ ] Commits are signed (\`git commit -S\`) — branch protection enforces this
-            - [ ] Linear history — rebase onto the base branch; no merge commits in the branch
-            - [ ] Conventional commit prefix (\`feat:\` / \`fix:\` / \`docs:\` / \`chore:\` / \`refactor:\`)
-            - [ ] [PR template](../blob/develop/.github/PULL_REQUEST_TEMPLATE.md) filled in: **What / Why / How / Testing / Risk**
-            - [ ] The commit body + PR body explain the _why_ and any _alternatives considered_ — fresh-context Claude should be able to reconstruct the decision from the diff + the words
+            ${checks.map(c => `- ✅ ${c.name}`).join('\n')}
 
-            **Touching git from an AI agent?** Read [\`docs/AI-GIT-PROTOCOL.md\`](../blob/develop/docs/AI-GIT-PROTOCOL.md) before any \`git\` write. The \`.git/index.lock\` rule is a hard no-exceptions rule.
+            **Approved from the rule system's side — this looks merge-ready.** 🎉
 
-            **Bumping a framework or major dep?** Read the [upgrade policy](../blob/develop/docs/ROADMAP.md#future-framework--dependency-upgrades) first — major bumps queue to post-v2.0 unless they're load-bearing for the current task.${mainOnlyGates}${dependabotNote}
+            Before @Sethmr does the final pass and merges, one last thing from you (the things we can't verify from up here):
 
-            ---
+            ${authorConfirmBoxes.map(b => `- [ ] ${b}`).join('\n')}
 
-            Full release model: [\`docs/RELEASE.md\`](../blob/develop/docs/RELEASE.md) · Contributing: [\`.github/CONTRIBUTING.md\`](../blob/develop/.github/CONTRIBUTING.md) · Self-merge contract: [\`RELEASE.md § Claude's self-merge contract\`](../blob/develop/docs/RELEASE.md#claudes-self-merge-contract)
+            If all of those are good, drop a reply saying "tested" and we're golden. If any of them surfaced something, just push another commit and I'll take another look.${mainOnlyNote}${dependabotNote}
 
-            <sub>This comment is posted fresh on every new commit by \`.github/workflows/pr-checklist-comment.yml\`.</sub>`;
+            _Seth — this one's ready for your review whenever you've got a minute._
 
-            // Normalise leading indentation — the template literal is indented
-            // for YAML readability, not for GitHub rendering.
-            const normalized = body.split('\n').map(line => line.replace(/^ {12}/, '')).join('\n');
+            <sub>Full release model: [\`docs/RELEASE.md\`](../blob/develop/docs/RELEASE.md). Posted by \`.github/workflows/pr-checklist-comment.yml\`.</sub>`;
+            } else {
+              // Something to fix. Keep it warm — small list, clear guidance.
+              const failingList = failing.map(c => `- ❌ **${c.name}** — ${c.detail}`).join('\n');
+              const passingList = checks.filter(c => c.ok).map(c => `- ✅ ${c.name}`).join('\n');
+              const howMany = failing.length === 1 ? 'one small thing' : `${failing.length} small things`;
+
+              commentBody = `
+            ### 🥜 ${opener}
+
+            _${trigger}._
+
+            Almost there — ${howMany} before this can merge. Nothing scary, just our normal rule set.
+
+            **Needs a nudge:**
+
+            ${failingList}
+
+            ${passingList ? `**Already good:**\n\n${passingList}\n` : ''}
+            Push another commit when you've addressed these and I'll take another look automatically. If anything here is unclear or feels off for your situation, just say so in a reply — real humans read this too.${mainOnlyNote}${dependabotNote}
+
+            <sub>Full release model: [\`docs/RELEASE.md\`](../blob/develop/docs/RELEASE.md) · Rule rationale: [\`.github/CONTRIBUTING.md\`](../blob/develop/.github/CONTRIBUTING.md). Posted by \`.github/workflows/pr-checklist-comment.yml\`.</sub>`;
+            }
+
+            // Normalize leading YAML-indentation whitespace.
+            const normalized = commentBody.split('\n').map(line => line.replace(/^ {12}/, '')).join('\n').trim();
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: pr.number,
               body: normalized,
             });

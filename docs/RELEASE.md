@@ -32,13 +32,24 @@ If in doubt, treat the PR as if it targets `main` and needs Seth's eyes anyway.
 
 ## Release flow — `develop` → `main`
 
+**Claude proactively drafts the release PR.** Seth doesn't ask. As soon as a batch of work on `develop` crosses a release-worthy threshold (one obvious feature, a meaningful bundle of fixes, or a documentation pass that's worth versioning), Claude opens the `develop → main` PR so Seth has a "review + merge" button waiting whenever he's next at the keyboard. The judgment of "release-worthy" is Claude's call to make — see "What counts as release-worthy" below; when in doubt, draft it as a PR with a clear title + body and let Seth weigh in.
+
 1. Gate check: `develop` green? No stranded hotfix on `main`?
 2. Skim `git log main..develop --oneline` + `git diff main..develop`.
-3. `gh pr create --base main --head develop --title "release: vX.Y.Z — <codename>"`. Body = CHANGELOG entry.
+3. `gh pr create --base main --head develop --title "release: vX.Y.Z — <codename>"`. Body = CHANGELOG entry, grouped by `feat:` / `fix:` / `docs:` / `chore:` from the commits being released. Mark the PR `draft` if there's any reason Seth might want to wait (still-canary work, pending hotfix, etc.) — otherwise open it ready-to-merge.
 4. **Seth merges.** (Claude cannot — branch protection + `.claude/settings.json` both block.)
 5. Tag: `git tag -a vX.Y.Z -m "..."` + `git push origin vX.Y.Z`.
 6. Build + upload the CWS zip per [`OPS.md`](OPS.md).
 7. Back-merge `main → develop` if the release PR got amended on `main`.
+
+### What counts as release-worthy
+
+- Any user-visible feature landing on `develop` (a `feat:` commit that ships behavior to the extension or backend).
+- A bundle of `fix:` commits that closes ≥1 known issue and stabilizes a flow.
+- A documentation pass that materially changes how a contributor or self-host operator works (think: new architecture doc, new install path, breaking change to the backend wire-spec).
+- A coordinated chore set worth versioning (e.g. this very release-pipeline change — workflow + docs + settings together).
+
+If the next thing on `develop` is a single-line typo fix or an unverified canary commit, **don't** open the release PR yet. Wait until there's something worth Seth's review attention.
 
 ## Hotfixes (direct-to-main)
 
