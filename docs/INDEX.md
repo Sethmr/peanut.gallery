@@ -5,6 +5,7 @@ Map of every markdown file in the repo, ordered by when you should read it.
 ## Read first (if you're resuming work)
 
 0. [`../CLAUDE.md`](../CLAUDE.md) + [`docs/AI-GIT-PROTOCOL.md`](AI-GIT-PROTOCOL.md) — **MANDATORY before any git write.** Peanut Gallery's sandbox cannot recover from an orphaned `.git/index.lock`. Prevention-first + one-shot terminal escalation; NO third-method retries.
+0.5. [`docs/RELEASE.md`](RELEASE.md) — **read before any merge.** Branch model (`feature/* → develop → main → tag + CWS`), the asymmetry (Claude self-merges `develop`; only Seth merges `main`), and the self-merge documentation contract. Links rather than duplicates the rest.
 1. [`docs/CONTEXT.md`](CONTEXT.md) — canonical project context. Stack, archetype slots + pack system, file map, SSE protocol, v1.4 pipeline-event list, cost table, what's shipped vs. coming.
 2. [`docs/SESSION-NOTES-2026-04-18.md`](SESSION-NOTES-2026-04-18.md) — most recent handoff. Post-v1.3.0 force-react / persona-tap debugging. **Read §1 "meta-note" before touching code** — two files on the working tree are modified but unverified-in-production; §5 is the localhost verification checklist to run first. §4 captures Seth's load-bearing principles (model decides *how* not *if*).
 3. [`docs/SESSION-NOTES-2026-04-17.md`](SESSION-NOTES-2026-04-17.md) — prior handoff. v1.1.1 shipped. §3 is the **immutable** server-side demo-keys architecture — do not re-embed keys in the extension. §5 is the finish-strong checklist. §6 points at `ROADMAP.md`.
@@ -67,6 +68,7 @@ To avoid the duplication that prompted this audit, each topic has ONE canonical 
 | Topic | Canonical source |
 |---|---|
 | AI git / `.git/index.lock` protocol | [`AI-GIT-PROTOCOL.md`](AI-GIT-PROTOCOL.md) + [`../CLAUDE.md`](../CLAUDE.md) |
+| Branch model + release flow + Claude's self-merge contract | [`RELEASE.md`](RELEASE.md) + [`../.claude/settings.json`](../.claude/settings.json) |
 | "What Jason wants" spec | [`CONTEXT.md` — What Jason Wants](CONTEXT.md#what-jason-wants-master-truth) |
 | Persona list + character research | `lib/packs/<pack>/personas.ts` (code) + [`CONTEXT.md` — The 4 Archetype Slots](CONTEXT.md#the-4-archetype-slots-swappable-via-persona-packs) (table). TWiST-specific voice notes: [`docs/packs/twist/RESEARCH.md`](packs/twist/RESEARCH.md). |
 | Architecture diagram | [`CONTEXT.md` — Architecture](CONTEXT.md#architecture) |

@@ -236,6 +236,22 @@ These were on the old roadmap and aren't on Seth's path. They stay alive as idea
 
 ---
 
+## Future framework + dependency upgrades
+
+**Policy (per Seth, 2026-04-19):** being current is good, but no unproven-tech experiments on tasks he didn't ask about. Major-version bumps with a real migration cost queue here, typically for a post-v2.0 upgrade window. Bot PRs (Dependabot, contributors) only merge now if they add value *now*; otherwise they're closed with a link to this section and a matching `.github/dependabot.yml` ignore rule so they don't keep re-opening. See [`feedback_no_unprompted_framework_experiments.md`](../../.auto-memory/feedback_no_unprompted_framework_experiments.md) for the triage rubric.
+
+**Currently queued:**
+
+- **Tailwind CSS 3 → 4.** Full engine rewrite (Oxide, new config format, `@apply` behavior changed, scanner rewritten, some plugins broken). Needs a scoped migration branch — content scanning config, `@apply` usages, plugin compatibility. Queue for post-v2.0 to avoid destabilizing the Broadsheet rebrand shipping in v1.5. Closed from Dependabot `PR #5`.
+- **Next.js 15 → 16.** Breaking changes in the app router, middleware, image component, and route handlers. The backend's `app/api/*` routes are load-bearing for the hosted extension path — a break here takes production down. Queue for post-v2.0; pair with the Path-2 URL work if timelines overlap. Closed from Dependabot `PR #2`.
+- **@anthropic-ai/sdk 0.39 → 0.90.** ~50 minor versions of API churn (tool use, streaming, message batches, beta APIs). `lib/director-llm.ts` and every persona caller will need review. Queue for post-v2.0; revisit after the v1.7 Smart Director GA canary clears so the upgrade lands against a known-good baseline. Closed from Dependabot `PR #4`.
+- **@types/node 22 → 25.** Lower-risk (types only), but 3 major versions deserves a look. If typecheck survives, merge now as a small PR; if not, queue. *Open Dependabot PR #6.*
+- **lint-stack group bump.** Low-risk. Merge now if `npm run check` is clean. *Open Dependabot PR #3.*
+
+When an entry here graduates into an active sprint, move it out of this queue and into the appropriate release section.
+
+---
+
 ## v2.x.x — Continuous model improvement (post-launch, pre-user-direction)
 
 **Frame:** after 2.0 ships, we keep improving the product's engine — director + personas — while we wait for user behavior to tell us what 3.0 is. This is the quiet, non-showy work that makes the gallery *smarter* per session without changing the surface.

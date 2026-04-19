@@ -100,16 +100,33 @@ Keeps the "what's next" story visible on the repo without requiring someone to r
 
 ## Priority 2 — governance
 
-### 8. Branch protection for `main`
+### 8. Branch protection — asymmetric (`main` strict, `develop` lighter)
 
-Settings → Branches → Branch protection rules → Add rule for `main`:
+Wires the `develop → main` model from [`RELEASE.md`](RELEASE.md) into GitHub's enforcement layer. Two rules — copy-paste each.
+
+**Rule 1 — `main`.** Settings → Branches → Add rule → pattern `main`:
 
 - [x] Require pull request before merging
+- [x] **Require approvals: 1** ← keeps Claude out of `main` even with write access
+- [x] Dismiss stale approvals on new commits
+- [x] Require review from Code Owners
 - [x] Require linear history
 - [x] Require signed commits
 - [x] Include administrators
+- [ ] Allow force pushes — off
+- [ ] Allow deletions — off
 
-Nothing to require status checks on yet — CI is intentionally local-only per the page-architecture audit (the audit scope was pages, not code automation). If/when you add CI later, add it as a required check here.
+**Rule 2 — `develop`.** Same page → Add another rule → pattern `develop`:
+
+- [x] Require pull request before merging
+- [ ] Require approvals — off ← what enables Claude's self-merge
+- [x] Require linear history
+- [x] Require signed commits
+- [x] Include administrators
+- [ ] Allow force pushes — off
+- [ ] Allow deletions — off
+
+No status checks required yet — CI is intentionally local-only. `.claude/settings.json` handles tool-level defense. If/when CI lands, add it as a required check on both rules.
 
 ### 9. Enable Sponsors
 
