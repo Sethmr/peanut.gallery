@@ -11,7 +11,7 @@ Map of every markdown file in the repo, ordered by when you should read it.
 4. [`docs/SESSION-NOTES-2026-04-16.md`](SESSION-NOTES-2026-04-16.md) — earlier handoff. §3 is the **immutable** permissions/gesture setup for the Chrome extension — read it before editing `extension/`.
 5. [`docs/DEBUGGING.md`](DEBUGGING.md) — canonical post-mortem log (ISSUE-001..009), v1.4 pipeline-event names, provider-specific error signatures. Diagnostic checklist + silent-failure table. Read before chasing any pipeline bug.
 6. [`docs/STATE-OF-PRODUCT-2026-04-18.md`](STATE-OF-PRODUCT-2026-04-18.md) — snapshot audit as of v1.5.0 feature-complete + pushed. TL;DR of current version, recent commits, canary gate, 9-subsystem health check, known risks, value framing per release. Start here if you're resuming work on/after 2026-04-18.
-7. [`docs/ROADMAP.md`](ROADMAP.md) — version-staged plan with fleshed-out sub-steps for near-term releases. Shipped: v1.2 / v1.3 / v1.4 / v1.5 (feature-complete, canary-pending). Near term: v1.5.1 Smart Director Polish, v1.6 Voice + Clip Share, v1.7 Pack Lab, v1.8 Live Moments. Horizon: v2.0 3D Bobbleheads. Don't pull work forward across release boundaries without confirming scope.
+7. [`docs/ROADMAP.md`](ROADMAP.md) — version-staged plan with fleshed-out sub-steps for near-term releases. Shipped: v1.2 / v1.3 / v1.4 / v1.5 (feature-complete, canary + tag pending). Path to v2.0 (Seth's explicit sequence, 2026-04-19): v1.5.1 Broadsheet Final → v1.6 Settings Pane → v1.7 Smart Director GA → v1.8 Peanut Mascots → v1.9 Bobbleheads (Stretch) → v2.0 "The Gallery" launch with session recall + shareable snippet as the distribution loop. Post-launch: v2.x continuous director + persona model improvements. v3.0: deliberately user-driven — direction defined by what 2.0 users ask for. Deferred off the critical path: Voice / TTS, MP4 clip share, Pack Lab UI, Live Moments, overlay mode, personal-context memory. Don't pull work forward across release boundaries without confirming scope.
 
 ## Architecture & operations
 
@@ -25,7 +25,8 @@ Map of every markdown file in the repo, ordered by when you should read it.
 
 - [`extension/README.md`](../extension/README.md) — Chrome extension: install, architecture diagram, why it exists.
 - [`README.md`](../README.md) — public-facing README. Setup, personas overview, cost, deploy.
-- [`docs/index.html`](index.html) — landing page served at peanutgallery.live (GitHub Pages / Railway).
+- [`AUTHORS.md`](../AUTHORS.md) — credits ledger: Seth, Jason + Lon, Claude Design, OSS deps.
+- [`docs/index.html`](index.html) — legacy reference landing page kept in-repo for the self-host preview only. Production marketing now lives at [www.peanutgallery.live](https://www.peanutgallery.live) and is served from the [`Sethmr/peanut.gallery.site`](https://github.com/Sethmr/peanut.gallery.site) repo (GitHub Pages).
 - [`docs/PODCASTER-SETUP.md`](PODCASTER-SETUP.md) — audio routing guide for OBS, Riverside, SquadCast, BlackHole/Loopback, VB-Audio, RODECaster, GoXLR, Wave XLR. Pairs with the Audio Routing section of the side panel.
 - [`docs/packs/twist/RESEARCH.md`](packs/twist/RESEARCH.md) — character research for the TWiST pack (Molly Wood, Jason Calacanis, Lon Harris, Alex Wilhelm). Source of truth when a TWiST voice feels off; paired with `lib/packs/twist/personas.ts`.
 
@@ -44,6 +45,20 @@ Map of every markdown file in the repo, ordered by when you should read it.
 - [`docs/V1.3-PLAN.md`](V1.3-PLAN.md) — step-by-step implementation plan for v1.3.0 (TWiST pack). Shipped; kept for history.
 - [`docs/TEST-V1.1.md`](TEST-V1.1.md) — end-to-end test checklist used before the v1.1 Railway deploy + CWS publish. Shipped; kept for history.
 - [`TWIST-AI-SIDEBAR-BUILD-PLAN.md`](../TWIST-AI-SIDEBAR-BUILD-PLAN.md) — original pre-build plan from 2026-04-15. References "Chaos Agent" (now Fred Norris), Vercel (now Railway), `twist-sidebar` (now `peanut.gallery`), and `-f wav` (fixed to `-f s16le`). Kept for history; superseded by CONTEXT.md.
+
+## Community & governance
+
+Pages that appear on the GitHub repo front and matter to anyone landing from the wild:
+
+- [`../.github/CONTRIBUTING.md`](../.github/CONTRIBUTING.md) — how to ship a useful PR; pre-PR checks; commit style; the non-negotiables.
+- [`../.github/CODE_OF_CONDUCT.md`](../.github/CODE_OF_CONDUCT.md) — builder-community norms, short form.
+- [`../.github/SECURITY.md`](../.github/SECURITY.md) — disclosure policy + `security@peanutgallery.live` + supported versions table.
+- [`../.github/SUPPORT.md`](../.github/SUPPORT.md) — triage guide: bug / feature / pack / security / discussion.
+- [`../AUTHORS.md`](../AUTHORS.md) — credits ledger.
+- [`../LICENSE`](../LICENSE) — MIT.
+- [`../.github/ISSUE_TEMPLATE/`](../.github/ISSUE_TEMPLATE/) — bug report, feature request, pack request templates.
+- [`../.github/PULL_REQUEST_TEMPLATE.md`](../.github/PULL_REQUEST_TEMPLATE.md) — the what/why/how/testing/risk shape every PR needs.
+- [`docs/GITHUB-MANUAL-STEPS.md`](GITHUB-MANUAL-STEPS.md) — one-time GitHub web-UI actions Seth needs to take to complete the page-architecture audit (About card, topics, Discussions, labels, branch protection, Sponsors, security features).
 
 ## Source of truth — one thing per topic
 

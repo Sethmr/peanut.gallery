@@ -1,0 +1,95 @@
+name: "🐛 Bug report"
+description: "Something's broken in the extension or the backend."
+title: "[bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. A minute of context upfront saves an hour of back-and-forth later.
+        If you're running your own backend, please also include the backend logs around the time of the issue.
+
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      description: "Shown as a badge in the masthead (e.g. `v1.5.0`) or under `chrome://extensions`."
+      placeholder: "v1.5.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend
+      options:
+        - "Hosted (api.peanutgallery.live)"
+        - "Self-hosted (reference backend, Node/Next.js)"
+        - "Self-hosted (custom / build-your-own)"
+        - "localhost dev"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: pack
+    attributes:
+      label: Persona pack
+      options:
+        - "Howard (default)"
+        - "TWiST"
+        - "Other / custom"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: "Include what you were watching (URL is fine), what you expected, and what you got instead."
+      placeholder: "Started listening on a TWiST episode. Baba Booey fired once, then all four mugs stopped updating for the rest of the session."
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: "Minimal steps we can follow to hit this ourselves."
+      placeholder: |
+        1. Open youtube.com/watch?v=...
+        2. Click the peanut icon → Start Listening
+        3. Wait ~90 seconds
+        4. Observe no persona fires
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Service worker / side panel console output
+      description: "`chrome://extensions` → Peanut Gallery → `service worker` (inspect). Paste anything that looks relevant."
+      render: shell
+
+  - type: input
+    id: chrome-version
+    attributes:
+      label: Chrome version
+      placeholder: "132.0.6834.84"
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "macOS 14.7 / Windows 11 / Ubuntu 24.04"
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight
+      options:
+        - label: "I searched existing issues and this isn't a duplicate."
+          required: true
+        - label: "I'm on the latest version (or I've noted the version above)."
+          required: true
+        - label: "I've included my API keys only where the extension asks for them — never in this issue."
+          required: true

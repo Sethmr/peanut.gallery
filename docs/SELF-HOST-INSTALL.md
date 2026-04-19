@@ -33,8 +33,8 @@ Peanut Gallery has two audiences for this doc:
 
 - **Extension user who doesn't trust a shared backend.** Run the server on
   your own machine; the Chrome extension will send audio to `localhost:3000`
-  and nothing ever touches `peanutgallery.live`. Your API keys, audio, and
-  transcripts stay on your laptop.
+  and nothing ever touches `api.peanutgallery.live` or any other hosted
+  surface. Your API keys, audio, and transcripts stay on your laptop.
 - **Developer who wants to host a branded fork.** Stand it up on Railway,
   Fly, Render, Vercel (with caveats — see [Deploy](#deploy-to-a-public-host-railway--docker--vercel)),
   or any Docker host and point your own Chrome extension build at it.
@@ -190,7 +190,7 @@ BRAVE_SEARCH_API_KEY=BSA...   # required only when SEARCH_ENGINE=brave
 2. Open any YouTube video.
 3. Click the 🥜 icon. The side panel opens.
 4. Expand the **Backend server** field. Change the URL from
-   `https://peanutgallery.live` to `http://localhost:3000`.
+   `https://api.peanutgallery.live` to `http://localhost:3000`.
 5. (Optional) Expand **API keys**. If you've already put keys in
    `.env.local` on the server, leave these blank — the server will use env
    vars. If you want to override on a per-request basis (useful for testing
@@ -249,8 +249,9 @@ want Vercel:
 - Or split: host the static site on Vercel, host `/api/*` on Railway.
 - Or just use Railway for everything — it's simpler.
 
-The reference backend at `peanutgallery.live` runs on Railway for exactly
-this reason.
+The reference backend at `api.peanutgallery.live` runs on Railway for
+exactly this reason (the marketing site at `www.peanutgallery.live` runs on
+GitHub Pages).
 
 ### What NOT to ship publicly
 

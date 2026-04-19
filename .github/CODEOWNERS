@@ -1,0 +1,14 @@
+# Default — Seth owns everything. Scope down per-area as the project grows.
+*                          @Sethmr
+
+# Extension surface — high-blast-radius, double-check on changes
+/extension/                @Sethmr
+/extension/manifest.json   @Sethmr
+
+# Marketing + listing copy — review for brand consistency
+/marketing/                @Sethmr
+
+# Docs — ROADMAP / CHANGELOG / SHIP / CONTEXT are the load-bearing ones
+/docs/ROADMAP.md           @Sethmr
+/CHANGELOG.md              @Sethmr
+/SHIP.md                   @Sethmr
