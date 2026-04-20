@@ -121,13 +121,13 @@ Ordered by (impact × ease) descending. Numbered for easy reference in chat.
 
 ## Measurement checkpoints — when to come back
 
-| Date | Milestone |
-|---|---|
-| 2026-04-20 (Mon) | GSC indexing data populates; Bing Search Performance data unlocks |
-| 2026-04-25 (Sat) | 7-day post-variant-ship delta measurable in GA4 + GSC |
-| 2026-05-02 (Sat) | First real position data in GSC; first install-CTR trend |
-| 2026-05-16 (Sat) | 4-week view; CWV starts to populate if we've pushed traffic |
-| 2026-07-11 (Sat) | End-of-plan measurement. Target: 100+ clicks from non-branded queries |
+| Date | Milestone | Status |
+|---|---|---|
+| 2026-04-20 (Mon) | GSC indexing data populates; Bing Search Performance data unlocks | ⏳ **scheduled task ran; delta docs scaffolded at `2026-04-20-{gsc,bing}-delta.md`; numeric pulls blocked on Seth's keyboard** |
+| 2026-04-25 (Sat) | 7-day post-variant-ship delta measurable in GA4 + GSC | ⏳ pending |
+| 2026-05-02 (Sat) | First real position data in GSC; first install-CTR trend | ⏳ pending |
+| 2026-05-16 (Sat) | 4-week view; CWV starts to populate if we've pushed traffic | ⏳ pending |
+| 2026-07-11 (Sat) | End-of-plan measurement. Target: 100+ clicks from non-branded queries | ⏳ pending |
 
 Each checkpoint has a specific deliverable (see each baseline doc's "Next-measurement checkpoints" section). I'll write a short delta doc at each one — `marketing/baselines/YYYY-MM-DD-{gsc|ga4|bing}-delta.md`.
 
