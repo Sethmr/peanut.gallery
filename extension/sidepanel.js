@@ -1993,7 +1993,11 @@ function applyFilterState() {
     else gallery.setAttribute(`data-hide-${r}`, "true");
   }
   for (const pill of filterPillEls) {
-    pill.classList.toggle("on", activeFilters.has(pill.dataset.filter));
+    const active = activeFilters.has(pill.dataset.filter);
+    pill.classList.toggle("on", active);
+    // Mirror the visual state into aria-pressed so screen readers announce
+    // "pressed" / "not pressed" when focus lands on the pill.
+    pill.setAttribute("aria-pressed", active ? "true" : "false");
   }
 }
 for (const pill of filterPillEls) {
