@@ -57,20 +57,24 @@ Details on any of these live in the corresponding `docs/V<x>-PLAN.md` or the `CH
 
 ---
 
-## Path to v2.0 — Seth's road, 2026-04-19
+## Path to v2.0 — Seth's road
 
-The releases below are the explicit sequence Seth has chosen on the way to the v2.0 launch ("The Gallery"). Each maps onto one numbered step in his plan; release boundaries are still load-bearing — confirm scope before pulling work forward. The deferred features that previously held v1.6 / v1.7 / v1.8 (voice, clip share, pack lab, live overlay) move to [Deferred](#deferred--off-the-critical-path-to-v20) below; they're still good ideas, just not on the critical path.
+The releases below are the explicit sequence on the way to the v2.0 launch ("The Gallery"). Release boundaries are load-bearing — confirm scope before pulling work forward. The deferred features that previously held the old v1.6 / v1.7 / v1.8 slots (voice, clip share, pack lab, live overlay) moved to [Deferred](#deferred--off-the-critical-path-to-v20) below; they're still good ideas, just not on the critical path.
 
-| Step | Release | Theme | Status |
-|------|---------|-------|--------|
-| 1 + 2 | v1.5.0 → v1.5.1 → v1.5.2 | "The Broadsheet" → "Broadsheet Final" → "First Run" — finish the new UI, clean out the legacy web app, onboard users into the drawer | v1.5.0 tagged + in CWS review; v1.5.1 merged to `main` ([#18](https://github.com/Sethmr/peanut.gallery/pull/18), tag pending); v1.5.2 tutorial in flight on `develop` |
-| 3 + 4 | v1.6.0 | "Settings Pane" — proper settings surface + UI/UX polish pass | Planned |
-| 5 | v1.7.0 | "Smart Director GA" — LLM director the only director; static rule-based path retired | Planned |
-| 6 | v1.8.0 | "Peanut Mascots" — illustrated peanut avatars per persona, each holding their signature prop | Planned |
-| 7 | v1.9.0 | "Bobbleheads (Stretch)" — 2-day attempt at 3D peanut bobbleheads; max-credible fallback if not | Planned |
-| 9 + 10 | v2.0.0 | "The Gallery" — audit, refine, ship session recall + shareable snippet, launch | Horizon |
-| 8 (ongoing) | v2.x.x | Director + persona model improvements while we wait for user-driven 3.0 direction | Post-launch |
-| TBD | v3.0.0 | **User-driven** — direction defined by what 2.0 users ask for, not by us | TBD |
+**Cleanup note (2026-04-20):** v1.6 "Settings Pane" landed early inside v1.5.1 (the 6-submenu drawer absorbed the whole scope). v1.8 "Peanut Mascots" landed early inside v1.5.3 (illustrated SVG peanuts across both packs, shipped by Claude in one session rather than blocked on a designer pipeline). Both version numbers are now retired — the next planned release is **v1.7 "Smart Director GA"**. The corresponding v1.6 / v1.8 subsections below have been collapsed to pointers at the matching CHANGELOG entry.
+
+| Release | Theme | Status |
+|---|---|---|
+| v1.5.0 "The Broadsheet" | Broadsheet UI rebuild + Smart Director v2 scaffolding + Path-2 URL readiness | ✅ Shipped |
+| v1.5.1 "Broadsheet Final" | 6-submenu settings drawer (**absorbs v1.6 "Settings Pane" scope**) + free-tier status strip + ON AIR strip + per-mug waveforms + rolling-window ticker + round mugs | ✅ Shipped |
+| v1.5.2 "First Run" | Four-step Editor's Note onboarding tour + WIRE QUIET empty-state visibility fix | ✅ Shipped |
+| v1.5.3 "The Cast" | Illustrated peanut mascots for all 8 personas (**absorbs v1.8 "Peanut Mascots" scope**) + two-card pack chooser + apex→www middleware + war-defense guardrail on fact-checkers | ✅ Shipped |
+| v1.5.4 "The Sweep" | Janitorial pass — SEO refresh + legacy `/watch` deletion + side-panel a11y polish + ops logging + orphan-dep removal | 🟡 Draft PR [#37](https://github.com/Sethmr/peanut.gallery/pull/37); hold CWS upload until v1.5.3 clears review |
+| **v1.7.0 "Smart Director GA"** | LLM director becomes the only director; static rule-based scorer retired. Prompt + calibration work following an external research brief. | **Next** |
+| v1.9.0 "Bobbleheads (Stretch)" | 2-day gamble on 3D peanut bobbleheads with max-credible 2.5D / Lottie / sprite fallback | Planned |
+| v2.0.0 "The Gallery" | Session recall + shareable snippet, full audit, CWS listing + marketing-site refresh, launch day | Horizon |
+| v2.x.x | Continuous director + persona model improvements while we wait for user-driven v3.0 direction | Post-launch |
+| v3.0.0 | **User-driven** — direction defined by what v2.0 users ask for, not by us | TBD |
 
 ### v1.5.1 "Broadsheet Final" — Steps 1 + 2
 
@@ -90,30 +94,21 @@ One purpose: get v1.5.0 across the finish line and remove the legacy web-app sur
 
 ---
 
-### v1.6.0 "Settings Pane" — Steps 3 + 4
+### ~~v1.6.0 "Settings Pane"~~ — absorbed into v1.5.1 + v1.5.4
 
-> **Re-scope note (2026-04-20):** the core settings-surface work in this section already shipped in v1.5.1 — 6-submenu drawer (Lineup / Backend & keys / Audio / Critics / Export / Appearance), masthead gear, settings persistence. v1.6 is now the **polish-and-a11y pass** on top of that surface (steps 4–7 below), not a green-field build. Update sub-steps 1–3 accordingly when this release is queued up.
+**Retired.** The six sub-steps originally planned for v1.6 landed across two earlier releases:
 
-The Broadsheet shipped with mute toggles, theme toggle, and audio routing wired into the same gear-icon drawer. That worked for v1.5; it stops scaling the moment we add a fifth or sixth setting (per-persona model overrides, voice toggles when those land, debug-trace verbosity, etc.). Step 3 carves out a real settings surface; step 4 is the open-ended UI/UX polish pass that a real settings surface always invites.
+- **Sub-steps 1–3** — audit, sectioned settings page, persistence + `settingsSchemaVersion` — shipped in **v1.5.1 "Broadsheet Final"** as the 6-submenu drawer (Lineup / Backend & keys / Audio / Critics / Export / Appearance). See the v1.5.1 entry in [`../CHANGELOG.md`](../CHANGELOG.md).
+- **Sub-step 7 (a11y audit)** — SR labels on every icon-only button, `aria-pressed` on filter pills, `role="log" aria-live="polite"` on the feed, universal `:focus-visible` rings — shipped in **v1.5.4 "The Sweep"** ([PR #31](https://github.com/Sethmr/peanut.gallery/pull/31)).
+- **Sub-step 5 (empty-state companions: no API keys / backend unreachable / audio denied / no pack selected)** — still open. Good next-tier polish candidate; small, self-contained, no regression surface.
+- **Sub-step 6 (Director debug panel reorganization)** — still open, but Director-adjacent; hold until the ongoing Smart-Director research brief returns.
+- **Sub-step 4 (Claude Design UX polish pass)** + **Sub-step 7 contrast check across Paper + Night** — still open as design-owned work, not engineering-blocking.
 
-**Sub-steps:**
-
-1. **Audit the current gear-icon drawer.** What's settings-shaped (theme, mutes, server URL, API keys, search engine, audio mode), what's session-shaped (start/stop, force-react), what's reference-shaped (audio routing guide). Move only the first bucket; leave the rest where they live.
-2. **New Settings page.** Side-panel-native (not a popup). Sectioned: **Appearance** (theme, type-scale if Claude Design wants it), **Personas** (per-persona mute, future per-persona model override), **Backend** (server URL, hosted vs self-hosted, search-engine toggle), **Keys** (the existing API-keys block, isolated). One row per setting; descriptions sit underneath labels, not in tooltips.
-3. **Settings persistence.** Same `chrome.storage.local` single-field-write pattern from v1.5. Race-safe against `loadSettings`. Add a `settingsSchemaVersion` field so future migrations have a hook.
-4. **UX polish pass — Claude Design owns the visual decisions.** Engineering-side I'll set up the surfaces, the affordances, and the keyboard nav (Tab order, Esc closes drawer, Enter on a focused row activates). Palette / type / composition stay in the design brief — see [`marketing/CLAUDE-DESIGN-BRIEF.md`](../marketing/CLAUDE-DESIGN-BRIEF.md).
-5. **Empty-state and error-state polish.** Wire Quiet (already exists) gets companion states for: no API keys configured, hosted backend unreachable, audio capture denied, no pack selected. Each state has one CTA.
-6. **Director debug panel reorganization.** It currently lives in the gear drawer as a power-user toggle. v1.6 promotes it to its own collapsible footer section that's hidden by default but discoverable.
-7. **Accessibility audit.** Screen reader labels on every toggle, focus rings on every interactive element, contrast check against both Paper and Night themes.
-8. **Tag `v1.6.0`.** Release notes: "the Broadsheet, but you can find things in it now."
-
-**Touches:** `extension/sidepanel.html` (large refactor of the drawer markup), `extension/sidepanel.js` (`renderSettings`, schema version, new state machine), `extension/sidepanel.css` if we split it (currently inline). No backend changes.
-
-**Risk:** every UI rebuild is a chance to regress what already works. Take screenshots of v1.5.1 before starting; check them at every commit.
+If any of the three still-open sub-items get picked up, they can ride with whichever release is in flight rather than waiting for a dedicated v1.6 cut. The version label itself is retired.
 
 ---
 
-### v1.7.0 "Smart Director GA" — Step 5
+### v1.7.0 "Smart Director GA"
 
 The Director is the moat. v1.5 shipped the LLM-assisted version behind a 400ms race; v1.7 makes it the only director and retires the static rule-based scorer. This is the load-bearing change of the v2.0 cycle — *Peanut Gallery without LLM routing* and *Peanut Gallery with LLM routing* are different products, and we're committing to the latter.
 
@@ -135,50 +130,31 @@ The Director is the moat. v1.5 shipped the LLM-assisted version behind a 400ms r
 
 ---
 
-### v1.8.0 "Peanut Mascots" — Step 6
+### ~~v1.8.0 "Peanut Mascots"~~ — absorbed into v1.5.3 "The Cast"
 
-The brand moment. Today personas show as initial-circles with a corner glyph. v1.8 replaces that with illustrated peanut characters — each persona is a peanut holding their signature prop. This is *literally* the Peanut Gallery.
+**Retired.** All 8 mascots shipped in v1.5.3 via a single-session push by Claude using hand-authored SVG (illustrated dumbbell-body peanuts with per-persona props), rather than the designer-pipeline approach the original sub-steps described. See the v1.5.3 entry in [`../CHANGELOG.md`](../CHANGELOG.md) and [PR #24](https://github.com/Sethmr/peanut.gallery/pull/24) for the implementation.
 
-The visual decisions (illustration style, palette, the actual rendered peanut) are Claude Design's. Engineering owns the system that loads, renders, animates, and ships them.
+Deltas from the original v1.8 plan worth knowing about:
 
-**Sub-steps (engineering scope only — designer scope tracked in [`marketing/CLAUDE-DESIGN-BRIEF.md`](../marketing/CLAUDE-DESIGN-BRIEF.md)):**
+- The `Persona.mascot` schema field the original plan described was **not added.** The mascot SVG is produced inline by `personaMascotHTML(personaId, packId)` in `extension/sidepanel.js` via a shared `buildPeanutSVG` helper with `bodyStops` / `bodyStroke` / `eyesLight` overrides. Packs define no mascot field; the function returns `null` for unknown combos and the UI falls back to block-letter initials.
+- Animation shipped as CSS keyframe-only (idle bob + talk-wiggle on `.persona-bubble.speaking`), no Lottie / sprite-sheet pipeline.
+- Director-trace integration (the original sub-step 6) is **not done** — trace still shows the old glyph, not the new mascot. Flagging as a follow-up for whichever release next touches the director trace surface.
+- Mute-state "prop drops to the floor" flourish (original sub-step 5) is **not done** — today's mute state is greyscale + strike-through on the whole bubble. Follow-up.
 
-1. **`Persona.mascot` schema.** New optional field on the `Persona` type:
-   ```ts
-   mascot?: {
-     idleSrc: string;       // /icons/mascots/<pack>/<slot>-idle.svg
-     reactSrc: string;      // /icons/mascots/<pack>/<slot>-react.svg
-     prop: string;          // human-readable: "clipboard", "microphone", "soundboard"
-     palette: { ink: string; accent: string }; // designer-supplied
-   }
-   ```
-   Packs that predate v1.8 still work — `buildPersonaAvatars` falls back to today's initials path when `mascot` is undefined.
-2. **Asset pipeline.** Mascots ship as SVG (vector — scales cleanly to whatever sizes the side panel and future surfaces need). Stored under `extension/icons/mascots/<pack>/`. Manifest references stay zero (we don't need them in `web_accessible_resources` since the side-panel page loads them directly).
-3. **Prop-as-routing-signal (optional, behind a hint).** Each mascot's `prop` becomes the visual shorthand for the persona's role — clipboard = fact-checker, mic = joker, soundboard = soundfx, megaphone or bullhorn = troll. Prop assignment is the designer's call but engineering surfaces a `slotProp` map so it stays consistent across packs.
-4. **Reaction animation hooks.** Mascot has two states: `idle` and `react`. On every fire event, the mascot swaps to `react` for ~1.2s then settles back. CSS keyframe animation, GPU-cheap. No JS animation engine required.
-5. **Mute state visualization.** Today: greyscale + strikethrough on the initials circle. v1.8: greyscale + strikethrough on the mascot, plus the prop drops to the floor of the avatar bounding box (visual cue that the mascot is "off duty").
-6. **Director-trace integration.** When a persona fires, the trace row shows the mug + prop. When the LLM rationale references a prop ("clipboard cited a date error"), the trace highlights it — closes the loop between the visual identity and the routing reasoning.
-7. **Howard pack mascot prop list (designer reference, engineering captures here for traceability):**
-   - Producer / Baba Booey: clipboard or fact-check stamp
-   - Troll: bullhorn or pitchfork
-   - Sound FX / Fred: soundboard or sound-effect button
-   - Joker / Jackie: microphone or comedy notebook
-8. **TWiST pack mascot prop list (same caveat):**
-   - Producer / Molly Wood: notepad or microphone
-   - Troll / Jason Calacanis: cap-table spreadsheet or "fund" stamp
-   - Sound FX / Lon Harris: chyron / lower-third graphic
-   - Joker / Alex Wilhelm: TWiST data chart
-9. **Tag `v1.8.0`.** Release notes lead with: "the gallery is finally a gallery."
+The final prop mapping differs slightly from the designer reference list above:
 
-**Touches:** new `extension/icons/mascots/` tree, `extension/sidepanel.html` (markup for new avatar slot), `extension/sidepanel.js` (`buildPersonaAvatars` rewrite), `extension/sidepanel.css` if it splits out, `lib/packs/*/personas.ts` (add mascot field), `marketing/CLAUDE-DESIGN-BRIEF.md` (mascot brief — designer source of truth).
-
-**Risk:** illustration style drifts between packs and the visual identity feels inconsistent. Mitigation: lock the design language to the same constraints (pencil-line, single-prop, ink palette per pack) in the brief before any pack-2 illustration starts.
+| Slot | Howard prop | TWiST prop |
+|---|---|---|
+| Producer | Clipboard + blue ✓ (Baba Booey) | Spiral-bound reporter notebook (Molly) |
+| Troll | Boiled peanut (no prop — state IS the character) | Red megaphone with sound-wave lines (Jason) |
+| Sound FX | Purple DJ headphones (Fred) | B&W clapperboard with purple scene tag (Lon) |
+| Joker | Amber-trimmed stand mic (Jackie) | Three-slice pie chart, amber dominant (Alex) |
 
 ---
 
-### v1.9.0 "Bobbleheads (Stretch)" — Step 7
+### v1.9.0 "Bobbleheads (Stretch)"
 
-Seth's call: 3D bobbleheads land here **if and only if** we can get a credible v1 in two days. If two days isn't enough, we ship the **maximum visual upgrade possible** in the same time budget instead — never half-built 3D. The goal is a "holy shit" visual moment between the v1.8 mascots and the v2.0 launch, not a long animation pipeline.
+Seth's call: 3D bobbleheads land here **if and only if** we can get a credible v1 in two days. If two days isn't enough, we ship the **maximum visual upgrade possible** in the same time budget instead — never half-built 3D. The goal is a "holy shit" visual moment between the v1.5.3 mascots and the v2.0 launch, not a long animation pipeline.
 
 **The 2-day gamble (preferred path):**
 
@@ -188,7 +164,7 @@ Seth's call: 3D bobbleheads land here **if and only if** we can get a credible v
 
 **Fallback path (if Day 1 says "not credible"):** ship the **maximum** version of what 2 days *can* deliver. In priority order:
 
-- **2.5D parallax mascots.** Layer the v1.8 mascot art across 3-4 depth planes; CSS transform on mouse / fire events. ~80% of the bobblehead "wow" for ~10% of the work.
+- **2.5D parallax mascots.** Layer the v1.5.3 mascot SVGs across 3-4 depth planes; CSS transform on mouse / fire events. ~80% of the bobblehead "wow" for ~10% of the work.
 - **Lottie reaction loops.** Designer ships per-persona After Effects → Lottie JSON files; engineer wires them to fire events. Crisp at any DPR, animates through the reaction beat.
 - **Animated GIF / WebP sprite sheets.** Lowest fidelity but zero runtime cost. Designer ships sheets; engineer swaps `<img src>` on fire events.
 - **AI-generated MP4 reaction loops.** 1-2s seamless loops per persona × pack. Cheap to make, looks premium, no animation pipeline. Pre-cache and play on fire.
@@ -215,13 +191,13 @@ The brand moment. Everything from v1.5 → v1.9 stacks into a single coherent pr
    - Persist sessions to `chrome.storage.local` (TTL 30d, FIFO eviction at 50 sessions).
    - New side-panel "📚 Past sessions" section, sorted reverse-chronological, each row a single-line title (video URL, time of day, session length, fire count).
    - Click a session → render its Markdown with a snippet-share affordance per quip cluster.
-   - Each snippet renders to a canvas matching the Broadsheet aesthetic + mascots/bobbleheads (v1.8 + v1.9) + footer attribution.
+   - Each snippet renders to a canvas matching the Broadsheet aesthetic + mascots/bobbleheads (v1.5.3 + v1.9) + footer attribution.
    - Copy PNG to clipboard **or** download. No server round-trip.
    - Privacy note in settings: sessions are stored locally, never uploaded; "Clear all sessions" button.
 2. **Full audit.** Walk every surface against a "first-time user from Jason's audience" persona. The README. The CWS listing. The marketing site. The first 60 seconds inside the side panel. Every transition, every error state, every empty state.
 3. **Bug fix sweep.** Triage every open issue, every TODO comment, every "we'll fix this later" deferred from v1.5–v1.9. Fix or formally defer with a v2.1 milestone.
 4. **Performance pass.** p95 director-tick latency, p95 first-byte from Deepgram, side-panel render budget. Establish a baseline; fix anything > 2x last release's budget.
-5. **Accessibility regression check.** Re-walk the v1.6 a11y audit against everything that landed since.
+5. **Accessibility regression check.** Re-walk the v1.5.4 a11y pass (SR labels, `aria-pressed`, `role="log"`, `:focus-visible`, per [PR #31](https://github.com/Sethmr/peanut.gallery/pull/31)) against everything that landed since, plus add the contrast-across-themes check that hasn't happened yet.
 6. **Marketing alignment.** New CWS listing copy, new screenshots, new walkthrough video. Coordinated with `Sethmr/peanut.gallery.site` for a landing-page refresh on launch day.
 7. **Launch day.**
    - CWS upload of `peanut-gallery-v2.0.0.zip`.
