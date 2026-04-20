@@ -14,7 +14,8 @@ Parent: [`../INDEX.md`](../INDEX.md). Running on Node 20 via Next.js 15.5.
 | [`sitemap.ts`](sitemap.ts) | `/sitemap.xml` | Generated. |
 | [`install/page.tsx`](install/page.tsx) | `/install` | Install / get-started page. Also hosts "Build Your Own Backend" callouts. |
 | [`privacy/page.tsx`](privacy/page.tsx) | `/privacy` | Privacy policy. Required link from Chrome Web Store listing. |
-| [`watch/page.tsx`](watch/page.tsx) | `/watch` | Hosted reference web app — alternative to the extension. Embeds YouTube player + feeds transcript to the same `/api/transcribe` backend. |
+
+Note: `/watch` (the legacy hosted reference web app) was retired alongside `components/PersonaColumn` + `components/CombinedFeed` + `components/YouTubePlayer` + `components/ApiKeysModal` + `components/TranscriptBar` as part of the v1.5 "clean out the legacy web-app UI" work. The extension is the canonical UI; the middleware at the Next.js app root 308-redirects non-`/api/*` traffic to `www.peanutgallery.live`.
 
 ## API routes
 

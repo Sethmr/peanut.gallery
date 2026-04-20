@@ -55,14 +55,13 @@ Required on every OS:
 | **npm** | 9+ (ships with Node 18) | package install | `npm -v` |
 | **git** | any recent | clone the repo | `git --version` |
 
-Required **only if you plan to use the web app** (pasting YouTube URLs at
-`/watch`). The Chrome extension path uses tab audio capture and does NOT need
-these:
-
-| Tool | Install (macOS) | Install (Linux) | Install (Windows) |
-|------|-----------------|-----------------|-------------------|
-| **yt-dlp** | `brew install yt-dlp` | `sudo apt install yt-dlp` or `pip install -U yt-dlp` | `winget install yt-dlp` |
-| **ffmpeg** | `brew install ffmpeg` | `sudo apt install ffmpeg` | `winget install ffmpeg` |
+**The `/watch` URL-paste demo is retired as of the v1.5 legacy-UI cleanup** —
+self-hosters no longer need `yt-dlp` or `ffmpeg` for anything in this repo.
+The Chrome extension is the only UI path, and it captures tab audio via
+`chrome.tabCapture` without shelling out to external binaries. The Dockerfile
+still installs them because they're cheap and the `/api/transcribe` route's
+URL-mode path is still wire-compatible for custom clients, but they are no
+longer required for normal use.
 
 > **Windows note.** The one-command setup script is bash-only. On Windows,
 > use WSL2 (Ubuntu) and follow the Linux instructions, OR follow the manual
@@ -516,11 +515,6 @@ No `XAI_API_KEY`. Add it to `.env.local` and restart the server.
 
 **Only the troll + soundfx slots react** (Troll + Fred in Howard; Jason + Lon in TWiST). Producer + joker stay silent.
 No `ANTHROPIC_API_KEY`. Add it to `.env.local` and restart the server.
-
-**"yt-dlp: command not found" when pasting a URL at /watch.**
-You skipped the web-app prerequisites. Install yt-dlp + ffmpeg (see
-[Prerequisites](#prerequisites)) or just use the Chrome extension path
-instead — it doesn't need them.
 
 **Audio sounds choppy / personas are half a minute behind.**
 Your network can't keep up with 16 kHz PCM uploads (~256 kbps). Uncommon on

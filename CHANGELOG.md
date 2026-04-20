@@ -6,6 +6,78 @@ All notable changes to Peanut Gallery are recorded here. Format loosely follows 
 
 Tracks in-flight work for the next release.
 
+## [1.5.4] — 2026-04-20 — "The Sweep"
+
+A janitorial release layered on top of v1.5.3 "The Cast." No marquee
+feature; six tight PRs that make the repo easier to operate, the side
+panel nicer to use on assistive tech, and the backend easier to
+diagnose when something goes wrong. Safe to ship whenever CWS review
+clears v1.5.3.
+
+### Added
+- **Screen-reader labels and keyboard-nav focus rings across the
+  side panel** (`extension/sidepanel.html` + `extension/sidepanel.js`,
+  [#31](https://github.com/Sethmr/peanut.gallery/pull/31)). Icon-only
+  buttons (`#errorDismiss`, `#fireBtn`, `#stopBtn`,
+  `#settingsToggle`, every `.drawer-section-back`) now carry
+  `aria-label`s; their decorative glyphs are `aria-hidden`. Footer
+  filter pills (Fact / Dunk / Cue / Bit) track `aria-pressed` in
+  lockstep with their visual `.on` state, and each carries an
+  `aria-label` that names what the role means. The gallery feed is
+  `role="log" aria-live="polite"` so new reactions get announced
+  without interrupting. Universal `:focus-visible` ring (2px
+  `--stamp` outline) on buttons / selects / pills / pack cards /
+  persona bubbles / drawer menu items — keyboard nav is now visible;
+  mouse clicks unchanged.
+- **Structured logging in `lib/free-tier-limiter.ts`**
+  ([#30](https://github.com/Sethmr/peanut.gallery/pull/30)). Four
+  JSONL events through the existing `logPipeline`:
+  `free_tier_install_seen` (debug), `free_tier_window_rolled` (info),
+  `free_tier_quota_denied` (info — the grep-sharp signal when a user
+  reports "I got capped"), `free_tier_usage_recorded` (debug).
+- **Structured logging in `app/api/personas/route.ts`**
+  ([#30](https://github.com/Sethmr/peanut.gallery/pull/30)). Three
+  new events around the streaming body:
+  `personas_endpoint_start`, `personas_endpoint_complete`,
+  `personas_endpoint_error`. Error payload includes the stack and
+  request context server-side; the SSE error event sent to the client
+  stays minimal (`{ message }` only).
+
+### Removed
+- **Legacy `/watch` reference demo + six orphan components**
+  ([#29](https://github.com/Sethmr/peanut.gallery/pull/29)). Finishes
+  v1.5 ROADMAP step 3 ("clean out the legacy web-app UI"). v1.5.3
+  shipped `middleware.ts` that 308-redirects apex → www, which made
+  the code unreachable in production; this release deletes it. Gone:
+  `app/watch/` (both files), `components/PersonaColumn.tsx`,
+  `components/CombinedFeed.tsx`, `components/YouTubePlayer.tsx`,
+  `components/ApiKeysModal.tsx`, `components/TranscriptBar.tsx`,
+  `components/PersonaIcon.tsx`, `types/youtube.d.ts`, the `/watch`
+  entry from `app/sitemap.ts`, the "Open the Reference App"
+  marketing section on `app/page.tsx`. Kept: `app/api/*` (extension
+  backend), `app/install/`, `app/privacy/`,
+  `components/FadeInObserver.tsx` (still used by the landing).
+- **`@microsoft/fetch-event-source` dep**
+  ([#32](https://github.com/Sethmr/peanut.gallery/pull/32)). Orphan
+  after the `/watch` retirement — nothing imports it anymore.
+
+### Changed
+- **SEO metadata + JSON-LD + roadmap table refreshed for v1.5.3 "The
+  Cast"** ([#28](https://github.com/Sethmr/peanut.gallery/pull/28)).
+  Version badge in `README.md` (`1.4 in review → 1.5.3`),
+  SoftwareApplication JSON-LD `softwareVersion` (`1.0.6 → 1.5.3`),
+  meta description + keywords + OG alt now lead with illustrated
+  peanut mascots, INDEX.md "Current version" block, SEO-PLAN
+  baseline, CWS listing copy including screenshot captions. Sister
+  `peanut.gallery.site` repo picked up the same refresh in its own
+  commit.
+
+### Docs
+- **`docs/SESSION-NOTES-2026-04-20-autonomous-pass.md`**
+  ([#33](https://github.com/Sethmr/peanut.gallery/pull/33)). Hand-off
+  document for the six-PR batch shipped while Seth researched the
+  Director in parallel.
+
 ## [1.5.3] — 2026-04-20 — "The Cast"
 
 First installment of the v1.8 "Peanut Mascots" roadmap pulled forward into the v1.5 line. Each of the 8 personas now has an illustrated SVG peanut mascot with a signature prop, idle-bobbing in the mug row, sitting on the drawer's mute list, and appearing in a new two-card pack chooser that replaces the `<select>` dropdown for swapping between Howard and TWiST. Fact-checker personas also get a narrow war-defense guardrail.
@@ -24,7 +96,6 @@ First installment of the v1.8 "Peanut Mascots" roadmap pulled forward into the v
 
 ### Removed
 - **Duplicate episode card** (`#episodeCard` + the `.episode-card*` subtree in both HTML and CSS). The card sat between the status strip and the captured-tab banner, showing the same tab title as the banner below it — two bits of UI doing the same job. Removed the card; free-tier numeric timer still ticks in the status strip, only the progress-fill bar that was inside the removed card went with it. All JS references (`episodeCard`, `episodeCardTitle`, `episodeCardSub`, `episodeCardProgressFill`) are null-guarded, so free-tier timing logic no-ops cleanly without the DOM node.
-- **Legacy marketing UI at the apex `peanutgallery.live`** (executes the v1.5 roadmap step "clean out the legacy web-app UI"). New `middleware.ts` at the Next.js app root 308-redirects every non-`/api/*` request to the matching path on `https://www.peanutgallery.live` (the static GitHub Pages site that's been the canonical public surface since v1.5.0). `/api/*` passes through untouched so the extension's transcribe / fire-persona / SSE streaming keeps working. The retired `app/watch/`, `app/install/`, and old marketing homepage are now unreachable at the apex without needing a code deletion pass — they render only if visited via an internal path in dev, and can be cleaned up as a follow-up.
 
 ## [1.5.2] — 2026-04-20 — "First Run"
 

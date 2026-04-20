@@ -123,9 +123,9 @@ const PERSONAS = new Proxy(
 
 // ── Persona archetype glyphs ──
 // Minimalist monoline SVG paths — clipboard, flame, headphones, mic — drawn
-// in a 24×24 viewBox. Keeping these synchronized with components/PersonaIcon.tsx
-// in the web app; the extension is intentionally standalone (no bundler), so
-// the duplication is by design.
+// in a 24×24 viewBox. These used to mirror the React PersonaIcon component
+// in the web app, but the /watch surface was retired in the v1.5 legacy
+// cleanup; the glyphs now only live here.
 const PERSONA_ICON_PATHS = {
   producer:
     "M9 3h6a1 1 0 0 1 1 1v1h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h3V4a1 1 0 0 1 1-1z M8.5 13l2.5 2.5 4.5-5",
@@ -1993,7 +1993,11 @@ function applyFilterState() {
     else gallery.setAttribute(`data-hide-${r}`, "true");
   }
   for (const pill of filterPillEls) {
-    pill.classList.toggle("on", activeFilters.has(pill.dataset.filter));
+    const active = activeFilters.has(pill.dataset.filter);
+    pill.classList.toggle("on", active);
+    // Mirror the visual state into aria-pressed so screen readers announce
+    // "pressed" / "not pressed" when focus lands on the pill.
+    pill.setAttribute("aria-pressed", active ? "true" : "false");
   }
 }
 for (const pill of filterPillEls) {

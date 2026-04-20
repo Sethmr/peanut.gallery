@@ -8,7 +8,8 @@ Long description goes in the "Description" field.
 Target keywords, used naturally throughout: *YouTube Chrome extension,
 AI Chrome extension, YouTube AI sidebar, AI commentary YouTube, YouTube
 fact checker, real-time AI reactions, Chrome side panel extension, AI
-reacts to YouTube, live YouTube transcription, AI writers' room.*
+reacts to YouTube, live YouTube transcription, AI writers' room,
+peanut mascots, illustrated AI personas.*
 
 ---
 
@@ -20,9 +21,9 @@ AI writers' room for YouTube. 4 personas react live — fact-checker, troll, sou
 
 ## Long description
 
-Four critics. One tab. Your AI writers' room for YouTube — filed like a late-night newspaper desk.
+Four critics. One tab. Your AI writers' room for YouTube — filed like a late-night newspaper desk, now with a gallery of illustrated peanut mascots on the front page.
 
-Peanut Gallery mounts in Chrome's native side panel as a broadsheet: cream paper stock, Anton slab masthead, four mug-shot avatars standing by. A fact-checker. A sound effects guy. A comedy writer. A cynical troll. They watch any YouTube video alongside you and file their reactions as a wire-service feed — every quip stamped with a 24-hour timestamp and a role tag (FACT, DUNK, CUE, BIT).
+Peanut Gallery mounts in Chrome's native side panel as a broadsheet: cream paper stock, Anton slab masthead, four peanut-mascot avatars standing by — each one an illustrated SVG character carrying their signature prop (clipboard, headphones, mic, match). A fact-checker. A sound effects guy. A comedy writer. A cynical troll. They watch any YouTube video alongside you and file their reactions as a wire-service feed — every quip stamped with a 24-hour timestamp and a role tag (FACT, DUNK, CUE, BIT).
 
 No tab switching. No screen-share picker. No interference with playback. Audio is captured silently while you watch.
 
@@ -39,9 +40,12 @@ THE TWIST PACK (swap in the side panel)
 
 Tuned for This Week in Startups-style podcasts — Molly Wood (producer), Jason Calacanis (troll), Lon Harris (sound effects), and Alex Wilhelm (joker). Same 4 roles, startup vocabulary.
 
-THE BROADSHEET UI (new in v1.5)
+THE BROADSHEET UI (v1.5 line)
 
+- Illustrated peanut mascots (v1.5.3) — each of the 8 personas across both packs ships with a hand-authored SVG peanut avatar carrying their signature prop. Baba Booey with his clipboard, Fred's purple headphones, Jackie's stand mic, the Troll as a boiled peanut. TWiST pack: Molly's reporter notebook, Jason's megaphone, Lon's clapperboard, Alex's pie chart. Idle bob at rest, excited wiggle while speaking.
+- Two-card pack chooser (v1.5.3) — swap packs by tapping a card; see both packs' mascots side by side before committing.
 - Role-stamped wire feed — every reaction filed with FACT / DUNK / CUE / BIT and a 24h timestamp. Filter pills in the footer hide any tag you want to tune out.
+- First-run guided tour (v1.5.2) — new installs get a 4-step Editor's Note walkthrough on first open; replayable anytime from the Appearance submenu.
 - Paper theme for daylight, Night theme for 2am captures. Toggle in the drawer.
 - Mute a critic with one tap — their mug gets a strike-through, their stream goes silent. No server round-trip.
 - Download the whole session as Markdown when you're done — full transcript plus every quip, role-tagged, ready to paste into a doc.
@@ -112,10 +116,12 @@ discovery. Pick Productivity unless data says otherwise after 2-4 weeks.
 
 ## Screenshot caption text (for the 5 required 1280x800 images)
 
-Updated for v1.5 "The Broadsheet" UI. Each caption is ≤80 chars so it won't truncate on CWS.
+Updated for v1.5.3 "The Cast" — mascots now lead the top screenshot. Each caption is ≤80 chars so it won't truncate on CWS.
 
-1. "Four critics, one tab. Your AI writers' room for YouTube."
-2. "Role-stamped wire feed. Howard pack default, TWiST pack one click away."
-3. "Live fact-checking with Brave or xAI Live Search — stats, dates, attributions."
-4. "Paper or Night theme. Mute any critic. Download the session as Markdown."
+1. "Four peanut mascots, one tab. Your AI writers' room for YouTube."
+2. "Illustrated peanuts with signature props — clipboard, mic, headphones, flame."
+3. "Tap a pack card to swap between Howard and TWiST. Lineup locked during capture."
+4. "Role-stamped wire feed. Live fact-checking. Paper or Night theme."
 5. "Silent tab capture. MIT licensed. Bring your own keys."
+
+**Screenshot refresh TODO (Seth):** existing CWS screenshots were shot against the v1.5.1 initials-mug UI. Need reshoots against v1.5.3 to actually show the mascots the captions are selling. See `SCREENSHOTS.md` for the capture flow.
