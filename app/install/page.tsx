@@ -133,11 +133,24 @@ export default function InstallPage() {
           <p className="text-[#c0c0c0] leading-relaxed mb-4">
             Peanut Gallery is a Chrome extension that adds a live AI sidebar to
             any YouTube video. Instead of watching alone, you watch with a
-            writers&apos; room of four AI personas inspired by the Howard Stern
-            Show staff: a fact-checker who catches misstatements mid-sentence, a
-            comedy writer dropping setup-punchline one-liners, a sound effects
-            guy with timed cues, and a cynical troll saying what the audience
-            is thinking.
+            writers&apos; room of four AI personas: a fact-checker who catches
+            misstatements mid-sentence, a comedy writer dropping setup-punchline
+            one-liners, a sound effects guy with timed cues, and a cynical troll
+            saying what the audience is thinking. Two packs ship in the box —
+            the Howard Stern Show crew (Baba Booey, The Troll, Fred Norris,
+            Jackie Martling) or the This Week in Startups lineup (Molly Wood,
+            Jason Calacanis, Lon Harris, Alex Wilhelm) — swap them from the
+            dropdown in the side panel. The community can build their own
+            packs too; see the{" "}
+            <a
+              href="https://github.com/Sethmr/peanut.gallery/blob/main/lib/packs/INDEX.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#ff5a1f] underline underline-offset-2"
+            >
+              pack-authoring guide
+            </a>
+            .
           </p>
           <p className="text-[#c0c0c0] leading-relaxed">
             It works on any YouTube video — podcasts, interviews, livestreams,
