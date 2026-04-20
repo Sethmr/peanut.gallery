@@ -172,8 +172,9 @@ Canonical source: [`docs/ROADMAP.md`](docs/ROADMAP.md). The sequence below is th
 | v1.5.1 | Broadsheet Final — settings drawer with six submenus, round persona mugs, ON AIR waveform, episode card, 15-min free-tier status strip, smooth-scrolling transcript ticker, muted-mug + filter-pill strike visuals | ✅ Shipped |
 | v1.5.2 | First Run — four-step Editor's Note onboarding tour, empty-state visibility fix | ✅ Shipped |
 | v1.5.3 | The Cast — illustrated peanut mascots for all 8 personas, two-card pack chooser, button + masthead polish, war-defense guardrail on fact-checkers | ✅ Shipped |
-| v1.6.0 | Settings Pane — dedicated settings surface + UI/UX polish pass | Planned |
-| v1.7.0 | Smart Director GA — LLM director becomes the only director; static scorer retires | Planned |
+| v1.5.4 | The Sweep — janitorial pass: SEO refresh, legacy `/watch` deletion, side-panel a11y, ops logging, orphan-dep removal | 🟡 Draft |
+| v1.6.0 | (absorbed into v1.5.1 — Settings Pane scope shipped as the 6-submenu drawer) | ✅ Shipped as v1.5.1 |
+| v1.7.0 | Smart Director GA — LLM director becomes the only director; static scorer retires | Next |
 | v1.8.0 | (absorbed into v1.5.3 — Peanut Mascots shipped early) | ✅ Shipped as v1.5.3 |
 | v1.9.0 | Bobbleheads (Stretch) — 2-day attempt at 3D peanut bobbleheads; max-credible visual upgrade if 3D doesn't land | Planned |
 | v2.0.0 | The Gallery — audit, refine, session recall + shareable snippet, launch | Horizon |
