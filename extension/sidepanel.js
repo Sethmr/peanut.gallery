@@ -343,7 +343,6 @@ const capturedTabTitle = document.getElementById("capturedTabTitle");
 // v1.4 masthead + drawer refs. Grabbed defensively — if we're running in
 // an older extension context with the previous HTML, these return null
 // and every handler below no-ops rather than throwing.
-const packBadgeEl = document.getElementById("packBadge");
 const footer = document.getElementById("footer");
 const settingsToggleBtn = document.getElementById("settingsToggle");
 const settingsDrawer = document.getElementById("settingsDrawer");
@@ -492,7 +491,6 @@ function loadSettings() {
       currentPackId = savedPack;
       if (packSelect) packSelect.value = savedPack;
       if (packChanged || mutedPersonas.size > 0) buildPersonaAvatars();
-      updatePackBadge();
       // Mirror the restored selection in the trace header so the debug
       // panel reads correctly the first time a user opens it — even
       // before they've started a session. sessionPackId is still null
@@ -696,8 +694,8 @@ function showIdle() {
   stopTickerLoop();
   // Close the drawer if it was open when capture stopped — no session
   // means the settings drawer's "wire paused" framing no longer makes
-  // sense. The user can reopen it from setup via the footer gear once
-  // they start again.
+  // sense. The user can reopen it anytime via the masthead ⚙ (or the
+  // footer ⚙ once they've started a new session).
   closeSettingsDrawer();
   statusBar.classList.remove("active", "live");
   // Capture stopped — make sure the React button can't be stuck spinning,
@@ -1643,8 +1641,6 @@ if (packSelect) {
     saveSettings();
     // Rebuild the persona row so the names/emojis match the chosen pack.
     buildPersonaAvatars();
-    // Keep the masthead pack badge in sync with whatever's queued up.
-    updatePackBadge();
     // Re-render the drawer mute grid — if the drawer is open it's already
     // showing the previous pack's names, and any muted ids from the old
     // pack that don't exist in the new pack should still persist in
@@ -1734,22 +1730,19 @@ function formatTime(ts) {
 });
 
 // ──────────────────────────────────────────────────────
-// MASTHEAD + FOOTER + DRAWER (v1.4 tabloid rebrand)
+// MASTHEAD + FOOTER + SETTINGS DRAWER
 // ──────────────────────────────────────────────────────
 //
 // All the chrome outside the main content stack lives here:
-//   • pack badge in the masthead subrail
 //   • role filter pills in the footer
-//   • settings drawer (mute-a-critic, theme, export)
+//   • settings drawer with six submenus (lineup, backend & keys, audio,
+//     critics, export, appearance), reachable from the masthead ⚙ in
+//     any state and the footer ⚙ during capture
+//   • drawer submenu navigation + deep-link entry points
 //
 // Every handler no-ops if its DOM ref is missing. That keeps the extension
 // robust against a stale cached HTML that doesn't know about these elements
 // yet — rare in practice but Chrome's extension cache is stubborn.
-
-function updatePackBadge() {
-  if (!packBadgeEl) return;
-  packBadgeEl.textContent = packBadgeName(currentPackId);
-}
 
 // ── Footer filter pills ──
 //
