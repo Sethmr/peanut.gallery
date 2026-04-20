@@ -93,7 +93,7 @@
       padding: 2px 4px;
     }
     .masthead .title-row{
-      padding: 8px 12px 8px;
+      padding: 8px 12px 4px;
       display:flex; justify-content:center; align-items:center;
     }
     .masthead .title-row svg{display:block; width:100%; height:auto; max-height: 38px}
@@ -871,6 +871,12 @@
       background: var(--paper-2);
       flex-shrink: 0;
     }
+    /* During-capture React/Stop buttons are tighter than the full-size
+       Start button on the setup screen — they sit beside the persona row
+       and don't need that much weight. */
+    #controlsRow .btn{
+      padding: 6px 12px; font-size: 11px;
+    }
 
     /* ── GALLERY / FEED ── */
     .gallery{
@@ -1127,6 +1133,71 @@
       color: var(--ink-2);
     }
 
+    /* Pack chooser — two cards side-by-side, each showing the pack's 4
+       peanut mascots plus a name + active/tap label. Replaces the native
+       <select> for swapping packs. The select still exists as a hidden
+       store for existing JS paths. */
+    .pack-chooser{
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+      margin-top: 4px;
+    }
+    .pack-card{
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      padding: 8px 6px 7px;
+      border: 1.5px solid var(--rule);
+      background: var(--paper);
+      color: var(--ink);
+      font-family: inherit;
+      cursor: pointer; text-align: center;
+      transition: border-color 0.15s, background 0.15s, transform 0.12s;
+    }
+    .pack-card:hover{background: var(--paper-2)}
+    .pack-card:active{transform: translateY(1px)}
+    .pack-card.active{
+      border-color: var(--stamp);
+      border-width: 2px;
+      padding: 7.5px 5.5px 6.5px;
+    }
+    .pack-card.active:hover{background: var(--paper)}
+    .pack-card-mugs{
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px;
+      width: 100%;
+    }
+    .pack-card-mug{
+      width: 100%; aspect-ratio: 1;
+      border-radius: 50%;
+      border: 1.5px solid var(--ink);
+      background: var(--paper);
+      position: relative; overflow: hidden;
+    }
+    .pack-card-mug svg{
+      width: 100%; height: 100%; display: block;
+      animation: mascot-bob 2.4s ease-in-out infinite;
+      transform-origin: 50% 90%;
+    }
+    /* Stagger the bob so the row doesn't march in lockstep. */
+    .pack-card-mugs > :nth-child(2) svg{animation-delay: -0.6s}
+    .pack-card-mugs > :nth-child(3) svg{animation-delay: -1.2s}
+    .pack-card-mugs > :nth-child(4) svg{animation-delay: -1.8s}
+    .pack-card-name{
+      font-family: var(--slab-2); font-size: 10px; font-weight: 700;
+      letter-spacing: .12em; text-transform: uppercase;
+    }
+    .pack-card-state{
+      font-family: var(--slab-2); font-size: 8px; font-weight: 700;
+      letter-spacing: .2em;
+      color: var(--ink-3);
+    }
+    .pack-card.active .pack-card-state{color: var(--stamp)}
+    /* During-capture: cards lock so mid-session swap can't happen. */
+    .pack-chooser.locked .pack-card{
+      cursor: not-allowed; opacity: .55;
+    }
+    .pack-chooser.locked .pack-card.active{opacity: .9}
+    @media (prefers-reduced-motion: reduce){
+      .pack-card-mug svg{animation: none}
+    }
+
     /* Mute-a-critic list */
     .mutes{
       display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
@@ -1149,6 +1220,16 @@
       font-family: var(--slab); font-size: 13px;
       color: var(--ink); line-height: 1;
       flex-shrink: 0;
+    }
+    /* Mascot variant: let the SVG fill the 26px square, drop the hatch
+       background since the peanut has its own ground shadow. */
+    .mute-row .av.has-mascot{
+      background: transparent;
+      overflow: visible;
+      padding: 0;
+    }
+    .mute-row .av.has-mascot svg{
+      width: 100%; height: 100%; display: block;
     }
     .mute-row .meta{flex: 1; min-width: 0}
     .mute-row .nm{
@@ -1536,16 +1617,7 @@
     </div>
   </div>
 
-  <!-- ── EPISODE CARD (tab title + free-tier progress bar) ── -->
-  <div id="episodeCard" class="episode-card" style="display:none;">
-    <span class="episode-card-title" id="episodeCardTitle">&mdash;</span>
-    <span class="episode-card-sub" id="episodeCardSub">&mdash;</span>
-    <div class="episode-card-progress">
-      <div class="episode-card-progress-fill" id="episodeCardProgressFill"></div>
-    </div>
-  </div>
-
-  <!-- ── CAPTURED TAB BANNER (secondary, carries the Jump→ affordance) ── -->
+  <!-- ── CAPTURED TAB BANNER (carries the Jump→ affordance) ── -->
   <div id="capturedTabBanner" class="captured-tab" title="Click to switch to the tab Peanut Gallery is listening to">
     <span class="icon">&#127911;</span>
     <span class="label">Listening to</span>
@@ -1556,7 +1628,7 @@
   <!-- ── CONTROLS (during capture) ── -->
   <div id="controlsRow">
     <div class="btn-row">
-      <button id="fireBtn" class="btn btn-fire">&#9876;&#xFE0F; React</button>
+      <button id="fireBtn" class="btn btn-fire">&#9632; React</button>
       <button id="stopBtn" class="btn btn-stop">&#9632; Stop</button>
     </div>
   </div>
@@ -1661,10 +1733,19 @@
             <label for="packSelect">Persona pack</label>
             <span class="key-tag">lineup</span>
           </div>
-          <select id="packSelect">
-            <option value="howard" selected>Howard Stern Show — Baba Booey, Troll, Fred, Jackie</option>
-            <option value="twist">This Week in Startups — Molly, Jason, Lon, Alex</option>
+          <!-- Canonical store for "which pack is active." Kept hidden in
+               DOM so existing JS paths (packSelect.value / .disabled /
+               dispatchEvent('change')) keep working unchanged. The visible
+               UI is the pack-chooser card grid below; clicks there drive
+               this select via dispatchEvent. -->
+          <select id="packSelect" style="display:none" aria-hidden="true" tabindex="-1">
+            <option value="howard" selected>Howard Stern Show</option>
+            <option value="twist">This Week in Startups</option>
           </select>
+          <!-- Two-card pack chooser. Each card shows the pack's 4 peanut
+               mascots plus name + active/tap-to-switch label. Clicking a
+               card swaps packs. -->
+          <div id="packChooser" class="pack-chooser" role="radiogroup" aria-label="Persona pack"></div>
           <p class="field-hint">
             Which four critics show up in the feed. Swap anytime — the new pack applies next time you hit <em>Start Listening</em>.
           </p>

@@ -162,52 +162,208 @@ function personaGlyphHTML(p, size = "1.3em", color = null, withSpinner = false) 
   return `<span class="persona-icon-stack" style="width:${size}; height:${size}"><span class="persona-icon-layer persona-icon-glyph">${glyph}</span><span class="persona-icon-layer persona-icon-spinner">${spinner}</span></span>`;
 }
 
-// ── Peanut mascots (v1.8 spike) ──
+// ── Peanut mascots (v1.8) ──
 //
 // Illustrated SVG peanuts with a signature prop per persona. Returns an SVG
-// string sized to fill its container (width/height 100%) with a 64×64
-// viewBox. Returns null when no mascot exists yet — caller falls back to
-// the initials-on-hatch rendering. This is the single extension point for
-// the v1.8 mascot rollout: add one case per persona as the art lands, and
-// every avatar surface that goes through buildPersonaAvatars picks it up.
+// string sized to fill its container (64×64 viewBox). Returns null when no
+// mascot exists — caller falls back to the initials-on-hatch mug.
 //
-// Gradient ids are namespaced per persona+pack so two mascots with
-// overlapping palette stops never collide in a shared defs pool.
-function personaMascotHTML(personaId, packId) {
-  const ns = `${packId || "howard"}-${personaId}`;
-  // Spike: only Baba Booey (howard/producer). Everyone else falls through
-  // to the initials-on-hatch mug until the art lands. If the spike reads
-  // well the other 7 get their own branches here.
-  if (packId === "howard" && personaId === "producer") {
-    return `<svg viewBox="0 0 64 64" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
-      <defs>
-        <radialGradient id="mbody-${ns}" cx="38%" cy="30%" r="72%">
-          <stop offset="0%" stop-color="#F7D9A5"/>
-          <stop offset="55%" stop-color="#DFAE70"/>
-          <stop offset="100%" stop-color="#B4824B"/>
-        </radialGradient>
-        <linearGradient id="mclip-${ns}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#A47E4D"/>
-          <stop offset="100%" stop-color="#69482A"/>
-        </linearGradient>
-      </defs>
+// Shared anatomy lives in buildPeanutSVG: body, shell grooves, top highlight,
+// ground shadow, eyes, and one of a few mouth shapes. Each persona provides
+// only its prop markup and (optionally) extra <defs> for prop gradients.
+// Gradient ids are namespaced per persona+pack so overlapping stops don't
+// collide when packs swap.
+const PEANUT_MOUTHS = {
+  smile: `<path d="M28.5 24c1.5 1.6 5.5 1.6 7 0" fill="none" stroke="#1E1208" stroke-width="1.3" stroke-linecap="round"/>`,
+  smirk: `<path d="M28 24q3 2 7 -.6" fill="none" stroke="#1E1208" stroke-width="1.4" stroke-linecap="round"/>`,
+  grin:  `<path d="M27.5 23.2q4.5 3.8 9 0 -4.5 2 -9 0Z" fill="#1E1208" stroke="#1E1208" stroke-width="1" stroke-linejoin="round"/>`,
+  flat:  `<path d="M29 24.2h6" fill="none" stroke="#1E1208" stroke-width="1.3" stroke-linecap="round"/>`,
+  open:  `<ellipse cx="32" cy="24.2" rx="2.2" ry="1.6" fill="#1E1208"/>`,
+};
+
+function buildPeanutSVG({
+  ns,
+  extraDefs = "",
+  face = "smile",
+  prop = "",
+  bodyStops = null,
+  bodyStroke = "#8B5E2F",
+  eyesLight = false,
+}) {
+  // The peanut body sits in a 64×64 viewBox with natural padding around it,
+  // which reads as a floating blob at 42px. Wrapping everything in a scale
+  // transform around the viewBox center fills more of the mug without
+  // touching every path coordinate. 1.22 lands the body at ~85% of the
+  // circle diameter — dominant but with breathing room for the ring.
+  //
+  // bodyStops/bodyStroke let one-off personas (Troll = boiled) swap the
+  // shell color without forking the whole body path.
+  // eyesLight switches to a big-white-sclera pop-eye style; used on dark
+  // bodies where the default dark pupils would disappear.
+  const stops = bodyStops || `
+    <stop offset="0%" stop-color="#F7D9A5"/>
+    <stop offset="55%" stop-color="#DFAE70"/>
+    <stop offset="100%" stop-color="#B4824B"/>`;
+  const eyes = eyesLight
+    ? `<circle cx="27" cy="19" r="2.8" fill="#fff"/>
+       <circle cx="37" cy="19" r="2.8" fill="#fff"/>
+       <ellipse cx="27" cy="19.4" rx="1.3" ry="1.8" fill="#1E1208"/>
+       <ellipse cx="37" cy="19.4" rx="1.3" ry="1.8" fill="#1E1208"/>
+       <circle cx="27.5" cy="18.6" r=".55" fill="#fff"/>
+       <circle cx="37.5" cy="18.6" r=".55" fill="#fff"/>`
+    : `<ellipse cx="27" cy="19" rx="2.1" ry="2.6" fill="#1E1208"/>
+       <ellipse cx="37" cy="19" rx="2.1" ry="2.6" fill="#1E1208"/>
+       <circle cx="27.6" cy="18.2" r=".8" fill="#fff"/>
+       <circle cx="37.6" cy="18.2" r=".8" fill="#fff"/>`;
+  return `<svg viewBox="0 0 64 64" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+    <defs>
+      <radialGradient id="mbody-${ns}" cx="38%" cy="30%" r="72%">${stops}</radialGradient>${extraDefs}
+    </defs>
+    <g transform="translate(32 32) scale(1.22) translate(-32 -32)">
       <ellipse cx="32" cy="60" rx="13" ry="1.8" fill="#000" fill-opacity=".22"/>
-      <path d="M32 4C22 4 18 10 18 19c0 5 3 8 6 10-4 2-10 6-10 16 0 9 8 15 18 15s18-6 18-15c0-10-6-14-10-16 3-2 6-5 6-10 0-9-4-15-14-15Z" fill="url(#mbody-${ns})" stroke="#8B5E2F" stroke-width="1.4" stroke-linejoin="round"/>
-      <path d="M21 14c3 1 6 1 8 0M35 14c3 1 5 1 8 0" fill="none" stroke="#8B5E2F" stroke-width=".8" stroke-linecap="round" opacity=".5"/>
+      <path d="M32 4C22 4 18 10 18 19c0 5 3 8 6 10-4 2-10 6-10 16 0 9 8 15 18 15s18-6 18-15c0-10-6-14-10-16 3-2 6-5 6-10 0-9-4-15-14-15Z" fill="url(#mbody-${ns})" stroke="${bodyStroke}" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M21 14c3 1 6 1 8 0M35 14c3 1 5 1 8 0" fill="none" stroke="${bodyStroke}" stroke-width=".8" stroke-linecap="round" opacity=".5"/>
       <ellipse cx="25" cy="11" rx="5.5" ry="3" fill="#FFF5DF" opacity=".55"/>
-      <ellipse cx="27" cy="19" rx="2.1" ry="2.6" fill="#1E1208"/>
-      <ellipse cx="37" cy="19" rx="2.1" ry="2.6" fill="#1E1208"/>
-      <circle cx="27.6" cy="18.2" r=".8" fill="#fff"/>
-      <circle cx="37.6" cy="18.2" r=".8" fill="#fff"/>
-      <path d="M28.5 24c1.5 1.6 5.5 1.6 7 0" fill="none" stroke="#1E1208" stroke-width="1.3" stroke-linecap="round"/>
-      <path d="M19 39c-3 2-3 5-1 7M45 39c3 2 3 5 1 7" fill="none" stroke="#8B5E2F" stroke-width="2.6" stroke-linecap="round"/>
-      <rect x="19" y="36" width="26" height="19" rx="1.8" fill="url(#mclip-${ns})" stroke="#3E2A14" stroke-width="1"/>
-      <rect x="28" y="33.8" width="8" height="3.4" rx=".8" fill="#3E2A14"/>
-      <circle cx="32" cy="35.5" r=".8" fill="#A8A6A0"/>
-      <rect x="21" y="39" width="22" height="14" rx=".5" fill="#F6F0E2"/>
-      <path d="M25 48l4 4 9-9" fill="none" stroke="#3b82f6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`;
+      ${eyes}
+      ${PEANUT_MOUTHS[face] || PEANUT_MOUTHS.smile}
+      ${prop}
+    </g>
+  </svg>`;
+}
+
+function personaMascotHTML(personaId, packId) {
+  const pack = packId || "howard";
+  const ns = `${pack}-${personaId}`;
+
+  // ── Howard pack ──
+  if (pack === "howard" && personaId === "producer") {
+    // Baba Booey — wooden clipboard with a big blue checkmark.
+    return buildPeanutSVG({
+      ns, face: "smile",
+      extraDefs: `<linearGradient id="mclip-${ns}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#A47E4D"/><stop offset="100%" stop-color="#69482A"/></linearGradient>`,
+      prop: `
+        <path d="M19 39c-3 2-3 5-1 7M45 39c3 2 3 5 1 7" fill="none" stroke="#8B5E2F" stroke-width="2.6" stroke-linecap="round"/>
+        <rect x="19" y="36" width="26" height="19" rx="1.8" fill="url(#mclip-${ns})" stroke="#3E2A14" stroke-width="1"/>
+        <rect x="28" y="33.8" width="8" height="3.4" rx=".8" fill="#3E2A14"/>
+        <circle cx="32" cy="35.5" r=".8" fill="#A8A6A0"/>
+        <rect x="21" y="39" width="22" height="14" rx=".5" fill="#F6F0E2"/>
+        <path d="M25 48l4 4 9-9" fill="none" stroke="#3b82f6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>`,
+    });
   }
+  if (pack === "howard" && personaId === "troll") {
+    // The Troll — BOILED peanut. Dark wet shell, smirk, beads of moisture
+    // running down the sides. No prop — the boiled state IS the character:
+    // "guy's in hot water and smirking about it."
+    return buildPeanutSVG({
+      ns, face: "smirk",
+      eyesLight: true,
+      bodyStroke: "#2A1408",
+      bodyStops: `
+        <stop offset="0%" stop-color="#8B5530"/>
+        <stop offset="55%" stop-color="#5A3018"/>
+        <stop offset="100%" stop-color="#2F1608"/>`,
+      prop: `
+        <!-- Extra wet-sheen highlights layered on top of body -->
+        <ellipse cx="40" cy="14" rx="2" ry="4" fill="#FFF" opacity=".22" transform="rotate(25 40 14)"/>
+        <ellipse cx="43" cy="40" rx="2.5" ry="5" fill="#FFF" opacity=".18" transform="rotate(-18 43 40)"/>
+        <!-- Moisture beads dribbling down the shell -->
+        <ellipse cx="16" cy="30" rx="1.1" ry="1.5" fill="#B8CED9" opacity=".85"/>
+        <ellipse cx="47" cy="38" rx="1.2" ry="1.6" fill="#B8CED9" opacity=".85"/>
+        <ellipse cx="22" cy="52" rx=".9" ry="1.3" fill="#B8CED9" opacity=".8"/>
+        <ellipse cx="44" cy="54" rx="1" ry="1.4" fill="#B8CED9" opacity=".8"/>
+        <!-- Tiny sweat-bead at temple -->
+        <ellipse cx="45" cy="20" rx=".9" ry="1.3" fill="#B8CED9" opacity=".8"/>`,
+    });
+  }
+  if (pack === "howard" && personaId === "soundfx") {
+    // Fred — big purple DJ headphones wrapped over the top lobe.
+    return buildPeanutSVG({
+      ns, face: "flat",
+      prop: `
+        <path d="M14 18Q32 2 50 18" fill="none" stroke="#3E2A14" stroke-width="2.2" stroke-linecap="round"/>
+        <ellipse cx="15" cy="22" rx="4.5" ry="5.5" fill="#a855f7" stroke="#3E2A14" stroke-width="1.2"/>
+        <ellipse cx="49" cy="22" rx="4.5" ry="5.5" fill="#a855f7" stroke="#3E2A14" stroke-width="1.2"/>
+        <ellipse cx="15" cy="22" rx="2" ry="3" fill="#6B0F87"/>
+        <ellipse cx="49" cy="22" rx="2" ry="3" fill="#6B0F87"/>
+        <ellipse cx="14" cy="20" rx=".9" ry="1.4" fill="#fff" opacity=".4"/>
+        <ellipse cx="48" cy="20" rx=".9" ry="1.4" fill="#fff" opacity=".4"/>`,
+    });
+  }
+  if (pack === "howard" && personaId === "joker") {
+    // Jackie — vintage stand mic with amber-trimmed head. Toothy grin.
+    return buildPeanutSVG({
+      ns, face: "grin",
+      prop: `
+        <path d="M22 42q-2 4 6 4M42 42q2 4 -6 4" fill="none" stroke="#8B5E2F" stroke-width="2.6" stroke-linecap="round"/>
+        <rect x="30.5" y="42" width="3" height="14" rx="1" fill="#2A2A2A"/>
+        <rect x="26" y="55.5" width="12" height="2" rx=".5" fill="#2A2A2A"/>
+        <ellipse cx="32" cy="38" rx="6" ry="7" fill="#2A2A2A" stroke="#f59e0b" stroke-width="1.2"/>
+        <path d="M28 35h8M28 38h8M28 41h8" stroke="#555" stroke-width=".6"/>
+        <ellipse cx="30" cy="34.5" rx="1.2" ry="1.8" fill="#fff" opacity=".3"/>`,
+    });
+  }
+
+  // ── TWiST pack ──
+  if (pack === "twist" && personaId === "producer") {
+    // Molly — spiral-bound reporter's notebook with blue ruled lines.
+    return buildPeanutSVG({
+      ns, face: "smile",
+      prop: `
+        <path d="M19 39q-2 3 1 7M45 39q2 3 -1 7" fill="none" stroke="#8B5E2F" stroke-width="2.6" stroke-linecap="round"/>
+        <rect x="20" y="38" width="24" height="18" rx="1" fill="#F0EADA" stroke="#3E2A14" stroke-width="1"/>
+        <path d="M23 37v2M27 37v2M31 37v2M35 37v2M39 37v2M43 37v2" stroke="#3E2A14" stroke-width="1" stroke-linecap="round"/>
+        <line x1="23" y1="44" x2="40" y2="44" stroke="#3b82f6" stroke-width="1" stroke-linecap="round"/>
+        <line x1="23" y1="47" x2="36" y2="47" stroke="#9CA3AF" stroke-width=".7" stroke-linecap="round"/>
+        <line x1="23" y1="50" x2="39" y2="50" stroke="#3b82f6" stroke-width="1" stroke-linecap="round"/>
+        <line x1="23" y1="53" x2="34" y2="53" stroke="#9CA3AF" stroke-width=".7" stroke-linecap="round"/>`,
+    });
+  }
+  if (pack === "twist" && personaId === "troll") {
+    // Jason — megaphone, cone pointing up-right. Open yelling mouth.
+    return buildPeanutSVG({
+      ns, face: "open",
+      extraDefs: `<linearGradient id="mmega-${ns}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#8B1010"/><stop offset="60%" stop-color="#ef4444"/><stop offset="100%" stop-color="#C11A00"/></linearGradient>`,
+      prop: `
+        <path d="M22 44q-3 4 2 8M42 44q4 4 -2 8" fill="none" stroke="#8B5E2F" stroke-width="2.6" stroke-linecap="round"/>
+        <path d="M22 40L50 32L52 54L26 54Z" fill="url(#mmega-${ns})" stroke="#7A0000" stroke-width="1.2" stroke-linejoin="round"/>
+        <ellipse cx="51" cy="43" rx="2.2" ry="10" fill="#7A0000" opacity=".85"/>
+        <path d="M24 41L25 48" stroke="#FFF" stroke-width="1.2" opacity=".4" stroke-linecap="round"/>
+        <path d="M55 30q4 1 5 4M56 42q4 0 6 -1M55 55q4 1 5 4" fill="none" stroke="#ef4444" stroke-width="1.3" stroke-linecap="round" opacity=".9"/>`,
+    });
+  }
+  if (pack === "twist" && personaId === "soundfx") {
+    // Lon — black-and-white clapperboard with a purple "scene" tag.
+    return buildPeanutSVG({
+      ns, face: "flat",
+      prop: `
+        <path d="M19 42q-2 3 1 6M45 42q2 3 -1 6" fill="none" stroke="#8B5E2F" stroke-width="2.6" stroke-linecap="round"/>
+        <rect x="19" y="42" width="26" height="14" rx=".8" fill="#2A2A2A" stroke="#000" stroke-width="1"/>
+        <rect x="21" y="44" width="22" height="10" fill="#4A3E28"/>
+        <line x1="21" y1="48" x2="43" y2="48" stroke="#2A2A2A" stroke-width=".5"/>
+        <line x1="21" y1="51" x2="43" y2="51" stroke="#2A2A2A" stroke-width=".5"/>
+        <rect x="23" y="45" width="6" height="2" rx=".3" fill="#a855f7"/>
+        <rect x="19" y="37" width="26" height="5" fill="#2A2A2A"/>
+        <polygon points="19,37 22,37 25,42 22,42" fill="#fff"/>
+        <polygon points="25,37 28,37 31,42 28,42" fill="#fff"/>
+        <polygon points="31,37 34,37 37,42 34,42" fill="#fff"/>
+        <polygon points="37,37 40,37 43,42 40,42" fill="#fff"/>
+        <polygon points="43,37 45,37 45,40 44,40" fill="#fff"/>`,
+    });
+  }
+  if (pack === "twist" && personaId === "joker") {
+    // Alex — three-slice pie chart, amber as the dominant segment.
+    return buildPeanutSVG({
+      ns, face: "smirk",
+      prop: `
+        <path d="M19 39q-2 3 1 7M45 39q2 3 -1 7" fill="none" stroke="#8B5E2F" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="32" cy="45" r="10" fill="#F6F0E2" stroke="#3E2A14" stroke-width="1.2"/>
+        <path d="M32 45L32 35A10 10 0 0 1 40.7 50Z" fill="#f59e0b"/>
+        <path d="M32 45L40.7 50A10 10 0 0 1 24 49Z" fill="#ef4444"/>
+        <path d="M32 45L24 49A10 10 0 0 1 32 35Z" fill="#3b82f6"/>
+        <circle cx="32" cy="45" r="1.2" fill="#3E2A14"/>`,
+    });
+  }
+
   return null;
 }
 
@@ -386,6 +542,12 @@ const responseRateSelect = document.getElementById("responseRate");
 // Persona pack selector. Chrome side-panel DOM is created fresh each open,
 // so we're guaranteed the element exists when this file runs.
 const packSelect = document.getElementById("packSelect");
+// Container for the two-card pack chooser shown under the (hidden) select.
+// Populated by renderPackChooser() at init + on every pack change. Clicks
+// on a card drive packSelect via dispatchEvent('change'), so the existing
+// change-handler cascade (buildPersonaAvatars, renderMutesList, trace label)
+// runs unchanged.
+const packChooser = document.getElementById("packChooser");
 const capturedTabBanner = document.getElementById("capturedTabBanner");
 const capturedTabTitle = document.getElementById("capturedTabTitle");
 
@@ -438,6 +600,7 @@ async function ensureInstallId() {
 loadSettings();
 ensureInstallId();
 buildPersonaAvatars();
+renderPackChooser();
 checkStatus();
 detectCurrentTab();
 
@@ -540,6 +703,10 @@ function loadSettings() {
       currentPackId = savedPack;
       if (packSelect) packSelect.value = savedPack;
       if (packChanged || mutedPersonas.size > 0) buildPersonaAvatars();
+      // Repaint the pack preview with the restored pack — always, so a
+      // saved TWiST user sees their lineup under the dropdown without
+      // having to open and close it.
+      if (packChanged) renderPackChooser();
       // Mirror the restored selection in the trace header so the debug
       // panel reads correctly the first time a user opens it — even
       // before they've started a session. sessionPackId is still null
@@ -705,6 +872,8 @@ function showCapturing() {
   // names/colors/emojis would lie about which persona actually spoke.
   // Re-enabled in showIdle() when the session ends.
   if (packSelect) packSelect.disabled = true;
+  // Lock the visible pack-chooser card grid too (greys out, click-refused).
+  renderPackChooser();
 }
 
 function showIdle() {
@@ -717,6 +886,8 @@ function showIdle() {
   personasRow.classList.remove("interactive");
   syncAvatarTitles();
   if (packSelect) packSelect.disabled = false;
+  // Unlock the visible card grid too.
+  renderPackChooser();
   // Session over — trace panel should show the dropdown's pre-session
   // selection again. updateTracePackLabel() reflects both states via the
   // .locked class toggle.
@@ -1698,6 +1869,9 @@ if (packSelect) {
     saveSettings();
     // Rebuild the persona row so the names/emojis match the chosen pack.
     buildPersonaAvatars();
+    // Refresh the drawer's pack-preview so the 4 mascot thumbs under the
+    // dropdown snap to the new lineup immediately.
+    renderPackChooser();
     // Re-render the drawer mute grid — if the drawer is open it's already
     // showing the previous pack's names, and any muted ids from the old
     // pack that don't exist in the new pack should still persist in
@@ -1872,8 +2046,15 @@ function renderMutesList() {
     row.className = "mute-row" + (isMuted ? " off" : "");
     row.dataset.personaId = p.id;
     const roleTag = roleForSlot(p.id).toUpperCase();
+    // Mascot if available for this persona+pack; otherwise keep the
+    // block-letter initials. Mute list uses the small .av square (26px) so
+    // the peanut reads as a "who am I muting" thumbnail.
+    const mascot = personaMascotHTML(p.id, currentPackId);
+    const avHTML = mascot
+      ? `<div class="av has-mascot">${mascot}</div>`
+      : `<div class="av">${escapeHtml(personaInitials(p.name))}</div>`;
     row.innerHTML = `
-      <div class="av">${escapeHtml(personaInitials(p.name))}</div>
+      ${avHTML}
       <div class="meta">
         <div class="nm">${escapeHtml(p.name)}</div>
         <div class="rl">${escapeHtml(roleTag)} · ${escapeHtml(p.role)}</div>
@@ -1884,6 +2065,61 @@ function renderMutesList() {
     mutesContainer.appendChild(row);
   }
 }
+// ── Pack chooser (Lineup drawer) ──
+//
+// Renders two pack cards side-by-side, each showing that pack's 4 peanut
+// mascots + name + ACTIVE / TAP TO SWITCH label. Clicking the inactive
+// card mirrors the choice into the hidden packSelect and dispatches
+// 'change', so the existing change-handler cascade runs unchanged. Called
+// at init, on every pack change, and when capturing flips (the card grid
+// locks during a live session).
+function renderPackChooser() {
+  if (!packChooser) return;
+  packChooser.innerHTML = "";
+  packChooser.classList.toggle("locked", !!capturing);
+  for (const packId of Object.keys(PACKS_CLIENT)) {
+    const isActive = packId === currentPackId;
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "pack-card" + (isActive ? " active" : "");
+    card.dataset.packId = packId;
+    card.setAttribute("role", "radio");
+    card.setAttribute("aria-checked", isActive ? "true" : "false");
+    card.setAttribute("aria-label", `${PACK_BADGE_NAMES[packId] || packId} pack`);
+    const name = PACK_BADGE_NAMES[packId] || packId;
+    const mugsHTML = PACKS_CLIENT[packId].map((p) => {
+      const mascot = personaMascotHTML(p.id, packId);
+      return mascot
+        ? `<span class="pack-card-mug" title="${escapeHtml(p.name)}">${mascot}</span>`
+        : `<span class="pack-card-mug" style="display:grid;place-items:center;font-family:var(--slab);font-size:11px;color:var(--ink)" title="${escapeHtml(p.name)}">${escapeHtml(personaInitials(p.name))}</span>`;
+    }).join("");
+    card.innerHTML = `
+      <span class="pack-card-mugs">${mugsHTML}</span>
+      <span class="pack-card-name">${escapeHtml(name)}</span>
+      <span class="pack-card-state">${isActive ? "ACTIVE" : "TAP TO SWITCH"}</span>
+    `;
+    card.addEventListener("click", () => {
+      // Mid-session swap is disallowed — same guard the old select used.
+      if (capturing) return;
+      if (packId === currentPackId) return;
+      if (packSelect) {
+        packSelect.value = packId;
+        packSelect.dispatchEvent(new Event("change"));
+      } else {
+        // Fallback if the hidden select ever goes missing — do the cascade
+        // directly so the card still swaps packs.
+        currentPackId = packId;
+        saveSettings();
+        buildPersonaAvatars();
+        renderPackChooser();
+        renderMutesList();
+        updateTracePackLabel();
+      }
+    });
+    packChooser.appendChild(card);
+  }
+}
+
 function toggleMute(personaId) {
   if (mutedPersonas.has(personaId)) mutedPersonas.delete(personaId);
   else mutedPersonas.add(personaId);
