@@ -977,12 +977,6 @@
       position: relative; /* anchors the :not(.on) strike-through ::after */
       transition: all 0.15s;
     }
-    /* "All" master pill keeps its invert-on-toggle behavior: on = ink fill,
-       off = paper fill. Not a category, so no strike. */
-    .footer .pill.on{
-      background: var(--ink); color: var(--paper);
-    }
-
     /* Category pills keep their color in BOTH on/off states — the category
        palette is the pill's identity, not its active-state decoration.
        Differentiation between on/off comes from the strike-through below. */
@@ -1457,7 +1451,6 @@
   <div id="footer" class="footer hidden">
     <div class="tools">
       <span>
-        <button class="pill on" data-filter="all">All</button>
         <button class="pill fact on" data-filter="fact">Fact</button>
         <button class="pill dunk on" data-filter="dunk">Dunk</button>
         <button class="pill cue on" data-filter="cue">Cue</button>

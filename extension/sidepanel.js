@@ -354,8 +354,8 @@ const themePaperBtn = document.getElementById("themePaperBtn");
 const themeNightBtn = document.getElementById("themeNightBtn");
 const exportCopyBtn = document.getElementById("exportCopyBtn");
 const exportDownloadBtn = document.getElementById("exportDownloadBtn");
-// Footer filter pills — indexed by data-filter. One `All` master plus four
-// per-role toggles. Collected once at load; the HTML renders all five.
+// Footer filter pills — one per role (fact / dunk / cue / bit). Indexed by
+// data-filter. Collected once at load.
 const filterPillEls = Array.from(
   document.querySelectorAll("#footer .pill[data-filter]")
 );
@@ -1684,43 +1684,30 @@ function updatePackBadge() {
 
 // ── Footer filter pills ──
 //
-// `All` is a master toggle that flips every role simultaneously. The four
-// role pills each own a single role tag. When any role is off, `All` flips
-// to off too (so the UI reads honestly as "showing a subset"). The actual
-// hide/show is done entirely in CSS via a data attribute on #gallery —
-// `[data-hide-fact] .feed-entry.fact { display: none }` etc. — so flipping
-// a pill is O(1) regardless of how many feed entries are rendered.
+// Each role pill owns a single category tag. Pills carry their category
+// color in both states and show a diagonal strike-through when off (see
+// .pill:not(.on)::after in the stylesheet) — the "All" master toggle that
+// used to live here was removed because toggling the four categories
+// individually was already enough.
+// Actual hide/show is done entirely in CSS via a data attribute on
+// #gallery — `[data-hide-fact] .feed-entry.fact { display: none }` etc. —
+// so flipping a pill is O(1) regardless of how many feed entries are
+// rendered.
 function applyFilterState() {
   const roles = ["fact", "dunk", "cue", "bit"];
   for (const r of roles) {
     if (activeFilters.has(r)) gallery.removeAttribute(`data-hide-${r}`);
     else gallery.setAttribute(`data-hide-${r}`, "true");
   }
-  // Sync pill .on states.
   for (const pill of filterPillEls) {
-    const f = pill.dataset.filter;
-    if (f === "all") {
-      pill.classList.toggle("on", activeFilters.size === roles.length);
-    } else {
-      pill.classList.toggle("on", activeFilters.has(f));
-    }
+    pill.classList.toggle("on", activeFilters.has(pill.dataset.filter));
   }
 }
 for (const pill of filterPillEls) {
   pill.addEventListener("click", () => {
     const f = pill.dataset.filter;
-    const roles = ["fact", "dunk", "cue", "bit"];
-    if (f === "all") {
-      // If anything is currently off, `All` becomes "turn everything on".
-      // If everything is already on, `All` becomes "turn everything off"
-      // — useful as a quick "hide all" when scanning for a specific type.
-      const allOn = activeFilters.size === roles.length;
-      activeFilters.clear();
-      if (!allOn) for (const r of roles) activeFilters.add(r);
-    } else {
-      if (activeFilters.has(f)) activeFilters.delete(f);
-      else activeFilters.add(f);
-    }
+    if (activeFilters.has(f)) activeFilters.delete(f);
+    else activeFilters.add(f);
     applyFilterState();
   });
 }
