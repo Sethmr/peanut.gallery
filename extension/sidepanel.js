@@ -1034,10 +1034,10 @@ startBtn.addEventListener("click", async () => {
       missing.push("Brave Search");
     }
     if (missing.length > 0) {
-      // Expand the keys section so user can fill them in
-      document.getElementById("keysSection").classList.add("visible");
-      document.getElementById("toggleKeys").classList.add("open");
-      showError(`Self-hosting requires your own API key${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Free keys are linked below.`);
+      // Open settings → Backend & keys so the user can fill them in
+      openSettingsDrawer();
+      showDrawerSection("backend");
+      showError(`Self-hosting requires your own API key${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Free keys are linked in Settings.`);
       return;
     }
   }
@@ -1143,8 +1143,8 @@ startBtn.addEventListener("click", async () => {
     const rawMsg = err.message || String(err);
     if (rawMsg.startsWith("TRIAL_EXHAUSTED:") || rawMsg.startsWith("INSTALL_ID_REQUIRED:")) {
       const cleaned = rawMsg.replace(/^[A-Z_]+:/, "");
-      document.getElementById("keysSection").classList.add("visible");
-      document.getElementById("toggleKeys").classList.add("open");
+      openSettingsDrawer();
+      showDrawerSection("backend");
       showError(cleaned);
     } else {
       showError(rawMsg);
@@ -1259,25 +1259,58 @@ function firePersona(personaId) {
     });
 }
 
-// ── Toggle keys ──
-document.getElementById("toggleKeys").addEventListener("click", (e) => {
-  const section = document.getElementById("keysSection");
-  const isOpen = section.classList.toggle("visible");
-  e.currentTarget.classList.toggle("open", isOpen);
-});
+// ── Drawer submenu navigation ──
+//
+// Two-level: a category menu (the drawer's home view) and per-category
+// section panels. Menu → section on menu-item click; section → menu on the
+// section's "‹ Menu" button. Entering the Audio section lazy-enumerates
+// output devices the same way the old toggleAudio collapsible did — we
+// don't want to poke getUserMedia on every panel open, only when the user
+// actually cares about the list.
+const drawerSectionEls = document.querySelectorAll(".drawer-section");
+const drawerMenuItems = document.querySelectorAll(".drawer-menu-item");
+const drawerSectionBacks = document.querySelectorAll(".drawer-section-back");
 
-// ── Toggle audio routing ──
-document.getElementById("toggleAudio").addEventListener("click", (e) => {
-  const section = document.getElementById("audioSection");
-  const isOpen = section.classList.toggle("visible");
-  e.currentTarget.classList.toggle("open", isOpen);
-  // Enumerate devices the first time the section is opened — this is when
-  // the user is actually interested in seeing them, and it avoids poking
-  // the media permission model on every panel open.
-  if (isOpen && !devicesEnumerated) {
+function showDrawerMenu() {
+  drawerSectionEls.forEach((s) => s.classList.remove("visible"));
+}
+function showDrawerSection(id) {
+  drawerSectionEls.forEach((s) => {
+    s.classList.toggle("visible", s.dataset.section === id);
+  });
+  if (id === "audio" && !devicesEnumerated) {
     enumerateOutputDevices();
   }
+}
+
+drawerMenuItems.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const id = btn.dataset.section;
+    if (id) showDrawerSection(id);
+  });
 });
+drawerSectionBacks.forEach((btn) => {
+  btn.addEventListener("click", showDrawerMenu);
+});
+
+// Masthead gear is a second entry point to the drawer — same handler,
+// just reachable before capture has started (the footer gear is only
+// visible during capture). openSettingsDrawer is declared below; function
+// declarations hoist so the forward reference is safe.
+const settingsToggleTopBtn = document.getElementById("settingsToggleTop");
+if (settingsToggleTopBtn) {
+  settingsToggleTopBtn.addEventListener("click", openSettingsDrawer);
+}
+
+// Free-tier banner deep-links into Backend & keys — when the trial nudges
+// users toward BYOK, that's the section they need, not the menu.
+const freeBannerSettingsLink = document.getElementById("freeBannerSettingsLink");
+if (freeBannerSettingsLink) {
+  freeBannerSettingsLink.addEventListener("click", () => {
+    openSettingsDrawer();
+    showDrawerSection("backend");
+  });
+}
 
 // ── Audio settings: persist + live-update the running session ──
 passthroughToggle.addEventListener("change", () => {
@@ -1479,6 +1512,10 @@ function openSettingsDrawer() {
   if (!settingsDrawer) return;
   renderMutesList();
   syncThemeButtons();
+  // Always reset to the menu view when the drawer opens. Callers that want
+  // to deep-link (e.g. the free-banner "Settings" link, the trial-exhausted
+  // error path) can call showDrawerSection(id) immediately after.
+  showDrawerMenu();
   settingsDrawer.classList.add("visible");
   settingsDrawer.setAttribute("aria-hidden", "false");
 }
