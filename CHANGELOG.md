@@ -6,6 +6,19 @@ All notable changes to Peanut Gallery are recorded here. Format loosely follows 
 
 Tracks in-flight work for the next release.
 
+## [1.5.2] — 2026-04-20 — "First Run"
+
+A small onboarding release on top of v1.5.1's settings drawer. First-time users now get a four-step Editor's Note walkthrough the moment they open the side panel — Welcome → Lineup → Backend & keys → Audio — with a spotlight ring pulsing over the current step's target element and a single Skip/Next path. A "Replay settings tour" row in the Appearance submenu lets anyone re-run it later.
+
+### Added
+- **First-run tutorial overlay** (`extension/sidepanel.html` + `extension/sidepanel.js`). `#tutorialOverlay` carries an Editor's Note card (stamp-red slug + step counter + title + body + Skip/Next) and dims the panel via a backdrop at `z-index: 40` (above the drawer's 30). Four steps declared in `TUTORIAL_STEPS`: (1) masthead ⚙ — welcome; (2) Lineup tile — pack + cadence; (3) Backend & keys tile — free tier + BYOK; (4) Audio tile — passthrough gotcha + replay-anytime hint. Each step's `onEnter` flips the drawer to the right state (opens it + resets to menu view) so the spotlight always aims at something visible; `requestAnimationFrame` defers the `.tut-target` class by one paint so the target has rendered into the flow before we highlight it.
+- **Spotlight pulse** — `.tut-target` gets a 3px stamp-red outline that animates between `--stamp` and `--yellow` on a 1.6s loop. `outline-offset: 3px` keeps it from shifting layout; `pointer-events: none` on the target prevents mid-tour clicks from desyncing the card from what's actually open. `prefers-reduced-motion` disables the animation but keeps the outline.
+- **"Replay settings tour" row in Appearance** (`#replayTutorialBtn`). Closes the drawer first, then `requestAnimationFrame(startTutorial)` so the drawer's `display: none` has committed before step 1's scroll-into-view math runs on the masthead gear.
+- **`tutorialSeen` flag** in `chrome.storage.local`. Single-field write on tour end (same pattern as `applyTheme` / `toggleMute` — avoids racing `loadSettings` and wiping empty key inputs). `maybeStartTutorial()` reads the flag independently of `loadSettings` and starts the tour after a 600 ms delay so the empty-state paint has landed first.
+
+### Fixed
+- **Roadmap / INDEX docs** refreshed to reflect v1.5.1's merge to `main` via PR [#18](https://github.com/Sethmr/peanut.gallery/pull/18) and v1.5.2's tutorial as the new in-flight release.
+
 ## [1.5.1] — 2026-04-19 — "Broadsheet Final"
 
 Polish round on top of v1.5's newspaper rebrand. The panel now reads like the proof sheet at [peanutgallery.live/panel/](https://www.peanutgallery.live/panel/): round persona mugs with category-colored borders, per-mug mini waveforms that animate only when that critic is speaking, an ON AIR label strip with its own waveform above the transcript, a 15-minute free-tier timer with a CAP REACHED state, and an episode card that shows the captured tab's title + free-tier progress bar. Settings moved out of the setup view into a 6-submenu drawer reachable from a masthead ⚙. The transcript ticker now scrolls continuously via a rolling-window speech-rate filter instead of per-Deepgram-interim CSS transitions.
