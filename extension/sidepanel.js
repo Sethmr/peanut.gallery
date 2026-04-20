@@ -618,6 +618,9 @@ function showCapturing() {
   transcriptSection.style.display = "block";
   gallery.style.display = "flex";
   if (footer) footer.classList.remove("hidden");
+  // Kick off the transcript ticker's continuous-scroll loop. Stays running
+  // until showIdle() tears it down on session end.
+  startTickerLoop();
   // Avatar clicks only do work during a live session — promote the row
   // to the interactive visual state (pointer cursor, hover transform,
   // "Make X react now" tooltip). See .personas-row.interactive rules in
@@ -659,6 +662,10 @@ function showIdle() {
   transcriptSection.style.display = "none";
   gallery.style.display = "none";
   if (footer) footer.classList.add("hidden");
+  // Tear down the ticker loop — no more incoming transcript means no
+  // reason to burn rAF ticks, and stopTickerLoop() also resets the
+  // translateX back to 0 for the next session's clean slate.
+  stopTickerLoop();
   // Close the drawer if it was open when capture stopped — no session
   // means the settings drawer's "wire paused" framing no longer makes
   // sense. The user can reopen it from setup via the footer gear once
@@ -1066,18 +1073,64 @@ function updateTranscript() {
   if (transcriptInterim) html += `<span class="interim">${escapeHtml(transcriptInterim)}</span>`;
   if (!html) html = '<span style="color:var(--paper); opacity:.5">Listening...</span>';
   transcriptTextEl.innerHTML = html;
-  // Pin the text's right edge to the clip's right edge so the newest
-  // words are always visible and older text scrolls off the left.
-  // Measured next frame so layout has caught up to the innerHTML write.
-  // Pace matches speech because each interim update extends the text
-  // box, which extends the translateX offset, which transitions in
-  // 250ms — chains into continuous motion at talking speed.
-  requestAnimationFrame(() => {
-    const clip = transcriptTextEl.parentElement;
-    if (!clip) return;
-    const overflow = transcriptTextEl.scrollWidth - clip.clientWidth;
-    transcriptTextEl.style.transform = `translateX(${-Math.max(0, overflow)}px)`;
-  });
+  // No transform math here — startTickerLoop() owns the scroll position
+  // via a continuous rAF loop. We just write content; the loop measures
+  // the new scrollWidth on its next tick and eases toward the updated
+  // target. That replaces the old per-update 250ms CSS transition, which
+  // produced a staccato jump-per-interim instead of continuous motion.
+}
+
+// ── Transcript ticker loop ──
+//
+// Runs at 60fps during capture. Every frame:
+//   1. Measures target  = (text scrollWidth) - (clip clientWidth), clamped >=0.
+//      That's how far we'd need to scroll so the RIGHT edge of the text
+//      is flush with the RIGHT edge of the clip — i.e. the newest words
+//      are always visible.
+//   2. Eases current offset toward target by a fixed fraction (TICKER_EASE).
+//      Exponential damping: the further behind, the faster it catches up;
+//      at steady-state speech the offset trails the target by a small
+//      constant (readable buffer on the right), and on silence it fully
+//      settles in ~0.3s.
+//
+// Speech rate drives target growth (new words extend scrollWidth); the
+// loop makes that motion continuous instead of jumpy. Seth's spec:
+// "ok if not perfectly aligned, keep up in the long run, minimize lag."
+// TICKER_EASE = 0.15 catches ~half the distance in 5 frames (~83ms);
+// bumping it up makes motion snappier at the cost of more visible
+// acceleration on each new word.
+const TICKER_EASE = 0.15;
+let tickerRafId = null;
+let tickerCurrent = 0;
+
+function startTickerLoop() {
+  if (tickerRafId != null) return;
+  const step = () => {
+    const clip = transcriptTextEl && transcriptTextEl.parentElement;
+    if (!clip) {
+      tickerRafId = null;
+      return;
+    }
+    const target = Math.max(0, transcriptTextEl.scrollWidth - clip.clientWidth);
+    const delta = target - tickerCurrent;
+    if (Math.abs(delta) < 0.5) {
+      tickerCurrent = target;
+    } else {
+      tickerCurrent += delta * TICKER_EASE;
+    }
+    transcriptTextEl.style.transform = `translateX(${-tickerCurrent}px)`;
+    tickerRafId = requestAnimationFrame(step);
+  };
+  tickerRafId = requestAnimationFrame(step);
+}
+
+function stopTickerLoop() {
+  if (tickerRafId != null) {
+    cancelAnimationFrame(tickerRafId);
+    tickerRafId = null;
+  }
+  tickerCurrent = 0;
+  if (transcriptTextEl) transcriptTextEl.style.transform = "";
 }
 
 // ── Actions ──

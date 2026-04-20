@@ -432,11 +432,12 @@
       white-space: nowrap;
       font-style: italic; opacity: .85;
       line-height: 1.35;
-      /* Positioned inside the clip; JS sets translateX each frame so the
-         RIGHT edge of this element stays flush with the clip's RIGHT edge.
-         Transition smooths the per-update jumps into a continuous scroll. */
+      /* A rAF loop in sidepanel.js continuously eases the translateX each
+         frame so the RIGHT edge of this element chases the clip's RIGHT
+         edge. No CSS transition — letting JS own the motion at 60fps is
+         smoother than bouncing between 250ms transitions on every
+         Deepgram interim. */
       will-change: transform;
-      transition: transform 250ms ease-out;
     }
     .transcript-text .interim{color: var(--paper); opacity: .6; font-style: italic}
 
