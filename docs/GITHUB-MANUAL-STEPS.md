@@ -102,7 +102,7 @@ Keeps the "what's next" story visible on the repo without requiring someone to r
 
 ### 8. Branch protection — asymmetric (`main` strict, `develop` lighter)
 
-Wires the `develop → main` model from [`RELEASE.md`](RELEASE.md) into GitHub's enforcement layer. Two rules — copy-paste each.
+Wires the `release/* → main` branching model from [`RELEASE.md`](RELEASE.md) into GitHub's enforcement layer. Two rules — copy-paste each. (If you previously configured these under the `develop → main` shape, the GitHub Settings rules themselves don't need to change — `main` and `develop` branch-protection are identical under both models. The head-branch carve-outs are enforced separately by [`protect-main-branch.yml`](../.github/workflows/protect-main-branch.yml); that workflow's regex still allows `develop` + `hotfix/*` and needs a Seth-owned edit to allow `release/*`.)
 
 **Rule 1 — `main`.** Settings → Branches → Add rule → pattern `main`:
 

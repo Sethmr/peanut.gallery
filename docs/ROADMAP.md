@@ -24,18 +24,18 @@ Details on any of these live in the corresponding `docs/V<x>-PLAN.md` or the `CH
 
 ## In flight — v1.5.2 "First Run" → merge → tag
 
-**Status (2026-04-20):** tutorial code + manifest bump + CHANGELOG entry land on `develop`; `develop → main` release PR is the next step once Seth is ready.
+**Status (2026-04-20):** tutorial code + manifest bump + CHANGELOG entry land on `develop`; cutting `release/v1.5.2` and opening the `release/v1.5.2 → main` PR is the next step once Seth is ready (per the new branching model in [`RELEASE.md`](RELEASE.md)).
 
 **What v1.5.2 ships:** a first-run Editor's Note overlay that walks users through the v1.5.1 settings drawer in four steps (Welcome → Lineup → Backend & keys → Audio). Gated on a single `tutorialSeen` flag in `chrome.storage.local`; always skippable; always replayable via a new "Replay settings tour" row in the Appearance submenu. Spotlight ring pulses on the active target; `prefers-reduced-motion` opts out of the pulse. No backend changes.
 
 **What's left to ship v1.5.2:**
 
 1. **Self-merge the feature PR** to `develop` after `npm run check` passes.
-2. **Open the `develop → main` release PR.** Body = CHANGELOG [1.5.2] entry grouped by commit type.
+2. **Cut `release/v1.5.2` from `develop` and open the `release/v1.5.2 → main` PR.** Body = CHANGELOG [1.5.2] entry grouped by commit type.
 3. **Seth merges to `main`, cuts the `v1.5.2` git tag.** Manifest already matches.
 4. **Wait on CWS** — do NOT upload v1.5.2 while v1.5.0 is still in review (still the same supersede-and-reset risk).
 
-**Also pending from v1.5.1:** cut the `v1.5.1` git tag on `main` (release PR merged but no tag yet — can land before or after v1.5.2's tag, but each version should get its own tag for clean CHANGELOG/CWS traceability).
+**Also pending from v1.5.1:** cut the `v1.5.1` git tag on `main` (the v1.5.1 release landed but no tag yet — can land before or after v1.5.2's tag, but each version should get its own tag for clean CHANGELOG/CWS traceability).
 
 **Narrated walkthrough (v1.5.0):** https://youtu.be/WPyknI7-N5U — embedded on the landing page at `#walkthrough` and exposed as a `VideoObject` in the site's JSON-LD.
 
