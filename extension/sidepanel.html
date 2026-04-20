@@ -1441,8 +1441,14 @@
   <!-- ── GALLERY FEED ── -->
   <div id="gallery" class="gallery" style="display:none;"></div>
 
-  <!-- ── EMPTY STATE ── -->
-  <div id="emptyState" class="empty-state" style="display:none;">
+  <!-- ── EMPTY STATE ──
+       No inline display override — the CSS default (.empty-state { display: flex; flex: 1 })
+       is the correct first-load state (panel opens idle, empty state visible under the setup
+       section). showCapturing() explicitly sets display:none when a session starts, and
+       showIdle() sets it back to flex on stop. An earlier inline style="display:none;" here
+       made the element invisible on first load and only visible AFTER the user ran a
+       start/stop cycle (because only showIdle wrote the style back). -->
+  <div id="emptyState" class="empty-state">
     <div class="lg">Wire<br>Quiet.</div>
     <div class="dk">Staff is standing by. Commentary posts here as the transcript comes in.</div>
   </div>
