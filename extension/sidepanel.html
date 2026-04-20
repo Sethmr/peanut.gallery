@@ -212,6 +212,13 @@
       border: 1px solid var(--rule);
       background: var(--paper);
       position: relative;
+      /* Create a fresh stacking context so the muted-state ::before slash
+         can paint ABOVE the nested .persona-avatar (which also creates a
+         stacking context via position:relative and would otherwise hide
+         the slash). Matches the .sp-mug.muted treatment on the design
+         proof, which works without this because its mug has no nested
+         positioned child. */
+      isolation: isolate;
       cursor: default;
       transition: transform 0.15s;
     }
@@ -221,9 +228,10 @@
     .persona-bubble.muted{opacity: .45}
     .persona-bubble.muted::before{
       content:""; position:absolute;
-      left:6px; right:6px; top:26px;
-      height: 1.5px; background: var(--ink);
+      left: 4px; right: 4px; top: 26px;
+      height: 2px; background: var(--p-ink);
       transform: rotate(-8deg);
+      z-index: 3;
       pointer-events: none;
     }
     .persona-avatar{
@@ -325,29 +333,41 @@
       border: 1px solid var(--rule);
     }
 
-    /* ── TRANSCRIPT TICKER ── */
+    /* ── TRANSCRIPT TICKER ──
+       Matches the wire/ticker treatment on the design proof
+       (peanutgallery.live/panel/ .sp-ticker): single flowing line, inverted
+       ink background so the white-space:nowrap ellipsis reads like a
+       broadcast wire instead of a boxed multi-line quote. */
     .transcript-section{
-      padding: 8px 12px;
-      background: var(--paper-2);
-      border-bottom: 1px solid var(--ink-3);
-      font-family: var(--type); font-size: 11px; line-height: 1.45;
-      color: var(--ink-2);
-      max-height: 90px; overflow: hidden;
-      position: relative;
+      padding: 9px 12px;
+      background: var(--ink);
+      color: var(--paper);
+      border-bottom: 1px solid var(--ink);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: center;
       flex-shrink: 0;
+      overflow: hidden;
     }
     .transcript-label{
-      position: absolute; top: 2px; right: 10px;
-      font-family: var(--slab-2); font-size: 8px; font-weight: 700;
-      letter-spacing: .25em; color: var(--ink-3);
-      background: var(--paper-2); padding: 0 3px;
+      position: static;
+      font-family: var(--slab-2); font-size: 8.5px; font-weight: 700;
+      letter-spacing: .25em; color: var(--stamp);
+      background: transparent; padding: 0;
       text-transform: uppercase;
+      white-space: nowrap;
     }
     .transcript-text{
-      font-family: var(--type); font-size: 11.5px; line-height: 1.45;
-      color: var(--ink-2);
+      font-family: var(--mono); font-size: 10.5px;
+      letter-spacing: .02em;
+      color: var(--paper);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-style: italic; opacity: .85;
+      line-height: 1.3;
+      min-width: 0;
     }
-    .transcript-text .interim{color: var(--ink-3); font-style: italic}
+    .transcript-text .interim{color: var(--paper); opacity: .6; font-style: italic}
 
     /* ── SETUP (idle) ── */
     .setup{
@@ -550,12 +570,16 @@
     .btn.btn-stop:hover, .btn-stop:hover{
       background: var(--ink); border-color: var(--ink);
     }
+    /* Yellow-background buttons: lock text to always-black (--p-ink)
+       instead of the themeable --ink, which flips to ivory in night mode
+       and goes unreadable on yellow. */
     .btn.btn-fire, .btn-fire{
-      background: var(--yellow); color: var(--ink);
-      border-color: var(--ink);
+      background: var(--yellow); color: var(--p-ink);
+      border-color: var(--p-ink);
     }
     .btn.btn-fire:hover, .btn-fire:hover{
-      background: var(--ink); color: var(--yellow);
+      background: var(--p-ink); color: var(--yellow);
+      border-color: var(--p-ink);
     }
     .btn:disabled{opacity: .35; cursor: not-allowed}
     .btn.loading{cursor: wait; opacity: .9}
@@ -631,9 +655,11 @@
       margin-top: 2px;
     }
     .feed-entry.fact .tag{color: var(--stamp); border-color: var(--stamp)}
+    /* Yellow bg → always-black text (--p-ink), not themed --ink which flips
+       to ivory in night mode. Matches the design proof exactly. */
     .feed-entry.dunk .tag{
-      background: var(--yellow); color: var(--ink);
-      border-color: var(--ink);
+      background: var(--yellow); color: var(--p-ink);
+      border-color: var(--p-ink);
     }
     .feed-entry.cue .tag{color: var(--ink); border-color: var(--ink)}
     .feed-entry.bit .tag{
@@ -720,8 +746,24 @@
       background: var(--stamp); color: var(--paper);
       border-color: var(--stamp);
     }
+    /* Yellow bg → always-black text, same reasoning as the DUNK feed tag. */
     .footer .pill.dunk.on{
-      background: var(--yellow); color: var(--ink);
+      background: var(--yellow); color: var(--p-ink);
+      border-color: var(--p-ink);
+    }
+    /* CUE on: outlined (paper bg, thick ink border) — differentiates from
+       BIT's solid-fill active state the same way CUE/BIT tags differ in
+       the feed (outline vs. filled, per the design proof). */
+    .footer .pill.cue.on{
+      background: var(--paper); color: var(--ink);
+      border: 2px solid var(--ink);
+      padding: 3px 6px; /* compensate for doubled border */
+    }
+    /* BIT on: solid fill (explicit, matches .pill.on default — kept here
+       for symmetry with the other named states and so future restyling
+       of the default doesn't silently detach BIT from the design). */
+    .footer .pill.bit.on{
+      background: var(--ink); color: var(--paper);
       border-color: var(--ink);
     }
     .footer .gear{
@@ -1137,8 +1179,8 @@
         <button class="pill on" data-filter="all">All</button>
         <button class="pill fact on" data-filter="fact">Fact</button>
         <button class="pill dunk on" data-filter="dunk">Dunk</button>
-        <button class="pill on" data-filter="cue">Cue</button>
-        <button class="pill on" data-filter="bit">Bit</button>
+        <button class="pill cue on" data-filter="cue">Cue</button>
+        <button class="pill bit on" data-filter="bit">Bit</button>
       </span>
       <button id="settingsToggle" class="gear" title="Settings">&#9881;</button>
     </div>
