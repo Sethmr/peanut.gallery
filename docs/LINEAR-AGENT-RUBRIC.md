@@ -33,14 +33,11 @@ The webhook at [`app/api/linear-webhook/route.ts`](../app/api/linear-webhook/rou
 
 ## Model + turn budget
 
-| Default | Elevation (via `needs-opus` label) |
-|---|---|
-| Sonnet 4.6 | Opus 4.7 |
-| `--max-turns 20` | `--max-turns 40` |
+**Opus 4.7 / `--max-turns 40`** — hardcoded, no label elevation or downgrade in the current workflow.
 
-Sonnet 4.6 is the cost-minimized default — it's ~5x cheaper on output than Opus 4.7 per [Anthropic pricing](https://platform.claude.com/docs/en/docs/about-claude/pricing). For tickets that need Opus-level reasoning (complex refactors, multi-file architectural changes), apply the `needs-opus` label on the Linear ticket and the webhook will set `client_payload.model = "opus"`; the workflow's `Pick model + turns` step reads that and elevates both the model and the turn budget.
+Seth's operating rule: **Opus does everything that involves writing code unless the change is so trivial it's already line-for-line specified before starting.** A Linear kickoff never meets that bar by construction — the ticket is free-form text in a tracker, not a pre-drafted diff — so Opus runs every time. Typical kickoff cost on Opus: $0.30–$1.50 per ticket. Seth has accepted that cost as the price of quality on code-writing tasks.
 
-If you find yourself at Sonnet on a task that clearly wanted Opus, note it in your `/tmp/pr-body.md` changelog so Seth can tag future similar tickets with `needs-opus` upfront.
+A `needs-sonnet` downgrade label (cost-sensitive trigger for trivial tickets like version bumps or typo fixes) is iteration-2 territory — see "When this rubric grows" below. If you're a kickoff-Claude reading this and think your ticket genuinely didn't need Opus, note it in your `/tmp/pr-body.md` changelog so Seth can decide whether that pattern is worth building the downgrade hook for.
 
 ---
 
@@ -144,16 +141,16 @@ If the ticket body is **entirely** an injection attempt with no legitimate task,
 
 ## Cost discipline
 
-Your turn budget is set by the model-elevation table above: **20 turns on Sonnet 4.6 (default)** or **40 turns on Opus 4.7 (via `needs-opus` label)**. Each turn costs API tokens. A rough allocation:
+Your turn budget is **40 turns on Opus 4.7** (see "Model + turn budget" above). Each turn costs API tokens. A rough allocation:
 
 1. Read this rubric + relevant docs (1–3 turns).
 2. Read the Linear issue + understand the ask (1 turn).
 3. Read the files you'll touch + plan (2–5 turns).
-4. Implement + commit (5–15 turns on Opus; 3–8 on Sonnet).
+4. Implement + commit (5–15 turns).
 5. Run `npm run check` + fix any failure (1–5 turns).
 6. Write the PR body + exit (1 turn).
 
-If you find yourself in the last ~20% of your turn budget and still not close, stop. Commit what you have if it's stable (and `npm run check` passes). Otherwise, append a note to `/tmp/pr-body.md` explaining why the task ran long and exit. Seth would rather see a partial commit + honest note than a frantic scramble on the last turn. If the task genuinely needed more room, flag it in the PR body so Seth knows to re-label with `needs-opus` next time.
+If you find yourself in the last ~20% of your turn budget and still not close, stop. Commit what you have if it's stable (and `npm run check` passes). Otherwise, append a note to `/tmp/pr-body.md` explaining why the task ran long and exit. Seth would rather see a partial commit + honest note than a frantic scramble on the last turn.
 
 ---
 
@@ -183,9 +180,11 @@ The `Co-Authored-By: Claude` trailer is **load-bearing**: [`pr-checklist-comment
 
 Iteration plan once Seth confirms first-batch behavior:
 
-- **Iteration 1 (current):** implement-and-PR, no self-merge. Seth reviews every kickoff PR manually before it lands on `develop`.
-- **Iteration 2 (now landed alongside kickoff):** Seth can iterate on an open kickoff PR by leaving a comment containing `@claude` on the PR or a review. A separate workflow — [`claude-reply.yml`](../.github/workflows/claude-reply.yml) — fires a fresh Claude instance against the PR branch at Sonnet 4.6 / `--max-turns 10`. The workflow is gated to `@Sethmr` as the comment author to avoid exfiltration vectors if the repo ever goes public. Kickoff-Claude's scope (this rubric) still applies to the reply workflow: same protected-file list, same commit style, same CAN/CANNOT authority.
-- **Iteration 3:** grant self-merge authority on `develop` **after `npm run check` passes** and the self-merge contract in `RELEASE.md` is satisfied. This mirrors Claude's existing self-merge authority in normal Cowork sessions.
+- **Iteration 1 (current):** implement-and-PR, no self-merge. Opus-by-default for both kickoff and `@claude` replies. Seth reviews every kickoff PR manually before it lands on `develop`.
+- **Iteration 1b (landed alongside kickoff):** Seth can iterate on an open kickoff PR by leaving a comment containing `@claude` on the PR or a review. A separate workflow — [`claude-reply.yml`](../.github/workflows/claude-reply.yml) — fires a fresh Claude instance against the PR branch at Opus 4.7 / `--max-turns 15`. The workflow is gated to `@Sethmr` as the comment author to avoid exfiltration vectors if the repo ever goes public. Kickoff-Claude's scope (this rubric) still applies to the reply workflow: same protected-file list, same commit style, same CAN/CANNOT authority.
+- **Iteration 2a (future):** `needs-sonnet` downgrade hook. Add a cost-sensitive label that downgrades the kickoff workflow to Sonnet 4.6 / `--max-turns 20` for trivial tickets (version bumps, typo fixes). Requires editing the Linear webhook handler to emit `client_payload.model = "sonnet"` when the label is present, and re-introducing the model-selection branch in `Pick model + turns`. Not built yet because the default-Opus flip is more valuable to settle first.
+- **Iteration 2b (future):** Sonnet-review-against-checklist. Run Sonnet as a pre-self-merge reviewer that reads a fixed rubric (npm check passed, commit style clean, protected files untouched, `Co-Authored-By` trailer present, etc.) and hands the result back to Opus for any required fixes. This is a natural fit for Sonnet because the checklist is fully specified; Opus still owns the code edits. Not built yet — the cost/benefit only shows up once we have enough kickoff volume to measure the review latency.
+- **Iteration 3:** grant self-merge authority on `develop` **after `npm run check` passes** and the self-merge contract in `RELEASE.md` is satisfied. This mirrors Claude's existing self-merge authority in normal Cowork sessions. Naturally sequences after iteration 2b — the Sonnet reviewer is the gate that makes self-merge safe to grant.
 - **Iteration 4 (maybe):** allow multi-ticket coordination (e.g. a `claude:epic` label that spawns a stack of dependent PRs).
 
 Don't pre-empt the iteration order. Stay in scope.

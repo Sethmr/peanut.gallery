@@ -61,21 +61,29 @@ name: Claude Kickoff
 #     The handler's rate-limit Map is process-scoped; this workflow-level
 #     concurrency gate is belt-and-suspenders.
 #
-# Why model + --max-turns are computed at runtime:
-#   - Cost minimization. Sonnet 4.6 is ~5x cheaper on output than Opus 4.7
-#     per Anthropic pricing
-#     (https://platform.claude.com/docs/en/docs/about-claude/pricing), and
-#     most small-to-medium tickets resolve inside 20 turns. The default is
-#     therefore Sonnet 4.6 + --max-turns 20.
-#   - Elevation to Opus 4.7 + --max-turns 40 is opt-in per ticket: the
-#     Linear webhook handler attaches `model: "opus"` to the dispatch
-#     payload when the issue carries the `needs-opus` label. The `Pick
-#     model + turns` step below reads that payload field and emits the
-#     corresponding `claude_args` string.
+# Why model + --max-turns are hardcoded to Opus 4.7 / 40:
+#   - Kickoff always writes code (that's the whole point of this workflow:
+#     implement a Linear ticket end-to-end on a feature branch). Seth's
+#     operating rule is "Opus does everything that involves writing code
+#     unless it's so easy I already know line-for-line what the change is
+#     before starting." A Linear kickoff, by construction, is never that
+#     trivial — the ticket is text in a tracker, not a pre-specified diff.
+#     So Opus runs every time.
+#   - Cost note: Opus is roughly 5x more expensive per output token than
+#     Sonnet per Anthropic pricing
+#     (https://platform.claude.com/docs/en/docs/about-claude/pricing).
+#     Typical kickoff cost on Opus lands in the $0.30–$1.50 range per
+#     ticket. Seth has accepted this cost for code-writing tasks.
 #   - Why 40 turns for Opus: harder tickets benefit from more headroom; 40
-#     is still a cost cap and doubles the default.
-#   - If a task doesn't finish in turns budget, the ticket probably needs
-#     human decomposition anyway.
+#     is still a cost cap. If a task doesn't finish in that budget, the
+#     ticket probably needs human decomposition anyway.
+#   - A `needs-sonnet` downgrade hook (cost-sensitive trigger for trivial
+#     tickets) is iteration-2 territory and not built here. The webhook
+#     handler still emits `client_payload.model` ("opus" or "sonnet"
+#     depending on whether `needs-opus` was applied), but this workflow
+#     ignores that field — Opus always wins. Removing the obsolete
+#     `needs-opus` label + wiring a `needs-sonnet` downgrade is a
+#     separate ticket in the webhook handler.
 #
 # Why anthropic_api_key as ${{ secrets.ANTHROPIC_API_KEY }}:
 #   - Same posture as claude-triage.yml. GitHub encrypts repo secrets at
@@ -176,19 +184,15 @@ jobs:
 
       - name: Pick model + turns
         id: model
-        env:
-          REQUESTED_MODEL: ${{ github.event.client_payload.model }}
         run: |
-          # Cost-minimized default: Sonnet 4.6 / 20 turns.
-          # Opt-in elevation to Opus 4.7 / 40 turns via `needs-opus` label
-          # (the webhook sets client_payload.model = "opus" in that case).
-          if [ "$REQUESTED_MODEL" = "opus" ]; then
-            echo "args=--max-turns 40 --model claude-opus-4-7" >> "$GITHUB_OUTPUT"
-            echo "model_label=Opus 4.7 / 40 turns" >> "$GITHUB_OUTPUT"
-          else
-            echo "args=--max-turns 20 --model claude-sonnet-4-6" >> "$GITHUB_OUTPUT"
-            echo "model_label=Sonnet 4.6 / 20 turns" >> "$GITHUB_OUTPUT"
-          fi
+          # Hardcoded Opus 4.7 / 40 turns. Kickoff always writes code, and
+          # Seth's rule is Opus for code-writing tasks unless the change
+          # is line-for-line pre-specified (which a Linear ticket isn't).
+          # The `client_payload.model` field the webhook still emits is
+          # intentionally ignored here — a `needs-sonnet` downgrade hook
+          # is iteration-2 territory.
+          echo "args=--max-turns 40 --model claude-opus-4-7" >> "$GITHUB_OUTPUT"
+          echo "model_label=Opus 4.7 / 40 turns" >> "$GITHUB_OUTPUT"
 
       - name: Seed PR body with Closes link
         env:
