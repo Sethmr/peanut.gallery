@@ -2,7 +2,7 @@
 
 > **Canonical project context.** Start here, then read [`docs/SESSION-NOTES-2026-04-18.md`](SESSION-NOTES-2026-04-18.md) for the most recent handoff (post-v1.3.0 force-react work on the working tree) and [`docs/SESSION-NOTES-2026-04-16.md`](SESSION-NOTES-2026-04-16.md) for the permissions guardrails that must not be overwritten.
 > For a full docs map, see [`docs/INDEX.md`](INDEX.md).
-> Last updated: 2026-04-18 (v1.4.0)
+> Last updated: 2026-04-19 (v1.5.1)
 
 ---
 

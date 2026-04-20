@@ -6,6 +6,44 @@ All notable changes to Peanut Gallery are recorded here. Format loosely follows 
 
 Tracks in-flight work for the next release.
 
+## [1.5.1] — 2026-04-19 — "Broadsheet Final"
+
+Polish round on top of v1.5's newspaper rebrand. The panel now reads like the proof sheet at [peanutgallery.live/panel/](https://www.peanutgallery.live/panel/): round persona mugs with category-colored borders, per-mug mini waveforms that animate only when that critic is speaking, an ON AIR label strip with its own waveform above the transcript, a 15-minute free-tier timer with a CAP REACHED state, and an episode card that shows the captured tab's title + free-tier progress bar. Settings moved out of the setup view into a 6-submenu drawer reachable from a masthead ⚙. The transcript ticker now scrolls continuously via a rolling-window speech-rate filter instead of per-Deepgram-interim CSS transitions.
+
+### Added
+- **Settings drawer with 6 submenus** — Lineup, Backend & keys, Audio, Critics (mute), Export, Appearance. Accessible via a new masthead gear (visible in all states) plus the existing footer gear (visible during capture). Drawer opens in a toc-style menu view; tapping a tile enters a section panel with a `‹ Menu` back button. All existing setting IDs preserved, zero storage wiring changes.
+- **Free-tier status strip** — two-line grid under the masthead with colored dot + uppercase state + right-justified `00:00:00` mono timer + state tag + tab-title detail. Only renders when the user has NOT entered their own Deepgram + Anthropic + xAI keys (Brave remains optional, xAI Live Search is the fallback). Ticks at 1Hz from capture start; flips to `CAP REACHED / PAUSED / Daily free minutes exhausted · resets at midnight` when the server emits `TRIAL_EXHAUSTED` or the local clock hits 15:00.
+- **Episode card above persona row** — bold slab title (captured tab title, ellipsized) + mono subtitle (hostname, `www.` stripped) + optional 3px progress bar for free-tier users tracking the 15-min cap.
+- **ON AIR waveform** — 10-bar horizontal waveform between the `On Air` label and the ticker text. Staggered `-0.05s…-0.60s` animation delays + mixed paper/stamp/yellow bar colors match the proof's `.sp-wave` rhythm. Honors `prefers-reduced-motion`.
+- **Per-mug 5-bar waveform** — under each persona circle's name/role. Dotted baseline at rest; stamp-red animated pulse when the bubble carries `.speaking`. Staggered per-bar animation delays.
+- **Community pack-contribution issue** ([#16](https://github.com/Sethmr/peanut.gallery/issues/16)) — zero-code on-ramp at the top (one-line CTA to the `pack_request.yml` template); 7-step PR checklist below for coders; links to `lib/packs/INDEX.md` + `lib/packs/twist/personas.ts` as the copy-paste starting point. Labeled `good first issue` + `help wanted` + `enhancement`.
+- **`dependencies` and `area: ci` repo labels** — created so Dependabot stops complaining they're missing.
+
+### Changed
+- **Persona mugs: 40×40 diagonal-stripe squares → 42×42 round circles** with category-colored borders/fills (fact → stamp outline, dunk → yellow fill, cue → ink outline, bit → ink fill). Matches the `.sp-item` tag palette in the proof. Speaking-state ring is round too (`border-radius: 50%`, `inset: -4px`).
+- **Transcript ticker scroll** is now a 60fps rAF loop driven by a 2.5-second rolling-window measurement of the target's growth rate, not per-update CSS transitions. Smoothed speed keeps up with speech pace on average while each Deepgram interim no longer visibly yanks the scroll. Four tunables at the top of the block (`WINDOW_MS`, `CATCHUP_THRESHOLD`, `CATCHUP_RATE`, `MIN_DRIFT_SPEED`).
+- **Transcript section is now a 3-col grid** (`On Air` label | 10-bar waveform | flowing ticker). Dark ink bg, paper text, single-line with `white-space: nowrap + text-overflow: ellipsis`. Replaces the multi-line `max-height: 90px` card.
+- **Feed entry layout**: timestamp on row 1, tag on row 2, message spans both rows on the right — gives long bodies real width instead of pinching them against a small left column.
+- **Filter pills** keep their category color in BOTH on/off states; deselected pills get a diagonal `::after` strike-through at 55% opacity. "All" master pill removed — per-category toggles were already enough.
+- **Masthead subrail** text: `Howard | "Four critics. One tab." | Wire` → `Broadsheet | "Four critics. One tab." | Daily`. No pack or person names on the masthead; pack identity still lives in the selector dropdown + feed's persona names.
+- **Muted persona mug strike-through** now renders at full contrast (was ghosted because parent opacity inherited to the `::before` pseudo). Fade moved onto the avatar/name/role children; slash kept on the parent at `z-index: 3` with `isolation: isolate` on the bubble.
+- **Install page "What is Peanut Gallery?"** paragraph now mentions both shipping packs + links to the pack-authoring guide.
+- **CONTEXT.md § UI Design** now names three design surfaces (extension side panel, landing, legacy /watch) with their canonical sources instead of duplicating a single-system palette.
+
+### Fixed
+- **Status-bar dot stuck yellow for recorded videos.** Dot only flipped to `.live` (red) when yt-dlp's `is_live` detection said the source was a YouTube live stream; recorded videos left it in `.active` (yellow) for the whole session. Now flips to `.live` on first transcript arrival — "live" in the UI means "transcription is flowing," not strictly "YouTube live stream."
+- **Transcript ticker rendering below the ON AIR label** instead of inline to its right. `showCapturing` was setting `transcriptSection.style.display = 'block'` which overrode the CSS grid; now sets `'grid'`.
+- **Muted critic bubble strike-through invisible** (see Changed).
+- **Filter pills losing their color on deselection** instead of getting a strike-through (see Changed).
+- **DUNK tag / REACT button / DUNK pill** went ivory-on-yellow in night mode because `var(--ink)` flips to `#efe7d0`. Switched to `var(--p-ink)` (locked `#111111`) on yellow-backgrounded elements.
+- **Cue/Bit filter pills were visually identical** — both rendered via the generic `.pill.on`. Added `.cue` / `.bit` category classes to the HTML + per-category rules (cue = paper bg + 2px ink outline, bit = solid ink fill).
+- **Dead references cleaned up**: `packBadgeEl` + `updatePackBadge()` (element was removed from HTML in an earlier commit, null-noop function lingered); `id="responseRateRow"` (unused wrapper ID); stale comments referencing the pre-refactor drawer contents + "v1.4 tabloid rebrand" date stamp; dead `.keys-section` / `.audio-section` / `.toggle-keys` CSS.
+
+### Release / repo
+- **TWiST Oracle plan privatized.** Reduced `docs/TWIST-ORACLE-PLAN.md` from a 686-line public roadmap plan to a 47-line private exploratory note; removed its references from `docs/INDEX.md` (it was flagged as "v1.7 working spec" based on Jason's off-hand group-chat riff, which wasn't a commitment).
+- **Dependabot ignore rules** added for framework-tier majors (`next`, `react`, `@types/react*`, `typescript`, `eslint*`, `@eslint/*`, `tailwindcss`, `@anthropic-ai/*`, `@types/node`, `actions/github-script`) — closed 7 drive-by Dependabot PRs per the bot-triage rubric's QUEUE-AND-CLOSE verdict.
+- **`claude-triage.yml` unblocked** — added `id-token: write` to the workflow permissions block. The triage bot was erroring `Could not fetch an OIDC token`; next Dependabot event should trigger a clean triage comment.
+
 ## [1.5.0] — 2026-04-19 — "The Broadsheet"
 
 A full aesthetic reinvention. The side panel is no longer a chat app — it's a late-night newspaper desk. Anton slab masthead, cream paper stock, ink-grey rules, four critics in mug shots with role tags (FACT / DUNK / CUE / BIT), and a wire-service feed where every quip lands with a 24h timestamp and a stamped role tag. Underneath the redesign: a Paper/Night theme toggle for late-session eyes, per-critic mute, and a one-click "Download Session" that ships the whole broadcast as Markdown. Smart Director v2's client-side scaffolding is in — the rule vs. LLM source badge is wired and ready — but the server flag stays off until the canary bands land.
