@@ -357,6 +357,40 @@
       letter-spacing: .01em;
       color: var(--ink); z-index: 1; position: relative;
     }
+    /* v1.8 peanut mascot — sits in the face slot of the mug. Subtle idle
+       bob so the row feels alive; speaking state amps it up into a wiggle.
+       Sits under the glyph overlay (z:2) so the tap-to-fire spinner still
+       reads clearly on top. */
+    .persona-avatar .mascot{
+      position: absolute; inset: 0; z-index: 1;
+      display: block;
+      animation: mascot-bob 2.4s ease-in-out infinite;
+      transform-origin: 50% 90%;
+      pointer-events: none;
+      will-change: transform;
+    }
+    .persona-avatar .mascot svg{
+      width: 100%; height: 100%; display: block;
+    }
+    @keyframes mascot-bob{
+      0%, 100% { transform: translateY(0) rotate(-1deg); }
+      50%      { transform: translateY(-1.5px) rotate(1deg); }
+    }
+    @keyframes mascot-talk{
+      0%, 100% { transform: translateY(0) rotate(-2.5deg); }
+      25%      { transform: translateY(-1px) rotate(2deg); }
+      50%      { transform: translateY(-2px) rotate(-1deg); }
+      75%      { transform: translateY(-1px) rotate(1.5deg); }
+    }
+    .persona-bubble.speaking .persona-avatar .mascot{
+      animation: mascot-talk 0.7s ease-in-out infinite;
+    }
+    @media (prefers-reduced-motion: reduce){
+      .persona-avatar .mascot,
+      .persona-bubble.speaking .persona-avatar .mascot{
+        animation: none;
+      }
+    }
     .persona-avatar .ring{
       position: absolute; inset: -4px;
       border: 2px solid transparent;
@@ -1239,6 +1273,109 @@
     /* When any section is open, hide the menu */
     .drawer-body:has(.drawer-section.visible) .drawer-menu{display: none}
 
+    /* ── FIRST-RUN TUTORIAL OVERLAY ──
+       Newspaper "Editor's Note" card at the bottom of the panel, dim backdrop
+       above the drawer (z-index 40 > drawer's 30), spotlight ring drawn via a
+       .tut-target class applied to the current step's element. */
+    .tutorial-overlay{
+      position: fixed; inset: 0;
+      display: none; z-index: 40;
+      pointer-events: none;
+    }
+    .tutorial-overlay.visible{display: block}
+    .tutorial-backdrop{
+      position: absolute; inset: 0;
+      background: color-mix(in srgb, var(--ink) 55%, transparent);
+      pointer-events: auto;
+    }
+    .tutorial-card{
+      position: absolute; left: 12px; right: 12px; bottom: 12px;
+      background: var(--paper);
+      border: 2px solid var(--ink);
+      box-shadow: 4px 4px 0 var(--ink);
+      padding: 12px 14px 14px;
+      font-family: var(--serif); color: var(--ink);
+      pointer-events: auto;
+    }
+    .tutorial-card-slug{
+      display: flex; align-items: center; gap: 8px;
+      padding-bottom: 6px; margin-bottom: 8px;
+      border-bottom: 1px solid var(--ink-3);
+    }
+    .tutorial-card-stamp{
+      display: inline-block;
+      background: var(--stamp); color: var(--paper);
+      font-family: var(--slab-2); font-size: 9px;
+      font-weight: 700; letter-spacing: .18em;
+      text-transform: uppercase;
+      padding: 3px 6px; line-height: 1;
+    }
+    .tutorial-card-step{
+      font-family: var(--mono); font-size: 10px;
+      color: var(--ink-3); letter-spacing: .12em;
+      text-transform: uppercase; margin-left: auto;
+    }
+    .tutorial-card-title{
+      font-family: var(--slab); font-size: 18px;
+      line-height: 1.1; color: var(--ink);
+      margin: 0 0 6px; text-transform: uppercase;
+      letter-spacing: -.005em;
+    }
+    .tutorial-card-body{
+      font-family: var(--serif); font-size: 12.5px;
+      line-height: 1.45; color: var(--ink-2);
+      margin: 0 0 10px;
+    }
+    .tutorial-card-actions{
+      display: flex; gap: 6px; align-items: center;
+    }
+    .tutorial-card-actions .skip{
+      background: transparent; border: 0;
+      font-family: var(--slab-2); font-size: 10px;
+      font-weight: 700; letter-spacing: .15em;
+      text-transform: uppercase; color: var(--ink-3);
+      padding: 6px 4px; cursor: pointer;
+    }
+    .tutorial-card-actions .skip:hover{color: var(--ink)}
+    .tutorial-card-actions .spacer{flex: 1}
+    .tutorial-card-actions .next{
+      background: var(--ink); color: var(--paper);
+      border: 0; padding: 8px 14px;
+      font-family: var(--slab-2); font-size: 11px;
+      font-weight: 700; letter-spacing: .15em;
+      text-transform: uppercase; cursor: pointer;
+    }
+    .tutorial-card-actions .next:hover{background: var(--stamp)}
+
+    /* Spotlight ring on the element the card is pointing at. Applied by
+       adding .tut-target to the element; removed when the step advances.
+       Uses outline (not border) so it doesn't shift layout. */
+    .tut-target{
+      position: relative;
+      outline: 3px solid var(--stamp);
+      outline-offset: 3px;
+      animation: tut-pulse 1.6s ease-in-out infinite;
+      z-index: 41;
+      /* Disable interaction during the tour so clicks don't desync the card
+         from what's actually open underneath. Next/Skip on the card are the
+         only progression vectors. */
+      pointer-events: none;
+    }
+    @keyframes tut-pulse{
+      0%, 100%{ outline-color: var(--stamp) }
+      50%{ outline-color: var(--yellow) }
+    }
+    @media (prefers-reduced-motion: reduce){
+      .tut-target{animation: none}
+    }
+
+    /* "Replay tour" button inside Appearance. Reuses .btn small but sits
+       under the theme grid with its own help line. */
+    .replay-tour-row{
+      display: flex; flex-direction: column; gap: 6px;
+      margin-top: 4px;
+    }
+
     /* ── DEBUG TRACE PANEL (unchanged functionally) ── */
     #directorTrace{
       border-top: 1px solid var(--rule);
@@ -1718,12 +1855,34 @@
           <button id="themeNightBtn" class="btn small">Night</button>
         </div>
         <div class="help">Paper is the cream-newsprint default. Night flips to ink-on-black for late-shift wires.</div>
+        <div class="replay-tour-row">
+          <button id="replayTutorialBtn" class="btn small" type="button">&#9655;&nbsp; Replay settings tour</button>
+          <div class="help">Re-runs the first-run walkthrough of the drawer.</div>
+        </div>
       </section>
 
     </div>
 
     <div class="drawer-foot">
       <button id="drawerBackBtn" class="btn primary" style="width:100%">&#9664; Back to wire</button>
+    </div>
+  </aside>
+
+  <!-- ── FIRST-RUN TUTORIAL OVERLAY ── -->
+  <aside id="tutorialOverlay" class="tutorial-overlay" aria-hidden="true" role="dialog" aria-labelledby="tutorialTitle">
+    <div class="tutorial-backdrop"></div>
+    <div class="tutorial-card">
+      <div class="tutorial-card-slug">
+        <span class="tutorial-card-stamp">Editor's Note</span>
+        <span class="tutorial-card-step" id="tutorialStep">Step 1 · 4</span>
+      </div>
+      <h3 class="tutorial-card-title" id="tutorialTitle">Welcome to the gallery</h3>
+      <p class="tutorial-card-body" id="tutorialBody">Quick 30-second tour of your settings drawer. Six submenus, four things worth knowing.</p>
+      <div class="tutorial-card-actions">
+        <button class="skip" id="tutorialSkipBtn" type="button">Skip</button>
+        <div class="spacer"></div>
+        <button class="next" id="tutorialNextBtn" type="button">Next &rsaquo;</button>
+      </div>
     </div>
   </aside>
 

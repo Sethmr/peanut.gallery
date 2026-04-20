@@ -162,6 +162,55 @@ function personaGlyphHTML(p, size = "1.3em", color = null, withSpinner = false) 
   return `<span class="persona-icon-stack" style="width:${size}; height:${size}"><span class="persona-icon-layer persona-icon-glyph">${glyph}</span><span class="persona-icon-layer persona-icon-spinner">${spinner}</span></span>`;
 }
 
+// ── Peanut mascots (v1.8 spike) ──
+//
+// Illustrated SVG peanuts with a signature prop per persona. Returns an SVG
+// string sized to fill its container (width/height 100%) with a 64×64
+// viewBox. Returns null when no mascot exists yet — caller falls back to
+// the initials-on-hatch rendering. This is the single extension point for
+// the v1.8 mascot rollout: add one case per persona as the art lands, and
+// every avatar surface that goes through buildPersonaAvatars picks it up.
+//
+// Gradient ids are namespaced per persona+pack so two mascots with
+// overlapping palette stops never collide in a shared defs pool.
+function personaMascotHTML(personaId, packId) {
+  const ns = `${packId || "howard"}-${personaId}`;
+  // Spike: only Baba Booey (howard/producer). Everyone else falls through
+  // to the initials-on-hatch mug until the art lands. If the spike reads
+  // well the other 7 get their own branches here.
+  if (packId === "howard" && personaId === "producer") {
+    return `<svg viewBox="0 0 64 64" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+      <defs>
+        <radialGradient id="mbody-${ns}" cx="38%" cy="30%" r="72%">
+          <stop offset="0%" stop-color="#F7D9A5"/>
+          <stop offset="55%" stop-color="#DFAE70"/>
+          <stop offset="100%" stop-color="#B4824B"/>
+        </radialGradient>
+        <linearGradient id="mclip-${ns}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#A47E4D"/>
+          <stop offset="100%" stop-color="#69482A"/>
+        </linearGradient>
+      </defs>
+      <ellipse cx="32" cy="60" rx="13" ry="1.8" fill="#000" fill-opacity=".22"/>
+      <path d="M32 4C22 4 18 10 18 19c0 5 3 8 6 10-4 2-10 6-10 16 0 9 8 15 18 15s18-6 18-15c0-10-6-14-10-16 3-2 6-5 6-10 0-9-4-15-14-15Z" fill="url(#mbody-${ns})" stroke="#8B5E2F" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M21 14c3 1 6 1 8 0M35 14c3 1 5 1 8 0" fill="none" stroke="#8B5E2F" stroke-width=".8" stroke-linecap="round" opacity=".5"/>
+      <ellipse cx="25" cy="11" rx="5.5" ry="3" fill="#FFF5DF" opacity=".55"/>
+      <ellipse cx="27" cy="19" rx="2.1" ry="2.6" fill="#1E1208"/>
+      <ellipse cx="37" cy="19" rx="2.1" ry="2.6" fill="#1E1208"/>
+      <circle cx="27.6" cy="18.2" r=".8" fill="#fff"/>
+      <circle cx="37.6" cy="18.2" r=".8" fill="#fff"/>
+      <path d="M28.5 24c1.5 1.6 5.5 1.6 7 0" fill="none" stroke="#1E1208" stroke-width="1.3" stroke-linecap="round"/>
+      <path d="M19 39c-3 2-3 5-1 7M45 39c3 2 3 5 1 7" fill="none" stroke="#8B5E2F" stroke-width="2.6" stroke-linecap="round"/>
+      <rect x="19" y="36" width="26" height="19" rx="1.8" fill="url(#mclip-${ns})" stroke="#3E2A14" stroke-width="1"/>
+      <rect x="28" y="33.8" width="8" height="3.4" rx=".8" fill="#3E2A14"/>
+      <circle cx="32" cy="35.5" r=".8" fill="#A8A6A0"/>
+      <rect x="21" y="39" width="22" height="14" rx=".5" fill="#F6F0E2"/>
+      <path d="M25 48l4 4 9-9" fill="none" stroke="#3b82f6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+  }
+  return null;
+}
+
 // ── State ──
 let capturing = false;
 let sessionId = null;
@@ -836,6 +885,14 @@ function buildPersonaAvatars() {
     el.dataset.role = roleForSlot(p.id);
     const initials = personaInitials(p.name);
     const roleTag = roleForSlot(p.id).toUpperCase();
+    // If a v1.8 peanut mascot exists for this persona+pack, render it in
+    // place of the block-letter initials. Everything else about the mug
+    // (ring pulse, firing overlay, muted strike, data-role coloring) stays
+    // identical — the mascot just takes the face slot.
+    const mascot = personaMascotHTML(p.id, currentPackId);
+    const faceHTML = mascot
+      ? `<span class="mascot">${mascot}</span>`
+      : `<span class="initials">${escapeHtml(initials)}</span>`;
     // Title is set by syncAvatarTitles() so it tracks the interactive state.
     // The glyph stack stays for the tap-to-fire crossfade — we keep its
     // `id="stack-<personaId>"` so all the firing/cleared/force-react paths
@@ -844,7 +901,7 @@ function buildPersonaAvatars() {
     el.innerHTML = `
       <div class="persona-avatar" id="avatar-${p.id}">
         <div class="ring"></div>
-        <span class="initials">${escapeHtml(initials)}</span>
+        ${faceHTML}
         <span class="persona-glyph-overlay" id="stack-${p.id}">${personaGlyphHTML(p, "1.1em", null, true)}</span>
       </div>
       <span class="persona-name">${escapeHtml(p.name)}</span>
@@ -1977,10 +2034,167 @@ if (exportDownloadBtn) {
 // this only fires when the drawer-head or drawer-foot backgrounds are
 // clicked on, but keyboard Escape is the other obvious close vector.
 document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && tutorialOverlay?.classList.contains("visible")) {
+    endTutorial(false);
+    return;
+  }
   if (e.key === "Escape" && settingsDrawer?.classList.contains("visible")) {
     closeSettingsDrawer();
   }
 });
+
+// ──────────────────────────────────────────────────────
+// FIRST-RUN TUTORIAL
+// ──────────────────────────────────────────────────────
+//
+// Four-step "Editor's Note" overlay that walks the user through the
+// settings drawer the first time they open the side panel. Gated on a
+// `tutorialSeen` flag in chrome.storage.local. Each step points at a
+// real UI element via a .tut-target spotlight; advancing programmatically
+// opens/navigates the drawer so the user can see exactly where the tour
+// is aiming. Always Skippable; always Replayable from Appearance.
+const tutorialOverlay = document.getElementById("tutorialOverlay");
+const tutorialStepEl = document.getElementById("tutorialStep");
+const tutorialTitleEl = document.getElementById("tutorialTitle");
+const tutorialBodyEl = document.getElementById("tutorialBody");
+const tutorialNextBtn = document.getElementById("tutorialNextBtn");
+const tutorialSkipBtn = document.getElementById("tutorialSkipBtn");
+const replayTutorialBtn = document.getElementById("replayTutorialBtn");
+
+// Steps are declarative. `targetSelector` names the element to spotlight;
+// `onEnter` performs any drawer navigation required so the target is on
+// screen. Keep the list short — Seth's cap is ~4 so the tour never feels
+// like onboarding bloat.
+const TUTORIAL_STEPS = [
+  {
+    targetSelector: "#settingsToggleTop",
+    title: "Welcome to the gallery",
+    body: "Quick 30-second tour of your settings drawer. Six submenus, four things worth knowing.",
+    onEnter: () => {
+      // Don't auto-open yet — let the user see the gear being highlighted
+      // first, then advance opens the drawer.
+      if (settingsDrawer?.classList.contains("visible")) closeSettingsDrawer();
+    },
+  },
+  {
+    targetSelector: '.drawer-menu-item[data-section="lineup"]',
+    title: "Lineup",
+    body: "Pick your pack (Howard or TWiST) and how often the critics chime in. Cadence 1 is occasional; 10 is nonstop.",
+    onEnter: () => {
+      if (!settingsDrawer?.classList.contains("visible")) openSettingsDrawer();
+      showDrawerMenu();
+    },
+  },
+  {
+    targetSelector: '.drawer-menu-item[data-section="backend"]',
+    title: "Backend & keys",
+    body: "While we're in the early window, peanutgallery.live covers the providers. Paste your own keys here anytime to remove the rate limits.",
+    onEnter: () => {
+      if (!settingsDrawer?.classList.contains("visible")) openSettingsDrawer();
+      showDrawerMenu();
+    },
+  },
+  {
+    targetSelector: '.drawer-menu-item[data-section="audio"]',
+    title: "Audio",
+    body: "Passthrough plays captured audio back through your speakers so you hear the video normally. Turn it off only if your recording software is already routing the tab. Replay this tour anytime from Appearance.",
+    onEnter: () => {
+      if (!settingsDrawer?.classList.contains("visible")) openSettingsDrawer();
+      showDrawerMenu();
+    },
+  },
+];
+
+let tutorialIndex = 0;
+let tutorialActiveTarget = null;
+
+function clearTutorialTarget() {
+  if (tutorialActiveTarget) {
+    tutorialActiveTarget.classList.remove("tut-target");
+    tutorialActiveTarget = null;
+  }
+}
+
+function renderTutorialStep(i) {
+  const step = TUTORIAL_STEPS[i];
+  if (!step) return;
+  clearTutorialTarget();
+  if (typeof step.onEnter === "function") step.onEnter();
+  tutorialStepEl.textContent = `Step ${i + 1} · ${TUTORIAL_STEPS.length}`;
+  tutorialTitleEl.textContent = step.title;
+  tutorialBodyEl.textContent = step.body;
+  tutorialNextBtn.textContent = i === TUTORIAL_STEPS.length - 1 ? "Done" : "Next ›";
+  // Defer target highlight one frame so any drawer navigation has painted
+  // and the element exists in the flow (menu tiles get display:none'd when
+  // a section is open; onEnter flips the drawer back to menu view first).
+  requestAnimationFrame(() => {
+    const target = document.querySelector(step.targetSelector);
+    if (target) {
+      target.classList.add("tut-target");
+      tutorialActiveTarget = target;
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  });
+}
+
+function startTutorial() {
+  if (!tutorialOverlay) return;
+  tutorialIndex = 0;
+  tutorialOverlay.classList.add("visible");
+  tutorialOverlay.setAttribute("aria-hidden", "false");
+  renderTutorialStep(0);
+}
+
+function advanceTutorial() {
+  if (tutorialIndex >= TUTORIAL_STEPS.length - 1) {
+    endTutorial(true);
+    return;
+  }
+  tutorialIndex += 1;
+  renderTutorialStep(tutorialIndex);
+}
+
+function endTutorial(completed) {
+  clearTutorialTarget();
+  if (!tutorialOverlay) return;
+  tutorialOverlay.classList.remove("visible");
+  tutorialOverlay.setAttribute("aria-hidden", "true");
+  // Persist only the flag so we don't race with loadSettings on the key
+  // inputs. Same single-field-write pattern used by applyTheme + toggleMute.
+  chrome.storage.local.set({ tutorialSeen: true });
+  // If the tour opened the drawer, leave it open on the menu view — the
+  // user just got pointed at four tiles, closing the drawer on them would
+  // feel like the tour throwing the settings away.
+  if (completed && settingsDrawer?.classList.contains("visible")) {
+    showDrawerMenu();
+  }
+}
+
+if (tutorialNextBtn) tutorialNextBtn.addEventListener("click", advanceTutorial);
+if (tutorialSkipBtn) tutorialSkipBtn.addEventListener("click", () => endTutorial(false));
+
+// Replay entry point — resets the seen flag is not necessary since we just
+// trigger startTutorial directly. Clicking Replay also closes the drawer
+// first so step 1's spotlight on the masthead gear is actually visible.
+if (replayTutorialBtn) {
+  replayTutorialBtn.addEventListener("click", () => {
+    closeSettingsDrawer();
+    // One frame so the drawer's display:none has committed before the
+    // tutorial's target-scroll math runs on the masthead gear.
+    requestAnimationFrame(startTutorial);
+  });
+}
+
+// First-run hook. Read the flag independently of loadSettings so we don't
+// couple tour timing to the key-input hydration path. Delay a tick so the
+// empty-state paint has landed — a tour that appears mid-paint feels janky.
+function maybeStartTutorial() {
+  chrome.storage.local.get(["tutorialSeen"], (data) => {
+    if (data?.tutorialSeen) return;
+    setTimeout(startTutorial, 600);
+  });
+}
+maybeStartTutorial();
 
 // ──────────────────────────────────────────────────────
 // DIRECTOR TRACE (v1.2 debug panel)
