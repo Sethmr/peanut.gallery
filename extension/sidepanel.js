@@ -587,7 +587,10 @@ function showIdle() {
   streamBuffers = {};
   streamingPersonaId = null;
   gallery.innerHTML = "";
-  transcriptTextEl.textContent = "Listening...";
+  // Route through updateTranscript so the ticker's translateX resets to 0
+  // along with the content — leaving a stale transform would show old
+  // position until the first new update.
+  updateTranscript();
   updatePersonaSpeaking(null);
 }
 
@@ -966,9 +969,20 @@ function updateTranscript() {
   let html = "";
   if (transcriptFinal) html += escapeHtml(transcriptFinal) + " ";
   if (transcriptInterim) html += `<span class="interim">${escapeHtml(transcriptInterim)}</span>`;
-  if (!html) html = '<span style="color:var(--text-dim)">Listening...</span>';
+  if (!html) html = '<span style="color:var(--paper); opacity:.5">Listening...</span>';
   transcriptTextEl.innerHTML = html;
-  transcriptSection.scrollTop = transcriptSection.scrollHeight;
+  // Pin the text's right edge to the clip's right edge so the newest
+  // words are always visible and older text scrolls off the left.
+  // Measured next frame so layout has caught up to the innerHTML write.
+  // Pace matches speech because each interim update extends the text
+  // box, which extends the translateX offset, which transitions in
+  // 250ms — chains into continuous motion at talking speed.
+  requestAnimationFrame(() => {
+    const clip = transcriptTextEl.parentElement;
+    if (!clip) return;
+    const overflow = transcriptTextEl.scrollWidth - clip.clientWidth;
+    transcriptTextEl.style.transform = `translateX(${-Math.max(0, overflow)}px)`;
+  });
 }
 
 // ── Actions ──

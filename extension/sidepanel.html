@@ -336,8 +336,10 @@
     /* ── TRANSCRIPT TICKER ──
        Matches the wire/ticker treatment on the design proof
        (peanutgallery.live/panel/ .sp-ticker): single flowing line, inverted
-       ink background so the white-space:nowrap ellipsis reads like a
-       broadcast wire instead of a boxed multi-line quote. */
+       ink background. The text element is wider than the clip once enough
+       transcript has accumulated; JS pins its right edge to the clip's
+       right edge via translateX, and the CSS transition animates the jump
+       so the leftward flow feels continuous at talking pace. */
     .transcript-section{
       padding: 9px 12px;
       background: var(--ink);
@@ -358,14 +360,28 @@
       text-transform: uppercase;
       white-space: nowrap;
     }
+    /* Wrapper that does the actual clipping. min-width:0 is critical —
+       without it, the grid track expands to fit the text and nothing
+       overflows. */
+    .transcript-clip{
+      position: relative;
+      overflow: hidden;
+      min-width: 0;
+      height: 1.35em;
+    }
     .transcript-text{
+      display: inline-block;
       font-family: var(--mono); font-size: 10.5px;
       letter-spacing: .02em;
       color: var(--paper);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap;
       font-style: italic; opacity: .85;
-      line-height: 1.3;
-      min-width: 0;
+      line-height: 1.35;
+      /* Positioned inside the clip; JS sets translateX each frame so the
+         RIGHT edge of this element stays flush with the clip's RIGHT edge.
+         Transition smooths the per-update jumps into a continuous scroll. */
+      will-change: transform;
+      transition: transform 250ms ease-out;
     }
     .transcript-text .interim{color: var(--paper); opacity: .6; font-style: italic}
 
@@ -1160,7 +1176,9 @@
   <!-- ── TRANSCRIPT ── -->
   <div id="transcriptSection" class="transcript-section" style="display:none;">
     <span class="transcript-label">Transcript</span>
-    <div id="transcriptText" class="transcript-text">Listening&hellip;</div>
+    <div class="transcript-clip">
+      <div id="transcriptText" class="transcript-text">Listening&hellip;</div>
+    </div>
   </div>
 
   <!-- ── GALLERY FEED ── -->
