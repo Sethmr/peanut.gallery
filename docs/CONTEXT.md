@@ -83,7 +83,7 @@ YouTube URL
     |     | Brave Search OR xAI Live Search for fact-checking (producer only; chosen per session)
     |     | LLM streams wrapped in AbortSignal.timeout(25_000); search bounded at 5s (Brave) / 8s (xAI Live Search)
     v
- 4 Persona Columns (UI)     -- PersonaColumn.tsx with bubble avatars + sine wave animation
+ Chrome side panel (UI)     -- extension/sidepanel.html renders a broadsheet feed with 4 peanut-mascot avatars + role-stamped wire entries
 ```
 
 ### Trigger Model: Director + Cascade
@@ -138,14 +138,13 @@ Result: some moments get 1 response, some get 2-3, occasionally all 4 pile on. *
 ### Frontend
 | File | Purpose |
 |------|---------|
-| `app/page.tsx` | Landing page at `/`. Marketing hero, ticker strip, demo embed. Redesigned 2026-04-18 to the orange palette (`app/landing.css`). The URL-input + persona-grid demo moved to `app/watch/page.tsx`. |
-| `app/watch/page.tsx` | Legacy demo at `/watch`. URL input, video player, transcript display, 2x2 persona grid. Live vs Recorded mode awareness. Per `SESSION-NOTES-2026-04-18-seo-push.md`: legacy — only tiny SEO tweaks allowed. |
-| `app/layout.tsx` | Root layout. Metadata + font loading for the landing + `/watch` surfaces. |
+| `app/page.tsx` | Landing page at `/`. Marketing hero, ticker strip, demo embed. Uses the orange palette in `app/landing.css`. Non-`/api/*` traffic redirects to `www.peanutgallery.live` via `middleware.ts`, so this page is effectively dead marketing kept around as a reference. |
+| `app/layout.tsx` | Root layout. Metadata + font loading for the landing page. |
 | `app/landing.css` | Landing page (orange palette). Canonical tokens; see design brief. |
-| `app/globals.css` | Legacy `/watch` demo styles — dark theme, sine wave animations, persona avatar styles, live pulse effects. |
-| `components/PersonaColumn.tsx` | Individual persona card on `/watch`. Bubble avatar, sine wave indicator, message history, streaming text. |
-| `components/YouTubePlayer.tsx` | YouTube IFrame API wrapper. Programmatic play/pause, state change callbacks. |
-| `components/TranscriptBar.tsx` | Standalone transcript bar component (currently inlined in `app/watch/page.tsx` instead). |
+| `app/globals.css` | Global resets + token declarations shared by the remaining Next.js pages. |
+| `components/FadeInObserver.tsx` | IntersectionObserver wrapper for the landing page's scroll-reveal animations. Only surviving component after the v1.5 legacy-UI cleanup. |
+
+**Retired in the v1.5 legacy cleanup** (search history if you need the old code): `app/watch/page.tsx` (the `/watch` reference demo), `components/PersonaColumn.tsx`, `components/CombinedFeed.tsx`, `components/YouTubePlayer.tsx`, `components/ApiKeysModal.tsx`, `components/TranscriptBar.tsx`, `components/PersonaIcon.tsx`, and `types/youtube.d.ts`. The Chrome side panel (vanilla JS in `extension/sidepanel.js`) is the canonical UI now.
 
 ### Config
 | File | Purpose |
@@ -332,8 +331,8 @@ Three UI surfaces, three distinct design systems. Each has its own canonical sou
 | Surface | Canonical design source |
 |---|---|
 | **Chrome side panel** — primary user-facing UI | Design proof at [peanutgallery.live/panel/](https://www.peanutgallery.live/panel/) + inline CSS tokens in [`extension/sidepanel.html`](../extension/sidepanel.html) (`--p-paper`, `--p-ink`, `--p-stamp`, `--p-yellow`, slab + serif stack). Newspaper / broadsheet aesthetic. Separate paper / night themes. |
-| **Landing page** — `/` via [`app/page.tsx`](../app/page.tsx) | [`app/landing.css`](../app/landing.css) + [`marketing/CLAUDE-DESIGN-BRIEF.md`](../marketing/CLAUDE-DESIGN-BRIEF.md). TWiST burnt-orange primary (`--pg-accent: #ff5a1f`), matte black base, Jason-calibrated. Shipped 2026-04-18. |
-| **Demo page** — `/watch` via [`app/watch/page.tsx`](../app/watch/page.tsx) | [`app/globals.css`](../app/globals.css) + [`tailwind.config.ts`](../tailwind.config.ts). Legacy dark theme with per-persona accents (`accent.blue/red/purple/amber`) driving the `components/PersonaColumn.tsx` grid. **Legacy** per `SESSION-NOTES-2026-04-18-seo-push.md` — only tiny SEO tweaks allowed here; the CWS distribution path is the side panel, and `/watch` stays live mainly for drive-by SEO capture until retired. |
+| **Landing page** — `/` via [`app/page.tsx`](../app/page.tsx) | [`app/landing.css`](../app/landing.css) + [`marketing/CLAUDE-DESIGN-BRIEF.md`](../marketing/CLAUDE-DESIGN-BRIEF.md). TWiST burnt-orange primary (`--pg-accent: #ff5a1f`), matte black base, Jason-calibrated. Shipped 2026-04-18. In production, `middleware.ts` 308-redirects non-`/api/*` traffic to `www.peanutgallery.live` (the static GitHub Pages site) — so this file is effectively dead marketing kept as a reference. |
+| **Public static site** — `www.peanutgallery.live` | Canonical public surface for the product. Lives in a sibling repo (`Sethmr/peanut.gallery.site`); this repo only ships the extension + backend. Design matches the side-panel broadsheet aesthetic. |
 
 If a design detail matters for the work in front of you — a color, spacing value, font, motion curve — read it from the canonical source, not from this doc.
 
@@ -475,5 +474,5 @@ npx tsx scripts/test-personas.ts --fixture
 7. **`TWIST-AI-SIDEBAR-BUILD-PLAN.md` is archived.** Use this file + SESSION-NOTES as the source of truth.
 8. **When testing, use `DEBUG_PIPELINE=true`** to get structured JSONL logs in `logs/pipeline-debug.jsonl`. Info+ level logs are always written to the file regardless.
 9. **The project uses `@/*` path aliases** (e.g., `@/lib/personas`) per tsconfig.json.
-10. **TranscriptBar.tsx exists but isn't used** — the transcript display is inlined in page.tsx.
+10. **`middleware.ts` at the Next.js app root 308-redirects every non-`/api/*` request to `www.peanutgallery.live`.** The apex marketing UI was retired in the v1.5 legacy cleanup; the extension's CWS distribution path and the static GitHub Pages site at `www.peanutgallery.live` are the only user-facing surfaces now.
 11. **Always end every message with a ready-to-paste git commit command.** Jason Calacanis house style: lowercase, punchy, describes the "why" not the "what", emoji at the end. Provide it as a bash code block so Seth can copy-paste locally. If the commit message contains double quotes, wrap it in single quotes or a heredoc to avoid shell quoting errors. Include `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>` on a second line.

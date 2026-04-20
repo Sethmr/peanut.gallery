@@ -10,9 +10,10 @@
  *   joker     — the comedy writer               (Claude Haiku)
  *
  * The slot IDs are load-bearing: `lib/director.ts`'s `PERSONA_PATTERNS`,
- * the side-panel persona cards, the PersonaIcon component, and ~14 other
- * references are all keyed by them. Keeping the slots fixed keeps the pack
- * refactor purely content-additive — no Director changes, no UI re-keying.
+ * the side-panel persona cards, the mascot renderer in
+ * `extension/sidepanel.js`, and ~14 other references are all keyed by
+ * them. Keeping the slots fixed keeps the pack refactor purely content-
+ * additive — no Director changes, no UI re-keying.
  *
  * This file defines the `Pack` + `PackMeta` interfaces. The concrete packs
  * live in `lib/packs/<id>/`.
