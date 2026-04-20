@@ -106,7 +106,7 @@ name: Claude Kickoff
 #    the GA tag; pinning to SHA prevents a future tag move from changing
 #    behavior under us. (Dependabot github-actions block will keep the SHA
 #    fresh once we pin.)
-# 2. Pin actions/checkout@v4 and actions/setup-node@v4 to SHAs for the same
+# 2. Pin actions/checkout@v4 and actions/setup-node@v6 to SHAs for the same
 #    reason.
 # 3. Iteration 2: grant kickoff-Claude self-merge authority on `develop`
 #    after `npm run check` passes, once Seth has confirmed the first batch
@@ -143,7 +143,7 @@ jobs:
           persist-credentials: true
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: "npm"
