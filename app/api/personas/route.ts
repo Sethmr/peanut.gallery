@@ -10,6 +10,7 @@
 import { NextRequest } from "next/server";
 import { PersonaEngine } from "@/lib/persona-engine";
 import { resolvePack } from "@/lib/packs";
+import { logPipeline } from "@/lib/debug-logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,6 +71,16 @@ export async function POST(req: NextRequest) {
         }
       };
 
+      const startedAt = Date.now();
+      logPipeline({
+        event: "personas_endpoint_start",
+        level: "info",
+        data: {
+          packId: resolvedPack.meta.id,
+          searchEngine,
+          transcriptLen: transcript.length,
+        },
+      });
       try {
         await engine.fireAll(transcript, (response) => {
           if (response.done) {
@@ -83,10 +94,32 @@ export async function POST(req: NextRequest) {
         });
 
         send("status", { status: "complete" });
-      } catch (err) {
-        send("error", {
-          message: err instanceof Error ? err.message : "Unknown error",
+        logPipeline({
+          event: "personas_endpoint_complete",
+          level: "info",
+          data: {
+            packId: resolvedPack.meta.id,
+            durationMs: Date.now() - startedAt,
+          },
         });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        // Log the full error context server-side — the SSE-emitted payload
+        // is minimal so we don't leak internals to the client, but ops
+        // needs the stack + context when debugging a streaming failure.
+        logPipeline({
+          event: "personas_endpoint_error",
+          level: "error",
+          data: {
+            message,
+            packId: resolvedPack.meta.id,
+            searchEngine,
+            transcriptLen: transcript.length,
+            durationMs: Date.now() - startedAt,
+            stack: err instanceof Error ? err.stack : undefined,
+          },
+        });
+        send("error", { message });
       }
 
       controller.close();

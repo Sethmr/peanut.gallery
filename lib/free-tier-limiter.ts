@@ -34,7 +34,14 @@
  *    the session closes. A session that starts with 14 min left is allowed
  *    to run to completion even if the video is 2 hours long. This avoids
  *    the terrible UX of "we cut your show off mid-sentence."
+ * 6. **Structured logging.** Every state change that affects a user
+ *    (window roll-over, quota denial, usage recorded) goes through
+ *    `logPipeline` from `debug-logger`. Info-level; keyed by installId so
+ *    ops can grep the JSONL log when a user reports "I got capped" and
+ *    see exactly how much they'd used + when their window resets.
  */
+
+import { logPipeline } from "./debug-logger";
 
 // ── CONFIG (all env-overridable) ─────────────────────────────────────────
 const ENABLED =
@@ -96,13 +103,24 @@ function touchEntry(installId: string): UsageEntry {
   if (!existing) {
     const fresh: UsageEntry = { usageMs: 0, windowStart: t };
     store.set(installId, fresh);
+    logPipeline({
+      event: "free_tier_install_seen",
+      level: "debug",
+      data: { installId, windowStart: t, quotaMs: QUOTA_MS, windowMs: WINDOW_MS },
+    });
     return fresh;
   }
 
   // Window expired → reset. This is the "rolling 24h" behavior.
   if (t - existing.windowStart >= WINDOW_MS) {
+    const priorUsageMs = existing.usageMs;
     existing.usageMs = 0;
     existing.windowStart = t;
+    logPipeline({
+      event: "free_tier_window_rolled",
+      level: "info",
+      data: { installId, priorUsageMs, newWindowStart: t },
+    });
   }
 
   return existing;
@@ -171,7 +189,7 @@ export function getQuotaStatus(installId: string | null | undefined): QuotaStatu
   const remainingMs = Math.max(0, QUOTA_MS - entry.usageMs);
   maybePrune();
 
-  return {
+  const status: QuotaStatus = {
     allowed: remainingMs > 0,
     quotaMs: QUOTA_MS,
     remainingMs,
@@ -179,6 +197,26 @@ export function getQuotaStatus(installId: string | null | undefined): QuotaStatu
     resetAt: entry.windowStart + WINDOW_MS,
     windowMs: WINDOW_MS,
   };
+
+  // Log denials specifically — if a user pings support saying "I got capped,"
+  // ops greps the JSONL for this event + their installId to see the state.
+  // Allow-paths are intentionally not logged here; they fire every tick of
+  // every session and would drown the signal.
+  if (!status.allowed) {
+    logPipeline({
+      event: "free_tier_quota_denied",
+      level: "info",
+      data: {
+        installId,
+        usedMs: status.usedMs,
+        quotaMs: status.quotaMs,
+        resetAt: status.resetAt,
+        retryAfterMs: Math.max(0, status.resetAt - now()),
+      },
+    });
+  }
+
+  return status;
 }
 
 /**
@@ -197,7 +235,22 @@ export function recordUsage(
   const entry = touchEntry(installId);
   // Clamp to avoid a runaway negative clock bug ever adding nonsense.
   const safeElapsed = Math.min(elapsedMs, WINDOW_MS);
+  const beforeMs = entry.usageMs;
   entry.usageMs = Math.min(entry.usageMs + safeElapsed, QUOTA_MS + WINDOW_MS);
+
+  // Debug-level so normal session closes don't spam the log; flipping
+  // DEBUG_PIPELINE=true gives ops a full audit trail of who-used-what.
+  logPipeline({
+    event: "free_tier_usage_recorded",
+    level: "debug",
+    data: {
+      installId,
+      elapsedMs: safeElapsed,
+      beforeMs,
+      afterMs: entry.usageMs,
+      remainingMs: Math.max(0, QUOTA_MS - entry.usageMs),
+    },
+  });
 }
 
 /**
