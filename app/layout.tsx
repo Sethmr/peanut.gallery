@@ -4,7 +4,7 @@ import "./globals.css";
 const siteUrl = "https://peanutgallery.live";
 const siteName = "Peanut Gallery";
 const siteDescription =
-  "Free Chrome extension that adds 4 AI personas to any YouTube video — a fact-checker, comedy writer, sound effects guy, and cynical troll react in real-time from Chrome's native side panel. Open source, MIT licensed.";
+  "Free Chrome extension that adds 4 AI personas — each one an illustrated peanut mascot — to any YouTube video. A fact-checker, comedy writer, sound effects guy, and cynical troll react in real-time from Chrome's native side panel. Open source, MIT licensed.";
 const siteImage = `${siteUrl}/og-image.png`;
 
 export const metadata: Metadata = {
@@ -27,6 +27,9 @@ export const metadata: Metadata = {
     "YouTube AI assistant",
     "Howard Stern writers room",
     "AI writers room",
+    "peanut gallery",
+    "AI peanut mascots",
+    "illustrated AI personas",
     "open source Chrome extension",
     "This Week in Startups",
     "Jason Calacanis",
@@ -63,7 +66,7 @@ export const metadata: Metadata = {
         url: siteImage,
         width: 1200,
         height: 630,
-        alt: "Peanut Gallery — 4 AI personas react to any YouTube video in real-time",
+        alt: "Peanut Gallery — 4 illustrated peanut mascot personas react to any YouTube video in real-time",
         type: "image/png",
       },
     ],
@@ -148,15 +151,18 @@ export default function RootLayout({
                 url: siteUrl,
               },
               screenshot: siteImage,
-              softwareVersion: "1.0.6",
+              softwareVersion: "1.5.3",
               license: "https://opensource.org/licenses/MIT",
               isAccessibleForFree: true,
               featureList: [
                 "Real-time YouTube audio transcription",
                 "AI fact-checking with Brave Search",
                 "4 AI personas react to any YouTube video",
+                "Illustrated peanut mascots for every persona (v1.5.3)",
+                "Two persona packs: Howard Stern staff and This Week in Startups lineup",
                 "Native Chrome side panel (no tab switching)",
                 "Silent tab capture (no screen-share picker)",
+                "First-run guided tour",
                 "Open source and self-hostable",
                 "Bring your own API keys",
               ],
