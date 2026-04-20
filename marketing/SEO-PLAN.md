@@ -21,7 +21,7 @@ Paste this at the top of any SEO session so the model has the full picture witho
 - Chrome Web Store: https://chromewebstore.google.com/detail/peanut-gallery/jjlpinlhfiheegiddmddkgfialcknagh
 - GitHub: https://github.com/Sethmr/peanut.gallery
 - License: MIT (open source)
-- Version shipped: v1.4.0 "Grok & Stability" (2026-04-18); v1.5 "Smart Director v2" in canary
+- Version shipped: v1.5.3 "The Cast" (2026-04-20) — illustrated peanut mascots for all 8 personas + two-card pack chooser. Preceded same-day by v1.5.2 "First Run" (guided tour) and v1.5.1 "Broadsheet Final" (newspaper UI). v1.4.0 "Grok & Stability" is the last tag that saw a wide Chrome Web Store rollout before the v1.5 line.
 - Launched: April 2026 — this is a brand-new listing, not an established brand
 - Team size: Solo (Seth Rininger, sethr@hey.com, https://sethrininger.dev)
 
@@ -315,7 +315,7 @@ For each existing + planned pack, write a dedicated landing page at `peanutgalle
 
 For each pack also give me: 3 long-tail keywords the page should own (e.g. `All-In Podcast AI reactions`, `watch Acquired with AI`, `Lex Fridman AI fact checker`), the JSON-LD `WebPage` + `SoftwareApplication` schema to embed, and 3 external outreach targets (the show's subreddit, a fan Discord, the host's X reply surface).
 
-Ship the Howard + TWiST pages first since those packs actually exist. The others are content-ready waiting for the packs to land in v1.5 / v1.6."
+Ship the Howard + TWiST pages first since those packs actually exist — both now shipping with illustrated peanut mascots as of v1.5.3. The others are content-ready waiting for the next pack drops (third pack not yet on the v1.5 → v2.0 path; see `docs/ROADMAP.md`)."
 
 **Why this matters:** this is the single highest-leverage content play PG has. Every fan search for `[show name] AI`, `watch [show name] with AI`, `[show name] fact checker` is a qualified install with near-zero competitive noise. Six pages, six durable organic-traffic assets, and a concrete reason to ship more packs.
 

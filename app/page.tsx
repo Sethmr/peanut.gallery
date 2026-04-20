@@ -268,8 +268,8 @@ export default function LandingPage() {
 
         {/* PERSONAS */}
         <section className="dark" id="personas">
-          <div className="section-label">The Cast &middot; v1.4.0</div>
-          <h2 className="fade-in">Two packs. Four slots. One dropdown.</h2>
+          <div className="section-label">The Cast &middot; v1.5.3</div>
+          <h2 className="fade-in">Two packs. Four slots. Eight peanut mascots.</h2>
           <p className="section-sub fade-in">
             Every pack ships four archetype slots — <strong>producer, troll, sound FX, joker</strong>.
             The Director is pack-agnostic; same routing, same cascade, only the voices change.

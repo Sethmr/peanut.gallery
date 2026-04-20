@@ -2,7 +2,7 @@
 
 Machine-readable map of this repo. If you are an AI resuming work here, read this first.
 
-**Current version:** v1.5.1 "The Broadsheet" — shipped 2026-04-19. v1.4.0 "Grok & Stability" is the last tagged version live on the Chrome Web Store; v1.5 landed the newspaper/broadsheet redesign + Smart Director v2 scaffolding + free-tier status strip, and v1.5.1 is the follow-up polish round (transcript ticker smoothing, muted-mug + filter-pill strike visuals, install-page both-packs copy, design-doc cleanup).
+**Current version:** v1.5.3 "The Cast" — shipped 2026-04-20. Illustrated peanut mascots for all 8 personas + two-card pack chooser that replaces the `<select>` dropdown. Same-day predecessors: v1.5.2 "First Run" (four-step guided tour on first open) and v1.5.1 "Broadsheet Final" (newspaper UI polish). v1.4.0 "Grok & Stability" is the last tag that saw a wide Chrome Web Store rollout before the v1.5 line.
 
 **Canonical context for work:** [`docs/CONTEXT.md`](docs/CONTEXT.md) — stack, personas, pipeline, cost. If CONTEXT.md disagrees with this INDEX, trust CONTEXT.md.
 
