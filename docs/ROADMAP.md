@@ -2,8 +2,8 @@
 
 > Version-staged plan. Confirm scope with Seth before starting any item — this is a menu, not a queue, and release boundaries are load-bearing (each one tees up the next).
 
-**Last updated:** 2026-04-19 (v1.5.0 "The Broadsheet" feature-complete, awaiting canary + CWS upload)
-**Active release:** v1.5.0 "The Broadsheet" — Smart Director v2 + tabloid side-panel rebrand + Path-2 URL transition readiness
+**Last updated:** 2026-04-20 (v1.5.0 tagged + in CWS review; v1.5.1 merged to `main` via PR [#18](https://github.com/Sethmr/peanut.gallery/pull/18), tag pending; v1.5.2 "First Run" in flight — first-run tutorial)
+**Active release:** v1.5.2 "First Run" — four-step Editor's Note tutorial that walks first-time users through the settings drawer
 **Design principle:** one load-bearing change per release. If a release title needs an "and," split it. (v1.5 is the exception — Smart Director v2 + the Broadsheet rebrand shipped in the same window because both needed the CWS review cadence.)
 
 ---
@@ -15,28 +15,45 @@
 | v1.2.0 | "Mise en place" | 2026-04-11 | Director debug panel + `director_decision` SSE + fixture harness |
 | v1.3.0 | "TWiST Pack" | 2026-04-14 | Pack refactor + TWiST crew + side-panel pack swap |
 | v1.4.0 | "Grok & Stability" | 2026-04-17 | Troll + Sound FX → xAI Grok; search-engine toggle; force-react hardening |
-| v1.5.0 | "The Broadsheet" | feature-complete 2026-04-19 | Smart Director v2 (LLM-assisted routing + rule fallback) + tabloid side-panel rebrand (mute-a-critic, night theme, Markdown export) + Path-2 URL transition readiness |
+| v1.5.0 | "The Broadsheet" | tagged 2026-04-19; **in CWS review** | Tabloid side-panel rebrand (mute-a-critic, night theme, Markdown export) + Smart Director v2 **client scaffold** (server flag `ENABLE_SMART_DIRECTOR` still off — canary gate pending) + Path-2 URL transition readiness |
+| v1.5.1 | "Broadsheet Final" | merged 2026-04-20; tag pending | 6-submenu settings drawer (Lineup / Backend & keys / Audio / Critics / Export / Appearance — absorbs v1.6 "Settings Pane" scope) + free-tier status strip + episode card + ON AIR + per-mug waveforms + rolling-window ticker + round mugs with category-colored borders |
 
 Details on any of these live in the corresponding `docs/V<x>-PLAN.md` or the `CHANGELOG.md` entry.
 
 ---
 
-## In flight — v1.5.0 canary → tag → CWS upload
+## In flight — v1.5.2 "First Run" → merge → tag
 
-**Status (2026-04-19):** all code + docs landed. CWS-ready `.zip` built at `releases/peanut-gallery-v1.5.0.zip`. `ENABLE_SMART_DIRECTOR=true` is opt-in. Two gates remain between "feature-complete" and "on the store."
+**Status (2026-04-20):** tutorial code + manifest bump + CHANGELOG entry land on `develop`; `develop → main` release PR is the next step once Seth is ready.
 
-**Narrated walkthrough:** https://youtu.be/WPyknI7-N5U — Seth walks through the LLM-assisted router, the 400ms race, the rule-based fallback, and what changed since v1.4. Embedded on the landing page at `#walkthrough` and exposed as a `VideoObject` in the site's JSON-LD.
+**What v1.5.2 ships:** a first-run Editor's Note overlay that walks users through the v1.5.1 settings drawer in four steps (Welcome → Lineup → Backend & keys → Audio). Gated on a single `tutorialSeen` flag in `chrome.storage.local`; always skippable; always replayable via a new "Replay settings tour" row in the Appearance submenu. Spotlight ring pulses on the active target; `prefers-reduced-motion` opts out of the pulse. No backend changes.
 
-**What's left to tag v1.5.0:**
+**What's left to ship v1.5.2:**
 
-1. **Deploy with `ENABLE_SMART_DIRECTOR=true`** to the hosted reference backend. Leave it for ≥ 48 hours of real traffic.
-2. **Pull telemetry** from `logs/pipeline-debug.jsonl` on `director_v2_compare` events. Compute agreement rate, override rate, p50/p95 `llmElapsedMs`, timeout rate. Targets and acceptance bands are pinned in [`V1.5-PLAN.md §4`](V1.5-PLAN.md#4-canary-checklist).
-3. **Sanity-read 20 override transcripts.** Does the LLM's pick make sense? Is the rationale coherent? If not, iterate on the prompt in `lib/director-llm.ts` and re-canary — do not tag.
-4. **Cut the `v1.5.0` git tag.** Manifest version already matches.
-5. **Upload the `releases/peanut-gallery-v1.5.0.zip` to Chrome Web Store.** Refreshed listing copy lives at `marketing/cws-listing.md`.
-6. **Coordinate the Path-2 URL flip** (apex → marketing site, `api.peanutgallery.live` → backend) with the CWS review window. See `releases/v1.5.0-release-notes.md` for the 6-step walkthrough.
+1. **Self-merge the feature PR** to `develop` after `npm run check` passes.
+2. **Open the `develop → main` release PR.** Body = CHANGELOG [1.5.2] entry grouped by commit type.
+3. **Seth merges to `main`, cuts the `v1.5.2` git tag.** Manifest already matches.
+4. **Wait on CWS** — do NOT upload v1.5.2 while v1.5.0 is still in review (still the same supersede-and-reset risk).
 
-**Kill switch:** set `ENABLE_SMART_DIRECTOR=false` and redeploy. Behavior reverts to v1.4 rule-based routing instantly on the next director tick. No session restart needed.
+**Also pending from v1.5.1:** cut the `v1.5.1` git tag on `main` (release PR merged but no tag yet — can land before or after v1.5.2's tag, but each version should get its own tag for clean CHANGELOG/CWS traceability).
+
+**Narrated walkthrough (v1.5.0):** https://youtu.be/WPyknI7-N5U — embedded on the landing page at `#walkthrough` and exposed as a `VideoObject` in the site's JSON-LD.
+
+---
+
+## Still outstanding from v1.5.0 — Smart Director server-flag canary
+
+**v1.5.0 shipped the client scaffold only.** `ENABLE_SMART_DIRECTOR=true` on the hosted backend remains the gate to actually turn the LLM router on. This slipped out of v1.5.0's ship window and is now tracked as its own work item — it'll flip as part of v1.5.2 (or fold into v1.7 GA, Seth's call based on canary results).
+
+**What's left:**
+
+1. **Deploy hosted with `ENABLE_SMART_DIRECTOR=true`** for ≥ 48 hours of real traffic.
+2. **Pull telemetry** from `logs/pipeline-debug.jsonl` on `director_v2_compare` events. Bands in [`V1.5-PLAN.md §4`](V1.5-PLAN.md#4-canary-checklist): agreement ≥ 0.55, override in [0.20, 0.45], p95 `llmElapsedMs` < 350 ms, timeout rate < 0.05.
+3. **Sanity-read 20 override transcripts.** Rationale should read like a producer's note, not a hallucination.
+4. If bands miss: iterate the prompt in `lib/director-llm.ts` and re-canary.
+5. If bands hit: decide whether to cut v1.5.2 with the flag defaulted on, or hold until v1.7 GA (which retires the rule-based scorer entirely).
+
+**Kill switch:** set `ENABLE_SMART_DIRECTOR=false` and redeploy. Reverts to rule-based routing instantly on the next tick. No session restart needed.
 
 ---
 
@@ -46,7 +63,7 @@ The releases below are the explicit sequence Seth has chosen on the way to the v
 
 | Step | Release | Theme | Status |
 |------|---------|-------|--------|
-| 1 + 2 | v1.5.0 → v1.5.1 | "The Broadsheet" + "Broadsheet Final" — finish the new UI, clean out the legacy web app, verify everything works | v1.5.0 feature-complete; v1.5.1 next |
+| 1 + 2 | v1.5.0 → v1.5.1 → v1.5.2 | "The Broadsheet" → "Broadsheet Final" → "First Run" — finish the new UI, clean out the legacy web app, onboard users into the drawer | v1.5.0 tagged + in CWS review; v1.5.1 merged to `main` ([#18](https://github.com/Sethmr/peanut.gallery/pull/18), tag pending); v1.5.2 tutorial in flight on `develop` |
 | 3 + 4 | v1.6.0 | "Settings Pane" — proper settings surface + UI/UX polish pass | Planned |
 | 5 | v1.7.0 | "Smart Director GA" — LLM director the only director; static rule-based path retired | Planned |
 | 6 | v1.8.0 | "Peanut Mascots" — illustrated peanut avatars per persona, each holding their signature prop | Planned |
@@ -74,6 +91,8 @@ One purpose: get v1.5.0 across the finish line and remove the legacy web-app sur
 ---
 
 ### v1.6.0 "Settings Pane" — Steps 3 + 4
+
+> **Re-scope note (2026-04-20):** the core settings-surface work in this section already shipped in v1.5.1 — 6-submenu drawer (Lineup / Backend & keys / Audio / Critics / Export / Appearance), masthead gear, settings persistence. v1.6 is now the **polish-and-a11y pass** on top of that surface (steps 4–7 below), not a green-field build. Update sub-steps 1–3 accordingly when this release is queued up.
 
 The Broadsheet shipped with mute toggles, theme toggle, and audio routing wired into the same gear-icon drawer. That worked for v1.5; it stops scaling the moment we add a fifth or sixth setting (per-persona model overrides, voice toggles when those land, debug-trace verbosity, etc.). Step 3 carves out a real settings surface; step 4 is the open-ended UI/UX polish pass that a real settings surface always invites.
 
