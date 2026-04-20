@@ -215,6 +215,100 @@ let capturedTabInfo = null; // { tabId, title, url, windowId }
 const setupSection = document.getElementById("setupSection");
 const statusBar = document.getElementById("statusBar");
 const statusText = document.getElementById("statusText");
+const statusTime = document.getElementById("statusTime");
+const statusTag = document.getElementById("statusTag");
+const statusDetail = document.getElementById("statusDetail");
+const episodeCard = document.getElementById("episodeCard");
+const episodeCardTitle = document.getElementById("episodeCardTitle");
+const episodeCardSub = document.getElementById("episodeCardSub");
+const episodeCardProgressFill = document.getElementById("episodeCardProgressFill");
+
+// ── Free-tier timer state ──
+//
+// Only active when the user does NOT have all three required keys in
+// Settings → Backend & keys. Ticks up from 0 during capture; flips to
+// CAP REACHED when it hits FREE_TIER_MAX_SECONDS or when the backend
+// emits TRIAL_EXHAUSTED / INSTALL_ID_REQUIRED (per lib/free-tier-limiter.ts).
+const FREE_TIER_MAX_SECONDS = 15 * 60; // 15:00 cap, matches server limiter
+let freeTierIntervalId = null;
+let freeTierStartMs = 0;
+let freeTierCapped = false;
+
+function hasRequiredUserKeys() {
+  const dg = (deepgramKeyInput?.value || "").trim();
+  const anth = (anthropicKeyInput?.value || "").trim();
+  const xai = (xaiKeyInput?.value || "").trim();
+  // Brave is optional — extension falls back to xAI Live Search when
+  // searchEngine is "brave" but no Brave key is set.
+  return !!(dg && anth && xai);
+}
+
+function formatHMS(totalSec) {
+  const s = Math.max(0, Math.floor(totalSec));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+}
+
+function startFreeTierTimer() {
+  stopFreeTierTimer();
+  freeTierCapped = false;
+  freeTierStartMs = Date.now();
+  statusBar.classList.remove("capped");
+  statusTime.textContent = "00:00:00";
+  if (episodeCard) {
+    episodeCard.classList.add("with-progress");
+    episodeCard.classList.remove("capped");
+  }
+  if (episodeCardProgressFill) episodeCardProgressFill.style.width = "0%";
+  freeTierIntervalId = setInterval(() => {
+    const elapsed = (Date.now() - freeTierStartMs) / 1000;
+    if (!freeTierCapped && elapsed >= FREE_TIER_MAX_SECONDS) {
+      flipToCapReached();
+      return;
+    }
+    statusTime.textContent = formatHMS(Math.min(elapsed, FREE_TIER_MAX_SECONDS));
+    // Progress bar on the episode card tracks the same elapsed/cap ratio.
+    if (episodeCardProgressFill) {
+      const pct = Math.min(100, (elapsed / FREE_TIER_MAX_SECONDS) * 100);
+      episodeCardProgressFill.style.width = pct + "%";
+    }
+  }, 1000);
+}
+
+function stopFreeTierTimer() {
+  if (freeTierIntervalId != null) {
+    clearInterval(freeTierIntervalId);
+    freeTierIntervalId = null;
+  }
+}
+
+function flipToCapReached() {
+  freeTierCapped = true;
+  statusBar.classList.add("capped");
+  statusBar.classList.remove("live", "active");
+  statusText.textContent = "Cap reached";
+  statusTime.textContent = formatHMS(FREE_TIER_MAX_SECONDS);
+  statusTag.textContent = "PAUSED";
+  statusDetail.textContent = "Daily free minutes exhausted · resets at midnight";
+  // Episode-card progress bar flips to the cap treatment: yellow fill, full
+  // width. Matches the status strip's dot-goes-yellow signal.
+  if (episodeCard) episodeCard.classList.add("capped");
+  if (episodeCardProgressFill) episodeCardProgressFill.style.width = "100%";
+  stopFreeTierTimer();
+}
+
+function syncStatusDetail() {
+  // Keep the secondary-row detail in sync with the captured tab title.
+  // Only runs when the timer row is visible (free tier); paid users
+  // don't see the secondary row at all.
+  if (!statusBar.classList.contains("with-timer")) return;
+  if (freeTierCapped) return; // cap message takes priority
+  const title = capturedTabInfo?.title;
+  statusDetail.textContent = title || "—";
+}
 const controlsRow = document.getElementById("controlsRow");
 const personasRow = document.getElementById("personasRow");
 const transcriptSection = document.getElementById("transcriptSection");
@@ -249,7 +343,6 @@ const capturedTabTitle = document.getElementById("capturedTabTitle");
 // v1.4 masthead + drawer refs. Grabbed defensively — if we're running in
 // an older extension context with the previous HTML, these return null
 // and every handler below no-ops rather than throwing.
-const packBadgeEl = document.getElementById("packBadge");
 const footer = document.getElementById("footer");
 const settingsToggleBtn = document.getElementById("settingsToggle");
 const settingsDrawer = document.getElementById("settingsDrawer");
@@ -260,8 +353,8 @@ const themePaperBtn = document.getElementById("themePaperBtn");
 const themeNightBtn = document.getElementById("themeNightBtn");
 const exportCopyBtn = document.getElementById("exportCopyBtn");
 const exportDownloadBtn = document.getElementById("exportDownloadBtn");
-// Footer filter pills — indexed by data-filter. One `All` master plus four
-// per-role toggles. Collected once at load; the HTML renders all five.
+// Footer filter pills — one per role (fact / dunk / cue / bit). Indexed by
+// data-filter. Collected once at load.
 const filterPillEls = Array.from(
   document.querySelectorAll("#footer .pill[data-filter]")
 );
@@ -398,7 +491,6 @@ function loadSettings() {
       currentPackId = savedPack;
       if (packSelect) packSelect.value = savedPack;
       if (packChanged || mutedPersonas.size > 0) buildPersonaAvatars();
-      updatePackBadge();
       // Mirror the restored selection in the trace header so the debug
       // panel reads correctly the first time a user opens it — even
       // before they've started a session. sessionPackId is still null
@@ -525,11 +617,31 @@ function showCapturing() {
   capturing = true;
   setupSection.style.display = "none";
   emptyState.style.display = "none";
-  statusBar.style.display = "flex";
+  statusBar.style.display = "grid";
+  if (episodeCard) episodeCard.style.display = "flex";
+  // Free-tier timer + secondary-row tag/detail only render for users who
+  // haven't pasted their own keys. Paid users get the single-line primary
+  // treatment (same as pre-15-min-UI behavior).
+  const freeTier = !hasRequiredUserKeys();
+  statusBar.classList.toggle("with-timer", freeTier);
+  if (freeTier) {
+    statusTag.textContent = "LISTENING";
+    statusDetail.textContent = capturedTabInfo?.title || "—";
+    startFreeTierTimer();
+  } else {
+    stopFreeTierTimer();
+  }
   controlsRow.style.display = "block";
-  transcriptSection.style.display = "block";
+  // Must be `grid`, not `block` — the CSS lays the strip out as a 3-col
+  // grid (label | waveform | ticker clip) and `display: block` would
+  // stack the children vertically, kicking the transcript onto its own
+  // line below the label/wave.
+  transcriptSection.style.display = "grid";
   gallery.style.display = "flex";
   if (footer) footer.classList.remove("hidden");
+  // Kick off the transcript ticker's continuous-scroll loop. Stays running
+  // until showIdle() tears it down on session end.
+  startTickerLoop();
   // Avatar clicks only do work during a live session — promote the row
   // to the interactive visual state (pointer cursor, hover transform,
   // "Make X react now" tooltip). See .personas-row.interactive rules in
@@ -564,14 +676,26 @@ function showIdle() {
   setupSection.style.display = "block";
   emptyState.style.display = "flex";
   statusBar.style.display = "none";
+  statusBar.classList.remove("with-timer", "capped", "active", "live");
+  if (episodeCard) {
+    episodeCard.style.display = "none";
+    episodeCard.classList.remove("with-progress", "capped");
+  }
+  if (episodeCardProgressFill) episodeCardProgressFill.style.width = "0%";
+  stopFreeTierTimer();
+  freeTierCapped = false;
   controlsRow.style.display = "none";
   transcriptSection.style.display = "none";
   gallery.style.display = "none";
   if (footer) footer.classList.add("hidden");
+  // Tear down the ticker loop — no more incoming transcript means no
+  // reason to burn rAF ticks, and stopTickerLoop() also resets the
+  // translateX back to 0 for the next session's clean slate.
+  stopTickerLoop();
   // Close the drawer if it was open when capture stopped — no session
   // means the settings drawer's "wire paused" framing no longer makes
-  // sense. The user can reopen it from setup via the footer gear once
-  // they start again.
+  // sense. The user can reopen it anytime via the masthead ⚙ (or the
+  // footer ⚙ once they've started a new session).
   closeSettingsDrawer();
   statusBar.classList.remove("active", "live");
   // Capture stopped — make sure the React button can't be stuck spinning,
@@ -587,7 +711,10 @@ function showIdle() {
   streamBuffers = {};
   streamingPersonaId = null;
   gallery.innerHTML = "";
-  transcriptTextEl.textContent = "Listening...";
+  // Route through updateTranscript so the ticker's translateX resets to 0
+  // along with the content — leaving a stale transform would show old
+  // position until the first new update.
+  updateTranscript();
   updatePersonaSpeaking(null);
 }
 
@@ -624,6 +751,35 @@ async function updateCapturedTabBanner() {
     capturedTabBanner.classList.toggle("on-tab", !!isOnCapturedTab);
   } catch {
     capturedTabBanner.classList.remove("on-tab");
+  }
+  // Mirror the title into the status strip's secondary row (free-tier only;
+  // no-op when .with-timer isn't set). Keeps the strip's detail line fresh
+  // as the user swaps tabs or the tab title changes mid-session.
+  syncStatusDetail();
+  syncEpisodeCard();
+}
+
+/**
+ * Keep the episode card's title + subtitle in sync with capturedTabInfo.
+ * The title shows the tab title (truncated with CSS ellipsis); the subtitle
+ * shows the tab domain when we can extract it, else a dash. Called from
+ * updateCapturedTabBanner whenever tab info changes.
+ */
+function syncEpisodeCard() {
+  if (!episodeCard || !episodeCardTitle) return;
+  const title = capturedTabInfo?.title || "—";
+  episodeCardTitle.textContent = title;
+  if (episodeCardSub) {
+    let sub = "—";
+    const raw = capturedTabInfo?.url;
+    if (raw) {
+      try {
+        sub = new URL(raw).hostname.replace(/^www\./, "");
+      } catch {
+        sub = raw;
+      }
+    }
+    episodeCardSub.textContent = sub;
   }
 }
 
@@ -689,10 +845,11 @@ function buildPersonaAvatars() {
       <div class="persona-avatar" id="avatar-${p.id}">
         <div class="ring"></div>
         <span class="initials">${escapeHtml(initials)}</span>
-        <span class="persona-glyph-overlay" id="stack-${p.id}" style="color:${p.color}">${personaGlyphHTML(p, "0.9em", null, true)}</span>
+        <span class="persona-glyph-overlay" id="stack-${p.id}">${personaGlyphHTML(p, "1.1em", null, true)}</span>
       </div>
       <span class="persona-name">${escapeHtml(p.name)}</span>
       <span class="persona-role">${escapeHtml(roleTag)}</span>
+      <span class="persona-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
     `;
     el.addEventListener("click", () => {
       // Muted personas get a quick un-mute hint instead of firing. Tapping
@@ -858,6 +1015,15 @@ chrome.runtime.onMessage.addListener((message) => {
         transcriptInterim = data.text;
       }
       updateTranscript();
+      // Flip the status-bar dot from .active (yellow) to .live (red) on
+      // the first transcript arrival. "Live" here means "transcription
+      // is flowing" — previously we only flipped on live_detected+isLive,
+      // which missed recorded videos entirely and left the dot stuck
+      // yellow for the whole session.
+      if (statusBar.classList.contains("active")) {
+        statusBar.classList.add("live");
+        statusBar.classList.remove("active");
+      }
       break;
 
     case "persona": {
@@ -966,9 +1132,126 @@ function updateTranscript() {
   let html = "";
   if (transcriptFinal) html += escapeHtml(transcriptFinal) + " ";
   if (transcriptInterim) html += `<span class="interim">${escapeHtml(transcriptInterim)}</span>`;
-  if (!html) html = '<span style="color:var(--text-dim)">Listening...</span>';
+  if (!html) html = '<span style="color:var(--paper); opacity:.5">Listening...</span>';
   transcriptTextEl.innerHTML = html;
-  transcriptSection.scrollTop = transcriptSection.scrollHeight;
+  // No transform math here — startTickerLoop() owns the scroll position
+  // via a continuous rAF loop. We just write content; the loop measures
+  // the new scrollWidth on its next tick and eases toward the updated
+  // target. That replaces the old per-update 250ms CSS transition, which
+  // produced a staccato jump-per-interim instead of continuous motion.
+}
+
+// ── Transcript ticker loop ──
+//
+// Newsreel-style scroll: constant pace at the speaker's long-run rate,
+// not a jump-per-interim motion.
+//
+// The problem with per-frame EMA was that the INPUT signal (frame-over-
+// frame growth rate) is spiky — 0 px/sec for many frames, then a single
+// frame where a Deepgram interim lands and growth jumps to something like
+// 1000 px/sec. EMA smooths the output but still carries those spikes
+// through, which reads as bursty motion.
+//
+// The fix: compute the speed over a rolling TIME WINDOW. We keep a ring of
+// (timestamp, target) samples covering the last WINDOW_MS milliseconds;
+// speed = (newestTarget - oldestTarget) / windowDuration. That's a pure
+// time-averaged rate — a single-frame spike contributes 1/N of the
+// smoothing, where N is the number of samples in the window. By the time
+// the spike "ages out" of the window it's been averaged across ~150
+// frames. No per-frame jump makes it to the scroll velocity.
+//
+// Each frame:
+//   1. Measure target = scrollWidth - clientWidth, clamped ≥0.
+//   2. Push (now, target) into tickerSamples. Prune samples older than
+//      WINDOW_MS.
+//   3. baseSpeed = (last.target - first.target) / windowSpanSec  — the
+//      smoothed speech pace in px/sec. Clamped ≥0.
+//   4. behind = target - tickerOffset. If > CATCHUP_THRESHOLD, add a
+//      proportional boost to effective speed so backlog stays bounded.
+//      If > DRIFT_THRESHOLD but < CATCHUP_THRESHOLD, floor at
+//      MIN_DRIFT_SPEED so the ticker still closes small gaps during
+//      silence instead of crawling.
+//   5. Advance tickerOffset by effectiveSpeed × dt, clamped to target.
+//
+// Seth's spec: "smooth like the bottom of a news reel ... pace scales
+// and slows down as necessary to try to keep up while seeming to always
+// move at the same speed they are talking."
+
+const WINDOW_MS = 2500;              // rolling window for speech-rate measurement
+const CATCHUP_THRESHOLD = 150;       // px backlog above which we accelerate past baseSpeed
+const CATCHUP_RATE = 0.3;            // fraction of excess backlog to close per second
+const DRIFT_THRESHOLD = 10;          // px backlog where minimum drift speed engages
+const MIN_DRIFT_SPEED = 20;          // px/sec floor so tiny gaps still close
+
+let tickerRafId = null;
+let tickerOffset = 0;
+let tickerLastFrameTime = 0;
+const tickerSamples = []; // [{ t: DOMHighResTimeStamp, target: px }, ...]
+
+function startTickerLoop() {
+  if (tickerRafId != null) return;
+  tickerLastFrameTime = 0;
+  tickerSamples.length = 0;
+  const step = (now) => {
+    const clip = transcriptTextEl && transcriptTextEl.parentElement;
+    if (!clip) {
+      tickerRafId = null;
+      return;
+    }
+    const target = Math.max(0, transcriptTextEl.scrollWidth - clip.clientWidth);
+
+    // Record sample + prune old ones.
+    tickerSamples.push({ t: now, target });
+    const cutoff = now - WINDOW_MS;
+    while (tickerSamples.length > 2 && tickerSamples[0].t < cutoff) {
+      tickerSamples.shift();
+    }
+
+    if (!tickerLastFrameTime) {
+      // First frame — seed dt baseline, don't scroll yet.
+      tickerLastFrameTime = now;
+      tickerRafId = requestAnimationFrame(step);
+      return;
+    }
+    const dt = (now - tickerLastFrameTime) / 1000;
+    tickerLastFrameTime = now;
+
+    // Window-averaged speech rate.
+    let baseSpeed = 0;
+    if (tickerSamples.length >= 2) {
+      const first = tickerSamples[0];
+      const last = tickerSamples[tickerSamples.length - 1];
+      const spanSec = (last.t - first.t) / 1000;
+      if (spanSec > 0) {
+        baseSpeed = Math.max(0, (last.target - first.target) / spanSec);
+      }
+    }
+
+    const behind = target - tickerOffset;
+    let effectiveSpeed = baseSpeed;
+    if (behind > CATCHUP_THRESHOLD) {
+      effectiveSpeed += (behind - CATCHUP_THRESHOLD) * CATCHUP_RATE;
+    } else if (behind > DRIFT_THRESHOLD && effectiveSpeed < MIN_DRIFT_SPEED) {
+      effectiveSpeed = MIN_DRIFT_SPEED;
+    }
+
+    tickerOffset = Math.min(tickerOffset + effectiveSpeed * dt, target);
+
+    transcriptTextEl.style.transform = `translateX(${-tickerOffset}px)`;
+    tickerRafId = requestAnimationFrame(step);
+  };
+  tickerRafId = requestAnimationFrame(step);
+}
+
+function stopTickerLoop() {
+  if (tickerRafId != null) {
+    cancelAnimationFrame(tickerRafId);
+    tickerRafId = null;
+  }
+  tickerOffset = 0;
+  tickerLastFrameTime = 0;
+  tickerSamples.length = 0;
+  if (transcriptTextEl) transcriptTextEl.style.transform = "";
 }
 
 // ── Actions ──
@@ -1034,10 +1317,10 @@ startBtn.addEventListener("click", async () => {
       missing.push("Brave Search");
     }
     if (missing.length > 0) {
-      // Expand the keys section so user can fill them in
-      document.getElementById("keysSection").classList.add("visible");
-      document.getElementById("toggleKeys").classList.add("open");
-      showError(`Self-hosting requires your own API key${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Free keys are linked below.`);
+      // Open settings → Backend & keys so the user can fill them in
+      openSettingsDrawer();
+      showDrawerSection("backend");
+      showError(`Self-hosting requires your own API key${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Free keys are linked in Settings.`);
       return;
     }
   }
@@ -1143,8 +1426,11 @@ startBtn.addEventListener("click", async () => {
     const rawMsg = err.message || String(err);
     if (rawMsg.startsWith("TRIAL_EXHAUSTED:") || rawMsg.startsWith("INSTALL_ID_REQUIRED:")) {
       const cleaned = rawMsg.replace(/^[A-Z_]+:/, "");
-      document.getElementById("keysSection").classList.add("visible");
-      document.getElementById("toggleKeys").classList.add("open");
+      // Flip the status strip to CAP REACHED so the free-tier user sees the
+      // state even before they act on the drawer prompt.
+      if (statusBar.classList.contains("with-timer")) flipToCapReached();
+      openSettingsDrawer();
+      showDrawerSection("backend");
       showError(cleaned);
     } else {
       showError(rawMsg);
@@ -1259,25 +1545,58 @@ function firePersona(personaId) {
     });
 }
 
-// ── Toggle keys ──
-document.getElementById("toggleKeys").addEventListener("click", (e) => {
-  const section = document.getElementById("keysSection");
-  const isOpen = section.classList.toggle("visible");
-  e.currentTarget.classList.toggle("open", isOpen);
-});
+// ── Drawer submenu navigation ──
+//
+// Two-level: a category menu (the drawer's home view) and per-category
+// section panels. Menu → section on menu-item click; section → menu on the
+// section's "‹ Menu" button. Entering the Audio section lazy-enumerates
+// output devices the same way the old toggleAudio collapsible did — we
+// don't want to poke getUserMedia on every panel open, only when the user
+// actually cares about the list.
+const drawerSectionEls = document.querySelectorAll(".drawer-section");
+const drawerMenuItems = document.querySelectorAll(".drawer-menu-item");
+const drawerSectionBacks = document.querySelectorAll(".drawer-section-back");
 
-// ── Toggle audio routing ──
-document.getElementById("toggleAudio").addEventListener("click", (e) => {
-  const section = document.getElementById("audioSection");
-  const isOpen = section.classList.toggle("visible");
-  e.currentTarget.classList.toggle("open", isOpen);
-  // Enumerate devices the first time the section is opened — this is when
-  // the user is actually interested in seeing them, and it avoids poking
-  // the media permission model on every panel open.
-  if (isOpen && !devicesEnumerated) {
+function showDrawerMenu() {
+  drawerSectionEls.forEach((s) => s.classList.remove("visible"));
+}
+function showDrawerSection(id) {
+  drawerSectionEls.forEach((s) => {
+    s.classList.toggle("visible", s.dataset.section === id);
+  });
+  if (id === "audio" && !devicesEnumerated) {
     enumerateOutputDevices();
   }
+}
+
+drawerMenuItems.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const id = btn.dataset.section;
+    if (id) showDrawerSection(id);
+  });
 });
+drawerSectionBacks.forEach((btn) => {
+  btn.addEventListener("click", showDrawerMenu);
+});
+
+// Masthead gear is a second entry point to the drawer — same handler,
+// just reachable before capture has started (the footer gear is only
+// visible during capture). openSettingsDrawer is declared below; function
+// declarations hoist so the forward reference is safe.
+const settingsToggleTopBtn = document.getElementById("settingsToggleTop");
+if (settingsToggleTopBtn) {
+  settingsToggleTopBtn.addEventListener("click", openSettingsDrawer);
+}
+
+// Free-tier banner deep-links into Backend & keys — when the trial nudges
+// users toward BYOK, that's the section they need, not the menu.
+const freeBannerSettingsLink = document.getElementById("freeBannerSettingsLink");
+if (freeBannerSettingsLink) {
+  freeBannerSettingsLink.addEventListener("click", () => {
+    openSettingsDrawer();
+    showDrawerSection("backend");
+  });
+}
 
 // ── Audio settings: persist + live-update the running session ──
 passthroughToggle.addEventListener("change", () => {
@@ -1322,8 +1641,6 @@ if (packSelect) {
     saveSettings();
     // Rebuild the persona row so the names/emojis match the chosen pack.
     buildPersonaAvatars();
-    // Keep the masthead pack badge in sync with whatever's queued up.
-    updatePackBadge();
     // Re-render the drawer mute grid — if the drawer is open it's already
     // showing the previous pack's names, and any muted ids from the old
     // pack that don't exist in the new pack should still persist in
@@ -1413,62 +1730,46 @@ function formatTime(ts) {
 });
 
 // ──────────────────────────────────────────────────────
-// MASTHEAD + FOOTER + DRAWER (v1.4 tabloid rebrand)
+// MASTHEAD + FOOTER + SETTINGS DRAWER
 // ──────────────────────────────────────────────────────
 //
 // All the chrome outside the main content stack lives here:
-//   • pack badge in the masthead subrail
 //   • role filter pills in the footer
-//   • settings drawer (mute-a-critic, theme, export)
+//   • settings drawer with six submenus (lineup, backend & keys, audio,
+//     critics, export, appearance), reachable from the masthead ⚙ in
+//     any state and the footer ⚙ during capture
+//   • drawer submenu navigation + deep-link entry points
 //
 // Every handler no-ops if its DOM ref is missing. That keeps the extension
 // robust against a stale cached HTML that doesn't know about these elements
 // yet — rare in practice but Chrome's extension cache is stubborn.
 
-function updatePackBadge() {
-  if (!packBadgeEl) return;
-  packBadgeEl.textContent = packBadgeName(currentPackId);
-}
-
 // ── Footer filter pills ──
 //
-// `All` is a master toggle that flips every role simultaneously. The four
-// role pills each own a single role tag. When any role is off, `All` flips
-// to off too (so the UI reads honestly as "showing a subset"). The actual
-// hide/show is done entirely in CSS via a data attribute on #gallery —
-// `[data-hide-fact] .feed-entry.fact { display: none }` etc. — so flipping
-// a pill is O(1) regardless of how many feed entries are rendered.
+// Each role pill owns a single category tag. Pills carry their category
+// color in both states and show a diagonal strike-through when off (see
+// .pill:not(.on)::after in the stylesheet) — the "All" master toggle that
+// used to live here was removed because toggling the four categories
+// individually was already enough.
+// Actual hide/show is done entirely in CSS via a data attribute on
+// #gallery — `[data-hide-fact] .feed-entry.fact { display: none }` etc. —
+// so flipping a pill is O(1) regardless of how many feed entries are
+// rendered.
 function applyFilterState() {
   const roles = ["fact", "dunk", "cue", "bit"];
   for (const r of roles) {
     if (activeFilters.has(r)) gallery.removeAttribute(`data-hide-${r}`);
     else gallery.setAttribute(`data-hide-${r}`, "true");
   }
-  // Sync pill .on states.
   for (const pill of filterPillEls) {
-    const f = pill.dataset.filter;
-    if (f === "all") {
-      pill.classList.toggle("on", activeFilters.size === roles.length);
-    } else {
-      pill.classList.toggle("on", activeFilters.has(f));
-    }
+    pill.classList.toggle("on", activeFilters.has(pill.dataset.filter));
   }
 }
 for (const pill of filterPillEls) {
   pill.addEventListener("click", () => {
     const f = pill.dataset.filter;
-    const roles = ["fact", "dunk", "cue", "bit"];
-    if (f === "all") {
-      // If anything is currently off, `All` becomes "turn everything on".
-      // If everything is already on, `All` becomes "turn everything off"
-      // — useful as a quick "hide all" when scanning for a specific type.
-      const allOn = activeFilters.size === roles.length;
-      activeFilters.clear();
-      if (!allOn) for (const r of roles) activeFilters.add(r);
-    } else {
-      if (activeFilters.has(f)) activeFilters.delete(f);
-      else activeFilters.add(f);
-    }
+    if (activeFilters.has(f)) activeFilters.delete(f);
+    else activeFilters.add(f);
     applyFilterState();
   });
 }
@@ -1479,6 +1780,10 @@ function openSettingsDrawer() {
   if (!settingsDrawer) return;
   renderMutesList();
   syncThemeButtons();
+  // Always reset to the menu view when the drawer opens. Callers that want
+  // to deep-link (e.g. the free-banner "Settings" link, the trial-exhausted
+  // error path) can call showDrawerSection(id) immediately after.
+  showDrawerMenu();
   settingsDrawer.classList.add("visible");
   settingsDrawer.setAttribute("aria-hidden", "false");
 }

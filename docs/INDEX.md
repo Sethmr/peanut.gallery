@@ -10,11 +10,12 @@ Map of every markdown file in the repo, ordered by when you should read it.
 0.7. [`docs/AI-INSTRUCTIONS-POLICY.md`](AI-INSTRUCTIONS-POLICY.md) — **read before editing any file that tells an AI how to behave.** Canonical list of protected paths (CLAUDE.md, .claude/, .github/workflows/, CODEOWNERS, dependabot.yml, the four AI-facing docs under docs/). External PRs touching these auto-close via [`.github/workflows/protect-ai-instructions.yml`](../.github/workflows/protect-ai-instructions.yml); CODEOWNERS is the second gate. Seth is the only human who edits these; Claude edits only when Seth explicitly asks. Change-request path: open an issue, don't submit a PR.
 1. [`docs/CONTEXT.md`](CONTEXT.md) — canonical project context. Stack, archetype slots + pack system, file map, SSE protocol, v1.4 pipeline-event list, cost table, what's shipped vs. coming.
 2. [`docs/SESSION-NOTES-2026-04-18.md`](SESSION-NOTES-2026-04-18.md) — most recent handoff. Post-v1.3.0 force-react / persona-tap debugging. **Read §1 "meta-note" before touching code** — two files on the working tree are modified but unverified-in-production; §5 is the localhost verification checklist to run first. §4 captures Seth's load-bearing principles (model decides *how* not *if*).
+2.5. [`docs/SESSION-NOTES-2026-04-18-seo-push.md`](SESSION-NOTES-2026-04-18-seo-push.md) — paired with the handoff above, covers the same day's SEO / marketing / UI-redesign work. Claude Design brief, CWS baseline audits, Jason-calibrated landing-page palette shift, and the standing manual-queue Seth still needs to work through. Seth's "hard rules" section near the bottom calls out load-bearing constraints (`/watch` is legacy, server-side demo keys immutable, etc.).
 3. [`docs/SESSION-NOTES-2026-04-17.md`](SESSION-NOTES-2026-04-17.md) — prior handoff. v1.1.1 shipped. §3 is the **immutable** server-side demo-keys architecture — do not re-embed keys in the extension. §5 is the finish-strong checklist. §6 points at `ROADMAP.md`.
 4. [`docs/SESSION-NOTES-2026-04-16.md`](SESSION-NOTES-2026-04-16.md) — earlier handoff. §3 is the **immutable** permissions/gesture setup for the Chrome extension — read it before editing `extension/`.
 5. [`docs/DEBUGGING.md`](DEBUGGING.md) — canonical post-mortem log (ISSUE-001..009), v1.4 pipeline-event names, provider-specific error signatures. Diagnostic checklist + silent-failure table. Read before chasing any pipeline bug.
 6. [`docs/STATE-OF-PRODUCT-2026-04-18.md`](STATE-OF-PRODUCT-2026-04-18.md) — snapshot audit as of v1.5.0 feature-complete + pushed. TL;DR of current version, recent commits, canary gate, 9-subsystem health check, known risks, value framing per release. Start here if you're resuming work on/after 2026-04-18.
-7. [`docs/ROADMAP.md`](ROADMAP.md) — version-staged plan with fleshed-out sub-steps for near-term releases. Shipped: v1.2 / v1.3 / v1.4 / v1.5 (feature-complete, canary + tag pending). Path to v2.0 (Seth's explicit sequence, 2026-04-19): v1.5.1 Broadsheet Final → v1.6 Settings Pane → v1.7 Smart Director GA → v1.8 Peanut Mascots → v1.9 Bobbleheads (Stretch) → v2.0 "The Gallery" launch with session recall + shareable snippet as the distribution loop. Post-launch: v2.x continuous director + persona model improvements. v3.0: deliberately user-driven — direction defined by what 2.0 users ask for. Deferred off the critical path: Voice / TTS, MP4 clip share, Pack Lab UI, Live Moments, overlay mode, personal-context memory. Don't pull work forward across release boundaries without confirming scope.
+7. [`docs/ROADMAP.md`](ROADMAP.md) — version-staged plan with fleshed-out sub-steps for near-term releases. Shipped: v1.2 / v1.3 / v1.4 / v1.5 / v1.5.1. Path to v2.0 (Seth's explicit sequence, 2026-04-19): v1.6 Settings Pane → v1.7 Smart Director GA → v1.8 Peanut Mascots → v1.9 Bobbleheads (Stretch) → v2.0 "The Gallery" launch with session recall + shareable snippet as the distribution loop. Post-launch: v2.x continuous director + persona model improvements. v3.0: deliberately user-driven — direction defined by what 2.0 users ask for. Deferred off the critical path: Voice / TTS, MP4 clip share, Pack Lab UI, Live Moments, overlay mode, personal-context memory. Don't pull work forward across release boundaries without confirming scope.
 
 ## Architecture & operations
 
@@ -36,7 +37,6 @@ Map of every markdown file in the repo, ordered by when you should read it.
 ## In progress
 
 - [`docs/V1.5-PLAN.md`](V1.5-PLAN.md) — step-by-step implementation plan for v1.5.0 "Smart Director v2." Scaffold landed `4b5cd2c` (2026-04-18); canary + tag outstanding. See §4 for the roll-up metrics that gate the release.
-- [`docs/TWIST-ORACLE-PLAN.md`](TWIST-ORACLE-PLAN.md) — working spec for v1.7.0 "TWiST Oracle." Full-archive RAG over ~2,400 TWiST episodes, corpus-enriched live reactions, ask mode, deep links to clips. Born from Jason's explicit green light (2026-04-18). Depends on v1.5 canary + v1.6 Voice + Clip Share shipping first.
 
 ## Strategy & research
 
@@ -85,7 +85,6 @@ To avoid the duplication that prompted this audit, each topic has ONE canonical 
 | Known bugs / post-mortems | [`DEBUGGING.md`](DEBUGGING.md) |
 | Roadmap / pending work | [`ROADMAP.md`](ROADMAP.md) |
 | Competitive landscape / positioning | [`COMPETITIVE-LANDSCAPE-2026-04-18.md`](COMPETITIVE-LANDSCAPE-2026-04-18.md) (refresh every ~90 days) |
-| TWiST Oracle (corpus + RAG + ask mode) | [`TWIST-ORACLE-PLAN.md`](TWIST-ORACLE-PLAN.md) |
 | Finish-strong checklist for the bounty | [`SESSION-NOTES-2026-04-17.md §5`](SESSION-NOTES-2026-04-17.md) |
 
 If you find yourself duplicating any of these into a new file, stop and link instead.

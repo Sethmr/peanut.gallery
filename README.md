@@ -168,8 +168,8 @@ Canonical source: [`docs/ROADMAP.md`](docs/ROADMAP.md). The sequence below is th
 | v1.2.0 | Mise en place — Director debug panel, fixture harness, husky pre-merge gate | ✅ Shipped |
 | v1.3.0 | TWiST Pack — selectable packs, Howard + TWiST voices | ✅ Shipped |
 | v1.4.0 | Grok & Stability — xAI migration, search toggle, session-firing deadlock fix | ✅ Shipped |
-| v1.5.0 | The Broadsheet — Smart Director v2 + tabloid rebrand + Path-2 URL readiness | ✅ Shipped (canary + tag pending) |
-| v1.5.1 | Broadsheet Final — finish the new UI, remove the legacy web-app surfaces, verify everything works | 🎯 Next |
+| v1.5.0 | The Broadsheet — Smart Director v2 + tabloid rebrand + Path-2 URL readiness | ✅ Shipped |
+| v1.5.1 | Broadsheet Final — settings drawer with six submenus, round persona mugs, ON AIR waveform, episode card, 15-min free-tier status strip, smooth-scrolling transcript ticker, muted-mug + filter-pill strike visuals | ✅ Shipped |
 | v1.6.0 | Settings Pane — dedicated settings surface + UI/UX polish pass | Planned |
 | v1.7.0 | Smart Director GA — LLM director becomes the only director; static scorer retires | Planned |
 | v1.8.0 | Peanut Mascots — illustrated peanut avatars per persona, each with their signature prop | Planned |
