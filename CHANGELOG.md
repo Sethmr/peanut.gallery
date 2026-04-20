@@ -17,6 +17,7 @@ A small onboarding release on top of v1.5.1's settings drawer. First-time users 
 - **`tutorialSeen` flag** in `chrome.storage.local`. Single-field write on tour end (same pattern as `applyTheme` / `toggleMute` — avoids racing `loadSettings` and wiping empty key inputs). `maybeStartTutorial()` reads the flag independently of `loadSettings` and starts the tour after a 600 ms delay so the empty-state paint has landed first.
 
 ### Fixed
+- **WIRE QUIET empty state invisible on first panel load.** `#emptyState` carried an inline `style="display:none;"` that won out over its CSS default (`display: flex`); boot flow didn't touch the empty state, so on first load the element stayed hidden until the user ran a start → stop cycle. Dropped the inline style — CSS default is the correct first-load state ([#19](https://github.com/Sethmr/peanut.gallery/pull/19), landed on `develop` after the v1.5.1 release PR cut; rides with v1.5.2).
 - **Roadmap / INDEX docs** refreshed to reflect v1.5.1's merge to `main` via PR [#18](https://github.com/Sethmr/peanut.gallery/pull/18) and v1.5.2's tutorial as the new in-flight release.
 
 ## [1.5.1] — 2026-04-19 — "Broadsheet Final"
