@@ -130,22 +130,66 @@
       padding: 0 6px; line-height: 1.2;
     }
 
-    /* ── STATUS STRIP (shown when capturing) ── */
+    /* ── STATUS STRIP (shown when capturing) ──
+       Two-line grid: (dot + label | time) above (state tag + detail).
+       The time counter + secondary row only render when .with-timer is
+       present — the side panel sets this only for free-tier users (no
+       required API keys in Settings → Backend & keys). Paid users see
+       just the one-line primary, same as before. */
     .status-bar{
-      padding: 10px 12px;
+      padding: 8px 12px;
       border-bottom: 1px solid var(--rule);
       background: var(--paper-2);
       display: grid;
       grid-template-columns: 1fr auto;
-      gap: 4px 10px;
+      grid-template-rows: auto auto;
+      gap: 3px 10px;
       flex-shrink: 0;
       align-items: center;
+    }
+    body[data-theme="night"] .status-bar{background: var(--paper-3)}
+    .status-bar .status-primary{
+      grid-column: 1; grid-row: 1;
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--slab-2); font-size: 10.5px;
+      font-weight: 700; letter-spacing: .18em;
+      text-transform: uppercase; color: var(--ink);
+      min-width: 0;
+    }
+    .status-bar .status-time{
+      grid-column: 2; grid-row: 1;
+      font-family: var(--mono); font-size: 11px;
+      letter-spacing: .04em; color: var(--ink);
+      justify-self: end;
+      display: none;
+    }
+    .status-bar .status-secondary{
+      grid-column: 1 / -1; grid-row: 2;
+      display: none;
+      align-items: baseline; gap: 8px;
+      min-width: 0;
+    }
+    .status-bar.with-timer .status-time,
+    .status-bar.with-timer .status-secondary{
+      display: flex;
+    }
+    .status-bar .status-tag{
+      font-family: var(--slab-2); font-size: 9px;
+      font-weight: 700; letter-spacing: .2em;
+      text-transform: uppercase; color: var(--ink-2);
+      flex-shrink: 0;
+    }
+    .status-bar .status-detail{
+      font-family: var(--serif); font-size: 11.5px;
+      color: var(--ink-2);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      min-width: 0;
     }
     .status-bar .dot{
       display: inline-block;
       width: 8px; height: 8px; border-radius: 50%;
       background: var(--ink-3);
-      margin-right: 8px; vertical-align: middle;
+      flex-shrink: 0;
     }
     .status-bar.active .dot{
       background: var(--yellow);
@@ -157,12 +201,15 @@
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--stamp) 25%, transparent);
       animation: blink 1.4s infinite;
     }
-    @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
-    .status-bar #statusText{
-      font-family: var(--slab-2); font-size: 11px;
-      letter-spacing: .15em; text-transform: uppercase; color: var(--ink);
-      display: flex; align-items: center;
+    /* CAP REACHED — yellow solid dot, no blink, time locked at 15:00.
+       Mirrors the "◯ CAP REACHED" treatment on the design proof. */
+    .status-bar.capped .dot{
+      background: var(--yellow);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--yellow) 15%, transparent);
+      animation: none;
     }
+    .status-bar.capped .status-time{color: var(--stamp); font-weight: 700}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
 
     /* ── CAPTURED TAB BANNER ── */
     .captured-tab{
@@ -225,7 +272,15 @@
     .personas-row.interactive .persona-bubble{cursor: pointer}
     .personas-row.interactive .persona-bubble:hover{transform: translateY(-1px)}
     .personas-row.interactive .persona-bubble:active{transform: translateY(0) scale(.98)}
-    .persona-bubble.muted{opacity: .45}
+    /* Muted mug: fade the CONTENT (avatar, name, role) instead of the whole
+       bubble — parent-level opacity inherits to the ::before slash and
+       ghosted it out. Keeping the slash at full contrast on top of a faded
+       avatar reads as a real strikethrough, not a whisper. */
+    .persona-bubble.muted .persona-avatar,
+    .persona-bubble.muted .persona-name,
+    .persona-bubble.muted .persona-role{
+      opacity: .4;
+    }
     .persona-bubble.muted::before{
       content:""; position:absolute;
       left: 4px; right: 4px; top: 26px;
@@ -753,34 +808,56 @@
       border: 1px solid var(--rule);
       color: var(--ink); background: var(--paper);
       cursor: pointer;
+      position: relative; /* anchors the :not(.on) strike-through ::after */
       transition: all 0.15s;
     }
+    /* "All" master pill keeps its invert-on-toggle behavior: on = ink fill,
+       off = paper fill. Not a category, so no strike. */
     .footer .pill.on{
       background: var(--ink); color: var(--paper);
     }
-    .footer .pill.fact.on{
+
+    /* Category pills keep their color in BOTH on/off states — the category
+       palette is the pill's identity, not its active-state decoration.
+       Differentiation between on/off comes from the strike-through below. */
+    .footer .pill.fact{
       background: var(--stamp); color: var(--paper);
       border-color: var(--stamp);
     }
-    /* Yellow bg → always-black text, same reasoning as the DUNK feed tag. */
-    .footer .pill.dunk.on{
+    .footer .pill.dunk{
       background: var(--yellow); color: var(--p-ink);
       border-color: var(--p-ink);
     }
-    /* CUE on: outlined (paper bg, thick ink border) — differentiates from
-       BIT's solid-fill active state the same way CUE/BIT tags differ in
-       the feed (outline vs. filled, per the design proof). */
-    .footer .pill.cue.on{
+    /* CUE: outlined (paper bg, thick ink border) — differentiates from
+       BIT's solid-fill the same way CUE/BIT tags differ in the feed
+       (outline vs. filled, per the design proof). */
+    .footer .pill.cue{
       background: var(--paper); color: var(--ink);
       border: 2px solid var(--ink);
       padding: 3px 6px; /* compensate for doubled border */
     }
-    /* BIT on: solid fill (explicit, matches .pill.on default — kept here
-       for symmetry with the other named states and so future restyling
-       of the default doesn't silently detach BIT from the design). */
-    .footer .pill.bit.on{
+    .footer .pill.bit{
       background: var(--ink); color: var(--paper);
       border-color: var(--ink);
+    }
+
+    /* OFF state for category pills: fade slightly + diagonal strike across
+       the pill, so the "this filter is hidden" signal reads as crossed-out
+       rather than drained-of-color. Keeps parity with the muted-mug strike
+       convention, so the whole panel speaks the same visual language:
+       strike = deactivated, fade = secondary. */
+    .footer .pill:where(.fact, .dunk, .cue, .bit):not(.on){
+      opacity: .55;
+    }
+    .footer .pill:where(.fact, .dunk, .cue, .bit):not(.on)::after{
+      content: "";
+      position: absolute;
+      left: 3px; right: 3px;
+      top: 50%;
+      height: 1.5px;
+      background: currentColor;
+      transform: translateY(-50%) rotate(-6deg);
+      pointer-events: none;
     }
     .footer .gear{
       background: transparent; border: 1px solid var(--rule);
@@ -1151,7 +1228,15 @@
 
   <!-- ── STATUS STRIP (shown when capturing) ── -->
   <div id="statusBar" class="status-bar" style="display:none;">
-    <span><span class="dot"></span><span id="statusText">Connecting...</span></span>
+    <div class="status-primary">
+      <span class="dot"></span>
+      <span id="statusText">Connecting...</span>
+    </div>
+    <span class="status-time" id="statusTime">00:00:00</span>
+    <div class="status-secondary">
+      <span class="status-tag" id="statusTag">LISTENING</span>
+      <span class="status-detail" id="statusDetail">&mdash;</span>
+    </div>
   </div>
 
   <!-- ── CAPTURED TAB BANNER ── -->

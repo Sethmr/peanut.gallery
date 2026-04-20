@@ -215,6 +215,82 @@ let capturedTabInfo = null; // { tabId, title, url, windowId }
 const setupSection = document.getElementById("setupSection");
 const statusBar = document.getElementById("statusBar");
 const statusText = document.getElementById("statusText");
+const statusTime = document.getElementById("statusTime");
+const statusTag = document.getElementById("statusTag");
+const statusDetail = document.getElementById("statusDetail");
+
+// ── Free-tier timer state ──
+//
+// Only active when the user does NOT have all three required keys in
+// Settings → Backend & keys. Ticks up from 0 during capture; flips to
+// CAP REACHED when it hits FREE_TIER_MAX_SECONDS or when the backend
+// emits TRIAL_EXHAUSTED / INSTALL_ID_REQUIRED (per lib/free-tier-limiter.ts).
+const FREE_TIER_MAX_SECONDS = 15 * 60; // 15:00 cap, matches server limiter
+let freeTierIntervalId = null;
+let freeTierStartMs = 0;
+let freeTierCapped = false;
+
+function hasRequiredUserKeys() {
+  const dg = (deepgramKeyInput?.value || "").trim();
+  const anth = (anthropicKeyInput?.value || "").trim();
+  const xai = (xaiKeyInput?.value || "").trim();
+  // Brave is optional — extension falls back to xAI Live Search when
+  // searchEngine is "brave" but no Brave key is set.
+  return !!(dg && anth && xai);
+}
+
+function formatHMS(totalSec) {
+  const s = Math.max(0, Math.floor(totalSec));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+}
+
+function startFreeTierTimer() {
+  stopFreeTierTimer();
+  freeTierCapped = false;
+  freeTierStartMs = Date.now();
+  statusBar.classList.remove("capped");
+  statusTime.textContent = "00:00:00";
+  freeTierIntervalId = setInterval(() => {
+    const elapsed = (Date.now() - freeTierStartMs) / 1000;
+    if (!freeTierCapped && elapsed >= FREE_TIER_MAX_SECONDS) {
+      flipToCapReached();
+      return;
+    }
+    statusTime.textContent = formatHMS(Math.min(elapsed, FREE_TIER_MAX_SECONDS));
+  }, 1000);
+}
+
+function stopFreeTierTimer() {
+  if (freeTierIntervalId != null) {
+    clearInterval(freeTierIntervalId);
+    freeTierIntervalId = null;
+  }
+}
+
+function flipToCapReached() {
+  freeTierCapped = true;
+  statusBar.classList.add("capped");
+  statusBar.classList.remove("live", "active");
+  statusText.textContent = "Cap reached";
+  statusTime.textContent = formatHMS(FREE_TIER_MAX_SECONDS);
+  statusTag.textContent = "PAUSED";
+  statusDetail.textContent = "Daily free minutes exhausted · resets at midnight";
+  stopFreeTierTimer();
+}
+
+function syncStatusDetail() {
+  // Keep the secondary-row detail in sync with the captured tab title.
+  // Only runs when the timer row is visible (free tier); paid users
+  // don't see the secondary row at all.
+  if (!statusBar.classList.contains("with-timer")) return;
+  if (freeTierCapped) return; // cap message takes priority
+  const title = capturedTabInfo?.title;
+  statusDetail.textContent = title || "—";
+}
 const controlsRow = document.getElementById("controlsRow");
 const personasRow = document.getElementById("personasRow");
 const transcriptSection = document.getElementById("transcriptSection");
@@ -525,7 +601,19 @@ function showCapturing() {
   capturing = true;
   setupSection.style.display = "none";
   emptyState.style.display = "none";
-  statusBar.style.display = "flex";
+  statusBar.style.display = "grid";
+  // Free-tier timer + secondary-row tag/detail only render for users who
+  // haven't pasted their own keys. Paid users get the single-line primary
+  // treatment (same as pre-15-min-UI behavior).
+  const freeTier = !hasRequiredUserKeys();
+  statusBar.classList.toggle("with-timer", freeTier);
+  if (freeTier) {
+    statusTag.textContent = "LISTENING";
+    statusDetail.textContent = capturedTabInfo?.title || "—";
+    startFreeTierTimer();
+  } else {
+    stopFreeTierTimer();
+  }
   controlsRow.style.display = "block";
   transcriptSection.style.display = "block";
   gallery.style.display = "flex";
@@ -564,6 +652,9 @@ function showIdle() {
   setupSection.style.display = "block";
   emptyState.style.display = "flex";
   statusBar.style.display = "none";
+  statusBar.classList.remove("with-timer", "capped", "active", "live");
+  stopFreeTierTimer();
+  freeTierCapped = false;
   controlsRow.style.display = "none";
   transcriptSection.style.display = "none";
   gallery.style.display = "none";
@@ -628,6 +719,10 @@ async function updateCapturedTabBanner() {
   } catch {
     capturedTabBanner.classList.remove("on-tab");
   }
+  // Mirror the title into the status strip's secondary row (free-tier only;
+  // no-op when .with-timer isn't set). Keeps the strip's detail line fresh
+  // as the user swaps tabs or the tab title changes mid-session.
+  syncStatusDetail();
 }
 
 /**
@@ -1157,6 +1252,9 @@ startBtn.addEventListener("click", async () => {
     const rawMsg = err.message || String(err);
     if (rawMsg.startsWith("TRIAL_EXHAUSTED:") || rawMsg.startsWith("INSTALL_ID_REQUIRED:")) {
       const cleaned = rawMsg.replace(/^[A-Z_]+:/, "");
+      // Flip the status strip to CAP REACHED so the free-tier user sees the
+      // state even before they act on the drawer prompt.
+      if (statusBar.classList.contains("with-timer")) flipToCapReached();
       openSettingsDrawer();
       showDrawerSection("backend");
       showError(cleaned);
