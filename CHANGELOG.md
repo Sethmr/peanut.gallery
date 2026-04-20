@@ -24,6 +24,7 @@ First installment of the v1.8 "Peanut Mascots" roadmap pulled forward into the v
 
 ### Removed
 - **Duplicate episode card** (`#episodeCard` + the `.episode-card*` subtree in both HTML and CSS). The card sat between the status strip and the captured-tab banner, showing the same tab title as the banner below it — two bits of UI doing the same job. Removed the card; free-tier numeric timer still ticks in the status strip, only the progress-fill bar that was inside the removed card went with it. All JS references (`episodeCard`, `episodeCardTitle`, `episodeCardSub`, `episodeCardProgressFill`) are null-guarded, so free-tier timing logic no-ops cleanly without the DOM node.
+- **Legacy marketing UI at the apex `peanutgallery.live`** (executes the v1.5 roadmap step "clean out the legacy web-app UI"). New `middleware.ts` at the Next.js app root 308-redirects every non-`/api/*` request to the matching path on `https://www.peanutgallery.live` (the static GitHub Pages site that's been the canonical public surface since v1.5.0). `/api/*` passes through untouched so the extension's transcribe / fire-persona / SSE streaming keeps working. The retired `app/watch/`, `app/install/`, and old marketing homepage are now unreachable at the apex without needing a code deletion pass — they render only if visited via an internal path in dev, and can be cleaned up as a follow-up.
 
 ## [1.5.2] — 2026-04-20 — "First Run"
 
