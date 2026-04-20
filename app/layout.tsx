@@ -300,7 +300,7 @@ export default function RootLayout({
                 description:
                   "Seth walks through Peanut Gallery v1.5's Smart Director v2 — how the LLM-assisted router picks a persona, the 400ms race against the rule-based fallback, and what changed since v1.4. Recorded with voice-over by the builder.",
                 thumbnailUrl: "https://i.ytimg.com/vi/WPyknI7-N5U/maxresdefault.jpg",
-                uploadDate: "2026-04-18",
+                uploadDate: "2026-04-18T00:00:00Z",
                 contentUrl: "https://www.youtube.com/watch?v=WPyknI7-N5U",
                 embedUrl: "https://www.youtube.com/embed/WPyknI7-N5U",
                 publisher: {
@@ -316,7 +316,7 @@ export default function RootLayout({
                 description:
                   "Two-minute walkthrough of the Peanut Gallery Chrome extension reacting to a YouTube video in real time from the side panel.",
                 thumbnailUrl: "https://i.ytimg.com/vi/UcpUBcp8TRc/maxresdefault.jpg",
-                uploadDate: "2026-04-17",
+                uploadDate: "2026-04-17T00:00:00Z",
                 contentUrl: "https://www.youtube.com/watch?v=UcpUBcp8TRc",
                 embedUrl: "https://www.youtube.com/embed/UcpUBcp8TRc",
                 publisher: {
@@ -332,7 +332,7 @@ export default function RootLayout({
                 description:
                   "The This Week in Startups challenge that inspired Peanut Gallery: build a live AI sidebar with four personas that reacts to YouTube in real time.",
                 thumbnailUrl: "https://i.ytimg.com/vi/xHdwcCfuy4Y/maxresdefault.jpg",
-                uploadDate: "2026-04-15",
+                uploadDate: "2026-04-15T00:00:00Z",
                 contentUrl: "https://www.youtube.com/watch?v=xHdwcCfuy4Y",
                 embedUrl: "https://www.youtube.com/embed/xHdwcCfuy4Y",
                 publisher: {
