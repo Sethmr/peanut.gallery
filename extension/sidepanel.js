@@ -1136,43 +1136,85 @@ function updateTranscript() {
 
 // ── Transcript ticker loop ──
 //
-// Runs at 60fps during capture. Every frame:
-//   1. Measures target  = (text scrollWidth) - (clip clientWidth), clamped >=0.
-//      That's how far we'd need to scroll so the RIGHT edge of the text
-//      is flush with the RIGHT edge of the clip — i.e. the newest words
-//      are always visible.
-//   2. Eases current offset toward target by a fixed fraction (TICKER_EASE).
-//      Exponential damping: the further behind, the faster it catches up;
-//      at steady-state speech the offset trails the target by a small
-//      constant (readable buffer on the right), and on silence it fully
-//      settles in ~0.3s.
+// Constant-pace leftward scroll driven by a low-pass filter over the
+// ticker's own target growth rate — NOT by direct catch-up to each
+// Deepgram interim (which is what made the ticker feel jumpy). Each
+// frame:
 //
-// Speech rate drives target growth (new words extend scrollWidth); the
-// loop makes that motion continuous instead of jumpy. Seth's spec:
-// "ok if not perfectly aligned, keep up in the long run, minimize lag."
-// TICKER_EASE = 0.15 catches ~half the distance in 5 frames (~83ms);
-// bumping it up makes motion snappier at the cost of more visible
-// acceleration on each new word.
-const TICKER_EASE = 0.15;
+//  1. Measure target = scrollWidth - clientWidth, clamped ≥0. The
+//     offset the text would need so its RIGHT edge is flush with the
+//     clip's RIGHT edge.
+//  2. Measure the instantaneous growth rate of target since last
+//     frame (px/sec). Clamped ≥0 — scrollWidth can dip slightly on
+//     rare interim → final transitions, and we don't want speed to
+//     go negative.
+//  3. EMA-smooth that rate into tickerSpeed. SPEED_EMA_ALPHA controls
+//     responsiveness — lower = smoother but slower to adapt. With 60Hz
+//     rAF and α=0.08 the time-constant is roughly 200 ms, which feels
+//     like one beat of speech worth of lag-to-adapt — fast enough to
+//     track cadence shifts, slow enough that a single burst of words
+//     doesn't visibly yank the scroll.
+//  4. Advance tickerOffset by tickerSpeed × dt. Clamp to target so we
+//     never overshoot (e.g., on silence, speed decays via EMA and
+//     offset eventually reaches target and stops).
+//  5. Catchup layer: if tickerOffset falls more than CATCHUP_THRESHOLD
+//     px behind target (e.g., a sudden verbal burst outran the EMA),
+//     add a proportional boost to the effective speed so backlog
+//     stays bounded.
+//
+// Net effect: ticker motion feels like a steady ride at the speaker's
+// pace. Fast talkers get a fast ticker; slow talkers get a slow one;
+// neither gets a stutter on every Deepgram emit.
+//
+// Seth's spec: "pace scales and slows down as necessary to try to keep
+// up while seeming to always move at the same speed they are talking
+// rather than this jumpy pattern."
+
+const SPEED_EMA_ALPHA = 0.08;     // per-frame EMA weight (0..1)
+const CATCHUP_THRESHOLD = 300;    // px backlog above which catchup engages
+const CATCHUP_RATE = 0.4;         // fraction of excess backlog to close per second
+
 let tickerRafId = null;
-let tickerCurrent = 0;
+let tickerOffset = 0;
+let tickerSpeed = 0;
+let tickerLastFrameTime = 0;
+let tickerLastTargetWidth = 0;
 
 function startTickerLoop() {
   if (tickerRafId != null) return;
-  const step = () => {
+  tickerLastFrameTime = 0;
+  tickerLastTargetWidth = 0;
+  const step = (now) => {
     const clip = transcriptTextEl && transcriptTextEl.parentElement;
     if (!clip) {
       tickerRafId = null;
       return;
     }
     const target = Math.max(0, transcriptTextEl.scrollWidth - clip.clientWidth);
-    const delta = target - tickerCurrent;
-    if (Math.abs(delta) < 0.5) {
-      tickerCurrent = target;
-    } else {
-      tickerCurrent += delta * TICKER_EASE;
+
+    if (!tickerLastFrameTime) {
+      // First frame — seed baselines, don't scroll yet (no dt reference).
+      tickerLastFrameTime = now;
+      tickerLastTargetWidth = target;
+      tickerRafId = requestAnimationFrame(step);
+      return;
     }
-    transcriptTextEl.style.transform = `translateX(${-tickerCurrent}px)`;
+    const dt = (now - tickerLastFrameTime) / 1000;
+    tickerLastFrameTime = now;
+
+    const growthRate = dt > 0 ? Math.max(0, (target - tickerLastTargetWidth) / dt) : 0;
+    tickerLastTargetWidth = target;
+    tickerSpeed = tickerSpeed * (1 - SPEED_EMA_ALPHA) + growthRate * SPEED_EMA_ALPHA;
+
+    const behind = target - tickerOffset;
+    let effectiveSpeed = tickerSpeed;
+    if (behind > CATCHUP_THRESHOLD) {
+      effectiveSpeed += (behind - CATCHUP_THRESHOLD) * CATCHUP_RATE;
+    }
+
+    tickerOffset = Math.min(tickerOffset + effectiveSpeed * dt, target);
+
+    transcriptTextEl.style.transform = `translateX(${-tickerOffset}px)`;
     tickerRafId = requestAnimationFrame(step);
   };
   tickerRafId = requestAnimationFrame(step);
@@ -1183,7 +1225,10 @@ function stopTickerLoop() {
     cancelAnimationFrame(tickerRafId);
     tickerRafId = null;
   }
-  tickerCurrent = 0;
+  tickerOffset = 0;
+  tickerSpeed = 0;
+  tickerLastFrameTime = 0;
+  tickerLastTargetWidth = 0;
   if (transcriptTextEl) transcriptTextEl.style.transform = "";
 }
 
