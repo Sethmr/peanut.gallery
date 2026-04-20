@@ -794,10 +794,11 @@ function buildPersonaAvatars() {
       <div class="persona-avatar" id="avatar-${p.id}">
         <div class="ring"></div>
         <span class="initials">${escapeHtml(initials)}</span>
-        <span class="persona-glyph-overlay" id="stack-${p.id}" style="color:${p.color}">${personaGlyphHTML(p, "0.9em", null, true)}</span>
+        <span class="persona-glyph-overlay" id="stack-${p.id}">${personaGlyphHTML(p, "1.1em", null, true)}</span>
       </div>
       <span class="persona-name">${escapeHtml(p.name)}</span>
       <span class="persona-role">${escapeHtml(roleTag)}</span>
+      <span class="persona-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
     `;
     el.addEventListener("click", () => {
       // Muted personas get a quick un-mute hint instead of firing. Tapping

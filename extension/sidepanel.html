@@ -289,30 +289,30 @@
       z-index: 3;
       pointer-events: none;
     }
+    /* Round circle treatment per the design proof (peanutgallery.live/panel/).
+       Category color + border/fill treatment comes from the role-specific
+       rules below, keyed off the bubble's data-role attribute — same four
+       slots the feed tags differentiate by (fact outline, dunk yellow, cue
+       outline, bit solid). */
     .persona-avatar{
-      width: 40px; height: 40px;
-      border: 1px solid var(--rule);
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      border: 2px solid var(--ink);
+      background: var(--paper);
       display: grid; place-items: center;
       overflow: hidden; position: relative;
-      background:
-        repeating-linear-gradient(45deg, var(--ink) 0 1px, transparent 1px 4px),
-        var(--paper-3);
       user-select: none;
       -webkit-user-select: none;
     }
-    .persona-avatar::after{
-      content:""; position: absolute; inset: 0;
-      background: radial-gradient(circle at 50% 40%, transparent 35%, color-mix(in srgb, var(--ink) 35%, transparent) 100%);
-      mix-blend-mode: multiply; pointer-events: none;
-    }
-    body[data-theme="night"] .persona-avatar::after{mix-blend-mode: normal; opacity: .5}
     .persona-avatar .initials{
-      font-family: var(--slab); font-size: 20px; line-height: 1;
+      font-family: var(--slab); font-size: 16px; line-height: 1;
+      letter-spacing: .01em;
       color: var(--ink); z-index: 1; position: relative;
     }
     .persona-avatar .ring{
-      position: absolute; inset: -2px;
+      position: absolute; inset: -4px;
       border: 2px solid transparent;
+      border-radius: 50%;
       transition: border-color 0.3s;
       pointer-events: none;
     }
@@ -322,21 +322,58 @@
     }
     @keyframes ring-pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-    /* Tiny archetype glyph tucked into the mug's bottom-right corner.
-       Keeps the "which of the four" signal while the initials dominate. */
+    /* Category colors — mirror the feed-entry tag conventions so the
+       mug row and the tag on each feed line speak the same visual
+       language. */
+    .persona-bubble[data-role="fact"] .persona-avatar{
+      border-color: var(--stamp);
+    }
+    .persona-bubble[data-role="fact"] .persona-avatar .initials{
+      color: var(--stamp);
+    }
+    .persona-bubble[data-role="dunk"] .persona-avatar{
+      background: var(--yellow);
+      border-color: var(--p-ink);
+    }
+    .persona-bubble[data-role="dunk"] .persona-avatar .initials{
+      color: var(--p-ink);
+    }
+    .persona-bubble[data-role="cue"] .persona-avatar{
+      border-color: var(--ink);
+    }
+    .persona-bubble[data-role="cue"] .persona-avatar .initials{
+      color: var(--ink);
+    }
+    .persona-bubble[data-role="bit"] .persona-avatar{
+      background: var(--ink);
+      border-color: var(--ink);
+    }
+    .persona-bubble[data-role="bit"] .persona-avatar .initials{
+      color: var(--paper);
+    }
+
+    /* The glyph overlay used to show a permanent archetype icon in the
+       mug's bottom-right corner. Now that category identity comes from
+       the circle's border/fill color, the icon is redundant — we hide it
+       unless its nested .persona-icon-stack is firing (tap-to-fire
+       spinner). :has() drives the visibility without any JS changes to
+       setPersonaFiring. */
     .persona-glyph-overlay{
       position: absolute; z-index: 2;
-      right: 2px; bottom: 2px;
-      width: 14px; height: 14px;
+      inset: 0;
       display: grid; place-items: center;
-      background: var(--paper);
-      border: 1px solid var(--ink);
-      color: currentColor;
+      background: color-mix(in srgb, var(--paper) 70%, transparent);
+      border-radius: 50%;
+      color: var(--ink);
       line-height: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
     }
     body[data-theme="night"] .persona-glyph-overlay{
-      background: var(--paper-3);
+      background: color-mix(in srgb, var(--paper-3) 70%, transparent);
     }
+    .persona-glyph-overlay:has(.persona-icon-stack.firing){opacity: 1}
 
     /* Persona icon stack — glyph + spinner for tap-to-fire crossfade */
     .persona-icon-stack{
@@ -361,11 +398,6 @@
       animation-play-state: running;
     }
     @keyframes spin{to{transform: rotate(360deg)}}
-    .persona-bubble.speaking .persona-avatar{
-      background:
-        repeating-linear-gradient(45deg, var(--stamp) 0 1px, transparent 1px 4px),
-        var(--paper-3);
-    }
 
     .persona-name{
       font-family: var(--slab-2); font-size: 10px; font-weight: 600;
@@ -377,6 +409,39 @@
       color: var(--ink-3); letter-spacing: .12em;
       text-transform: uppercase; text-align: center;
       line-height: 1.2;
+    }
+
+    /* Mini 5-bar waveform under each mug — only animates when the mug
+       is in .speaking state (persona is actively streaming a response).
+       Flat dotted baseline otherwise so the row doesn't get busy. */
+    .persona-wave{
+      display: flex; align-items: flex-end; justify-content: center;
+      gap: 2px; height: 8px; margin-top: 2px;
+      width: 28px;
+    }
+    .persona-wave i{
+      display: block;
+      width: 2px; height: 100%;
+      background: var(--ink-3);
+      transform: scaleY(.22);
+      transform-origin: bottom;
+      border-radius: 1px;
+    }
+    .persona-bubble.speaking .persona-wave i{
+      background: var(--stamp);
+      animation: persona-wave-pulse 0.9s ease-in-out infinite;
+    }
+    .persona-bubble.speaking .persona-wave i:nth-child(1){animation-delay: -0.05s}
+    .persona-bubble.speaking .persona-wave i:nth-child(2){animation-delay: -0.22s}
+    .persona-bubble.speaking .persona-wave i:nth-child(3){animation-delay: -0.40s}
+    .persona-bubble.speaking .persona-wave i:nth-child(4){animation-delay: -0.12s}
+    .persona-bubble.speaking .persona-wave i:nth-child(5){animation-delay: -0.30s}
+    @keyframes persona-wave-pulse{
+      0%,100%{transform: scaleY(.25)}
+      50%{transform: scaleY(1)}
+    }
+    @media (prefers-reduced-motion: reduce){
+      .persona-bubble.speaking .persona-wave i{animation: none; transform: scaleY(.6)}
     }
     .persona-count{
       position: absolute; top: -5px; right: -5px;
