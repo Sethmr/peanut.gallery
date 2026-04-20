@@ -102,7 +102,7 @@ Keeps the "what's next" story visible on the repo without requiring someone to r
 
 ### 8. Branch protection — asymmetric (`main` strict, `develop` lighter)
 
-Wires the `develop → main` model from [`RELEASE.md`](RELEASE.md) into GitHub's enforcement layer. Two rules — copy-paste each.
+Wires the `release/* → main` branching model from [`RELEASE.md`](RELEASE.md) into GitHub's enforcement layer. Two rules — copy-paste each. (If you previously configured these under the `develop → main` shape, the GitHub Settings rules themselves don't need to change — `main` and `develop` branch-protection are identical under both models. The head-branch carve-outs are enforced separately by [`protect-main-branch.yml`](../.github/workflows/protect-main-branch.yml); that workflow's regex still allows `develop` + `hotfix/*` and needs a Seth-owned edit to allow `release/*`.)
 
 **Rule 1 — `main`.** Settings → Branches → Add rule → pattern `main`:
 
@@ -262,3 +262,83 @@ Second deliberate exception (also 2026-04-19, Seth's direct ask): `.github/workf
 Third deliberate exception (also 2026-04-19): `.github/workflows/protect-ai-instructions.yml` auto-closes external PRs that touch AI-instruction files (CLAUDE.md, .claude/, CODEOWNERS, dependabot.yml, .github/workflows/, the four AI-facing docs under docs/). These files tell AI bots how to behave; letting external PRs edit them is a prompt-injection / safety-bypass risk. Full policy: [`AI-INSTRUCTIONS-POLICY.md`](AI-INSTRUCTIONS-POLICY.md). The auto-close is the first gate; CODEOWNERS + branch protection (step 8) is the second.
 
 If/when broader code automation is in scope, the code-quality audit is a separate conversation — this doc stays page-architecture-only.
+
+---
+
+## Priority 1.6 — Linear → Claude Code kickoff pipeline
+
+### 17. Wire Linear "Todo" transition → kickoff-Claude PR
+
+Fires fresh-Claude inside [`.github/workflows/claude-kickoff.yml`](../.github/workflows/claude-kickoff.yml) when a Linear issue transitions into a state of type `unstarted` (i.e. the "Todo" column). The handler at [`/api/linear-webhook`](../app/api/linear-webhook/route.ts) verifies Linear's HMAC signature, rate-limits, and dispatches a `repository_dispatch` event at GitHub. Kickoff-Claude implements the ticket on a fresh `claude/<identifier>-<slug>` branch, runs `npm run check`, and the workflow opens a PR against `develop`. Linear's native GitHub integration auto-moves the ticket to "In Review" on PR open and "Done" on merge — we do NOT touch Linear's REST API for status.
+
+Trigger mechanics:
+
+- **Primary trigger:** `state.type === "unstarted"` — either `action: create` directly in Todo, or `action: update` with `updatedFrom.stateId` present (state transition). Keyed on `state.type` (schema-fixed enum) not `state.name` (workspace-configurable), so column renames don't break the webhook.
+- **Secondary (legacy) trigger:** `claude:go` label. Kept for pre-research staging workflows; `(unstarted_transition || has_claude_go_label)` is the OR gate.
+- **Opt-out:** `claude:skip` label — webhook short-circuits, never dispatches.
+- **Model:** Opus 4.7 / `--max-turns 40` is hardcoded in the workflow. Kickoff always writes code, and Seth's operating rule is Opus for code-writing tasks unless the change is line-for-line pre-specified (which a Linear ticket isn't by construction). Typical kickoff cost on Opus: $0.30–$1.50 per ticket. Typical `@claude` reply iteration cost on Opus: $0.10–$0.50. Seth has accepted that cost for code-writing tasks. A `needs-sonnet` downgrade label for trivial tickets is iteration-2 territory — see [`LINEAR-AGENT-RUBRIC.md § When this rubric grows`](LINEAR-AGENT-RUBRIC.md#when-this-rubric-grows).
+
+Where to stage tickets before kickoff: **Backlog or Triage**. Move into Todo when ready to implement; that's the fire.
+
+Playbook for kickoff-Claude: [`LINEAR-AGENT-RUBRIC.md`](LINEAR-AGENT-RUBRIC.md).
+
+#### Iteration 2: `@claude` PR-reply workflow
+
+Alongside the kickoff pipeline, [`.github/workflows/claude-reply.yml`](../.github/workflows/claude-reply.yml) fires a fresh Claude instance on `@claude` mentions in PR/issue/review comments. It's gated to `@Sethmr` as the comment author (prevents exfiltration if the repo ever goes public) and runs at Sonnet 4.6 / `--max-turns 10`. Claude reads the comment, makes changes on the current PR branch, and commits. No additional setup — it uses the same `ANTHROPIC_API_KEY` secret as § 16. Details: see the long header doc block in the workflow file itself.
+
+#### 17a. Secrets checklist
+
+| Name | Where to set | How to generate | Rotation cadence |
+|---|---|---|---|
+| `LINEAR_WEBHOOK_SECRET` | Railway env + Linear webhook "Signing secret" (same value in both places) | `openssl rand -hex 32` | On suspected leak |
+| `GITHUB_DISPATCH_TOKEN` | Railway env only | GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → repo `Sethmr/peanut.gallery`. Permissions: `Contents: Read & write`, `Actions: Read & write`. Expiration: 90 days. | Reminder at ~80 days |
+| `ANTHROPIC_API_KEY` | GitHub repo secret (already documented in § 16); reused by the kickoff + reply workflows | — | See § 16 |
+
+All three are environment-level secrets. None of them should land in source control or commit messages.
+
+> Note: an earlier iteration of this pipeline supported a `LINEAR_TRIGGER_LABEL` env override to rename the `claude:go` label. Since the primary trigger is now a **state transition** (not a label), that override no longer exists. The legacy `claude:go` label is still recognized as a secondary trigger but is not configurable.
+
+#### 17b. Linear-side setup
+
+1. **Team.** Create or confirm the Linear team you want kickoff-Claude to work for exists. Note the team key (e.g. `LIN`) — it rides along in the dispatch payload.
+2. **Labels.** In the team's label settings, create:
+   - `claude:go` — orange/yellow. **Secondary (legacy) trigger.** Apply in Backlog or Triage if you want Claude to fire without waiting for the Todo transition. The webhook ORs this with the state-transition trigger.
+   - `claude:skip` — grey. **Opt-out.** Apply to any ticket that's moving into Todo but you DON'T want Claude to pick up. The webhook short-circuits on this label before dispatching.
+
+   The earlier `needs-opus` label is obsolete — the kickoff workflow now defaults to Opus 4.7 / `--max-turns 40` unconditionally (code-writing tasks always get Opus per Seth's operating rule), so elevation-by-label no longer exists. If you already created `needs-opus` on the Linear team, you can safely delete it; the webhook handler still reads it but the workflow ignores the payload field. A `needs-sonnet` downgrade label for cost-sensitive trivial tickets is iteration-2 territory — don't create it yet; the workflow would ignore it.
+3. **Webhook.** Settings → API → Webhooks → New webhook:
+   - **URL:** `https://peanutgallery.live/api/linear-webhook` (apex domain, NOT `www.` — see notes below).
+   - **Resource types:** Issue only (uncheck everything else).
+   - **Team:** the team from step 1. Scope tightly to avoid surprise fires on unrelated projects.
+   - **Signing secret:** paste the same value you stored in Railway `LINEAR_WEBHOOK_SECRET`.
+   - Save. Linear sends a test ping; if the handler is deployed, you'll see `{ ok: true, hint: "POST Linear issue webhooks here" }` on `GET` and a `401` on the ping if the signature doesn't verify (which is correct — the ping doesn't carry a signature).
+4. **Confirm Linear's native GitHub integration is connected.** Settings → Integrations → GitHub. This is what auto-moves tickets to "In Review" on PR open and "Done" on merge. If this isn't connected, kickoff-Claude's PR will still open, but ticket status won't update.
+
+**Note on the domain:** `middleware.ts` 308-redirects everything at `peanutgallery.live` EXCEPT `/api/*` to `www.peanutgallery.live` (the static marketing site). So `https://peanutgallery.live/api/linear-webhook` is the right URL; `https://www.peanutgallery.live/api/linear-webhook` would hit the static site and 404. If Railway serves the backend at a `*.up.railway.app` alias that's separate from the apex, use that domain instead.
+
+#### 17c. GitHub-side setup
+
+1. **Repo secret `ANTHROPIC_API_KEY`.** Already required for Claude Triage (§ 16). Kickoff reuses the same secret. If it's set, nothing to do.
+2. **Branch protection on `develop`.** Confirm it does NOT block the Claude kickoff bot from pushing feature branches. It shouldn't — branch protection applies to merges into the protected branch, not to heads of feature branches targeting it. The workflow pushes to `claude/*` branches (not protected) and opens a PR against `develop` (protected). Merging remains gated on the normal PR flow.
+3. **Dispatch token sanity check.** The fine-grained PAT you generated for `GITHUB_DISPATCH_TOKEN` needs to be authorized against this specific repo. Classic PATs work too but grant broader access — prefer fine-grained. If the webhook returns `500 github dispatch failed` with a 403 body, the token is missing `Contents: Read & write` or `Actions: Read & write` on `Sethmr/peanut.gallery`.
+
+#### 17d. Smoke test
+
+1. Create a Linear issue titled `test: echo hello`, description `Add a one-line comment to README.md explaining this was the kickoff-Claude smoke test.` Leave it in Backlog.
+2. Move the ticket into the Todo column (state.type transitions to `unstarted`). That's the fire.
+3. Watch `github.com/Sethmr/peanut.gallery/actions/workflows/claude-kickoff.yml`. You should see a new run fire within 10–30 seconds.
+4. Expect a PR against `develop` within ~2 minutes (budget for `npm ci` + `npm run check`).
+5. Linear auto-moves the ticket to "In Review" once the PR opens (native GitHub integration).
+6. Rate-limit does NOT block the first fire — the module-scoped `Map` is empty on cold start. Subsequent fires on the same issue within 30 seconds are skipped with `{skipped: true, reason: "rate_limited"}`.
+7. (Optional) To test the `@claude` reply workflow: comment `@claude please add a second comment line mentioning the reply smoke test` on the resulting PR. `.github/workflows/claude-reply.yml` should fire (gated to @Sethmr) and Claude pushes a follow-up commit to the PR branch.
+
+#### 17e. Troubleshooting
+
+- **Webhook returns `401 invalid signature`.** The `LINEAR_WEBHOOK_SECRET` values in Railway and Linear don't match. Copy the Railway value into Linear (or vice versa), then re-save the webhook. Linear regenerates the secret when you click "Regenerate" — that's the footgun.
+- **Webhook returns `200 { skipped, reason: "..." }`.** Expected for any event that doesn't match the trigger. Common reasons: `ignored event type`, `not an unstarted-state transition and no claude:go label`, `rate_limited`, or `"claude:skip" label present`.
+- **Webhook returns `500 github dispatch failed` with `githubStatus: 401`.** `GITHUB_DISPATCH_TOKEN` is missing or expired. Regenerate in GitHub → Settings → Developer settings.
+- **Webhook returns `500 github dispatch failed` with `githubStatus: 403`.** Token lacks `Contents: Read & write` or `Actions: Read & write` on this repo. Regenerate with the correct scopes.
+- **Workflow doesn't fire on dispatch.** Check `event_type` matches `linear-kickoff` exactly. Check the Actions tab for the workflow is enabled (Actions → Claude Kickoff → `…` → Enable).
+- **`claude-code-action@v1` returns 403.** `ANTHROPIC_API_KEY` is missing or revoked at the provider. See § 16 rotate steps.
+- **PR never opens but workflow shows "success."** Kickoff-Claude exited without committing. Check the workflow logs — likely the task required a forbidden action (editing a protected file, adding an unrequested dep, etc.), and kickoff-Claude correctly refused. `/tmp/pr-body.md` should show why.
+

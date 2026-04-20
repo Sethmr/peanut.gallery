@@ -2,9 +2,9 @@
 # 🔒 PROTECTED FILE — only @Sethmr can edit.
 # This workflow auto-closes PRs that target `main` from anyone except
 # @Sethmr (release author) or Dependabot (carve-out), and from any head
-# branch that isn't `develop` or `hotfix/*`. Modifying this workflow is
-# itself protected (`.github/workflows/**` is in the protected-paths
-# regex of protect-ai-instructions.yml). Full policy:
+# branch that isn't `release/*`. Modifying this workflow is itself
+# protected (`.github/workflows/**` is in the protected-paths regex of
+# protect-ai-instructions.yml). Full policy:
 # docs/AI-INSTRUCTIONS-POLICY.md
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -12,9 +12,10 @@ name: Protect Main Branch
 
 # Auto-closes PRs targeting `main` from any path other than the
 # documented release flow. The branch model in `docs/RELEASE.md` says:
-# `feature/* → develop → main → tag + CWS zip`. Only `develop → main`
-# release PRs (and `hotfix/* → main` direct-to-main PRs) belong here,
-# and only @Sethmr authors them.
+# all feature work flows `feature/* → develop`, and releases are cut
+# from `develop` onto a `release/vX.Y.Z` branch which is the ONLY head
+# that PRs into `main`. Hotfixes flow `hotfix/* → develop → release/* →
+# main` just like any other change — there is no direct-to-main path.
 #
 # Without this workflow, a contributor could open a PR against `main`,
 # get the PR-checklist comment, get partway through the rule list, and
@@ -24,13 +25,15 @@ name: Protect Main Branch
 #
 # === Carve-outs ===
 #
-# - @Sethmr — release author and only person who merges to main.
+# - @Sethmr — release author and only person who merges to main. Kept
+#   as a manual-override escape hatch if the branching rules ever need
+#   to bend for an emergency.
 # - dependabot[bot] — if Dependabot ever opens a main-targeted PR (e.g.
 #   the existing PRs from before we set target-branch: develop), let it
 #   pass. Branch protection requires Seth's review either way; the
 #   triage bot's verdict comment still fires; nothing automated lands.
-# - Any head branch starting with `develop` or `hotfix/` — these are
-#   the canonical paths into main per the release flow.
+# - Any head branch starting with `release/` — the canonical (and only)
+#   path into `main` per the release flow.
 #
 # === Security model ===
 #
@@ -59,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check PR author + head branch and auto-close if needed
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const pr = context.payload.pull_request;
@@ -78,12 +81,12 @@ jobs:
             const allowedAuthors = new Set(['Sethmr', 'dependabot[bot]']);
 
             // ─── ALLOWED HEAD BRANCH PATTERNS ─────────────────────────────
-            // The release flow says: develop → main (the normal release
-            // PR) and hotfix/* → main (the rare direct fix). Anything
-            // else targeting main is wrong by the documented model.
+            // The release flow says: release/vX.Y.Z → main is the only
+            // path into main. Develop never goes direct; hotfixes flow
+            // hotfix/* → develop → release/* → main like everything
+            // else. Anything else targeting main is wrong by the model.
             const allowedHeadPatterns = [
-              /^develop$/,
-              /^hotfix\//,
+              /^release\//,
             ];
 
             // ─── DECISION ────────────────────────────────────────────────
@@ -112,7 +115,7 @@ jobs:
             const commentBody = [
               greet,
               ``,
-              `**\`main\` is release-only — only @Sethmr merges into it.** Contributor PRs land on **\`develop\`** instead, and reach \`main\` later as part of a versioned release.`,
+              `**\`main\` is release-only — only @Sethmr merges into it, and only from a \`release/vX.Y.Z\` branch.** Contributor PRs land on **\`develop\`** instead, and reach \`main\` later when Seth cuts a release branch off \`develop\`.`,
               ``,
               `### How to fix`,
               ``,
@@ -120,7 +123,7 @@ jobs:
               ``,
               `### Why we do this`,
               ``,
-              `Branch model: \`feature/* → develop → main → tag + CWS\`. Each merge into \`main\` is a release: it gets a version tag and ships to the Chrome Web Store. Pinning that step to one human keeps releases coherent and the changelog honest. Full details: [\`docs/RELEASE.md\`](https://github.com/Sethmr/peanut.gallery/blob/main/docs/RELEASE.md).`,
+              `Branch model: all feature work flows \`feature/* → develop\`. When \`develop\` is release-worthy, Seth cuts a \`release/vX.Y.Z\` branch off it, and that branch is the only thing that PRs into \`main\`. Hotfixes take the same path (\`hotfix/* → develop → release/* → main\`) — there is no direct-to-main shortcut. Each merge into \`main\` gets a version tag and ships to the Chrome Web Store. Pinning that step to one human and one branch shape keeps releases coherent and the changelog honest. Full details: [\`docs/RELEASE.md\`](https://github.com/Sethmr/peanut.gallery/blob/main/docs/RELEASE.md).`,
               ``,
               `**Auto-closing this PR.** No judgment of the work — re-open against \`develop\` and we'll get it through. If you've already done so, ignore this message; you're good.`,
               ``,

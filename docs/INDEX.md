@@ -5,7 +5,7 @@ Map of every markdown file in the repo, ordered by when you should read it.
 ## Read first (if you're resuming work)
 
 0. [`../CLAUDE.md`](../CLAUDE.md) + [`docs/AI-GIT-PROTOCOL.md`](AI-GIT-PROTOCOL.md) — **MANDATORY before any git write.** Peanut Gallery's sandbox cannot recover from an orphaned `.git/index.lock`. Prevention-first + one-shot terminal escalation; NO third-method retries.
-0.5. [`docs/RELEASE.md`](RELEASE.md) — **read before any merge.** Branch model (`feature/* → develop → main → tag + CWS`), the asymmetry (Claude self-merges `develop`; only Seth merges `main`), and the self-merge documentation contract. Links rather than duplicates the rest.
+0.5. [`docs/RELEASE.md`](RELEASE.md) — **read before any merge.** Branch model (`feature/* → develop → release/vX.Y.Z → main`; hotfixes also route through `develop`), the asymmetry (Claude self-merges `develop`; only Seth merges `main` via `release/*` PRs), and the self-merge documentation contract. Links rather than duplicates the rest.
 0.6. [`docs/BOT-TRIAGE-RUBRIC.md`](BOT-TRIAGE-RUBRIC.md) — **read if you're bot-Claude triaging a Dependabot PR** (fired by [`.github/workflows/claude-triage.yml`](../.github/workflows/claude-triage.yml)). Decision tree (MERGE-NOW / QUEUE-AND-CLOSE / NEEDS-HUMAN), safe-list, comment format, hard scope (no commits, no close, no merge — first iteration is comment-only).
 0.7. [`docs/AI-INSTRUCTIONS-POLICY.md`](AI-INSTRUCTIONS-POLICY.md) — **read before editing any file that tells an AI how to behave.** Canonical list of protected paths (CLAUDE.md, .claude/, .github/workflows/, CODEOWNERS, dependabot.yml, the four AI-facing docs under docs/). External PRs touching these auto-close via [`.github/workflows/protect-ai-instructions.yml`](../.github/workflows/protect-ai-instructions.yml); CODEOWNERS is the second gate. Seth is the only human who edits these; Claude edits only when Seth explicitly asks. Change-request path: open an issue, don't submit a PR.
 1. [`docs/CONTEXT.md`](CONTEXT.md) — canonical project context. Stack, archetype slots + pack system, file map, SSE protocol, v1.4 pipeline-event list, cost table, what's shipped vs. coming.
@@ -37,7 +37,7 @@ Map of every markdown file in the repo, ordered by when you should read it.
 ## In progress
 
 - [`docs/V1.5-PLAN.md`](V1.5-PLAN.md) — implementation plan for v1.5.0 "Smart Director v2." **Client scaffold shipped in the v1.5.0 tag (2026-04-19) with the server flag still off.** §4's canary (`ENABLE_SMART_DIRECTOR=true` for 48h) no longer gates the v1.5.0 tag; it now gates whether the flag defaults on in a future point release or folds into v1.7 GA. See [`ROADMAP.md § Still outstanding from v1.5.0`](ROADMAP.md#still-outstanding-from-v150--smart-director-server-flag-canary).
-- **v1.5.2 "First Run"** (no dedicated PLAN doc — scope is in `CHANGELOG.md § [1.5.2]`). First-run Editor's Note tutorial walking users through the v1.5.1 settings drawer. Tutorial code + manifest bump + CHANGELOG entry landing on `develop`; `develop → main` release PR is the next step.
+- **v1.5.2 "First Run"** (no dedicated PLAN doc — scope is in `CHANGELOG.md § [1.5.2]`). First-run Editor's Note tutorial walking users through the v1.5.1 settings drawer. Tutorial code + manifest bump + CHANGELOG entry landing on `develop`; cutting `release/v1.5.2` and opening the `release/v1.5.2 → main` PR is the next step.
 
 ## Strategy & research
 

@@ -6,6 +6,36 @@ All notable changes to Peanut Gallery are recorded here. Format loosely follows 
 
 Tracks in-flight work for the next release.
 
+## [1.5.5] — 2026-04-20 — "<TBD>"
+
+Dev-infrastructure release. No user-facing changes in the extension
+itself. Establishes the Linear-driven kickoff pipeline for AI work,
+refreshes runtime + dev dependencies, tightens the release branch
+model, and bumps CI actions off the deprecated Node 20 runtime.
+
+### Added
+- **Linear ticket → Claude Code kickoff pipeline** ([#46](https://github.com/Sethmr/peanut.gallery/pull/46)). New `/api/linear-webhook` route receives Linear issue webhooks and dispatches to a new `claude-kickoff.yml` GitHub Actions workflow. Claude creates a branch, implements the ticket on develop, and opens a PR. Trigger: move a Linear issue to the Todo state. See `docs/LINEAR-AGENT-RUBRIC.md` + `docs/GITHUB-MANUAL-STEPS.md § 17`.
+- **`@claude` PR-reply workflow** ([#46](https://github.com/Sethmr/peanut.gallery/pull/46)). New `claude-reply.yml` — mention `@claude` on a PR as @Sethmr and Claude iterates on the branch. Scoped, cost-capped, concurrency-gated.
+
+### Changed
+- **Bumped CI actions off deprecated Node 20 runtime** ([#43](https://github.com/Sethmr/peanut.gallery/pull/43)). `actions/github-script@v7 → v9`, `actions/checkout@v4 → v6`. Removes the Node 20 deprecation warning firing on every workflow run.
+- **Refreshed runtime dependencies** ([#44](https://github.com/Sethmr/peanut.gallery/pull/44)). `@anthropic-ai/sdk 0.39 → 0.90`, `react 19.0 → 19.2.5`, `react-dom 19.0 → 19.2.5`, `ws 8.18 → 8.20`.
+- **Refreshed dev dependencies** ([#45](https://github.com/Sethmr/peanut.gallery/pull/45)). `typescript 5.7 → 5.9.3`, `@types/* minors`, `postcss 8.4 → 8.5`, `tsx 4.19 → 4.21`, `autoprefixer 10.4 → 10.5`, `tailwindcss 3.4.17 → 3.4.19`, others.
+- **Release model rewritten** ([#47](https://github.com/Sethmr/peanut.gallery/pull/47)). `docs/RELEASE.md` now codifies: `feature/* → develop`, `release/vX.Y.Z → main` (branches preserved forever), `hotfix/* → develop → release/* → main`. No more back-merging or direct-to-main hotfixes.
+- **Kickoff + reply workflows default to Opus** ([#48](https://github.com/Sethmr/peanut.gallery/pull/48)). Sonnet was an earlier cost-optimization; Seth's ruling: Opus for all code-writing work. `needs-opus` label is now inert.
+- **`protect-main-branch.yml` carve-out tightened** ([#48](https://github.com/Sethmr/peanut.gallery/pull/48)). Only `release/*` head branches target main. `develop` and `hotfix/*` no longer allowed — they'd violate the new model.
+
+### Fixed
+- (none in this release)
+
+### Removed
+- **`actions/github-script` major-version ignore in `dependabot.yml`** ([#43](https://github.com/Sethmr/peanut.gallery/pull/43)). The ignore existed to defer the v7→v9 decision; that decision is made.
+
+### Manual-step-required follow-ups for operators
+- Add `LINEAR_WEBHOOK_SECRET` + `GITHUB_DISPATCH_TOKEN` to Railway env. See `docs/GITHUB-MANUAL-STEPS.md § 17`.
+- After Railway deploys, create the Linear → webhook endpoint. See same doc.
+- Update protected AI-instruction docs to match new branch model — flagged in chat, not editable by Claude without explicit ask. Files: `CLAUDE.md` (lines 78, 80), `docs/AI-GIT-PROTOCOL.md` (line 183), `docs/BOT-TRIAGE-RUBRIC.md` (lines 23, 31), `docs/AI-INSTRUCTIONS-POLICY.md`.
+
 ## [1.5.4] — 2026-04-20 — "The Sweep"
 
 A janitorial release layered on top of v1.5.3 "The Cast." No marquee

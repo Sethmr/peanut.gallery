@@ -1,0 +1,149 @@
+name: Claude Reply
+
+# Fires fresh-Claude on `@claude` mentions in PR/issue/review comments so Seth
+# can iterate on a kickoff PR without manually dispatching a new workflow.
+# Claude reads the comment, makes changes on the current PR branch, and
+# commits. Default: Opus 4.7 / --max-turns 15 — PR iteration is almost always
+# code-writing (apply review feedback, fix bugs, refactor), which per Seth's
+# operating rule is Opus territory. Sonnet is the outlier for PR replies,
+# not the norm.
+#
+# === Security model ===
+#
+# Why NOT pull_request_target:
+#   - pull_request_target exists to grant secrets to workflows reacting to PR
+#     diffs from untrusted forks. We don't need that here. This workflow fires
+#     on COMMENT events, not push events, and the comment author is
+#     authoritatively gated to `Sethmr` (see `if:` below). We are not running
+#     tests against a PR head from a fork — we're letting a trusted human
+#     issue commands.
+#   - Using plain `issue_comment` / `pull_request_review_comment` /
+#     `pull_request_review` events with a tight actor gate is the cleaner
+#     threat model: the workflow file is still frozen at the default branch
+#     version (comment events do not check out the PR head for the workflow
+#     file), and the actor gate eliminates prompt-injection from untrusted
+#     commenters before Claude even starts.
+#
+# Why the tight actor gate (user.login == 'Sethmr'):
+#   - `@claude` as a trigger phrase is an exfiltration vector if the repo
+#     goes public — a drive-by commenter could attempt to get Claude to run
+#     arbitrary work against repo secrets. Restricting to Seth's GitHub
+#     handle eliminates that vector. GitHub sets the `user.login` field
+#     authoritatively from the OAuth-verified identity; it cannot be spoofed.
+#   - The gate also excludes the GitHub App's own comments (Claude
+#     commenting on the PR shouldn't recursively trigger this workflow).
+#
+# Why contents: write:
+#   - Claude pushes commits to the PR branch as part of iteration. The final
+#     commit carries the `Co-Authored-By: Claude` trailer, matching the
+#     kickoff flow.
+#   - Scope: the ephemeral GITHUB_TOKEN is this-run-only; it can push to the
+#     PR branch but cannot merge to `develop` or `main` (branch protection
+#     + CODEOWNERS gates apply to merges).
+#
+# Why issues: write:
+#   - GitHub treats issues and PRs as the same entity for comments. Without
+#     `issues: write`, Claude cannot leave an acknowledgement/followup
+#     comment on the PR or issue it's replying to. `pull-requests: write`
+#     alone is NOT sufficient for `issue_comment` events.
+#
+# Why pull-requests: write:
+#   - Needed for `pull_request_review_comment` and `pull_request_review`
+#     events, plus any PR-metadata edits Claude might perform.
+#
+# Why id-token: write:
+#   - anthropics/claude-code-action@v1 mints its GitHub App auth token via
+#     OIDC rather than using the workflow's GITHUB_TOKEN. Without this, the
+#     action fails at startup with "Could not fetch an OIDC token."
+#   - OIDC token is short-lived and scoped to this workflow run.
+#
+# Why we DELIBERATELY do NOT grant:
+#   - actions, packages, deployments, statuses, checks,
+#     repository-projects, security-events.
+#
+# Why concurrency cancel-in-progress keyed on PR/issue number:
+#   - Debounces rapid successive `@claude` mentions on the same thread.
+#     Newer mention wins; older in-flight run is cancelled to avoid two
+#     Claudes racing each other on the same branch.
+#
+# Why --max-turns 15 on Opus 4.7:
+#   - PR iteration is almost always code-writing: apply a review comment,
+#     fix a bug, refactor the diff. Seth's operating rule is Opus for
+#     code-writing tasks. 15 turns is plenty of headroom — typical PR
+#     replies resolve in 2–6 turns; 15 is the safety belt.
+#   - Typical cost per reply iteration: $0.10–$0.50. Seth has accepted
+#     this cost for the quality bump over Sonnet on code edits.
+#   - If Sonnet-on-reply ever becomes useful (e.g. a future "review
+#     against a checklist then hand back to Opus" pattern), that's
+#     iteration-2 work and gets its own workflow or conditional. Not
+#     done here.
+#
+# Why anthropic_api_key as ${{ secrets.ANTHROPIC_API_KEY }}:
+#   - Same posture as claude-triage.yml / claude-kickoff.yml. GitHub
+#     encrypts repo secrets at rest with libsodium and auto-redacts them
+#     from workflow logs. The secret is injected as an env var into the
+#     action's runtime; it is NEVER passed into any prompt field and NEVER
+#     printed in any log line.
+#
+# === Hardening TODOs (post first-batch confirmation) ===
+#
+# 1. Pin anthropics/claude-code-action@v1 and actions/checkout@v6 to
+#    commit SHAs. v1 is the GA tag; pinning prevents a future tag move
+#    from changing behavior under us.
+# 2. Consider expanding the actor gate to a small allowlist once the repo
+#    adds collaborators — still a tight gate, just more names.
+# 3. Consider a per-day hard spend cap via a pre-action step that checks
+#    month-to-date Anthropic spend.
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+
+# Debounce rapid `@claude` mentions on the same thread. Cancel older run.
+concurrency:
+  group: claude-reply-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  reply:
+    # Tight actor gate. Only Seth can trigger `@claude` replies.
+    # Additionally skip the GitHub App's own comments to prevent loops.
+    if: |
+      (
+        (github.event_name == 'issue_comment' &&
+         github.event.comment.user.login == 'Sethmr' &&
+         contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' &&
+         github.event.comment.user.login == 'Sethmr' &&
+         contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' &&
+         github.event.review.user.login == 'Sethmr' &&
+         contains(github.event.review.body, '@claude'))
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout (with history for context)
+        uses: actions/checkout@v6
+        with:
+          # fetch-depth: 0 so Claude can read branch history when diagnosing
+          # a request. Token is persisted so Claude can push back to the PR
+          # branch; the ephemeral GITHUB_TOKEN is scoped to this run only.
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Run claude-code-action (@claude reply)
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: --max-turns 15 --model claude-opus-4-7
