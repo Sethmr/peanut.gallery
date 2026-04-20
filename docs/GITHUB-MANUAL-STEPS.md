@@ -276,7 +276,7 @@ Trigger mechanics:
 - **Primary trigger:** `state.type === "unstarted"` — either `action: create` directly in Todo, or `action: update` with `updatedFrom.stateId` present (state transition). Keyed on `state.type` (schema-fixed enum) not `state.name` (workspace-configurable), so column renames don't break the webhook.
 - **Secondary (legacy) trigger:** `claude:go` label. Kept for pre-research staging workflows; `(unstarted_transition || has_claude_go_label)` is the OR gate.
 - **Opt-out:** `claude:skip` label — webhook short-circuits, never dispatches.
-- **Model elevation:** `needs-opus` label (case-insensitive) — webhook sets `client_payload.model = "opus"`. The workflow's `Pick model + turns` step reads this and elevates from the default **Sonnet 4.6 / `--max-turns 20`** to **Opus 4.7 / `--max-turns 40`**. Sonnet is ~5x cheaper on output per Anthropic pricing, so it's the cost-minimized default.
+- **Model:** Opus 4.7 / `--max-turns 40` is hardcoded in the workflow. Kickoff always writes code, and Seth's operating rule is Opus for code-writing tasks unless the change is line-for-line pre-specified (which a Linear ticket isn't by construction). Typical kickoff cost on Opus: $0.30–$1.50 per ticket. Typical `@claude` reply iteration cost on Opus: $0.10–$0.50. Seth has accepted that cost for code-writing tasks. A `needs-sonnet` downgrade label for trivial tickets is iteration-2 territory — see [`LINEAR-AGENT-RUBRIC.md § When this rubric grows`](LINEAR-AGENT-RUBRIC.md#when-this-rubric-grows).
 
 Where to stage tickets before kickoff: **Backlog or Triage**. Move into Todo when ready to implement; that's the fire.
 
@@ -304,7 +304,8 @@ All three are environment-level secrets. None of them should land in source cont
 2. **Labels.** In the team's label settings, create:
    - `claude:go` — orange/yellow. **Secondary (legacy) trigger.** Apply in Backlog or Triage if you want Claude to fire without waiting for the Todo transition. The webhook ORs this with the state-transition trigger.
    - `claude:skip` — grey. **Opt-out.** Apply to any ticket that's moving into Todo but you DON'T want Claude to pick up. The webhook short-circuits on this label before dispatching.
-   - `needs-opus` — purple. **Model elevation.** Apply to tickets that need Opus 4.7 reasoning. The webhook sets `client_payload.model = "opus"` and the workflow runs Claude at Opus 4.7 / `--max-turns 40` instead of the default Sonnet 4.6 / `--max-turns 20`.
+
+   The earlier `needs-opus` label is obsolete — the kickoff workflow now defaults to Opus 4.7 / `--max-turns 40` unconditionally (code-writing tasks always get Opus per Seth's operating rule), so elevation-by-label no longer exists. If you already created `needs-opus` on the Linear team, you can safely delete it; the webhook handler still reads it but the workflow ignores the payload field. A `needs-sonnet` downgrade label for cost-sensitive trivial tickets is iteration-2 territory — don't create it yet; the workflow would ignore it.
 3. **Webhook.** Settings → API → Webhooks → New webhook:
    - **URL:** `https://peanutgallery.live/api/linear-webhook` (apex domain, NOT `www.` — see notes below).
    - **Resource types:** Issue only (uncheck everything else).

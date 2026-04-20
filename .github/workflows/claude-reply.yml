@@ -3,8 +3,10 @@ name: Claude Reply
 # Fires fresh-Claude on `@claude` mentions in PR/issue/review comments so Seth
 # can iterate on a kickoff PR without manually dispatching a new workflow.
 # Claude reads the comment, makes changes on the current PR branch, and
-# commits. First iteration: Sonnet 4.6 / --max-turns 10 — PR iteration is
-# narrower than kickoff, 10 turns is plenty per the Claude Code action docs.
+# commits. Default: Opus 4.7 / --max-turns 15 — PR iteration is almost always
+# code-writing (apply review feedback, fix bugs, refactor), which per Seth's
+# operating rule is Opus territory. Sonnet is the outlier for PR replies,
+# not the norm.
 #
 # === Security model ===
 #
@@ -64,10 +66,17 @@ name: Claude Reply
 #     Newer mention wins; older in-flight run is cancelled to avoid two
 #     Claudes racing each other on the same branch.
 #
-# Why --max-turns 10:
-#   - Per research on the Claude Code action, PR iteration typically
-#     resolves in 2-6 turns. 10 is a safety belt. Sonnet 4.6 is the
-#     cost-minimized default (~5x cheaper on output than Opus 4.7).
+# Why --max-turns 15 on Opus 4.7:
+#   - PR iteration is almost always code-writing: apply a review comment,
+#     fix a bug, refactor the diff. Seth's operating rule is Opus for
+#     code-writing tasks. 15 turns is plenty of headroom — typical PR
+#     replies resolve in 2–6 turns; 15 is the safety belt.
+#   - Typical cost per reply iteration: $0.10–$0.50. Seth has accepted
+#     this cost for the quality bump over Sonnet on code edits.
+#   - If Sonnet-on-reply ever becomes useful (e.g. a future "review
+#     against a checklist then hand back to Opus" pattern), that's
+#     iteration-2 work and gets its own workflow or conditional. Not
+#     done here.
 #
 # Why anthropic_api_key as ${{ secrets.ANTHROPIC_API_KEY }}:
 #   - Same posture as claude-triage.yml / claude-kickoff.yml. GitHub
@@ -137,4 +146,4 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: --max-turns 10 --model claude-sonnet-4-6
+          claude_args: --max-turns 15 --model claude-opus-4-7
