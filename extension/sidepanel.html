@@ -766,30 +766,45 @@
     .gallery::-webkit-scrollbar-track{background: transparent}
     .gallery::-webkit-scrollbar-thumb{background: var(--ink-3); opacity: .3}
 
+    /* Feed entry layout:
+         [TAG     ][message name + streaming text…
+         [00:00:00][                    …with breathing room]
+       Tag + timestamp stack in the left column (row 1 + row 2); the
+       message spans both rows on the right so long bodies get the
+       width. Dropped the 3-column baseline-aligned layout that had the
+       ts/tag pinched against the message. */
     .feed-entry{
       padding: 10px 12px;
       border-bottom: 1px solid var(--ink-3);
       display: grid;
-      grid-template-columns: 54px 46px 1fr;
-      gap: 8px; align-items: baseline;
+      grid-template-columns: 58px 1fr;
+      grid-template-rows: auto auto;
+      gap: 2px 10px;
       animation: fadeIn 0.3s ease-out;
     }
     @keyframes fadeIn{
       from{opacity: 0; transform: translateY(4px)}
       to{opacity: 1; transform: translateY(0)}
     }
-    .feed-entry .ts{
-      font-family: var(--mono); font-size: 10px;
-      letter-spacing: .04em; color: var(--ink-3);
-    }
     .feed-entry .tag{
+      grid-column: 1; grid-row: 1;
+      justify-self: start;
       font-family: var(--slab-2); font-size: 9px;
       font-weight: 700; letter-spacing: .18em;
       text-transform: uppercase;
       padding: 1px 5px;
       border: 1px solid currentColor;
       text-align: center; height: fit-content;
-      margin-top: 2px;
+    }
+    .feed-entry .ts{
+      grid-column: 1; grid-row: 2;
+      justify-self: start;
+      font-family: var(--mono); font-size: 10px;
+      letter-spacing: .04em; color: var(--ink-3);
+    }
+    .feed-entry .msg{
+      grid-column: 2; grid-row: 1 / span 2;
+      align-self: start;
     }
     .feed-entry.fact .tag{color: var(--stamp); border-color: var(--stamp)}
     /* Yellow bg → always-black text (--p-ink), not themed --ink which flips
