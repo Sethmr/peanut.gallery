@@ -14,14 +14,13 @@ Chrome extension + Next.js backend that captures a YouTube tab's audio, transcri
 
 | Directory | Purpose | Index |
 |---|---|---|
-| [`app/`](app/) | Next.js 15 App Router: landing page, `/install`, `/watch`, `/privacy`, API routes. | [`app/INDEX.md`](app/INDEX.md) |
-| [`components/`](components/) | React components used by the Next.js landing + `/watch`. | [`components/INDEX.md`](components/INDEX.md) |
+| [`app/`](app/) | Next.js 15 App Router: legacy landing, `/install`, `/privacy`, API routes. `middleware.ts` 308-redirects non-`/api/*` traffic to `www.peanutgallery.live`. | [`app/INDEX.md`](app/INDEX.md) |
+| [`components/`](components/) | React components used by the Next.js landing page (post-v1.5 cleanup — only `FadeInObserver` remains). | [`components/INDEX.md`](components/INDEX.md) |
 | [`lib/`](lib/) | Server-side core: Director, PersonaEngine, packs, logging, transcription. | [`lib/INDEX.md`](lib/INDEX.md) |
 | [`lib/packs/`](lib/packs/) | Pack abstraction + Howard + TWiST persona definitions. | [`lib/packs/INDEX.md`](lib/packs/INDEX.md) |
 | [`extension/`](extension/) | Chrome MV3 extension (side panel, background, offscreen, content). | [`extension/INDEX.md`](extension/INDEX.md) |
 | [`scripts/`](scripts/) | Test harnesses + pack-extension release script. | [`scripts/INDEX.md`](scripts/INDEX.md) |
 | [`docs/`](docs/) | Humans and Claudes read this. | [`docs/INDEX.md`](docs/INDEX.md) |
-| [`types/`](types/) | Ambient TypeScript declarations (currently just YouTube IFrame API). | — |
 | [`marketing/`](marketing/) | Chrome Web Store listing copy, promo assets. | — |
 | [`releases/`](releases/) | Gitignored. `peanut-gallery-vX.zip` (CWS upload) + `vX.0.0-release-notes.md`. | — |
 | [`logs/`](logs/) | Gitignored. `pipeline-debug.jsonl` + free-tier-limiter state. | — |
