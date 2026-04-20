@@ -707,6 +707,21 @@
       padding: 8px 10px; outline: none;
       appearance: none; -webkit-appearance: none;
     }
+    /* Keyboard-nav focus rings. :focus-visible so mouse clicks don't paint
+       rings on buttons (native behavior), but Tab/Shift-Tab users always
+       see where they are. Uses --stamp so the ring reads against both
+       paper and night themes. */
+    button:focus-visible,
+    select:focus-visible,
+    [role="button"]:focus-visible,
+    .drawer-menu-item:focus-visible,
+    .pill:focus-visible,
+    .pack-card:focus-visible,
+    .persona-bubble:focus-visible{
+      outline: 2px solid var(--stamp);
+      outline-offset: 2px;
+    }
+
     :where(.setup, .drawer) input[type="text"]:focus,
     :where(.setup, .drawer) input[type="password"]:focus,
     :where(.setup, .drawer) select:focus{
@@ -1573,7 +1588,7 @@
   <!-- ── ERROR BANNER ── -->
   <div id="errorBanner" class="error-banner">
     <span id="errorText"></span>
-    <button class="error-dismiss" id="errorDismiss">&times;</button>
+    <button class="error-dismiss" id="errorDismiss" type="button" aria-label="Dismiss error"><span aria-hidden="true">&times;</span></button>
   </div>
 
   <!-- ── SETUP (shown when not capturing) ── -->
@@ -1628,8 +1643,8 @@
   <!-- ── CONTROLS (during capture) ── -->
   <div id="controlsRow">
     <div class="btn-row">
-      <button id="fireBtn" class="btn btn-fire">&#9632; React</button>
-      <button id="stopBtn" class="btn btn-stop">&#9632; Stop</button>
+      <button id="fireBtn" class="btn btn-fire" type="button" aria-label="React — have the critics respond to the current moment"><span aria-hidden="true">&#9632;</span> React</button>
+      <button id="stopBtn" class="btn btn-stop" type="button" aria-label="Stop listening"><span aria-hidden="true">&#9632;</span> Stop</button>
     </div>
   </div>
 
@@ -1648,7 +1663,7 @@
   </div>
 
   <!-- ── GALLERY FEED ── -->
-  <div id="gallery" class="gallery" style="display:none;"></div>
+  <div id="gallery" class="gallery" role="log" aria-live="polite" aria-label="Live reactions from the writers' room" style="display:none;"></div>
 
   <!-- ── EMPTY STATE ──
        No inline display override — the CSS default (.empty-state { display: flex; flex: 1 })
@@ -1666,12 +1681,12 @@
   <div id="footer" class="footer hidden">
     <div class="tools">
       <span>
-        <button class="pill fact on" data-filter="fact">Fact</button>
-        <button class="pill dunk on" data-filter="dunk">Dunk</button>
-        <button class="pill cue on" data-filter="cue">Cue</button>
-        <button class="pill bit on" data-filter="bit">Bit</button>
+        <button class="pill fact on" data-filter="fact" type="button" aria-pressed="true" aria-label="Filter: fact-check reactions">Fact</button>
+        <button class="pill dunk on" data-filter="dunk" type="button" aria-pressed="true" aria-label="Filter: troll reactions">Dunk</button>
+        <button class="pill cue on" data-filter="cue" type="button" aria-pressed="true" aria-label="Filter: sound-cue reactions">Cue</button>
+        <button class="pill bit on" data-filter="bit" type="button" aria-pressed="true" aria-label="Filter: comedy-bit reactions">Bit</button>
       </span>
-      <button id="settingsToggle" class="gear" title="Settings">&#9881;</button>
+      <button id="settingsToggle" class="gear" type="button" title="Settings" aria-label="Settings"><span aria-hidden="true">&#9881;</span></button>
     </div>
   </div>
 
@@ -1724,7 +1739,7 @@
       <!-- ═══════ LINEUP ═══════ -->
       <section class="drawer-section" data-section="lineup">
         <div class="drawer-section-head">
-          <button class="drawer-section-back" type="button">&lsaquo; Menu</button>
+          <button class="drawer-section-back" type="button" aria-label="Back to settings menu"><span aria-hidden="true">&lsaquo;</span> Menu</button>
           <span class="drawer-section-title">Lineup</span>
         </div>
 
@@ -1777,7 +1792,7 @@
       <!-- ═══════ BACKEND & KEYS ═══════ -->
       <section class="drawer-section" data-section="backend">
         <div class="drawer-section-head">
-          <button class="drawer-section-back" type="button">&lsaquo; Menu</button>
+          <button class="drawer-section-back" type="button" aria-label="Back to settings menu"><span aria-hidden="true">&lsaquo;</span> Menu</button>
           <span class="drawer-section-title">Backend &amp; keys</span>
         </div>
 
@@ -1871,7 +1886,7 @@
       <!-- ═══════ AUDIO ═══════ -->
       <section class="drawer-section" data-section="audio">
         <div class="drawer-section-head">
-          <button class="drawer-section-back" type="button">&lsaquo; Menu</button>
+          <button class="drawer-section-back" type="button" aria-label="Back to settings menu"><span aria-hidden="true">&lsaquo;</span> Menu</button>
           <span class="drawer-section-title">Audio</span>
         </div>
 
@@ -1905,7 +1920,7 @@
       <!-- ═══════ CRITICS (mute list) ═══════ -->
       <section class="drawer-section" data-section="critics">
         <div class="drawer-section-head">
-          <button class="drawer-section-back" type="button">&lsaquo; Menu</button>
+          <button class="drawer-section-back" type="button" aria-label="Back to settings menu"><span aria-hidden="true">&lsaquo;</span> Menu</button>
           <span class="drawer-section-title">Mute a critic</span>
         </div>
         <div id="mutesContainer" class="mutes"></div>
@@ -1915,7 +1930,7 @@
       <!-- ═══════ EXPORT ═══════ -->
       <section class="drawer-section" data-section="export">
         <div class="drawer-section-head">
-          <button class="drawer-section-back" type="button">&lsaquo; Menu</button>
+          <button class="drawer-section-back" type="button" aria-label="Back to settings menu"><span aria-hidden="true">&lsaquo;</span> Menu</button>
           <span class="drawer-section-title">Export session</span>
         </div>
         <div style="display:flex; gap:6px">
@@ -1928,7 +1943,7 @@
       <!-- ═══════ APPEARANCE ═══════ -->
       <section class="drawer-section" data-section="appearance">
         <div class="drawer-section-head">
-          <button class="drawer-section-back" type="button">&lsaquo; Menu</button>
+          <button class="drawer-section-back" type="button" aria-label="Back to settings menu"><span aria-hidden="true">&lsaquo;</span> Menu</button>
           <span class="drawer-section-title">Appearance</span>
         </div>
         <div class="theme-grid">

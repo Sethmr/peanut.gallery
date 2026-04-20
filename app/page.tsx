@@ -268,8 +268,8 @@ export default function LandingPage() {
 
         {/* PERSONAS */}
         <section className="dark" id="personas">
-          <div className="section-label">The Cast &middot; v1.4.0</div>
-          <h2 className="fade-in">Two packs. Four slots. One dropdown.</h2>
+          <div className="section-label">The Cast &middot; v1.5.3</div>
+          <h2 className="fade-in">Two packs. Four slots. Eight peanut mascots.</h2>
           <p className="section-sub fade-in">
             Every pack ships four archetype slots — <strong>producer, troll, sound FX, joker</strong>.
             The Director is pack-agnostic; same routing, same cascade, only the voices change.
@@ -492,32 +492,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* REFERENCE IMPLEMENTATION */}
-        <section className="content-section" id="reference">
-          <div className="section-label">The Artifact</div>
-          <h2 className="fade-in">The web app still exists — as a reference.</h2>
-          <p className="section-sub fade-in">
-            Before the Chrome extension, Peanut Gallery was a web app you pasted a YouTube URL into.
-            It proved out the persona engine, the director, the SSE stream, and the UI that now lives
-            in the side panel. It&apos;s preserved as a reference implementation — paste a URL, see
-            the whole pipeline run in a single tab. When we iterate on the sidebar next, this is where
-            we prototype.
-          </p>
-          <div className="hero-ctas" style={{ justifyContent: "flex-start", marginBottom: 0 }}>
-            <Link href="/watch" className="btn-secondary">
-              Open the Reference App
-            </Link>
-            <a
-              href="https://github.com/Sethmr/peanut.gallery/tree/main/app"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-secondary"
-            >
-              View the Source
-            </a>
-          </div>
-        </section>
-
         {/* ORIGIN */}
         <section className="content-section">
           <div className="origin-box fade-in">
@@ -554,7 +528,6 @@ export default function LandingPage() {
             <a href="https://x.com/twistartups" target="_blank" rel="noopener noreferrer">
               TWiST
             </a>
-            <Link href="/watch">Reference App</Link>
             <Link href="/privacy">Privacy</Link>
           </div>
           <p>
