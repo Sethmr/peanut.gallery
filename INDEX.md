@@ -55,7 +55,7 @@ Chrome extension + Next.js backend that captures a YouTube tab's audio, transcri
 |---|---|
 | Stack + architecture + cost | [`docs/CONTEXT.md`](docs/CONTEXT.md) |
 | Bug post-mortems + diagnostic checklist | [`docs/DEBUGGING.md`](docs/DEBUGGING.md) |
-| Roadmap (v1.5 = Smart Director v2, v1.6 = Voice+Clip, v2.0 = Bobbleheads) | [`docs/ROADMAP.md`](docs/ROADMAP.md) |
+| Roadmap (v1.5 cycle shipped; v1.7 "Smart Director GA" = next; v1.9 = Bobbleheads stretch; v2.0 = The Gallery launch) | [`docs/ROADMAP.md`](docs/ROADMAP.md) |
 | Self-host flow | [`docs/SELF-HOST-INSTALL.md`](docs/SELF-HOST-INSTALL.md) |
 | Alternative-backend contract | [`docs/BUILD-YOUR-OWN-BACKEND.md`](docs/BUILD-YOUR-OWN-BACKEND.md) |
 | Key rotation / ops | [`docs/OPS.md`](docs/OPS.md) |
