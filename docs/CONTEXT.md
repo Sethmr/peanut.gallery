@@ -138,17 +138,19 @@ Result: some moments get 1 response, some get 2-3, occasionally all 4 pile on. *
 ### Frontend
 | File | Purpose |
 |------|---------|
-| `app/page.tsx` | Main UI. URL input, video player, transcript display, 2x2 persona grid. Live vs Recorded mode awareness |
-| `app/layout.tsx` | Root layout with Inter + Space Grotesk fonts, metadata |
-| `app/globals.css` | Dark theme, sine wave animations, persona avatar styles, live pulse effects |
-| `components/PersonaColumn.tsx` | Individual persona card. Bubble avatar, sine wave indicator, message history, streaming text |
-| `components/YouTubePlayer.tsx` | YouTube IFrame API wrapper. Programmatic play/pause, state change callbacks |
-| `components/TranscriptBar.tsx` | Standalone transcript bar component (currently inlined in page.tsx instead) |
+| `app/page.tsx` | Landing page at `/`. Marketing hero, ticker strip, demo embed. Redesigned 2026-04-18 to the orange palette (`app/landing.css`). The URL-input + persona-grid demo moved to `app/watch/page.tsx`. |
+| `app/watch/page.tsx` | Legacy demo at `/watch`. URL input, video player, transcript display, 2x2 persona grid. Live vs Recorded mode awareness. Per `SESSION-NOTES-2026-04-18-seo-push.md`: legacy — only tiny SEO tweaks allowed. |
+| `app/layout.tsx` | Root layout. Metadata + font loading for the landing + `/watch` surfaces. |
+| `app/landing.css` | Landing page (orange palette). Canonical tokens; see design brief. |
+| `app/globals.css` | Legacy `/watch` demo styles — dark theme, sine wave animations, persona avatar styles, live pulse effects. |
+| `components/PersonaColumn.tsx` | Individual persona card on `/watch`. Bubble avatar, sine wave indicator, message history, streaming text. |
+| `components/YouTubePlayer.tsx` | YouTube IFrame API wrapper. Programmatic play/pause, state change callbacks. |
+| `components/TranscriptBar.tsx` | Standalone transcript bar component (currently inlined in `app/watch/page.tsx` instead). |
 
 ### Config
 | File | Purpose |
 |------|---------|
-| `tailwind.config.ts` | Custom colors (bg-primary/secondary/tertiary, accent-blue/red/purple/amber), fonts (Inter, Space Grotesk) |
+| `tailwind.config.ts` | Custom colors + fonts for the legacy `/watch` demo (`bg-primary/secondary/tertiary` dark, per-persona `accent.blue/red/purple/amber`, Inter + Space Grotesk). Side panel has its own self-contained tokens in `extension/sidepanel.html`; landing uses `app/landing.css`. |
 | `next.config.ts` | Minimal — just body size limit for server actions |
 | `tsconfig.json` | Strict mode, `@/*` path alias, excludes `scripts/` |
 | `package.json` | Dependencies: next, react, @anthropic-ai/sdk, ws, @microsoft/fetch-event-source. xAI uses native fetch + SSE. **No groq-sdk** — Groq was removed in the v1.3.0 → v1.4.0 migration; if you see a `groq-sdk` import anywhere, it's stale. |
@@ -325,11 +327,15 @@ Runs only for the Producer archetype during director-driven fires. Baba's force-
 
 ## UI Design
 
-- **Dark theme:** bg-primary #0a0a0a, bg-secondary #141414, bg-tertiary #1a1a1a
-- **Layout:** Left side = video player (560px) + transcript; Right side = 2x2 persona grid
-- **Persona cards:** Bubble avatar with ring pulse when speaking, sine wave (5 bars) animation, auto-scrolling message history
-- **Fonts:** Inter (body), Space Grotesk (display/headers)
-- **Persona colors:** Blue (#3b82f6) for Baba Booey, Red (#ef4444) for Troll, Purple (#a855f7) for Fred, Amber (#f59e0b) for Jackie
+Three UI surfaces, three distinct design systems. Each has its own canonical source — cross-reference the source, don't duplicate values here (duplicated hex codes and font names are how a design system drifts out of sync).
+
+| Surface | Canonical design source |
+|---|---|
+| **Chrome side panel** — primary user-facing UI | Design proof at [peanutgallery.live/panel/](https://www.peanutgallery.live/panel/) + inline CSS tokens in [`extension/sidepanel.html`](../extension/sidepanel.html) (`--p-paper`, `--p-ink`, `--p-stamp`, `--p-yellow`, slab + serif stack). Newspaper / broadsheet aesthetic. Separate paper / night themes. |
+| **Landing page** — `/` via [`app/page.tsx`](../app/page.tsx) | [`app/landing.css`](../app/landing.css) + [`marketing/CLAUDE-DESIGN-BRIEF.md`](../marketing/CLAUDE-DESIGN-BRIEF.md). TWiST burnt-orange primary (`--pg-accent: #ff5a1f`), matte black base, Jason-calibrated. Shipped 2026-04-18. |
+| **Demo page** — `/watch` via [`app/watch/page.tsx`](../app/watch/page.tsx) | [`app/globals.css`](../app/globals.css) + [`tailwind.config.ts`](../tailwind.config.ts). Legacy dark theme with per-persona accents (`accent.blue/red/purple/amber`) driving the `components/PersonaColumn.tsx` grid. **Legacy** per `SESSION-NOTES-2026-04-18-seo-push.md` — only tiny SEO tweaks allowed here; the CWS distribution path is the side panel, and `/watch` stays live mainly for drive-by SEO capture until retired. |
+
+If a design detail matters for the work in front of you — a color, spacing value, font, motion curve — read it from the canonical source, not from this doc.
 
 ---
 

@@ -130,22 +130,66 @@
       padding: 0 6px; line-height: 1.2;
     }
 
-    /* ── STATUS STRIP (shown when capturing) ── */
+    /* ── STATUS STRIP (shown when capturing) ──
+       Two-line grid: (dot + label | time) above (state tag + detail).
+       The time counter + secondary row only render when .with-timer is
+       present — the side panel sets this only for free-tier users (no
+       required API keys in Settings → Backend & keys). Paid users see
+       just the one-line primary, same as before. */
     .status-bar{
-      padding: 10px 12px;
+      padding: 8px 12px;
       border-bottom: 1px solid var(--rule);
       background: var(--paper-2);
       display: grid;
       grid-template-columns: 1fr auto;
-      gap: 4px 10px;
+      grid-template-rows: auto auto;
+      gap: 3px 10px;
       flex-shrink: 0;
       align-items: center;
+    }
+    body[data-theme="night"] .status-bar{background: var(--paper-3)}
+    .status-bar .status-primary{
+      grid-column: 1; grid-row: 1;
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--slab-2); font-size: 10.5px;
+      font-weight: 700; letter-spacing: .18em;
+      text-transform: uppercase; color: var(--ink);
+      min-width: 0;
+    }
+    .status-bar .status-time{
+      grid-column: 2; grid-row: 1;
+      font-family: var(--mono); font-size: 11px;
+      letter-spacing: .04em; color: var(--ink);
+      justify-self: end;
+      display: none;
+    }
+    .status-bar .status-secondary{
+      grid-column: 1 / -1; grid-row: 2;
+      display: none;
+      align-items: baseline; gap: 8px;
+      min-width: 0;
+    }
+    .status-bar.with-timer .status-time,
+    .status-bar.with-timer .status-secondary{
+      display: flex;
+    }
+    .status-bar .status-tag{
+      font-family: var(--slab-2); font-size: 9px;
+      font-weight: 700; letter-spacing: .2em;
+      text-transform: uppercase; color: var(--ink-2);
+      flex-shrink: 0;
+    }
+    .status-bar .status-detail{
+      font-family: var(--serif); font-size: 11.5px;
+      color: var(--ink-2);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      min-width: 0;
     }
     .status-bar .dot{
       display: inline-block;
       width: 8px; height: 8px; border-radius: 50%;
       background: var(--ink-3);
-      margin-right: 8px; vertical-align: middle;
+      flex-shrink: 0;
     }
     .status-bar.active .dot{
       background: var(--yellow);
@@ -157,11 +201,62 @@
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--stamp) 25%, transparent);
       animation: blink 1.4s infinite;
     }
+    /* CAP REACHED — yellow solid dot, no blink, time locked at 15:00.
+       Mirrors the "◯ CAP REACHED" treatment on the design proof. */
+    .status-bar.capped .dot{
+      background: var(--yellow);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--yellow) 15%, transparent);
+      animation: none;
+    }
+    .status-bar.capped .status-time{color: var(--stamp); font-weight: 700}
     @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
-    .status-bar #statusText{
-      font-family: var(--slab-2); font-size: 11px;
-      letter-spacing: .15em; text-transform: uppercase; color: var(--ink);
-      display: flex; align-items: center;
+
+    /* ── EPISODE CARD ──
+       Bold tab-title card above the persona row, mimicking the
+       "E1926 · FOUNDER FRIDAY W/ LEX FRIDMAN" card on the design
+       proof. Free-tier users also see a 15-min progress bar that
+       fills in lockstep with the status-strip timer above; paid
+       users see title only. Both states hidden when idle (no
+       capture session). */
+    .episode-card{
+      padding: 10px 12px 9px;
+      background: var(--paper-2);
+      border-bottom: 1px solid var(--ink-3);
+      flex-shrink: 0;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    body[data-theme="night"] .episode-card{background: var(--paper-3)}
+    .episode-card-title{
+      font-family: var(--slab); font-size: 15px;
+      line-height: 1.15; color: var(--ink);
+      text-transform: uppercase; letter-spacing: -.005em;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      min-width: 0;
+    }
+    .episode-card-sub{
+      font-family: var(--type); font-size: 10px;
+      letter-spacing: .04em; color: var(--ink-3);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .episode-card-progress{
+      display: none;
+      height: 3px;
+      background: var(--paper-3);
+      position: relative;
+      overflow: hidden;
+    }
+    body[data-theme="night"] .episode-card-progress{background: var(--paper)}
+    .episode-card.with-progress .episode-card-progress{display: block}
+    .episode-card-progress-fill{
+      position: absolute;
+      top: 0; left: 0; bottom: 0;
+      width: 0%;
+      background: var(--stamp);
+      transition: width 400ms linear;
+    }
+    .episode-card.capped .episode-card-progress-fill{
+      background: var(--yellow);
+      width: 100%;
     }
 
     /* ── CAPTURED TAB BANNER ── */
@@ -212,44 +307,60 @@
       border: 1px solid var(--rule);
       background: var(--paper);
       position: relative;
+      /* Create a fresh stacking context so the muted-state ::before slash
+         can paint ABOVE the nested .persona-avatar (which also creates a
+         stacking context via position:relative and would otherwise hide
+         the slash). Matches the .sp-mug.muted treatment on the design
+         proof, which works without this because its mug has no nested
+         positioned child. */
+      isolation: isolate;
       cursor: default;
       transition: transform 0.15s;
     }
     .personas-row.interactive .persona-bubble{cursor: pointer}
     .personas-row.interactive .persona-bubble:hover{transform: translateY(-1px)}
     .personas-row.interactive .persona-bubble:active{transform: translateY(0) scale(.98)}
-    .persona-bubble.muted{opacity: .45}
+    /* Muted mug: fade the CONTENT (avatar, name, role) instead of the whole
+       bubble — parent-level opacity inherits to the ::before slash and
+       ghosted it out. Keeping the slash at full contrast on top of a faded
+       avatar reads as a real strikethrough, not a whisper. */
+    .persona-bubble.muted .persona-avatar,
+    .persona-bubble.muted .persona-name,
+    .persona-bubble.muted .persona-role{
+      opacity: .4;
+    }
     .persona-bubble.muted::before{
       content:""; position:absolute;
-      left:6px; right:6px; top:26px;
-      height: 1.5px; background: var(--ink);
+      left: 4px; right: 4px; top: 26px;
+      height: 2px; background: var(--p-ink);
       transform: rotate(-8deg);
+      z-index: 3;
       pointer-events: none;
     }
+    /* Round circle treatment per the design proof (peanutgallery.live/panel/).
+       Category color + border/fill treatment comes from the role-specific
+       rules below, keyed off the bubble's data-role attribute — same four
+       slots the feed tags differentiate by (fact outline, dunk yellow, cue
+       outline, bit solid). */
     .persona-avatar{
-      width: 40px; height: 40px;
-      border: 1px solid var(--rule);
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      border: 2px solid var(--ink);
+      background: var(--paper);
       display: grid; place-items: center;
       overflow: hidden; position: relative;
-      background:
-        repeating-linear-gradient(45deg, var(--ink) 0 1px, transparent 1px 4px),
-        var(--paper-3);
       user-select: none;
       -webkit-user-select: none;
     }
-    .persona-avatar::after{
-      content:""; position: absolute; inset: 0;
-      background: radial-gradient(circle at 50% 40%, transparent 35%, color-mix(in srgb, var(--ink) 35%, transparent) 100%);
-      mix-blend-mode: multiply; pointer-events: none;
-    }
-    body[data-theme="night"] .persona-avatar::after{mix-blend-mode: normal; opacity: .5}
     .persona-avatar .initials{
-      font-family: var(--slab); font-size: 20px; line-height: 1;
+      font-family: var(--slab); font-size: 16px; line-height: 1;
+      letter-spacing: .01em;
       color: var(--ink); z-index: 1; position: relative;
     }
     .persona-avatar .ring{
-      position: absolute; inset: -2px;
+      position: absolute; inset: -4px;
       border: 2px solid transparent;
+      border-radius: 50%;
       transition: border-color 0.3s;
       pointer-events: none;
     }
@@ -259,21 +370,58 @@
     }
     @keyframes ring-pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-    /* Tiny archetype glyph tucked into the mug's bottom-right corner.
-       Keeps the "which of the four" signal while the initials dominate. */
+    /* Category colors — mirror the feed-entry tag conventions so the
+       mug row and the tag on each feed line speak the same visual
+       language. */
+    .persona-bubble[data-role="fact"] .persona-avatar{
+      border-color: var(--stamp);
+    }
+    .persona-bubble[data-role="fact"] .persona-avatar .initials{
+      color: var(--stamp);
+    }
+    .persona-bubble[data-role="dunk"] .persona-avatar{
+      background: var(--yellow);
+      border-color: var(--p-ink);
+    }
+    .persona-bubble[data-role="dunk"] .persona-avatar .initials{
+      color: var(--p-ink);
+    }
+    .persona-bubble[data-role="cue"] .persona-avatar{
+      border-color: var(--ink);
+    }
+    .persona-bubble[data-role="cue"] .persona-avatar .initials{
+      color: var(--ink);
+    }
+    .persona-bubble[data-role="bit"] .persona-avatar{
+      background: var(--ink);
+      border-color: var(--ink);
+    }
+    .persona-bubble[data-role="bit"] .persona-avatar .initials{
+      color: var(--paper);
+    }
+
+    /* The glyph overlay used to show a permanent archetype icon in the
+       mug's bottom-right corner. Now that category identity comes from
+       the circle's border/fill color, the icon is redundant — we hide it
+       unless its nested .persona-icon-stack is firing (tap-to-fire
+       spinner). :has() drives the visibility without any JS changes to
+       setPersonaFiring. */
     .persona-glyph-overlay{
       position: absolute; z-index: 2;
-      right: 2px; bottom: 2px;
-      width: 14px; height: 14px;
+      inset: 0;
       display: grid; place-items: center;
-      background: var(--paper);
-      border: 1px solid var(--ink);
-      color: currentColor;
+      background: color-mix(in srgb, var(--paper) 70%, transparent);
+      border-radius: 50%;
+      color: var(--ink);
       line-height: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
     }
     body[data-theme="night"] .persona-glyph-overlay{
-      background: var(--paper-3);
+      background: color-mix(in srgb, var(--paper-3) 70%, transparent);
     }
+    .persona-glyph-overlay:has(.persona-icon-stack.firing){opacity: 1}
 
     /* Persona icon stack — glyph + spinner for tap-to-fire crossfade */
     .persona-icon-stack{
@@ -298,11 +446,6 @@
       animation-play-state: running;
     }
     @keyframes spin{to{transform: rotate(360deg)}}
-    .persona-bubble.speaking .persona-avatar{
-      background:
-        repeating-linear-gradient(45deg, var(--stamp) 0 1px, transparent 1px 4px),
-        var(--paper-3);
-    }
 
     .persona-name{
       font-family: var(--slab-2); font-size: 10px; font-weight: 600;
@@ -315,6 +458,39 @@
       text-transform: uppercase; text-align: center;
       line-height: 1.2;
     }
+
+    /* Mini 5-bar waveform under each mug — only animates when the mug
+       is in .speaking state (persona is actively streaming a response).
+       Flat dotted baseline otherwise so the row doesn't get busy. */
+    .persona-wave{
+      display: flex; align-items: flex-end; justify-content: center;
+      gap: 2px; height: 8px; margin-top: 2px;
+      width: 28px;
+    }
+    .persona-wave i{
+      display: block;
+      width: 2px; height: 100%;
+      background: var(--ink-3);
+      transform: scaleY(.22);
+      transform-origin: bottom;
+      border-radius: 1px;
+    }
+    .persona-bubble.speaking .persona-wave i{
+      background: var(--stamp);
+      animation: persona-wave-pulse 0.9s ease-in-out infinite;
+    }
+    .persona-bubble.speaking .persona-wave i:nth-child(1){animation-delay: -0.05s}
+    .persona-bubble.speaking .persona-wave i:nth-child(2){animation-delay: -0.22s}
+    .persona-bubble.speaking .persona-wave i:nth-child(3){animation-delay: -0.40s}
+    .persona-bubble.speaking .persona-wave i:nth-child(4){animation-delay: -0.12s}
+    .persona-bubble.speaking .persona-wave i:nth-child(5){animation-delay: -0.30s}
+    @keyframes persona-wave-pulse{
+      0%,100%{transform: scaleY(.25)}
+      50%{transform: scaleY(1)}
+    }
+    @media (prefers-reduced-motion: reduce){
+      .persona-bubble.speaking .persona-wave i{animation: none; transform: scaleY(.6)}
+    }
     .persona-count{
       position: absolute; top: -5px; right: -5px;
       background: var(--stamp); color: var(--paper);
@@ -325,29 +501,95 @@
       border: 1px solid var(--rule);
     }
 
-    /* ── TRANSCRIPT TICKER ── */
+    /* ── TRANSCRIPT TICKER / ON AIR STRIP ──
+       Matches the wire/ticker treatment on the design proof
+       (peanutgallery.live/panel/ .sp-ticker + .sp-wave): ink band with
+       label + waveform + flowing text. The text element is wider than
+       the clip once enough transcript has accumulated; a rAF loop
+       eases its translateX so the newest words stay pinned to the
+       clip's right edge. */
     .transcript-section{
-      padding: 8px 12px;
-      background: var(--paper-2);
-      border-bottom: 1px solid var(--ink-3);
-      font-family: var(--type); font-size: 11px; line-height: 1.45;
-      color: var(--ink-2);
-      max-height: 90px; overflow: hidden;
-      position: relative;
+      padding: 9px 12px;
+      background: var(--ink);
+      color: var(--paper);
+      border-bottom: 1px solid var(--ink);
+      display: grid;
+      grid-template-columns: auto auto 1fr;
+      gap: 10px;
+      align-items: center;
       flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    /* 10-bar waveform between the ON AIR label and the ticker text.
+       Staggered animation-delays + a mix of paper/stamp/yellow bars
+       matches the proof's broadcast rhythm without copying its 15-bar
+       exact count (the panel is narrower than the proof's mockup).
+       Runs only during capture — stops with the whole transcript
+       section when showIdle() hides it. */
+    .transcript-wave{
+      display: flex; align-items: center; gap: 2px;
+      height: 14px; flex-shrink: 0;
+    }
+    .transcript-wave i{
+      display: block;
+      width: 2px; height: 100%;
+      background: var(--paper);
+      opacity: .5;
+      transform-origin: center;
+      border-radius: 1px;
+      animation: transcript-wave-pulse 1.0s ease-in-out infinite;
+    }
+    .transcript-wave i:nth-child(1) {animation-delay: -0.05s; height: 50%}
+    .transcript-wave i:nth-child(2) {animation-delay: -0.22s; height: 85%}
+    .transcript-wave i:nth-child(3) {animation-delay: -0.40s; height: 95%; background: var(--stamp); opacity: 1}
+    .transcript-wave i:nth-child(4) {animation-delay: -0.12s; height: 60%}
+    .transcript-wave i:nth-child(5) {animation-delay: -0.30s; height: 90%; background: var(--yellow); opacity: 1}
+    .transcript-wave i:nth-child(6) {animation-delay: -0.55s; height: 40%}
+    .transcript-wave i:nth-child(7) {animation-delay: -0.18s; height: 70%}
+    .transcript-wave i:nth-child(8) {animation-delay: -0.60s; height: 50%}
+    .transcript-wave i:nth-child(9) {animation-delay: -0.08s; height: 80%; background: var(--stamp); opacity: 1}
+    .transcript-wave i:nth-child(10){animation-delay: -0.44s; height: 35%}
+    @keyframes transcript-wave-pulse{
+      0%,100%{transform: scaleY(.3)}
+      50%{transform: scaleY(1)}
+    }
+    @media (prefers-reduced-motion: reduce){
+      .transcript-wave i{animation: none; transform: scaleY(.5)}
     }
     .transcript-label{
-      position: absolute; top: 2px; right: 10px;
-      font-family: var(--slab-2); font-size: 8px; font-weight: 700;
-      letter-spacing: .25em; color: var(--ink-3);
-      background: var(--paper-2); padding: 0 3px;
+      position: static;
+      font-family: var(--slab-2); font-size: 8.5px; font-weight: 700;
+      letter-spacing: .25em; color: var(--stamp);
+      background: transparent; padding: 0;
       text-transform: uppercase;
+      white-space: nowrap;
+    }
+    /* Wrapper that does the actual clipping. min-width:0 is critical —
+       without it, the grid track expands to fit the text and nothing
+       overflows. */
+    .transcript-clip{
+      position: relative;
+      overflow: hidden;
+      min-width: 0;
+      height: 1.35em;
     }
     .transcript-text{
-      font-family: var(--type); font-size: 11.5px; line-height: 1.45;
-      color: var(--ink-2);
+      display: inline-block;
+      font-family: var(--mono); font-size: 10.5px;
+      letter-spacing: .02em;
+      color: var(--paper);
+      white-space: nowrap;
+      font-style: italic; opacity: .85;
+      line-height: 1.35;
+      /* A rAF loop in sidepanel.js continuously eases the translateX each
+         frame so the RIGHT edge of this element chases the clip's RIGHT
+         edge. No CSS transition — letting JS own the motion at 60fps is
+         smoother than bouncing between 250ms transitions on every
+         Deepgram interim. */
+      will-change: transform;
     }
-    .transcript-text .interim{color: var(--ink-3); font-style: italic}
+    .transcript-text .interim{color: var(--paper); opacity: .6; font-style: italic}
 
     /* ── SETUP (idle) ── */
     .setup{
@@ -421,9 +663,9 @@
       color: var(--ink-3); background: var(--paper);
     }
 
-    .setup input[type="text"],
-    .setup input[type="password"],
-    .setup select{
+    :where(.setup, .drawer) input[type="text"],
+    :where(.setup, .drawer) input[type="password"],
+    :where(.setup, .drawer) select{
       width: 100%;
       font-family: var(--mono); font-size: 12px; color: var(--ink);
       background: var(--paper);
@@ -431,13 +673,13 @@
       padding: 8px 10px; outline: none;
       appearance: none; -webkit-appearance: none;
     }
-    .setup input[type="text"]:focus,
-    .setup input[type="password"]:focus,
-    .setup select:focus{
+    :where(.setup, .drawer) input[type="text"]:focus,
+    :where(.setup, .drawer) input[type="password"]:focus,
+    :where(.setup, .drawer) select:focus{
       border-color: var(--stamp);
       box-shadow: 0 0 0 2px color-mix(in srgb, var(--stamp) 20%, transparent);
     }
-    .setup select{
+    :where(.setup, .drawer) select{
       font-family: var(--slab-2); font-weight: 600; font-size: 12px;
       letter-spacing: .04em; text-transform: uppercase;
       cursor: pointer;
@@ -446,7 +688,7 @@
       background-position: right 10px center;
       padding-right: 28px;
     }
-    body[data-theme="night"] .setup select{
+    body[data-theme="night"] :where(.setup, .drawer) select{
       background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23efe7d0' d='M0 0l5 6 5-6z'/></svg>");
     }
     .key-input{-webkit-text-security: disc}
@@ -464,32 +706,6 @@
       font-weight: 700; font-size: 10px; letter-spacing: .08em;
       text-transform: uppercase; color: var(--ink);
     }
-
-    /* Collapsed section toggle */
-    .toggle-keys{
-      background: transparent; border: 0;
-      padding: 7px 0;
-      border-top: 1px solid var(--ink-3);
-      border-bottom: 1px solid var(--ink-3);
-      font-family: var(--slab-2); font-size: 10px;
-      font-weight: 700; letter-spacing: .2em;
-      text-transform: uppercase; color: var(--ink-2);
-      cursor: pointer; text-align: left;
-      display: flex; justify-content: space-between;
-      align-items: center; width: 100%;
-    }
-    .toggle-keys .caret{
-      display: inline-block;
-      font-family: var(--serif); font-size: 11px;
-      color: var(--ink-3);
-      transition: transform 0.15s ease;
-      margin-right: 6px;
-    }
-    .toggle-keys.open .caret{transform: rotate(90deg)}
-    .keys-section{display: none; flex-direction: column; gap: 10px}
-    .keys-section.visible{display: flex}
-    .audio-section{display: none; flex-direction: column; gap: 10px}
-    .audio-section.visible{display: flex}
 
     .keys-intro{
       padding: 9px 10px;
@@ -576,12 +792,16 @@
     .btn.btn-stop:hover, .btn-stop:hover{
       background: var(--ink); border-color: var(--ink);
     }
+    /* Yellow-background buttons: lock text to always-black (--p-ink)
+       instead of the themeable --ink, which flips to ivory in night mode
+       and goes unreadable on yellow. */
     .btn.btn-fire, .btn-fire{
-      background: var(--yellow); color: var(--ink);
-      border-color: var(--ink);
+      background: var(--yellow); color: var(--p-ink);
+      border-color: var(--p-ink);
     }
     .btn.btn-fire:hover, .btn-fire:hover{
-      background: var(--ink); color: var(--yellow);
+      background: var(--p-ink); color: var(--yellow);
+      border-color: var(--p-ink);
     }
     .btn:disabled{opacity: .35; cursor: not-allowed}
     .btn.loading{cursor: wait; opacity: .9}
@@ -631,12 +851,20 @@
     .gallery::-webkit-scrollbar-track{background: transparent}
     .gallery::-webkit-scrollbar-thumb{background: var(--ink-3); opacity: .3}
 
+    /* Feed entry layout:
+         [TAG     ][message name + streaming text…
+         [00:00:00][                    …with breathing room]
+       Tag + timestamp stack in the left column (row 1 + row 2); the
+       message spans both rows on the right so long bodies get the
+       width. Dropped the 3-column baseline-aligned layout that had the
+       ts/tag pinched against the message. */
     .feed-entry{
       padding: 10px 12px;
       border-bottom: 1px solid var(--ink-3);
       display: grid;
-      grid-template-columns: 54px 46px 1fr;
-      gap: 8px; align-items: baseline;
+      grid-template-columns: 58px 1fr;
+      grid-template-rows: auto auto;
+      gap: 2px 10px;
       animation: fadeIn 0.3s ease-out;
     }
     @keyframes fadeIn{
@@ -644,22 +872,31 @@
       to{opacity: 1; transform: translateY(0)}
     }
     .feed-entry .ts{
+      grid-column: 1; grid-row: 1;
+      justify-self: start;
       font-family: var(--mono); font-size: 10px;
       letter-spacing: .04em; color: var(--ink-3);
     }
     .feed-entry .tag{
+      grid-column: 1; grid-row: 2;
+      justify-self: start;
       font-family: var(--slab-2); font-size: 9px;
       font-weight: 700; letter-spacing: .18em;
       text-transform: uppercase;
       padding: 1px 5px;
       border: 1px solid currentColor;
       text-align: center; height: fit-content;
-      margin-top: 2px;
+    }
+    .feed-entry .msg{
+      grid-column: 2; grid-row: 1 / span 2;
+      align-self: start;
     }
     .feed-entry.fact .tag{color: var(--stamp); border-color: var(--stamp)}
+    /* Yellow bg → always-black text (--p-ink), not themed --ink which flips
+       to ivory in night mode. Matches the design proof exactly. */
     .feed-entry.dunk .tag{
-      background: var(--yellow); color: var(--ink);
-      border-color: var(--ink);
+      background: var(--yellow); color: var(--p-ink);
+      border-color: var(--p-ink);
     }
     .feed-entry.cue .tag{color: var(--ink); border-color: var(--ink)}
     .feed-entry.bit .tag{
@@ -737,18 +974,50 @@
       border: 1px solid var(--rule);
       color: var(--ink); background: var(--paper);
       cursor: pointer;
+      position: relative; /* anchors the :not(.on) strike-through ::after */
       transition: all 0.15s;
     }
-    .footer .pill.on{
-      background: var(--ink); color: var(--paper);
-    }
-    .footer .pill.fact.on{
+    /* Category pills keep their color in BOTH on/off states — the category
+       palette is the pill's identity, not its active-state decoration.
+       Differentiation between on/off comes from the strike-through below. */
+    .footer .pill.fact{
       background: var(--stamp); color: var(--paper);
       border-color: var(--stamp);
     }
-    .footer .pill.dunk.on{
-      background: var(--yellow); color: var(--ink);
+    .footer .pill.dunk{
+      background: var(--yellow); color: var(--p-ink);
+      border-color: var(--p-ink);
+    }
+    /* CUE: outlined (paper bg, thick ink border) — differentiates from
+       BIT's solid-fill the same way CUE/BIT tags differ in the feed
+       (outline vs. filled, per the design proof). */
+    .footer .pill.cue{
+      background: var(--paper); color: var(--ink);
+      border: 2px solid var(--ink);
+      padding: 3px 6px; /* compensate for doubled border */
+    }
+    .footer .pill.bit{
+      background: var(--ink); color: var(--paper);
       border-color: var(--ink);
+    }
+
+    /* OFF state for category pills: fade slightly + diagonal strike across
+       the pill, so the "this filter is hidden" signal reads as crossed-out
+       rather than drained-of-color. Keeps parity with the muted-mug strike
+       convention, so the whole panel speaks the same visual language:
+       strike = deactivated, fade = secondary. */
+    .footer .pill:where(.fact, .dunk, .cue, .bit):not(.on){
+      opacity: .55;
+    }
+    .footer .pill:where(.fact, .dunk, .cue, .bit):not(.on)::after{
+      content: "";
+      position: absolute;
+      left: 3px; right: 3px;
+      top: 50%;
+      height: 1.5px;
+      background: currentColor;
+      transform: translateY(-50%) rotate(-6deg);
+      pointer-events: none;
     }
     .footer .gear{
       background: transparent; border: 1px solid var(--rule);
@@ -874,6 +1143,102 @@
       display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
     }
 
+    /* ── MASTHEAD RAIL GEAR (settings access from anywhere) ── */
+    .masthead .rails .rail-right{
+      display: flex; gap: 8px; align-items: center;
+    }
+    .rail-gear{
+      background: transparent; border: 0;
+      padding: 2px 4px; cursor: pointer;
+      font-family: var(--serif); font-size: 13px;
+      color: var(--ink-3); line-height: 1;
+      transition: color 0.15s;
+    }
+    .rail-gear:hover{color: var(--ink)}
+
+    /* Inline text-link button inside the free banner ("open Settings") */
+    .inline-settings-link{
+      background: transparent; border: 0; padding: 0;
+      font: inherit;
+      color: var(--stamp);
+      text-decoration: underline; text-underline-offset: 2px;
+      cursor: pointer;
+    }
+
+    /* ── DRAWER SUBMENU NAVIGATION ──
+       Two-level: a toc-style menu of categories, then per-category section
+       panels with a "back to menu" affordance. Full-bleed menu items so the
+       drawer's own padding doesn't undermine the clean list look. */
+    .drawer-body{padding: 0}
+    .drawer-menu{
+      display: flex; flex-direction: column;
+    }
+    .drawer-menu-item{
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        "title arrow"
+        "hint  arrow";
+      column-gap: 12px; row-gap: 2px;
+      padding: 12px 14px;
+      border: 0;
+      border-bottom: 1px solid var(--ink-3);
+      background: var(--paper);
+      text-align: left;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.12s;
+    }
+    .drawer-menu-item:first-child{border-top: 1px solid var(--ink-3)}
+    .drawer-menu-item:hover{background: var(--paper-2)}
+    .drawer-menu-item:active{background: var(--paper-3)}
+    .drawer-menu-item .dmn-title{
+      grid-area: title;
+      font-family: var(--slab-2); font-size: 12px; font-weight: 700;
+      letter-spacing: .12em; text-transform: uppercase; color: var(--ink);
+    }
+    .drawer-menu-item .dmn-hint{
+      grid-area: hint;
+      font-family: var(--serif); font-size: 11.5px; font-style: italic;
+      color: var(--ink-3); line-height: 1.35;
+    }
+    .drawer-menu-item .dmn-arrow{
+      grid-area: arrow;
+      align-self: center;
+      font-family: var(--serif); font-size: 22px;
+      color: var(--ink-3); line-height: 1;
+    }
+
+    /* Section panel (hidden until entered from the menu) */
+    .drawer-section{
+      display: none;
+      flex-direction: column; gap: 14px;
+      padding: 12px 12px 16px;
+    }
+    .drawer-section.visible{display: flex}
+    .drawer-section-head{
+      display: flex; align-items: baseline; gap: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--ink-3);
+      margin-bottom: 2px;
+    }
+    .drawer-section-back{
+      background: transparent; border: 0;
+      padding: 2px 4px 2px 0;
+      font-family: var(--slab-2); font-size: 10px; font-weight: 700;
+      letter-spacing: .15em; text-transform: uppercase;
+      color: var(--ink-2);
+      cursor: pointer;
+    }
+    .drawer-section-back:hover{color: var(--stamp)}
+    .drawer-section-title{
+      font-family: var(--slab); font-size: 20px;
+      line-height: 1; letter-spacing: -.005em;
+      text-transform: uppercase; color: var(--ink);
+    }
+    /* When any section is open, hide the menu */
+    .drawer-body:has(.drawer-section.visible) .drawer-menu{display: none}
+
     /* ── DEBUG TRACE PANEL (unchanged functionally) ── */
     #directorTrace{
       border-top: 1px solid var(--rule);
@@ -970,7 +1335,10 @@
   <header class="masthead">
     <div class="rails">
       <span>Vol. I · No. 001</span>
-      <span id="versionBadge" class="ver" title="Long-press to toggle debug">v1.5.0</span>
+      <span class="rail-right">
+        <button id="settingsToggleTop" class="rail-gear" type="button" title="Settings" aria-label="Settings">&#9881;</button>
+        <span id="versionBadge" class="ver" title="Long-press to toggle debug">v1.5.0</span>
+      </span>
     </div>
     <div class="title-row">
       <svg viewBox="0 0 320 48" preserveAspectRatio="xMidYMid meet" aria-label="The Peanut Gallery">
@@ -978,9 +1346,9 @@
       </svg>
     </div>
     <div class="subrail">
-      <span id="packBadge">Howard</span>
+      <span>Broadsheet</span>
       <span class="mid">"Four critics. One tab."</span>
-      <span>Wire</span>
+      <span>Daily</span>
     </div>
   </header>
 
@@ -998,174 +1366,10 @@
       <div class="lede">15<br>MIN<small>FREE</small></div>
       <div class="copy">
         <strong>Fifteen minutes per day, on us.</strong>
-        No signup, no card. Tap <em>Start Listening</em> on any tab with audio. When the meter runs out,
-        paste your own keys below or
+        No signup, no card. Tap <em>Start Listening</em> on any tab with audio. When the meter runs out, open
+        <button id="freeBannerSettingsLink" class="inline-settings-link" type="button">Settings</button>
+        to paste your own keys or
         <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>.
-      </div>
-    </div>
-
-    <!-- Persona pack -->
-    <div class="key-row">
-      <div class="key-label-row">
-        <label for="packSelect">Persona pack</label>
-        <span class="key-tag">lineup</span>
-      </div>
-      <select id="packSelect">
-        <option value="howard" selected>Howard Stern Show — Baba Booey, Troll, Fred, Jackie</option>
-        <option value="twist">This Week in Startups — Molly, Jason, Lon, Alex</option>
-      </select>
-      <p class="field-hint">
-        Which four critics show up in the feed. Swap anytime — the new pack applies next time you hit <em>Start Listening</em>.
-      </p>
-    </div>
-
-    <!-- Backend server -->
-    <div class="key-row">
-      <div class="key-label-row">
-        <label for="serverUrl">Backend server</label>
-        <span class="key-tag">hosted</span>
-      </div>
-      <input type="text" id="serverUrl" placeholder="https://api.peanutgallery.live" value="https://api.peanutgallery.live" />
-      <p class="field-hint">
-        Where audio is transcribed and reactions are generated. Point at your own URL — see the
-        <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/SELF-HOST-INSTALL.md" target="_blank" rel="noopener noreferrer">install guide&nbsp;&#8599;</a>
-        or the
-        <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">build-your-own spec&nbsp;&#8599;</a>.
-      </p>
-    </div>
-
-    <!-- Collapsible keys -->
-    <button class="toggle-keys" id="toggleKeys">
-      <span><span class="caret">&#9656;</span>&nbsp; API keys — temporarily optional</span>
-      <span style="font-family:var(--type); font-size:10px; color:var(--ink-3)">—</span>
-    </button>
-    <div id="keysSection" class="keys-section">
-      <p class="keys-intro">
-        <strong>Your own keys are temporarily optional.</strong>
-        While we're in the early window, peanutgallery.live covers the providers so you can try it without signing up. That shared access is rate-limited and will be retired. Every provider below takes ~90 seconds to sign up for. Or
-        <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>.
-      </p>
-
-      <div class="key-row">
-        <div class="key-label-row">
-          <label for="deepgramKey">Deepgram</label>
-          <span class="key-tag required">required</span>
-          <span class="key-tag">transcription</span>
-        </div>
-        <input type="text" id="deepgramKey" class="key-input" placeholder="dg_..." />
-        <p class="field-hint">
-          Turns tab audio into real-time text. Free tier: $200 credit.
-          <a href="https://console.deepgram.com/signup" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
-        </p>
-      </div>
-
-      <div class="key-row">
-        <div class="key-label-row">
-          <label for="anthropicKey">Anthropic</label>
-          <span class="key-tag required">required</span>
-          <span class="key-tag">fact + comedy</span>
-        </div>
-        <input type="text" id="anthropicKey" class="key-input" placeholder="sk-ant-..." />
-        <p class="field-hint">
-          Powers the Fact and Bit slots on Claude Haiku.
-          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Get a key &#8599;</a>
-        </p>
-      </div>
-
-      <div class="key-row">
-        <div class="key-label-row">
-          <label for="xaiKey">xAI</label>
-          <span class="key-tag required">required</span>
-          <span class="key-tag">dunk + cue</span>
-        </div>
-        <input type="text" id="xaiKey" class="key-input" placeholder="xai-..." />
-        <p class="field-hint">
-          Powers the Dunk and Cue slots on Grok 4.1 Fast — sub-200ms reflex voices.
-          <a href="https://console.x.ai/" target="_blank" rel="noopener noreferrer">Get a key &#8599;</a>
-        </p>
-      </div>
-
-      <div class="key-row">
-        <div class="key-label-row">
-          <label for="searchEngine">Search engine</label>
-          <span class="key-tag">fact-check</span>
-        </div>
-        <select id="searchEngine">
-          <option value="brave" selected>Brave Search</option>
-          <option value="xai">xAI Live Search (uses your xAI key)</option>
-        </select>
-        <p class="field-hint">
-          How the Fact-Checker verifies claims. <strong>Brave</strong> uses the classic Brave API — requires its own key below. <strong>xAI</strong> uses Grok Live Search — no extra key.
-        </p>
-      </div>
-
-      <div class="key-row">
-        <div class="key-label-row">
-          <label for="braveKey">Brave Search</label>
-          <span class="key-tag optional">Brave mode only</span>
-          <span class="key-tag">live facts</span>
-        </div>
-        <input type="text" id="braveKey" class="key-input" placeholder="BSA..." />
-        <p class="field-hint">
-          Only needed when the selector above is set to Brave. Free tier: 2,000 queries/month.
-          <a href="https://api-dashboard.search.brave.com/app/keys" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
-        </p>
-      </div>
-    </div>
-
-    <!-- Response rate -->
-    <div class="key-row" id="responseRateRow">
-      <div class="key-label-row">
-        <label for="responseRate">Response rate</label>
-        <span class="key-tag">cadence</span>
-      </div>
-      <select id="responseRate">
-        <option value="1">1 — Laid back · ~56k tok/hr</option>
-        <option value="2">2 — Slow · ~70k tok/hr</option>
-        <option value="3">3 — Measured · ~87k tok/hr</option>
-        <option value="4">4 — Relaxed · ~107k tok/hr</option>
-        <option value="5" selected>5 — Default · ~134k tok/hr</option>
-        <option value="6">6 — Lively · ~168k tok/hr</option>
-        <option value="7">7 — Chatty · ~210k tok/hr</option>
-        <option value="8">8 — Punchy · ~258k tok/hr</option>
-        <option value="9">9 — Rapid · ~324k tok/hr</option>
-        <option value="10">10 — Nonstop · ~403k tok/hr</option>
-      </select>
-      <p class="field-hint">
-        How often the critics chime in. 1 = occasional quips, 10 = nonstop. Takes effect on your next <em>Start Listening</em>.
-      </p>
-    </div>
-
-    <!-- Collapsible audio routing -->
-    <button class="toggle-keys" id="toggleAudio">
-      <span><span class="caret">&#9656;</span>&nbsp; Audio routing — podcaster options</span>
-      <span style="font-family:var(--type); font-size:10px; color:var(--ink-3)">—</span>
-    </button>
-    <div id="audioSection" class="audio-section">
-      <p class="keys-intro">
-        <strong>Recording a podcast?</strong>
-        By default Peanut Gallery plays captured audio back through your speakers so you hear the video normally. Turn passthrough off if your recording software is already routing the audio.
-      </p>
-      <div class="key-row">
-        <div class="toggle-row">
-          <input type="checkbox" id="passthroughToggle" checked />
-          <label for="passthroughToggle">Passthrough — play captured audio through speakers</label>
-        </div>
-        <p class="field-hint">
-          On (default): you hear the video as normal. Off: tab is captured silently.
-        </p>
-      </div>
-      <div class="key-row">
-        <div class="key-label-row">
-          <label for="outputDevice">Output device</label>
-          <span class="key-tag">passthrough</span>
-        </div>
-        <select id="outputDevice">
-          <option value="default">System default</option>
-        </select>
-        <p class="field-hint">
-          Route passthrough to a specific device. Device names show after you start capture once.
-        </p>
       </div>
     </div>
 
@@ -1179,15 +1383,32 @@
     <div class="btn-row">
       <button id="startBtn" class="btn btn-start">&#9654; Start Listening</button>
     </div>
-    <p class="start-caption">Captures the active tab's audio. No interference with playback.</p>
+    <p class="start-caption">Captures the active tab's audio. Tap the &#9881; in the masthead anytime to tune the lineup, keys, or audio routing.</p>
   </div>
 
   <!-- ── STATUS STRIP (shown when capturing) ── -->
   <div id="statusBar" class="status-bar" style="display:none;">
-    <span><span class="dot"></span><span id="statusText">Connecting...</span></span>
+    <div class="status-primary">
+      <span class="dot"></span>
+      <span id="statusText">Connecting...</span>
+    </div>
+    <span class="status-time" id="statusTime">00:00:00</span>
+    <div class="status-secondary">
+      <span class="status-tag" id="statusTag">LISTENING</span>
+      <span class="status-detail" id="statusDetail">&mdash;</span>
+    </div>
   </div>
 
-  <!-- ── CAPTURED TAB BANNER ── -->
+  <!-- ── EPISODE CARD (tab title + free-tier progress bar) ── -->
+  <div id="episodeCard" class="episode-card" style="display:none;">
+    <span class="episode-card-title" id="episodeCardTitle">&mdash;</span>
+    <span class="episode-card-sub" id="episodeCardSub">&mdash;</span>
+    <div class="episode-card-progress">
+      <div class="episode-card-progress-fill" id="episodeCardProgressFill"></div>
+    </div>
+  </div>
+
+  <!-- ── CAPTURED TAB BANNER (secondary, carries the Jump→ affordance) ── -->
   <div id="capturedTabBanner" class="captured-tab" title="Click to switch to the tab Peanut Gallery is listening to">
     <span class="icon">&#127911;</span>
     <span class="label">Listening to</span>
@@ -1206,10 +1427,15 @@
   <!-- ── PERSONA MUG ROW ── -->
   <div id="personasRow" class="personas-row"></div>
 
-  <!-- ── TRANSCRIPT ── -->
+  <!-- ── TRANSCRIPT / ON AIR STRIP ── -->
   <div id="transcriptSection" class="transcript-section" style="display:none;">
-    <span class="transcript-label">Transcript</span>
-    <div id="transcriptText" class="transcript-text">Listening&hellip;</div>
+    <span class="transcript-label">On Air</span>
+    <div class="transcript-wave" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
+    <div class="transcript-clip">
+      <div id="transcriptText" class="transcript-text">Listening&hellip;</div>
+    </div>
   </div>
 
   <!-- ── GALLERY FEED ── -->
@@ -1225,11 +1451,10 @@
   <div id="footer" class="footer hidden">
     <div class="tools">
       <span>
-        <button class="pill on" data-filter="all">All</button>
         <button class="pill fact on" data-filter="fact">Fact</button>
         <button class="pill dunk on" data-filter="dunk">Dunk</button>
-        <button class="pill on" data-filter="cue">Cue</button>
-        <button class="pill on" data-filter="bit">Bit</button>
+        <button class="pill cue on" data-filter="cue">Cue</button>
+        <button class="pill bit on" data-filter="bit">Bit</button>
       </span>
       <button id="settingsToggle" class="gear" title="Settings">&#9881;</button>
     </div>
@@ -1247,32 +1472,247 @@
 
     <div class="drawer-body">
 
-      <!-- Mute a critic -->
-      <div class="group">
-        <div class="lbl"><span>Mute a critic</span><span class="chip">instant</span></div>
+      <!-- ═══════ MENU VIEW (home of the drawer) ═══════ -->
+      <nav id="drawerMenu" class="drawer-menu">
+        <button class="drawer-menu-item" type="button" data-section="lineup">
+          <span class="dmn-title">Lineup</span>
+          <span class="dmn-hint">Critics pack · response cadence</span>
+          <span class="dmn-arrow">&rsaquo;</span>
+        </button>
+        <button class="drawer-menu-item" type="button" data-section="backend">
+          <span class="dmn-title">Backend &amp; keys</span>
+          <span class="dmn-hint">Server URL · API keys · search engine</span>
+          <span class="dmn-arrow">&rsaquo;</span>
+        </button>
+        <button class="drawer-menu-item" type="button" data-section="audio">
+          <span class="dmn-title">Audio</span>
+          <span class="dmn-hint">Passthrough · output device</span>
+          <span class="dmn-arrow">&rsaquo;</span>
+        </button>
+        <button class="drawer-menu-item" type="button" data-section="critics">
+          <span class="dmn-title">Mute a critic</span>
+          <span class="dmn-hint">Silence individuals on the wire</span>
+          <span class="dmn-arrow">&rsaquo;</span>
+        </button>
+        <button class="drawer-menu-item" type="button" data-section="export">
+          <span class="dmn-title">Export session</span>
+          <span class="dmn-hint">Copy or download as .md</span>
+          <span class="dmn-arrow">&rsaquo;</span>
+        </button>
+        <button class="drawer-menu-item" type="button" data-section="appearance">
+          <span class="dmn-title">Appearance</span>
+          <span class="dmn-hint">Paper · Night</span>
+          <span class="dmn-arrow">&rsaquo;</span>
+        </button>
+      </nav>
+
+      <!-- ═══════ LINEUP ═══════ -->
+      <section class="drawer-section" data-section="lineup">
+        <div class="drawer-section-head">
+          <button class="drawer-section-back" type="button">&lsaquo; Menu</button>
+          <span class="drawer-section-title">Lineup</span>
+        </div>
+
+        <div class="key-row">
+          <div class="key-label-row">
+            <label for="packSelect">Persona pack</label>
+            <span class="key-tag">lineup</span>
+          </div>
+          <select id="packSelect">
+            <option value="howard" selected>Howard Stern Show — Baba Booey, Troll, Fred, Jackie</option>
+            <option value="twist">This Week in Startups — Molly, Jason, Lon, Alex</option>
+          </select>
+          <p class="field-hint">
+            Which four critics show up in the feed. Swap anytime — the new pack applies next time you hit <em>Start Listening</em>.
+          </p>
+        </div>
+
+        <div class="key-row">
+          <div class="key-label-row">
+            <label for="responseRate">Response rate</label>
+            <span class="key-tag">cadence</span>
+          </div>
+          <select id="responseRate">
+            <option value="1">1 — Laid back · ~56k tok/hr</option>
+            <option value="2">2 — Slow · ~70k tok/hr</option>
+            <option value="3">3 — Measured · ~87k tok/hr</option>
+            <option value="4">4 — Relaxed · ~107k tok/hr</option>
+            <option value="5" selected>5 — Default · ~134k tok/hr</option>
+            <option value="6">6 — Lively · ~168k tok/hr</option>
+            <option value="7">7 — Chatty · ~210k tok/hr</option>
+            <option value="8">8 — Punchy · ~258k tok/hr</option>
+            <option value="9">9 — Rapid · ~324k tok/hr</option>
+            <option value="10">10 — Nonstop · ~403k tok/hr</option>
+          </select>
+          <p class="field-hint">
+            How often the critics chime in. 1 = occasional quips, 10 = nonstop. Takes effect on your next <em>Start Listening</em>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ═══════ BACKEND & KEYS ═══════ -->
+      <section class="drawer-section" data-section="backend">
+        <div class="drawer-section-head">
+          <button class="drawer-section-back" type="button">&lsaquo; Menu</button>
+          <span class="drawer-section-title">Backend &amp; keys</span>
+        </div>
+
+        <div class="key-row">
+          <div class="key-label-row">
+            <label for="serverUrl">Backend server</label>
+            <span class="key-tag">hosted</span>
+          </div>
+          <input type="text" id="serverUrl" placeholder="https://api.peanutgallery.live" value="https://api.peanutgallery.live" />
+          <p class="field-hint">
+            Where audio is transcribed and reactions are generated. Point at your own URL — see the
+            <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/SELF-HOST-INSTALL.md" target="_blank" rel="noopener noreferrer">install guide&nbsp;&#8599;</a>
+            or the
+            <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">build-your-own spec&nbsp;&#8599;</a>.
+          </p>
+        </div>
+
+        <p class="keys-intro">
+          <strong>Your own keys are temporarily optional.</strong>
+          While we're in the early window, peanutgallery.live covers the providers so you can try it without signing up. That shared access is rate-limited and will be retired. Every provider below takes ~90 seconds to sign up for. Or
+          <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>.
+        </p>
+
+        <div class="key-row">
+          <div class="key-label-row">
+            <label for="deepgramKey">Deepgram</label>
+            <span class="key-tag required">required</span>
+            <span class="key-tag">transcription</span>
+          </div>
+          <input type="text" id="deepgramKey" class="key-input" placeholder="dg_..." />
+          <p class="field-hint">
+            Turns tab audio into real-time text. Free tier: $200 credit.
+            <a href="https://console.deepgram.com/signup" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
+          </p>
+        </div>
+
+        <div class="key-row">
+          <div class="key-label-row">
+            <label for="anthropicKey">Anthropic</label>
+            <span class="key-tag required">required</span>
+            <span class="key-tag">fact + comedy</span>
+          </div>
+          <input type="text" id="anthropicKey" class="key-input" placeholder="sk-ant-..." />
+          <p class="field-hint">
+            Powers the Fact and Bit slots on Claude Haiku.
+            <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Get a key &#8599;</a>
+          </p>
+        </div>
+
+        <div class="key-row">
+          <div class="key-label-row">
+            <label for="xaiKey">xAI</label>
+            <span class="key-tag required">required</span>
+            <span class="key-tag">dunk + cue</span>
+          </div>
+          <input type="text" id="xaiKey" class="key-input" placeholder="xai-..." />
+          <p class="field-hint">
+            Powers the Dunk and Cue slots on Grok 4.1 Fast — sub-200ms reflex voices.
+            <a href="https://console.x.ai/" target="_blank" rel="noopener noreferrer">Get a key &#8599;</a>
+          </p>
+        </div>
+
+        <div class="key-row">
+          <div class="key-label-row">
+            <label for="searchEngine">Search engine</label>
+            <span class="key-tag">fact-check</span>
+          </div>
+          <select id="searchEngine">
+            <option value="brave" selected>Brave Search</option>
+            <option value="xai">xAI Live Search (uses your xAI key)</option>
+          </select>
+          <p class="field-hint">
+            How the Fact-Checker verifies claims. <strong>Brave</strong> uses the classic Brave API — requires its own key below. <strong>xAI</strong> uses Grok Live Search — no extra key.
+          </p>
+        </div>
+
+        <div class="key-row">
+          <div class="key-label-row">
+            <label for="braveKey">Brave Search</label>
+            <span class="key-tag optional">Brave mode only</span>
+            <span class="key-tag">live facts</span>
+          </div>
+          <input type="text" id="braveKey" class="key-input" placeholder="BSA..." />
+          <p class="field-hint">
+            Only needed when the selector above is set to Brave. Free tier: 2,000 queries/month.
+            <a href="https://api-dashboard.search.brave.com/app/keys" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
+          </p>
+        </div>
+      </section>
+
+      <!-- ═══════ AUDIO ═══════ -->
+      <section class="drawer-section" data-section="audio">
+        <div class="drawer-section-head">
+          <button class="drawer-section-back" type="button">&lsaquo; Menu</button>
+          <span class="drawer-section-title">Audio</span>
+        </div>
+
+        <p class="keys-intro">
+          <strong>Recording a podcast?</strong>
+          By default Peanut Gallery plays captured audio back through your speakers so you hear the video normally. Turn passthrough off if your recording software is already routing the audio.
+        </p>
+        <div class="key-row">
+          <div class="toggle-row">
+            <input type="checkbox" id="passthroughToggle" checked />
+            <label for="passthroughToggle">Passthrough — play captured audio through speakers</label>
+          </div>
+          <p class="field-hint">
+            On (default): you hear the video as normal. Off: tab is captured silently.
+          </p>
+        </div>
+        <div class="key-row">
+          <div class="key-label-row">
+            <label for="outputDevice">Output device</label>
+            <span class="key-tag">passthrough</span>
+          </div>
+          <select id="outputDevice">
+            <option value="default">System default</option>
+          </select>
+          <p class="field-hint">
+            Route passthrough to a specific device. Device names show after you start capture once.
+          </p>
+        </div>
+      </section>
+
+      <!-- ═══════ CRITICS (mute list) ═══════ -->
+      <section class="drawer-section" data-section="critics">
+        <div class="drawer-section-head">
+          <button class="drawer-section-back" type="button">&lsaquo; Menu</button>
+          <span class="drawer-section-title">Mute a critic</span>
+        </div>
         <div id="mutesContainer" class="mutes"></div>
         <div class="help">Muted critics won't post to the feed. Toggles save instantly; the wire keeps running in the background.</div>
-      </div>
+      </section>
 
-      <!-- Export session -->
-      <div class="group">
-        <div class="lbl"><span>Export session</span><span class="chip">markdown</span></div>
+      <!-- ═══════ EXPORT ═══════ -->
+      <section class="drawer-section" data-section="export">
+        <div class="drawer-section-head">
+          <button class="drawer-section-back" type="button">&lsaquo; Menu</button>
+          <span class="drawer-section-title">Export session</span>
+        </div>
         <div style="display:flex; gap:6px">
           <button id="exportCopyBtn" class="btn small" style="flex:1">&#9113; Copy</button>
           <button id="exportDownloadBtn" class="btn small" style="flex:1">&#8595; Download .md</button>
         </div>
         <div class="help">Full session — transcript + every critic reaction — with timestamps, personas, and the source URL. Markdown, portable anywhere.</div>
-      </div>
+      </section>
 
-      <!-- Appearance -->
-      <div class="group">
-        <div class="lbl"><span>Appearance</span><span class="chip">theme</span></div>
+      <!-- ═══════ APPEARANCE ═══════ -->
+      <section class="drawer-section" data-section="appearance">
+        <div class="drawer-section-head">
+          <button class="drawer-section-back" type="button">&lsaquo; Menu</button>
+          <span class="drawer-section-title">Appearance</span>
+        </div>
         <div class="theme-grid">
           <button id="themePaperBtn" class="btn small">Paper</button>
           <button id="themeNightBtn" class="btn small">Night</button>
         </div>
         <div class="help">Paper is the cream-newsprint default. Night flips to ink-on-black for late-shift wires.</div>
-      </div>
+      </section>
 
     </div>
 
