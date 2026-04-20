@@ -1136,54 +1136,55 @@ function updateTranscript() {
 
 // ── Transcript ticker loop ──
 //
-// Constant-pace leftward scroll driven by a low-pass filter over the
-// ticker's own target growth rate — NOT by direct catch-up to each
-// Deepgram interim (which is what made the ticker feel jumpy). Each
-// frame:
+// Newsreel-style scroll: constant pace at the speaker's long-run rate,
+// not a jump-per-interim motion.
 //
-//  1. Measure target = scrollWidth - clientWidth, clamped ≥0. The
-//     offset the text would need so its RIGHT edge is flush with the
-//     clip's RIGHT edge.
-//  2. Measure the instantaneous growth rate of target since last
-//     frame (px/sec). Clamped ≥0 — scrollWidth can dip slightly on
-//     rare interim → final transitions, and we don't want speed to
-//     go negative.
-//  3. EMA-smooth that rate into tickerSpeed. SPEED_EMA_ALPHA controls
-//     responsiveness — lower = smoother but slower to adapt. With 60Hz
-//     rAF and α=0.08 the time-constant is roughly 200 ms, which feels
-//     like one beat of speech worth of lag-to-adapt — fast enough to
-//     track cadence shifts, slow enough that a single burst of words
-//     doesn't visibly yank the scroll.
-//  4. Advance tickerOffset by tickerSpeed × dt. Clamp to target so we
-//     never overshoot (e.g., on silence, speed decays via EMA and
-//     offset eventually reaches target and stops).
-//  5. Catchup layer: if tickerOffset falls more than CATCHUP_THRESHOLD
-//     px behind target (e.g., a sudden verbal burst outran the EMA),
-//     add a proportional boost to the effective speed so backlog
-//     stays bounded.
+// The problem with per-frame EMA was that the INPUT signal (frame-over-
+// frame growth rate) is spiky — 0 px/sec for many frames, then a single
+// frame where a Deepgram interim lands and growth jumps to something like
+// 1000 px/sec. EMA smooths the output but still carries those spikes
+// through, which reads as bursty motion.
 //
-// Net effect: ticker motion feels like a steady ride at the speaker's
-// pace. Fast talkers get a fast ticker; slow talkers get a slow one;
-// neither gets a stutter on every Deepgram emit.
+// The fix: compute the speed over a rolling TIME WINDOW. We keep a ring of
+// (timestamp, target) samples covering the last WINDOW_MS milliseconds;
+// speed = (newestTarget - oldestTarget) / windowDuration. That's a pure
+// time-averaged rate — a single-frame spike contributes 1/N of the
+// smoothing, where N is the number of samples in the window. By the time
+// the spike "ages out" of the window it's been averaged across ~150
+// frames. No per-frame jump makes it to the scroll velocity.
 //
-// Seth's spec: "pace scales and slows down as necessary to try to keep
-// up while seeming to always move at the same speed they are talking
-// rather than this jumpy pattern."
+// Each frame:
+//   1. Measure target = scrollWidth - clientWidth, clamped ≥0.
+//   2. Push (now, target) into tickerSamples. Prune samples older than
+//      WINDOW_MS.
+//   3. baseSpeed = (last.target - first.target) / windowSpanSec  — the
+//      smoothed speech pace in px/sec. Clamped ≥0.
+//   4. behind = target - tickerOffset. If > CATCHUP_THRESHOLD, add a
+//      proportional boost to effective speed so backlog stays bounded.
+//      If > DRIFT_THRESHOLD but < CATCHUP_THRESHOLD, floor at
+//      MIN_DRIFT_SPEED so the ticker still closes small gaps during
+//      silence instead of crawling.
+//   5. Advance tickerOffset by effectiveSpeed × dt, clamped to target.
+//
+// Seth's spec: "smooth like the bottom of a news reel ... pace scales
+// and slows down as necessary to try to keep up while seeming to always
+// move at the same speed they are talking."
 
-const SPEED_EMA_ALPHA = 0.08;     // per-frame EMA weight (0..1)
-const CATCHUP_THRESHOLD = 300;    // px backlog above which catchup engages
-const CATCHUP_RATE = 0.4;         // fraction of excess backlog to close per second
+const WINDOW_MS = 2500;              // rolling window for speech-rate measurement
+const CATCHUP_THRESHOLD = 150;       // px backlog above which we accelerate past baseSpeed
+const CATCHUP_RATE = 0.3;            // fraction of excess backlog to close per second
+const DRIFT_THRESHOLD = 10;          // px backlog where minimum drift speed engages
+const MIN_DRIFT_SPEED = 20;          // px/sec floor so tiny gaps still close
 
 let tickerRafId = null;
 let tickerOffset = 0;
-let tickerSpeed = 0;
 let tickerLastFrameTime = 0;
-let tickerLastTargetWidth = 0;
+const tickerSamples = []; // [{ t: DOMHighResTimeStamp, target: px }, ...]
 
 function startTickerLoop() {
   if (tickerRafId != null) return;
   tickerLastFrameTime = 0;
-  tickerLastTargetWidth = 0;
+  tickerSamples.length = 0;
   const step = (now) => {
     const clip = transcriptTextEl && transcriptTextEl.parentElement;
     if (!clip) {
@@ -1192,24 +1193,39 @@ function startTickerLoop() {
     }
     const target = Math.max(0, transcriptTextEl.scrollWidth - clip.clientWidth);
 
+    // Record sample + prune old ones.
+    tickerSamples.push({ t: now, target });
+    const cutoff = now - WINDOW_MS;
+    while (tickerSamples.length > 2 && tickerSamples[0].t < cutoff) {
+      tickerSamples.shift();
+    }
+
     if (!tickerLastFrameTime) {
-      // First frame — seed baselines, don't scroll yet (no dt reference).
+      // First frame — seed dt baseline, don't scroll yet.
       tickerLastFrameTime = now;
-      tickerLastTargetWidth = target;
       tickerRafId = requestAnimationFrame(step);
       return;
     }
     const dt = (now - tickerLastFrameTime) / 1000;
     tickerLastFrameTime = now;
 
-    const growthRate = dt > 0 ? Math.max(0, (target - tickerLastTargetWidth) / dt) : 0;
-    tickerLastTargetWidth = target;
-    tickerSpeed = tickerSpeed * (1 - SPEED_EMA_ALPHA) + growthRate * SPEED_EMA_ALPHA;
+    // Window-averaged speech rate.
+    let baseSpeed = 0;
+    if (tickerSamples.length >= 2) {
+      const first = tickerSamples[0];
+      const last = tickerSamples[tickerSamples.length - 1];
+      const spanSec = (last.t - first.t) / 1000;
+      if (spanSec > 0) {
+        baseSpeed = Math.max(0, (last.target - first.target) / spanSec);
+      }
+    }
 
     const behind = target - tickerOffset;
-    let effectiveSpeed = tickerSpeed;
+    let effectiveSpeed = baseSpeed;
     if (behind > CATCHUP_THRESHOLD) {
       effectiveSpeed += (behind - CATCHUP_THRESHOLD) * CATCHUP_RATE;
+    } else if (behind > DRIFT_THRESHOLD && effectiveSpeed < MIN_DRIFT_SPEED) {
+      effectiveSpeed = MIN_DRIFT_SPEED;
     }
 
     tickerOffset = Math.min(tickerOffset + effectiveSpeed * dt, target);
@@ -1226,9 +1242,8 @@ function stopTickerLoop() {
     tickerRafId = null;
   }
   tickerOffset = 0;
-  tickerSpeed = 0;
   tickerLastFrameTime = 0;
-  tickerLastTargetWidth = 0;
+  tickerSamples.length = 0;
   if (transcriptTextEl) transcriptTextEl.style.transform = "";
 }
 
