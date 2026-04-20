@@ -61,10 +61,21 @@ name: Claude Kickoff
 #     The handler's rate-limit Map is process-scoped; this workflow-level
 #     concurrency gate is belt-and-suspenders.
 #
-# Why --max-turns 60:
-#   - Typical implementation work is in the 10–30 turn range for small
-#     tickets. 60 is a cost cap — if kickoff-Claude can't finish a task in
-#     60 turns, the ticket probably needs human decomposition anyway.
+# Why model + --max-turns are computed at runtime:
+#   - Cost minimization. Sonnet 4.6 is ~5x cheaper on output than Opus 4.7
+#     per Anthropic pricing
+#     (https://platform.claude.com/docs/en/docs/about-claude/pricing), and
+#     most small-to-medium tickets resolve inside 20 turns. The default is
+#     therefore Sonnet 4.6 + --max-turns 20.
+#   - Elevation to Opus 4.7 + --max-turns 40 is opt-in per ticket: the
+#     Linear webhook handler attaches `model: "opus"` to the dispatch
+#     payload when the issue carries the `needs-opus` label. The `Pick
+#     model + turns` step below reads that payload field and emits the
+#     corresponding `claude_args` string.
+#   - Why 40 turns for Opus: harder tickets benefit from more headroom; 40
+#     is still a cost cap and doubles the default.
+#   - If a task doesn't finish in turns budget, the ticket probably needs
+#     human decomposition anyway.
 #
 # Why anthropic_api_key as ${{ secrets.ANTHROPIC_API_KEY }}:
 #   - Same posture as claude-triage.yml. GitHub encrypts repo secrets at
@@ -163,6 +174,22 @@ jobs:
       - name: Create kickoff branch
         run: git checkout -b "$KICKOFF_BRANCH"
 
+      - name: Pick model + turns
+        id: model
+        env:
+          REQUESTED_MODEL: ${{ github.event.client_payload.model }}
+        run: |
+          # Cost-minimized default: Sonnet 4.6 / 20 turns.
+          # Opt-in elevation to Opus 4.7 / 40 turns via `needs-opus` label
+          # (the webhook sets client_payload.model = "opus" in that case).
+          if [ "$REQUESTED_MODEL" = "opus" ]; then
+            echo "args=--max-turns 40 --model claude-opus-4-7" >> "$GITHUB_OUTPUT"
+            echo "model_label=Opus 4.7 / 40 turns" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=--max-turns 20 --model claude-sonnet-4-6" >> "$GITHUB_OUTPUT"
+            echo "model_label=Sonnet 4.6 / 20 turns" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Seed PR body with Closes link
         env:
           LINEAR_URL: ${{ github.event.client_payload.url }}
@@ -187,7 +214,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: --max-turns 60 --model claude-opus-4-7
+          claude_args: ${{ steps.model.outputs.args }}
           prompt: |
             You are kickoff-Claude for Peanut Gallery. You have no session
             memory. Read these in order before doing anything else:

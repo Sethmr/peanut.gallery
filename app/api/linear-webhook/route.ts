@@ -1,16 +1,44 @@
 /**
  * Linear webhook: /api/linear-webhook
  *
- * Receives issue events from Linear's webhook system and, if the issue is
- * labeled with `claude:go` (configurable via LINEAR_TRIGGER_LABEL), fires a
- * repository_dispatch event at GitHub to kick off the
- * `.github/workflows/claude-kickoff.yml` workflow. That workflow spawns
- * kickoff-Claude inside GitHub Actions to implement the ticket and open a PR.
+ * Receives issue events from Linear's webhook system and, if the issue has
+ * transitioned into an "unstarted" state (i.e. the "Todo" column) OR still
+ * carries the legacy `claude:go` label, fires a repository_dispatch event at
+ * GitHub to kick off the `.github/workflows/claude-kickoff.yml` workflow.
+ * That workflow spawns kickoff-Claude inside GitHub Actions to implement the
+ * ticket and open a PR.
  *
  * Linear's native GitHub integration handles ticket status sync on PR
  * open/merge — this handler does NOT touch Linear's REST API for status.
  *
- * Security:
+ * === Trigger semantics ===
+ *
+ * Primary trigger: state.type === "unstarted" (i.e. Todo column) reached
+ *   either via direct create into Todo, or via move from another state.
+ *   Detected by:
+ *     - action === "create" AND data.state.type === "unstarted"
+ *     - action === "update" AND data.state.type === "unstarted"
+ *       AND updatedFrom.stateId exists (state transition happened)
+ *
+ * Secondary (legacy) trigger: labels contain `claude:go`. Keeps the pre-
+ *   research mental model working for users who staged a label in Backlog
+ *   and expect it to still fire when they flick it into Backlog with the
+ *   label already attached.
+ *
+ * Opt-out: labels contain `claude:skip` — short-circuit, never dispatch.
+ *
+ * Model elevation: labels contain `needs-opus` (case-insensitive) — dispatch
+ *   payload sets `model: "opus"`; otherwise `model: "sonnet"`. The workflow
+ *   reads this to choose CLI args (Opus 4.7 / turns 40 vs. Sonnet 4.6 /
+ *   turns 20). Opus is ~5x more expensive on output per Anthropic pricing
+ *   so Sonnet is the cost-minimized default.
+ *
+ * Why key on state.type and not state.name:
+ *   Linear's state .type is a schema-fixed enum
+ *   (triage|backlog|unstarted|started|completed|canceled); state .name is
+ *   workspace-configurable. Keying on .type survives renames.
+ *
+ * === Security ===
  *   - `Linear-Signature` HMAC-SHA256 verification (constant-time comparison)
  *     against process.env.LINEAR_WEBHOOK_SECRET. Missing secret = 401.
  *   - 50 KB body size cap (DoS guard).
@@ -33,8 +61,9 @@ export const dynamic = "force-dynamic";
 
 const MAX_BODY_BYTES = 50_000;
 const RATE_LIMIT_MS = 30_000;
-const DEFAULT_TRIGGER_LABEL = "claude:go";
-const DONE_LABEL = "claude:done";
+const LEGACY_TRIGGER_LABEL = "claude:go";
+const SKIP_LABEL = "claude:skip";
+const OPUS_LABEL = "needs-opus";
 
 // Module-scoped rate-limit tracker. Cleared on process restart.
 const lastDispatchAt = new Map<string, number>();
@@ -46,7 +75,7 @@ type LinearIssueData = {
   title?: unknown;
   description?: unknown;
   url?: unknown;
-  state?: { name?: unknown };
+  state?: { name?: unknown; type?: unknown };
   labels?: { nodes?: unknown };
   team?: { key?: unknown };
 };
@@ -54,6 +83,7 @@ type LinearWebhookPayload = {
   action?: unknown;
   type?: unknown;
   data?: unknown;
+  updatedFrom?: unknown;
 };
 
 type ParsedIssue = {
@@ -64,10 +94,11 @@ type ParsedIssue = {
   teamKey: string;
   labels: string[];
   stateName: string;
+  stateType: string;
 };
 
 type SkipResponse = { skipped: true; reason: string };
-type DispatchResponse = { dispatched: true; identifier: string };
+type DispatchResponse = { dispatched: true; identifier: string; model: "opus" | "sonnet" };
 
 function jsonResponse(
   body: Record<string, unknown>,
@@ -129,19 +160,53 @@ function narrowIssue(data: unknown): ParsedIssue | null {
     d.state && typeof d.state === "object" && typeof d.state.name === "string"
       ? d.state.name
       : "";
+  const stateType =
+    d.state && typeof d.state === "object" && typeof d.state.type === "string"
+      ? d.state.type
+      : "";
   const labels =
     d.labels && typeof d.labels === "object"
       ? toStringArray(d.labels.nodes)
       : [];
-  return { identifier, title, description, url, teamKey, labels, stateName };
+  return {
+    identifier,
+    title,
+    description,
+    url,
+    teamKey,
+    labels,
+    stateName,
+    stateType,
+  };
 }
 
 function truncate(value: string, max: number): string {
   return value.length <= max ? value : value.slice(0, max);
 }
 
+/**
+ * Detect whether this event represents a transition into an `unstarted`
+ * (i.e. Todo) state — either direct creation in Todo or a move into Todo.
+ */
+function isUnstartedTransition(
+  action: string,
+  issue: ParsedIssue,
+  updatedFrom: unknown,
+): boolean {
+  if (issue.stateType !== "unstarted") return false;
+  if (action === "create") return true;
+  if (action !== "update") return false;
+  // On update, require that the state actually changed — updatedFrom.stateId
+  // is present when Linear diffs a state transition. Without it, a mere edit
+  // to a ticket already in Todo would keep re-firing.
+  if (!updatedFrom || typeof updatedFrom !== "object") return false;
+  const uf = updatedFrom as { stateId?: unknown };
+  return typeof uf.stateId === "string" && uf.stateId.length > 0;
+}
+
 async function dispatchGithub(
   issue: ParsedIssue,
+  model: "opus" | "sonnet",
 ): Promise<{ ok: true } | { ok: false; status: number; body: string }> {
   const token = process.env.GITHUB_DISPATCH_TOKEN;
   if (!token) {
@@ -155,6 +220,7 @@ async function dispatchGithub(
     url: issue.url,
     teamKey: issue.teamKey,
     labels: issue.labels.slice(0, 20),
+    model,
   };
 
   const res = await fetch(
@@ -249,26 +315,35 @@ export async function POST(req: NextRequest): Promise<Response> {
     return jsonResponse(skip, 200);
   }
 
-  const triggerLabel = (
-    process.env.LINEAR_TRIGGER_LABEL || DEFAULT_TRIGGER_LABEL
-  ).toLowerCase();
   const labelsLower = issue.labels.map((l) => l.toLowerCase());
 
-  if (!labelsLower.includes(triggerLabel)) {
+  // Opt-out always wins.
+  if (labelsLower.includes(SKIP_LABEL)) {
     const skip: SkipResponse = {
       skipped: true,
-      reason: `trigger label "${triggerLabel}" not present`,
+      reason: `"${SKIP_LABEL}" label present`,
     };
     return jsonResponse(skip, 200);
   }
 
-  if (labelsLower.includes(DONE_LABEL)) {
+  const unstartedTransition = isUnstartedTransition(
+    action,
+    issue,
+    parsed.updatedFrom,
+  );
+  const hasLegacyLabel = labelsLower.includes(LEGACY_TRIGGER_LABEL);
+
+  if (!unstartedTransition && !hasLegacyLabel) {
     const skip: SkipResponse = {
       skipped: true,
-      reason: `"${DONE_LABEL}" label present — not re-triggering`,
+      reason: "not an unstarted-state transition and no claude:go label",
     };
     return jsonResponse(skip, 200);
   }
+
+  const model: "opus" | "sonnet" = labelsLower.includes(OPUS_LABEL)
+    ? "opus"
+    : "sonnet";
 
   const now = Date.now();
   const last = lastDispatchAt.get(issue.identifier);
@@ -277,7 +352,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     return jsonResponse(skip, 200);
   }
 
-  const result = await dispatchGithub(issue);
+  const result = await dispatchGithub(issue, model);
   if (!result.ok) {
     console.error(
       `[linear-webhook] github dispatch failed for ${issue.identifier}`,
@@ -293,6 +368,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const dispatched: DispatchResponse = {
     dispatched: true,
     identifier: issue.identifier,
+    model,
   };
   return jsonResponse(dispatched, 202);
 }
