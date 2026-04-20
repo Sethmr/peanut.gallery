@@ -218,6 +218,10 @@ const statusText = document.getElementById("statusText");
 const statusTime = document.getElementById("statusTime");
 const statusTag = document.getElementById("statusTag");
 const statusDetail = document.getElementById("statusDetail");
+const episodeCard = document.getElementById("episodeCard");
+const episodeCardTitle = document.getElementById("episodeCardTitle");
+const episodeCardSub = document.getElementById("episodeCardSub");
+const episodeCardProgressFill = document.getElementById("episodeCardProgressFill");
 
 // ── Free-tier timer state ──
 //
@@ -254,6 +258,11 @@ function startFreeTierTimer() {
   freeTierStartMs = Date.now();
   statusBar.classList.remove("capped");
   statusTime.textContent = "00:00:00";
+  if (episodeCard) {
+    episodeCard.classList.add("with-progress");
+    episodeCard.classList.remove("capped");
+  }
+  if (episodeCardProgressFill) episodeCardProgressFill.style.width = "0%";
   freeTierIntervalId = setInterval(() => {
     const elapsed = (Date.now() - freeTierStartMs) / 1000;
     if (!freeTierCapped && elapsed >= FREE_TIER_MAX_SECONDS) {
@@ -261,6 +270,11 @@ function startFreeTierTimer() {
       return;
     }
     statusTime.textContent = formatHMS(Math.min(elapsed, FREE_TIER_MAX_SECONDS));
+    // Progress bar on the episode card tracks the same elapsed/cap ratio.
+    if (episodeCardProgressFill) {
+      const pct = Math.min(100, (elapsed / FREE_TIER_MAX_SECONDS) * 100);
+      episodeCardProgressFill.style.width = pct + "%";
+    }
   }, 1000);
 }
 
@@ -279,6 +293,10 @@ function flipToCapReached() {
   statusTime.textContent = formatHMS(FREE_TIER_MAX_SECONDS);
   statusTag.textContent = "PAUSED";
   statusDetail.textContent = "Daily free minutes exhausted · resets at midnight";
+  // Episode-card progress bar flips to the cap treatment: yellow fill, full
+  // width. Matches the status strip's dot-goes-yellow signal.
+  if (episodeCard) episodeCard.classList.add("capped");
+  if (episodeCardProgressFill) episodeCardProgressFill.style.width = "100%";
   stopFreeTierTimer();
 }
 
@@ -602,6 +620,7 @@ function showCapturing() {
   setupSection.style.display = "none";
   emptyState.style.display = "none";
   statusBar.style.display = "grid";
+  if (episodeCard) episodeCard.style.display = "flex";
   // Free-tier timer + secondary-row tag/detail only render for users who
   // haven't pasted their own keys. Paid users get the single-line primary
   // treatment (same as pre-15-min-UI behavior).
@@ -656,6 +675,11 @@ function showIdle() {
   emptyState.style.display = "flex";
   statusBar.style.display = "none";
   statusBar.classList.remove("with-timer", "capped", "active", "live");
+  if (episodeCard) {
+    episodeCard.style.display = "none";
+    episodeCard.classList.remove("with-progress", "capped");
+  }
+  if (episodeCardProgressFill) episodeCardProgressFill.style.width = "0%";
   stopFreeTierTimer();
   freeTierCapped = false;
   controlsRow.style.display = "none";
@@ -730,6 +754,31 @@ async function updateCapturedTabBanner() {
   // no-op when .with-timer isn't set). Keeps the strip's detail line fresh
   // as the user swaps tabs or the tab title changes mid-session.
   syncStatusDetail();
+  syncEpisodeCard();
+}
+
+/**
+ * Keep the episode card's title + subtitle in sync with capturedTabInfo.
+ * The title shows the tab title (truncated with CSS ellipsis); the subtitle
+ * shows the tab domain when we can extract it, else a dash. Called from
+ * updateCapturedTabBanner whenever tab info changes.
+ */
+function syncEpisodeCard() {
+  if (!episodeCard || !episodeCardTitle) return;
+  const title = capturedTabInfo?.title || "—";
+  episodeCardTitle.textContent = title;
+  if (episodeCardSub) {
+    let sub = "—";
+    const raw = capturedTabInfo?.url;
+    if (raw) {
+      try {
+        sub = new URL(raw).hostname.replace(/^www\./, "");
+      } catch {
+        sub = raw;
+      }
+    }
+    episodeCardSub.textContent = sub;
+  }
 }
 
 /**

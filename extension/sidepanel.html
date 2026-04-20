@@ -211,6 +211,54 @@
     .status-bar.capped .status-time{color: var(--stamp); font-weight: 700}
     @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
 
+    /* ── EPISODE CARD ──
+       Bold tab-title card above the persona row, mimicking the
+       "E1926 · FOUNDER FRIDAY W/ LEX FRIDMAN" card on the design
+       proof. Free-tier users also see a 15-min progress bar that
+       fills in lockstep with the status-strip timer above; paid
+       users see title only. Both states hidden when idle (no
+       capture session). */
+    .episode-card{
+      padding: 10px 12px 9px;
+      background: var(--paper-2);
+      border-bottom: 1px solid var(--ink-3);
+      flex-shrink: 0;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    body[data-theme="night"] .episode-card{background: var(--paper-3)}
+    .episode-card-title{
+      font-family: var(--slab); font-size: 15px;
+      line-height: 1.15; color: var(--ink);
+      text-transform: uppercase; letter-spacing: -.005em;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      min-width: 0;
+    }
+    .episode-card-sub{
+      font-family: var(--type); font-size: 10px;
+      letter-spacing: .04em; color: var(--ink-3);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .episode-card-progress{
+      display: none;
+      height: 3px;
+      background: var(--paper-3);
+      position: relative;
+      overflow: hidden;
+    }
+    body[data-theme="night"] .episode-card-progress{background: var(--paper)}
+    .episode-card.with-progress .episode-card-progress{display: block}
+    .episode-card-progress-fill{
+      position: absolute;
+      top: 0; left: 0; bottom: 0;
+      width: 0%;
+      background: var(--stamp);
+      transition: width 400ms linear;
+    }
+    .episode-card.capped .episode-card-progress-fill{
+      background: var(--yellow);
+      width: 100%;
+    }
+
     /* ── CAPTURED TAB BANNER ── */
     .captured-tab{
       display: none;
@@ -453,24 +501,61 @@
       border: 1px solid var(--rule);
     }
 
-    /* ── TRANSCRIPT TICKER ──
+    /* ── TRANSCRIPT TICKER / ON AIR STRIP ──
        Matches the wire/ticker treatment on the design proof
-       (peanutgallery.live/panel/ .sp-ticker): single flowing line, inverted
-       ink background. The text element is wider than the clip once enough
-       transcript has accumulated; JS pins its right edge to the clip's
-       right edge via translateX, and the CSS transition animates the jump
-       so the leftward flow feels continuous at talking pace. */
+       (peanutgallery.live/panel/ .sp-ticker + .sp-wave): ink band with
+       label + waveform + flowing text. The text element is wider than
+       the clip once enough transcript has accumulated; a rAF loop
+       eases its translateX so the newest words stay pinned to the
+       clip's right edge. */
     .transcript-section{
       padding: 9px 12px;
       background: var(--ink);
       color: var(--paper);
       border-bottom: 1px solid var(--ink);
       display: grid;
-      grid-template-columns: auto 1fr;
+      grid-template-columns: auto auto 1fr;
       gap: 10px;
       align-items: center;
       flex-shrink: 0;
       overflow: hidden;
+    }
+
+    /* 10-bar waveform between the ON AIR label and the ticker text.
+       Staggered animation-delays + a mix of paper/stamp/yellow bars
+       matches the proof's broadcast rhythm without copying its 15-bar
+       exact count (the panel is narrower than the proof's mockup).
+       Runs only during capture — stops with the whole transcript
+       section when showIdle() hides it. */
+    .transcript-wave{
+      display: flex; align-items: center; gap: 2px;
+      height: 14px; flex-shrink: 0;
+    }
+    .transcript-wave i{
+      display: block;
+      width: 2px; height: 100%;
+      background: var(--paper);
+      opacity: .5;
+      transform-origin: center;
+      border-radius: 1px;
+      animation: transcript-wave-pulse 1.0s ease-in-out infinite;
+    }
+    .transcript-wave i:nth-child(1) {animation-delay: -0.05s; height: 50%}
+    .transcript-wave i:nth-child(2) {animation-delay: -0.22s; height: 85%}
+    .transcript-wave i:nth-child(3) {animation-delay: -0.40s; height: 95%; background: var(--stamp); opacity: 1}
+    .transcript-wave i:nth-child(4) {animation-delay: -0.12s; height: 60%}
+    .transcript-wave i:nth-child(5) {animation-delay: -0.30s; height: 90%; background: var(--yellow); opacity: 1}
+    .transcript-wave i:nth-child(6) {animation-delay: -0.55s; height: 40%}
+    .transcript-wave i:nth-child(7) {animation-delay: -0.18s; height: 70%}
+    .transcript-wave i:nth-child(8) {animation-delay: -0.60s; height: 50%}
+    .transcript-wave i:nth-child(9) {animation-delay: -0.08s; height: 80%; background: var(--stamp); opacity: 1}
+    .transcript-wave i:nth-child(10){animation-delay: -0.44s; height: 35%}
+    @keyframes transcript-wave-pulse{
+      0%,100%{transform: scaleY(.3)}
+      50%{transform: scaleY(1)}
+    }
+    @media (prefers-reduced-motion: reduce){
+      .transcript-wave i{animation: none; transform: scaleY(.5)}
     }
     .transcript-label{
       position: static;
@@ -1320,7 +1405,16 @@
     </div>
   </div>
 
-  <!-- ── CAPTURED TAB BANNER ── -->
+  <!-- ── EPISODE CARD (tab title + free-tier progress bar) ── -->
+  <div id="episodeCard" class="episode-card" style="display:none;">
+    <span class="episode-card-title" id="episodeCardTitle">&mdash;</span>
+    <span class="episode-card-sub" id="episodeCardSub">&mdash;</span>
+    <div class="episode-card-progress">
+      <div class="episode-card-progress-fill" id="episodeCardProgressFill"></div>
+    </div>
+  </div>
+
+  <!-- ── CAPTURED TAB BANNER (secondary, carries the Jump→ affordance) ── -->
   <div id="capturedTabBanner" class="captured-tab" title="Click to switch to the tab Peanut Gallery is listening to">
     <span class="icon">&#127911;</span>
     <span class="label">Listening to</span>
@@ -1339,9 +1433,12 @@
   <!-- ── PERSONA MUG ROW ── -->
   <div id="personasRow" class="personas-row"></div>
 
-  <!-- ── TRANSCRIPT ── -->
+  <!-- ── TRANSCRIPT / ON AIR STRIP ── -->
   <div id="transcriptSection" class="transcript-section" style="display:none;">
-    <span class="transcript-label">Transcript</span>
+    <span class="transcript-label">On Air</span>
+    <div class="transcript-wave" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
     <div class="transcript-clip">
       <div id="transcriptText" class="transcript-text">Listening&hellip;</div>
     </div>
