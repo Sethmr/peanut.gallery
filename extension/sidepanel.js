@@ -634,7 +634,11 @@ function showCapturing() {
     stopFreeTierTimer();
   }
   controlsRow.style.display = "block";
-  transcriptSection.style.display = "block";
+  // Must be `grid`, not `block` — the CSS lays the strip out as a 3-col
+  // grid (label | waveform | ticker clip) and `display: block` would
+  // stack the children vertically, kicking the transcript onto its own
+  // line below the label/wave.
+  transcriptSection.style.display = "grid";
   gallery.style.display = "flex";
   if (footer) footer.classList.remove("hidden");
   // Kick off the transcript ticker's continuous-scroll loop. Stays running
