@@ -1017,6 +1017,15 @@ chrome.runtime.onMessage.addListener((message) => {
         transcriptInterim = data.text;
       }
       updateTranscript();
+      // Flip the status-bar dot from .active (yellow) to .live (red) on
+      // the first transcript arrival. "Live" here means "transcription
+      // is flowing" — previously we only flipped on live_detected+isLive,
+      // which missed recorded videos entirely and left the dot stuck
+      // yellow for the whole session.
+      if (statusBar.classList.contains("active")) {
+        statusBar.classList.add("live");
+        statusBar.classList.remove("active");
+      }
       break;
 
     case "persona": {
