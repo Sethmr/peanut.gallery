@@ -1,0 +1,27 @@
+{
+  "name": "v3-sticky-agent-seed",
+  "description": "v1.7 Smart Director v3: the v3 router picks joker (fresh angle) while seeded recentFirings put troll in the last 2 slots. Director hoists the LLM pick, and the v3 route-level sticky penalty (applied OUTSIDE Director via applyStickyPenalty in route.ts) would have already shifted argmax away from troll even if the model's raw confidence favored it. This fixture validates the Director hoists the LLM pick cleanly given seeded state where the rule-based scorer would have picked troll.",
+  "pack": "howard",
+  "initialState": {
+    "recentFirings": ["troll", "troll"]
+  },
+  "input": {
+    "transcript": "Elon is literally a genius. Sequoia led the round and the valuation is insane — 10x what Sam Altman would've paid. Honestly, trust me, this is unprecedented.",
+    "llmPickV2": {
+      "personaId": "joker",
+      "rationale": "Troll just fired twice — rotate to joker for fresh angle on the hype",
+      "callbackUsed": null
+    }
+  },
+  "assertions": {
+    "pickIn": ["joker"],
+    "pickInRatio": 1.0,
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true,
+    "reasonContains": "LLM routing:",
+    "sourceIn": ["llm"]
+  }
+}

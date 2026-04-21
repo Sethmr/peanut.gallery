@@ -25,6 +25,11 @@ import { PersonaEngine } from "@/lib/persona-engine";
 import { resolvePack } from "@/lib/packs";
 import { Director } from "@/lib/director";
 import { pickPersonaLLM, type LlmRoutingPick } from "@/lib/director-llm";
+import {
+  pickPersonaLLMv2,
+  applyStickyPenalty,
+  type LlmRoutingPickV2,
+} from "@/lib/director-llm-v2";
 import { personas } from "@/lib/personas";
 import type { Pack } from "@/lib/packs/types";
 import { createSessionLogger } from "@/lib/debug-logger";
@@ -527,11 +532,51 @@ export async function POST(req: NextRequest) {
           // rolls.
           const directorInput = recentTranscript || transcript.slice(-500);
           let llmPick: LlmRoutingPick | null = null;
+          let llmPickV2: LlmRoutingPickV2 | null = null;
           let llmElapsedMs: number | null = null;
           const LLM_BUDGET_MS = 400;
           const smartOn =
             process.env.ENABLE_SMART_DIRECTOR === "true" && !!anthropicKey;
-          if (smartOn) {
+          // v1.7 experimental: v3 router (SILENT slot + tool_use + confidence
+          // + callback memory). Opt-in only. When both flags are set, V3 wins
+          // — v2 fallback is the already-shipped code path, so we don't need
+          // to race both calls.
+          const smartV2On =
+            process.env.ENABLE_SMART_DIRECTOR_V2 === "true" && !!anthropicKey;
+          if (smartV2On) {
+            const llmStart = Date.now();
+            try {
+              llmPickV2 = await pickPersonaLLMv2({
+                recentTranscript: directorInput,
+                isSilence: isSilenceTick,
+                recentFirings: director.getRecentFirings(),
+                cooldownsMs: director.getCooldownsMs(),
+                packPersonas: session.resolvedPack.personas,
+                liveCallbacks: director.getLiveCallbacks(),
+                anthropicKey: anthropicKey!,
+                signal: AbortSignal.timeout(LLM_BUDGET_MS),
+                sessionId,
+              });
+            } catch {
+              llmPickV2 = null;
+            }
+            // Apply deterministic sticky-agent penalty BEFORE argmax — the
+            // v3 prompt explicitly tells the model NOT to penalize recent
+            // speakers itself. We handle it here so the specialty signal
+            // stays honest and the penalty is audit-able.
+            if (llmPickV2) {
+              const adjusted = applyStickyPenalty(
+                llmPickV2.confidence,
+                director.getRecentFirings()
+              );
+              llmPickV2 = {
+                ...llmPickV2,
+                confidence: adjusted.confidence,
+                personaId: adjusted.argmax,
+              };
+            }
+            llmElapsedMs = Date.now() - llmStart;
+          } else if (smartOn) {
             const llmStart = Date.now();
             try {
               llmPick = await pickPersonaLLM({
@@ -555,7 +600,16 @@ export async function POST(req: NextRequest) {
             directorInput,
             isSilenceTick,
             sessionId,
-            { llmPick }
+            {
+              llmPick,
+              llmPickV2: llmPickV2
+                ? {
+                    personaId: llmPickV2.personaId,
+                    rationale: llmPickV2.rationale,
+                    callbackUsed: llmPickV2.callbackUsed,
+                  }
+                : null,
+            }
           );
 
           // v1.5: canary telemetry. One structured event per tick when the
@@ -563,29 +617,38 @@ export async function POST(req: NextRequest) {
           // distribution, and how often the LLM actually overrode the rules.
           // Kept in the route (not the Director) because only the route
           // knows llmElapsedMs and whether the race happened at all.
-          if (smartOn) {
-            const llmPrimary = llmPick?.personaId ?? null;
+          if (smartOn || smartV2On) {
+            const llmPrimary = smartV2On
+              ? llmPickV2?.personaId ?? null
+              : llmPick?.personaId ?? null;
             const finalPrimary = decision.personaIds[0] ?? null;
             const rulePrimary = decision.rulePrimary ?? finalPrimary ?? null;
-            log.info("director_v2_compare", {
+            // v1.5: include the LLM's one-liner on the compare event itself
+            // so canary triage (sanity-reading 20 `overrode=true` rows in
+            // logs/pipeline-debug.jsonl) can see *why* the LLM picked,
+            // not just what. Null on ticks where the LLM lost the race
+            // or returned nothing.
+            const llmRationale = smartV2On
+              ? llmPickV2?.rationale ?? null
+              : llmPick?.rationale ?? null;
+            log.info(smartV2On ? "director_v3_compare" : "director_v2_compare", {
               rulePrimary,
               llmPrimary,
               finalPrimary,
               source: decision.source ?? "rule",
-              // v1.5: include the LLM's one-liner on the compare event itself
-              // so canary triage (sanity-reading 20 `overrode=true` rows in
-              // logs/pipeline-debug.jsonl) can see *why* the LLM picked,
-              // not just what. Null on ticks where the LLM lost the race
-              // or returned nothing.
-              llmRationale: llmPick?.rationale ?? null,
+              llmRationale,
               llmElapsedMs,
               llmTimedOut: llmPrimary === null && (llmElapsedMs ?? 0) >= LLM_BUDGET_MS,
               agreed: llmPrimary !== null && llmPrimary === rulePrimary,
               overrode:
-                (decision.source ?? "rule") === "llm" &&
+                (decision.source === "llm" || decision.source === "silent-llm") &&
                 llmPrimary !== null &&
                 llmPrimary !== rulePrimary,
               isSilence: isSilenceTick,
+              // v3-only fields (null on v2 path):
+              confidence: llmPickV2?.confidence ?? null,
+              callbackUsed: llmPickV2?.callbackUsed ?? null,
+              silentPicked: decision.source === "silent-llm",
             });
           }
 
