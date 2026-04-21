@@ -1915,14 +1915,16 @@
   <!-- ── SETUP (shown when not capturing) ── -->
   <div id="setupSection" class="setup">
 
-    <!-- 15-min free banner -->
+    <!-- 15-min free banner. One-off lifetime trial per install (v1.7+).
+         When the meter runs out, user chooses: paste their own keys
+         (free forever) or subscribe to Plus ($8/mo, 16 h/week). -->
     <div class="free-banner" role="status">
       <div class="lede">15<br>MIN<small>FREE</small></div>
       <div class="copy">
-        <strong>Fifteen minutes per day, on us.</strong>
+        <strong>Fifteen free minutes to try it out.</strong>
         No signup, no card. Tap <em>Start Listening</em> on any tab with audio. When the meter runs out, open
         <button id="freeBannerSettingsLink" class="inline-settings-link" type="button">Settings</button>
-        to paste your own keys or
+        to paste your own keys, subscribe to Plus, or
         <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>.
       </div>
     </div>
