@@ -200,10 +200,17 @@ function buildPeanutSVG({
   // shell color without forking the whole body path.
   // eyesLight switches to a big-white-sclera pop-eye style; used on dark
   // bodies where the default dark pupils would disappear.
+  // 6-stop gradient: bright highlight → warm mid → dark shoulder →
+  // warm rim (fake subsurface scatter at 93%) → cool bounce (ambient
+  // sky reflected from below at 100%). Extra stops make the depth pass
+  // read as genuine curvature rather than flat colour.
   const stops = bodyStops || `
-    <stop offset="0%" stop-color="#F7D9A5"/>
-    <stop offset="55%" stop-color="#DFAE70"/>
-    <stop offset="100%" stop-color="#B4824B"/>`;
+    <stop offset="0%"   stop-color="#FFF4D6"/>
+    <stop offset="28%"  stop-color="#F5CB78"/>
+    <stop offset="56%"  stop-color="#DFAE70"/>
+    <stop offset="80%"  stop-color="#C0874A"/>
+    <stop offset="93%"  stop-color="#CA9460"/>
+    <stop offset="100%" stop-color="#7898B8"/>`;
   const eyes = eyesLight
     ? `<circle cx="27" cy="19" r="2.8" fill="#fff"/>
        <circle cx="37" cy="19" r="2.8" fill="#fff"/>
@@ -215,13 +222,52 @@ function buildPeanutSVG({
        <ellipse cx="37" cy="19" rx="2.1" ry="2.6" fill="#1E1208"/>
        <circle cx="27.6" cy="18.2" r=".8" fill="#fff"/>
        <circle cx="37.6" cy="18.2" r=".8" fill="#fff"/>`;
+  // peanutDepth filter: Phong lighting (feDiffuseLighting + feSpecularLighting)
+  // composited over the shell using SourceAlpha as the bump map, plus an AO
+  // inner-shadow chain (feMorphology erode → feGaussianBlur → feComposite) that
+  // darkens the body's interior edges. Applied only to the body path so props
+  // and face features sit on top unfiltered.
+  //
+  // The feSpecularLighting feDistantLight carries a SMIL <animate> on azimuth
+  // (begin="indefinite") so updatePersonaSpeaking() can call beginElement() /
+  // endElement() to slide the highlight while the mascot talks.
+  //
+  // Filter is namespaced per-mascot (peanutDepth-${ns}) so multiple mascots in
+  // the row never share a filter node that one SVG shadow-root might own.
+  const depthFilter = `
+      <filter id="peanutDepth-${ns}" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="2.8" result="bump"/>
+        <feSpecularLighting in="bump" surfaceScale="7" specularConstant="0.9" specularExponent="24" result="specRaw" lighting-color="#FFFAF0">
+          <feDistantLight azimuth="135" elevation="48">
+            <animate attributeName="azimuth" from="120" to="150" dur="4s" repeatCount="indefinite" begin="indefinite"/>
+          </feDistantLight>
+        </feSpecularLighting>
+        <feComposite in="specRaw" in2="SourceAlpha" operator="in" result="spec"/>
+        <feDiffuseLighting in="bump" surfaceScale="7" diffuseConstant="0.4" result="diffRaw" lighting-color="#FFE4A8">
+          <feDistantLight azimuth="135" elevation="48"/>
+        </feDiffuseLighting>
+        <feComposite in="diffRaw" in2="SourceAlpha" operator="in" result="diffMasked"/>
+        <feComponentTransfer in="diffMasked" result="diff">
+          <feFuncR type="linear" slope="0.5" intercept="0.5"/>
+          <feFuncG type="linear" slope="0.5" intercept="0.5"/>
+          <feFuncB type="linear" slope="0.5" intercept="0.5"/>
+        </feComponentTransfer>
+        <feBlend in="SourceGraphic" in2="spec" mode="screen" result="withSpec"/>
+        <feBlend in="withSpec" in2="diff" mode="multiply" result="lit"/>
+        <feMorphology in="SourceAlpha" operator="erode" radius="3" result="eroded"/>
+        <feGaussianBlur in="eroded" stdDeviation="3" result="aoBlur"/>
+        <feComposite in="SourceAlpha" in2="aoBlur" operator="out" result="aoMask"/>
+        <feFlood flood-color="#6B2F00" flood-opacity="0.25" result="aoFill"/>
+        <feComposite in="aoFill" in2="aoMask" operator="in" result="ao"/>
+        <feMerge><feMergeNode in="lit"/><feMergeNode in="ao"/></feMerge>
+      </filter>`;
   return `<svg viewBox="0 0 64 64" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
     <defs>
-      <radialGradient id="mbody-${ns}" cx="38%" cy="30%" r="72%">${stops}</radialGradient>${extraDefs}
+      <radialGradient id="mbody-${ns}" cx="38%" cy="30%" r="72%">${stops}</radialGradient>${depthFilter}${extraDefs}
     </defs>
     <g transform="translate(32 32) scale(1.22) translate(-32 -32)">
       <ellipse cx="32" cy="60" rx="13" ry="1.8" fill="#000" fill-opacity=".22"/>
-      <path d="M32 4C22 4 18 10 18 19c0 5 3 8 6 10-4 2-10 6-10 16 0 9 8 15 18 15s18-6 18-15c0-10-6-14-10-16 3-2 6-5 6-10 0-9-4-15-14-15Z" fill="url(#mbody-${ns})" stroke="${bodyStroke}" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M32 4C22 4 18 10 18 19c0 5 3 8 6 10-4 2-10 6-10 16 0 9 8 15 18 15s18-6 18-15c0-10-6-14-10-16 3-2 6-5 6-10 0-9-4-15-14-15Z" fill="url(#mbody-${ns})" stroke="${bodyStroke}" stroke-width="1.4" stroke-linejoin="round" filter="url(#peanutDepth-${ns})"/>
       <path d="M21 14c3 1 6 1 8 0M35 14c3 1 5 1 8 0" fill="none" stroke="${bodyStroke}" stroke-width=".8" stroke-linecap="round" opacity=".5"/>
       <ellipse cx="25" cy="11" rx="5.5" ry="3" fill="#FFF5DF" opacity=".55"/>
       ${eyes}
@@ -1257,6 +1303,17 @@ function updatePersonaSpeaking(activeId) {
     // Mirror on the avatar too — any legacy rules that keyed off
     // `.persona-avatar.speaking` still work without a sweep.
     if (avatar) avatar.classList.toggle("speaking", speaking);
+    // Trigger the SMIL azimuth animation on the specular light when speaking
+    // starts / stops. The <animate begin="indefinite"> element lives inside
+    // feSpecularLighting > feDistantLight in the peanutDepth filter; calling
+    // beginElement() slides the highlight from 120° → 150° on a 4s loop so
+    // the specular travels visibly across the shell while the mascot talks.
+    const mascotSvg = bubble?.querySelector(".mascot svg");
+    const azAnim = mascotSvg?.querySelector("feSpecularLighting feDistantLight animate");
+    if (azAnim) {
+      if (speaking) azAnim.beginElement();
+      else azAnim.endElement();
+    }
   }
 }
 
