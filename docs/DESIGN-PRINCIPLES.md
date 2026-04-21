@@ -70,7 +70,7 @@ Features that help **customers** (streaming UX, callback heightening, per-pack s
 
 User credentials live on the user's machine. The hosted tier has demo keys but never stores user keys. No account system. No "upload your transcript to our server" feature.
 
-Session-recall (v2.0, PR [#78](https://github.com/Sethmr/peanut.gallery/pull/78)) is local-only: `chrome.storage.local`, one-click clear, never uploaded. Source: [`SESSION-NOTES-2026-04-17.md §3`](SESSION-NOTES-2026-04-17.md) (marked immutable).
+Session-recall (v2.0, PR [#78](https://github.com/Sethmr/peanut.gallery/pull/78)) is local-only: `chrome.storage.local` (Chrome backs it with IndexedDB under the hood — stored on the user's disk, never uploaded). One-click clear in the settings drawer; 30-day TTL with FIFO eviction. CWS listing copy should explicitly say "sessions saved locally to your device; zero server storage." Source: [`SESSION-NOTES-2026-04-17.md §3`](SESSION-NOTES-2026-04-17.md) (marked immutable).
 
 ### 5a. Subscription is an alternative to BYOK, never a replacement
 *(2026-04-21 — planned for v1.9.x; full plan in [`ROADMAP.md § Subscription tier`](ROADMAP.md#v19x-subscription-tier--pre-20-revenue-test).)*

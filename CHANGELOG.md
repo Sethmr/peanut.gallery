@@ -4,7 +4,36 @@ All notable changes to Peanut Gallery are recorded here. Format loosely follows 
 
 ## [Unreleased]
 
-Tracks in-flight work for the next release.
+Tracks in-flight work for the next release (likely `v1.6.0 "The Canary"` re-cut or `v1.6.1`). The v1.6.0 release branch was held back on 2026-04-21 for patches; this section captures everything on `develop` since.
+
+### Added
+- **Feed-entry action menu** (PR [#99](https://github.com/Sethmr/peanut.gallery/pull/99)). Tap any persona response → popover with Make a quote card / Pin to top / Upvote / Downvote. Keyboard-accessible (Arrow Up/Down/Home/End navigate items; Escape / outside-click dismiss; first item auto-focuses on open). Vote/pin state persists per-session via `chrome.storage.local`. Quote-card action currently ships a plain-text stub + clipboard write; full PNG renderer tracked as [`SET-23`](https://linear.app/seth-dev/issue/SET-23).
+- **Pinned-strip drop-down** (PR [#99](https://github.com/Sethmr/peanut.gallery/pull/99)). Newspaper-styled card drops down above the feed with a transform+opacity transition. One pin at a time; collapse button hides body without unpinning; × clears. Shares visual language with the pending quote-card PNG so the render pipeline can lift styles directly.
+- **Room Volume segmented control** (PR [#99](https://github.com/Sethmr/peanut.gallery/pull/99)). Three-option dial (Quieter / Normal / Rowdy) in the Critics drawer. Wired end-to-end via `X-Sensitivity` header → `Director.decide({ sensitivity })` → cascade-probability scaling (0.5× / 1.0× / 1.5×). Applied after the Troll floor so user preference wins. Persisted globally as `pgSensitivity`.
+- **Tutorial expanded to 6 steps** (this session). Added *Critics & Room volume* and *Tap a response* stops so new users discover the two v1.6.0 interactions. Final step opts out of DOM-spotlighting so it works on cold-start sessions with an empty feed.
+
+### Changed
+- **Producer correction-tier rebalance** (PR [#97](https://github.com/Sethmr/peanut.gallery/pull/97)). Both Baba Booey (Howard) and Molly Wood (TWiST) system prompts now define `[HEADS UP]` as the workhorse tier and restrict the `"-"` pass to genuinely content-free tails. Fixes the false-pass pathology where the Director picked the producer on tails with proper nouns but Baba / Molly passed, firing the fallback safety net instead. Log-confirmed on 2026-04-21: 9 consecutive fallbacks in 8 minutes on a TWiST episode.
+- **Version badge reads manifest at runtime** (PR [#95](https://github.com/Sethmr/peanut.gallery/pull/95)). Was hardcoded `v1.5.1` in the masthead; now `chrome.runtime.getManifest().version`. Never goes stale again.
+- **WIRE DOWN empty state names the configured backend** (PR [#96](https://github.com/Sethmr/peanut.gallery/pull/96)). Includes the localhost + `npm run dev` recovery hint inline so users can self-diagnose whether they're pointed at a dead hosted URL, a stopped local dev server, or a typo.
+- **Settings gear ⚙ is bigger + higher contrast** (PR [#96](https://github.com/Sethmr/peanut.gallery/pull/96)). Font-size 13→20 px, color `--ink-3` → `--ink` at 0.85 opacity, `:focus-visible` outline for keyboard nav.
+
+### Fixed
+- **60-second silence auto-stop** (PR [#92](https://github.com/Sethmr/peanut.gallery/pull/92)). RMS probe in the flush tick stops the session if audio stays below the noise floor for 60 s. Prevents a paused or idle tab from burning backend tokens on the router.
+
+### Docs
+- **Pack authoring guide** — [`docs/PACK-AUTHORING-GUIDE.md`](docs/PACK-AUTHORING-GUIDE.md) is the canonical producer contract (tier system, `factCheckMode` dial, anti-repetition, war-zone restraint) + archetype slot definitions + registration checklist + refinement loop. Living document; updated on every contract tightening.
+- **Persona data-acquisition guide** — [`docs/PERSONA-DATA-ACQUISITION-GUIDE.md`](docs/PERSONA-DATA-ACQUISITION-GUIDE.md). Copy-paste operator guide for grabbing 75 h of in-voice transcripts under $20 using public sources. yt-dlp + whisper.cpp + selective Whisper API fallback. Feeds Phase 2 voice-pattern extraction (Claude does that work on the subscription, free).
+- **Competitive landscape refresh** — [`docs/COMPETITIVE-LANDSCAPE-2026-04-21.md`](docs/COMPETITIVE-LANDSCAPE-2026-04-21.md). Feature-gap pass across adjacent products. Top-5 must-haves for v2.0 identified.
+- **Pre-v2.0 audit** — [`docs/AUDIT-2026-04-21.md`](docs/AUDIT-2026-04-21.md). 19 findings triaged across UX / code / perf / tests / docs / dev-ex. 3 already resolved, 3 fixed inline (feed-menu keyboard nav, IndexedDB privacy disclosure, INDEX path-to-v2.0 paragraph refresh), 13 deferred with suggested tickets and cost estimates.
+- **ROADMAP realignment** (PR [#93](https://github.com/Sethmr/peanut.gallery/pull/93)). Versioning now matches reality — v1.6.0 is "The Canary," not "Settings Pane"; retired slot labels collapsed. New sections: v1.9.x subscription tier (pre-v2.0 revenue test, 6-principle plan), v1.10.x avatar stage 2.
+- **Subscription design principle** — `DESIGN-PRINCIPLES.md` rule 5a codifies the BYOK-primary / subscription-alternative posture with a weekly-hours cap targeted above top-10% usage.
+- **"Personas over Director" design principle** — `DESIGN-PRINCIPLES.md` rule 3a codifies the fix-order (persona prompt → directorHint → factCheckMode → claim-detector patterns → router changes). Saved as auto-memory `feedback_personas_over_director.md`.
+- **Cerebras integration guide** — [`docs/CEREBRAS-INTEGRATION.md`](docs/CEREBRAS-INTEGRATION.md). Step-by-step Railway operator setup for the v3 canary. $2 expected for a 48h canary run.
+- **IndexedDB + CWS listing copy** callout in [`DESIGN-PRINCIPLES.md § 5`](docs/DESIGN-PRINCIPLES.md). "Sessions saved locally to your device; zero server storage" is the marketing phrasing for v2.0.
+
+### Chore
+- **Linear tickets opened** for heavy lifts that belong on separate agents: [`SET-23`](https://linear.app/seth-dev/issue/SET-23) quote-card PNG renderer (canvas render + clipboard write + Broadsheet visual), [`SET-24`](https://linear.app/seth-dev/issue/SET-24) smart-highlight picker (pin > upvote > rule priority, Haiku `tool_use` for top-of-shortlist selection).
 
 ## [1.5.6] — 2026-04-20 — "<TBD>"
 
