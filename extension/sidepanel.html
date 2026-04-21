@@ -1312,12 +1312,18 @@
     }
     .rail-gear{
       background: transparent; border: 0;
-      padding: 2px 4px; cursor: pointer;
-      font-family: var(--serif); font-size: 13px;
-      color: var(--ink-3); line-height: 1;
-      transition: color 0.15s;
+      padding: 4px 8px; cursor: pointer;
+      font-family: var(--serif); font-size: 20px;
+      color: var(--ink); line-height: 1;
+      transition: opacity 0.15s;
+      opacity: 0.85;
     }
-    .rail-gear:hover{color: var(--ink)}
+    .rail-gear:hover{opacity: 1}
+    .rail-gear:focus-visible{
+      outline: 2px solid var(--stamp);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
 
     /* Inline text-link button inside the free banner ("open Settings") */
     .inline-settings-link{

@@ -1121,7 +1121,10 @@ const EMPTY_STATE_VARIANTS = {
   },
   unreachable: {
     lg: "Wire<br>Down.",
-    dk: "Can't reach the backend. Check your server URL and network, then Start Listening again.",
+    // dk is filled in at runtime so we can name the configured backend URL —
+    // that's the one piece of context users need to decide whether to fix
+    // their DNS, start a local dev server, or switch to localhost.
+    dk: "Can't reach the backend.",
     cta: { text: "Check Settings", action: "settings:backend" },
   },
   "mic-denied": {
@@ -1140,7 +1143,21 @@ function setEmptyStateVariant(variant) {
   const v = EMPTY_STATE_VARIANTS[variant] ?? EMPTY_STATE_VARIANTS.idle;
   if (!emptyStateLg || !emptyStateDk || !emptyStateCta) return;
   emptyStateLg.innerHTML = v.lg;
-  emptyStateDk.textContent = v.dk;
+  if (variant === "unreachable") {
+    // Name the configured backend so the user can tell at a glance whether
+    // they're pointed at a dead hosted URL, a stopped local dev server, or
+    // a typo. Localhost hint is included because the most common recovery
+    // during development is "oh, I forgot to run npm run dev" or "switch
+    // from hosted to localhost."
+    const configuredUrl = (serverUrlInput?.value || "").trim() || "(not set)";
+    emptyStateDk.innerHTML = `Can't reach <strong>${escapeHtml(configuredUrl)}</strong>. ` +
+      `If you're running the backend locally, set the server URL to ` +
+      `<code>http://localhost:3000</code> in Settings → Backend &amp; keys ` +
+      `and make sure <code>npm run dev</code> is running. Otherwise check ` +
+      `that the hosted backend is up, then Start Listening again.`;
+  } else {
+    emptyStateDk.textContent = v.dk;
+  }
   if (v.cta) {
     emptyStateCta.textContent = v.cta.text;
     emptyStateCta.dataset.action = v.cta.action;
