@@ -1219,7 +1219,17 @@ async function main(): Promise<void> {
           /* ignore */
         }
       }
-      await saveState(state);
+      // NOTE: intentionally NOT calling saveState(state) here. Each pollLinear
+      // and pollGitHub iteration already saves state after every processed
+      // item + once more at end-of-poll, so disk state is always current to
+      // within one poll tick. The earlier version saved in-memory state on
+      // SIGTERM, which clobbered external edits to logs/daemon-state.json
+      // (e.g. Seth un-processing a ticket via `node -e` to re-fire it). The
+      // `launchctl unload → edit → launchctl load` recipe now works without
+      // a race. The worst case on crash mid-poll is losing the new
+      // lastPolled*At timestamp, which costs at most one extra poll cycle
+      // of Linear/GitHub API calls on restart — far cheaper than the
+      // clobber bug.
       await logEvent("info", "daemon_shutdown_complete", {});
       process.exit(0);
     })();

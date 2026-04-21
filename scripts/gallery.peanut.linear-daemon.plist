@@ -2,12 +2,19 @@
 <!--
   Launchd template for the Linear local daemon. Do NOT hand-edit the
   installed copy in ~/Library/LaunchAgents/ — re-run scripts/install-linear-daemon.sh
-  to regenerate it. {{TSX_PATH}} and {{PROJECT_ROOT}} are substituted by
-  the installer.
+  to regenerate it. Three placeholders are substituted by the installer:
+    {{TSX_PATH}}     — absolute path to the `tsx` binary (prefers PATH,
+                       falls back to $PROJECT_ROOT/node_modules/.bin/tsx)
+    {{PROJECT_ROOT}} — absolute path to chrome-extension/
+    {{EXTRA_PATH}}   — dirname of the resolved `claude` CLI (usually
+                       $HOME/.local/bin) — prepended to PATH below so
+                       the daemon's `child_process.spawn('claude', ...)`
+                       can find it without hard-coding locations.
 
-  LINEAR_API_KEY is NOT in this plist. The daemon loads it from
-  ~/.config/peanut-gallery/daemon.env at startup (mode 600). Keeps the
-  secret off the filesystem outside that single file.
+  Secrets (LINEAR_API_KEY, CLAUDE_CODE_OAUTH_TOKEN) are NOT in this
+  plist. The daemon loads them from ~/.config/peanut-gallery/daemon.env
+  at startup (mode 600). Keeps the secrets off the filesystem outside
+  that single file.
 -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -27,7 +34,7 @@
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
-    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <string>{{EXTRA_PATH}}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
   </dict>
 
   <key>RunAtLoad</key>
