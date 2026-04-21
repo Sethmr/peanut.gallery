@@ -352,6 +352,15 @@ Replaces the GitHub-Actions-hosted kickoff path with a long-running local daemon
 
 **Why:** the GitHub Actions path hit Anthropic's 30k-input-TPM rate limit on the current org tier before kickoff-Claude could finish reading `CLAUDE.md` + the rubric. Local `claude` uses the Max subscription's much higher limits.
 
+**What happens when you drag a ticket to Todo** (canonical sequence — also in [`LINEAR-AGENT-RUBRIC.md § What happens after kickoff`](LINEAR-AGENT-RUBRIC.md#what-happens-after-kickoff-daemon-path)):
+
+1. Daemon polls Linear, finds the unstarted-state issue, spawns `claude -p` in a fresh worktree.
+2. Claude implements the ticket, commits on the feature branch, exits 0.
+3. Daemon rebases the feature branch onto the freshest `origin/develop` (`git fetch origin develop && git rebase origin/develop`). On conflict: abort, log `rebase_failed`, leave the worktree in place, do NOT push or open a PR.
+4. Daemon pushes with `--force-with-lease` (not `--force` — the lease protects against clobbering anyone else's push to the same branch).
+5. Daemon opens the PR against `develop` via `gh pr create`.
+6. Daemon enables GitHub auto-merge on the PR via `gh pr merge <N> --auto --squash --delete-branch` — so the PR self-merges the moment required CI checks go green. **Opt-out:** if the Linear issue has the `needs-review` label (case-insensitive), the daemon skips this step and the PR waits for Seth's manual merge. Use `needs-review` for changes that need app-testing or visual QA.
+
 Pieces that ship with the daemon:
 
 - [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts) — the daemon itself.
@@ -387,6 +396,14 @@ chmod 600 ~/.config/peanut-gallery/daemon.env
 
 **Why a file, not the plist:** launchd plists are world-readable by default on macOS, and `launchctl` can leak the env block into diagnostic dumps. A mode-600 dotfile is the conservative choice. The daemon reads the file at startup and merges into `process.env`.
 
+#### 18b.1. Linear-side labels
+
+In the team's label settings, make sure these labels exist (most overlap with the webhook path in § 17b — this list is the daemon-path subset):
+
+- `claude:skip` — grey. **Opt-out.** Apply to a ticket you don't want the daemon to pick up even after it transitions into Todo. The daemon short-circuits on this label before spawning Claude.
+- `needs-opus` — red/magenta. **Model elevation.** Bumps kickoff-Claude from Sonnet 4.6 / 20 turns to Opus 4.7 / 40 turns. Requires the Anthropic org tier to have Opus TPM headroom.
+- `needs-review` — blue/indigo. **Auto-merge opt-out (daemon path).** Apply to a ticket whose resulting PR you want to review manually before it lands on `develop`. Without this label, the daemon opens the PR and immediately enables GitHub auto-merge (squash + delete-branch) so the PR self-merges on CI green. With this label, the PR opens but auto-merge is NOT enabled — it waits for your manual merge click. Use for changes that need app-testing (visual UI work, persona-pack tweaks that need side-panel QA, anything where "CI green" isn't sufficient evidence of quality).
+
 #### 18c. Install
 
 ```bash
@@ -408,7 +425,7 @@ The installer:
 3. Within ~30s, run `tmux ls` — you should see `claude-<identifier>` (e.g. `claude-lin-123`).
 4. `tmux attach -t claude-lin-123` to watch the Claude session live. Ctrl-b then d to detach.
 5. Watch the daemon's structured log: `tail -f logs/daemon-$(date -u +%Y-%m-%d).jsonl`.
-6. Once Claude exits cleanly with new commits, the daemon pushes the branch and opens a PR against `develop`. Linear auto-moves the ticket to "In Review" (native GitHub integration).
+6. Once Claude exits cleanly with new commits, the daemon rebases onto `origin/develop`, pushes with `--force-with-lease`, opens a PR against `develop`, then enables GitHub auto-merge (`--squash --delete-branch --auto`) unless the Linear issue carries the `needs-review` label. Linear auto-moves the ticket to "In Review" (native GitHub integration). On CI green, the PR self-merges and the ticket moves to "Done".
 
 Exact `claude` flag set wired into the daemon (verify against your local `claude --version`):
 
@@ -422,7 +439,8 @@ With `--model claude-opus-4-7` for issues carrying the `needs-opus` label, and `
 
 - **`launchctl list` doesn't show the agent after install.** Check `logs/daemon-stderr.log`. Most common: missing `LINEAR_API_KEY` in `~/.config/peanut-gallery/daemon.env` (daemon exits 1 at startup with a `missing_linear_api_key` event).
 - **Daemon runs but nothing happens when a ticket moves to Todo.** Check `logs/daemon-$(date).jsonl` for `poll_linear_failed` errors. The most common cause is a bad API key or a Linear API 401.
-- **Claude exits but no PR opens.** Two subcases: (a) exit code != 0 → worktree is left in place under `.claude/worktrees/` for inspection; `logs/kickoff-<id>.log` has the transcript. (b) exit code == 0 but no new commits → the daemon logs `claude_no_commits` and cleans up; the task was likely ambiguous or required a forbidden action.
+- **Claude exits but no PR opens.** Three subcases: (a) exit code != 0 → worktree is left in place under `.claude/worktrees/` for inspection; `logs/kickoff-<id>.log` has the transcript. (b) exit code == 0 but no new commits → the daemon logs `claude_no_commits` and cleans up; the task was likely ambiguous or required a forbidden action. (c) exit code == 0 with commits but `rebase_failed` logged → the feature branch conflicted with `origin/develop` at rebase time; the daemon aborted the rebase and left the worktree in place for manual resolution. Re-fire by removing the issue ID from `logs/daemon-state.json` after resolving.
+- **PR opened but didn't auto-merge.** Two common causes: (a) the Linear issue has the `needs-review` label (case-insensitive) — daemon intentionally skipped `gh pr merge --auto` so you can review manually. Check the daemon log for `"autoMerge": false, "reason": "\"needs-review\" label present"`. Remove the label + click Merge if you want it to land. (b) `auto_merge_enable_failed` logged — `gh pr merge --auto` returned non-zero; most commonly because `--delete-branch` can't delete a branch that's checked out in the daemon's worktree. The REMOTE branch deletion + auto-merge bit still get set correctly by `gh` despite the local error, so this is usually noise. Check the PR on github.com; if auto-merge is enabled, ignore the warning. Orphan worktrees in `.claude/worktrees/` are harmless — clean with `git worktree remove --force .claude/worktrees/claude-<id>` on your next pass.
 - **Worktree cleanup.** The daemon removes worktrees + branches only when (a) Claude exited 0 with no commits, or (b) a ticket is re-fired while a prior worktree exists. Non-zero exits intentionally leave artifacts behind for debugging. Clean manually with `git worktree remove --force .claude/worktrees/claude-<id>` and `git branch -D claude/<id>-<slug>` if needed.
 - **Stuck processing the same ticket.** The daemon marks an issue as processed whether or not the run succeeded (fail-safe against broken tickets causing infinite retry). To re-fire a ticket, edit `logs/daemon-state.json` and remove the issue's Linear ID from `processedIssueIds`.
 - **Stop the daemon.** `launchctl unload ~/Library/LaunchAgents/gallery.peanut.linear-daemon.plist` — agent stops immediately. `./scripts/uninstall-linear-daemon.sh` for full teardown.
