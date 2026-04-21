@@ -1,11 +1,10 @@
 /**
  * scripts/linear-daemon.ts
  *
- * Local macOS daemon that replaces the GitHub-Actions-hosted kickoff pipeline.
- * The GH Actions path ([claude-kickoff.yml] + [claude-reply.yml]) hits the
- * 30k-TPM cap on Seth's current Anthropic API tier, so we move the heavy
- * work (running `claude -p`) onto Seth's Mac where `claude login` uses his
- * Claude Max subscription — no API key, no rate cap.
+ * Local macOS daemon — the sole Linear-kickoff path as of 2026-04-20.
+ * Runs on Seth's Mac where `claude login` (or CLAUDE_CODE_OAUTH_TOKEN in
+ * the env file) uses his Claude Max subscription — no API key, no
+ * 30k-input-TPM rate cap.
  *
  * Responsibilities:
  *   1. Poll Linear GraphQL every 30s for issues transitioned into an
@@ -17,8 +16,10 @@
  *      symlink `node_modules`, spawn `claude -p ...` (via child_process so
  *      we get clean exit detection), also create a tmux session that tails
  *      the log file so Seth can `tmux attach` for live viewing.
- *   5. On clean exit with new commits, push the branch and open a PR
- *      (kickoff) or post a reply comment (reply). Linear's native GitHub
+ *   5. On clean exit with new commits: rebase onto latest origin/develop,
+ *      push with --force-with-lease, open a PR (kickoff) or post a reply
+ *      comment (reply), and enable GitHub auto-merge unless the Linear
+ *      issue carries the `needs-review` label. Linear's native GitHub
  *      integration moves the ticket to In Review on PR open / Done on
  *      merge — the daemon does NOT touch Linear's REST API for status.
  *
@@ -28,10 +29,11 @@
  *
  * No new npm deps — Node built-ins + global fetch + `gh` CLI only.
  *
- * Coexistence: this daemon lives alongside the legacy webhook path. The
- * webhook at app/api/linear-webhook/route.ts and claude-kickoff.yml /
- * claude-reply.yml stay in place until Seth verifies the daemon in
- * production. No deletion in this PR.
+ * Historical context: an earlier kickoff pipeline used a Linear webhook
+ * hitting a Next.js API route that dispatched to GitHub Actions workflows
+ * (claude-kickoff.yml / claude-reply.yml). That path was retired 2026-04-20
+ * and the webhook + route + workflows were removed from the repo. This
+ * daemon is the replacement and the only active kickoff mechanism.
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
@@ -667,8 +669,9 @@ async function spawnClaude(opts: {
 // ─── Prompt construction ─────────────────────────────────────────────────
 
 /**
- * Mirrors the authority-scope + guardrail boilerplate that claude-kickoff.yml
- * injects, so the daemon-spawned Claude gets the same rubric.
+ * Builds the kickoff-Claude system + task prompt: authority-scope boilerplate,
+ * protected-file guardrails, commit-message contract, and the Linear issue
+ * body (treated as untrusted data for instruction-following purposes).
  */
 function buildKickoffPrompt(issue: LinearIssue): string {
   const description = (issue.description ?? "").slice(0, MAX_DESCRIPTION_CHARS);
