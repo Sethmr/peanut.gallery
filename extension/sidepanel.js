@@ -193,8 +193,11 @@ function buildPeanutSVG({
   // The peanut body sits in a 64×64 viewBox with natural padding around it,
   // which reads as a floating blob at 42px. Wrapping everything in a scale
   // transform around the viewBox center fills more of the mug without
-  // touching every path coordinate. 1.22 lands the body at ~85% of the
-  // circle diameter — dominant but with breathing room for the ring.
+  // touching every path coordinate. 1.10 lands the body at ~76% of the
+  // circle diameter — prominent but with enough clearance that the round
+  // bottom curve stays inside the circle clip at the bottom of the bob
+  // cycle. (1.22 before — put the peanut's round bottom ~2vb below the
+  // viewBox and Seth saw it as "flat / cut off" when the bubble bobbed.)
   //
   // bodyStops/bodyStroke let one-off personas (Troll = boiled) swap the
   // shell color without forking the whole body path.
@@ -239,7 +242,11 @@ function buildPeanutSVG({
         <feGaussianBlur in="SourceAlpha" stdDeviation="2.8" result="bump"/>
         <feSpecularLighting in="bump" surfaceScale="7" specularConstant="0.9" specularExponent="24" result="specRaw" lighting-color="#FFFAF0">
           <feDistantLight azimuth="135" elevation="48">
-            <animate attributeName="azimuth" from="120" to="150" dur="4s" repeatCount="indefinite" begin="indefinite"/>
+            <!-- values="120;150;120" = oscillates back and forth; from/to only
+                 plays once per beginElement() and leaves the highlight stuck
+                 at 150° after the first pass. updatePersonaSpeaking calls
+                 beginElement() on .speaking and endElement() when silent. -->
+            <animate attributeName="azimuth" values="120;150;120" dur="3.5s" repeatCount="indefinite" begin="indefinite"/>
           </feDistantLight>
         </feSpecularLighting>
         <feComposite in="specRaw" in2="SourceAlpha" operator="in" result="spec"/>
@@ -265,8 +272,12 @@ function buildPeanutSVG({
     <defs>
       <radialGradient id="mbody-${ns}" cx="38%" cy="30%" r="72%">${stops}</radialGradient>${depthFilter}${extraDefs}
     </defs>
-    <g transform="translate(32 32) scale(1.22) translate(-32 -32)">
-      <ellipse cx="32" cy="60" rx="13" ry="1.8" fill="#000" fill-opacity=".22"/>
+    <g transform="translate(32 32) scale(1.10) translate(-32 -32)">
+      <!-- Ground-shadow removed as of the v1.7 depth pass: a static horizontal
+           shadow anchored to the peanut looked glued-to-it (moves in lockstep
+           with the CSS bob), and with the full round bottom now visible the
+           mascot reads as a floating bobblehead without help. Re-add as a
+           separate un-transformed <ellipse> only if the "floating" reads wrong. -->
       <path d="M32 4C22 4 18 10 18 19c0 5 3 8 6 10-4 2-10 6-10 16 0 9 8 15 18 15s18-6 18-15c0-10-6-14-10-16 3-2 6-5 6-10 0-9-4-15-14-15Z" fill="url(#mbody-${ns})" stroke="${bodyStroke}" stroke-width="1.4" stroke-linejoin="round" filter="url(#peanutDepth-${ns})"/>
       <path d="M21 14c3 1 6 1 8 0M35 14c3 1 5 1 8 0" fill="none" stroke="${bodyStroke}" stroke-width=".8" stroke-linecap="round" opacity=".5"/>
       <ellipse cx="25" cy="11" rx="5.5" ry="3" fill="#FFF5DF" opacity=".55"/>
