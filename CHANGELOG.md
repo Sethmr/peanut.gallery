@@ -6,6 +6,84 @@ All notable changes to Peanut Gallery are recorded here. Format loosely follows 
 
 Tracks in-flight work for the next release.
 
+## [1.6.0] — 2026-04-21 — "The Canary"
+
+Opens the **Smart Director v3** canary. The v3 routing brain (Haiku `tool_use` with 5-slot persona + SILENT option, verbalized confidence, sticky-agent penalty, unstable-tail heuristic, live-callback ring buffer) ships behind `ENABLE_SMART_DIRECTOR_V2=true`, and the fast-model shadow (Cerebras Llama 3.1 8B; Groq also wired) ships behind `ENABLE_SMART_DIRECTOR_V3_CEREBRAS=true` / `ENABLE_SMART_DIRECTOR_V3_GROQ=true`. Nothing user-facing changes when flags are off — existing rule-based Director keeps routing. With flags on in production, the analyzer (`npm run analyze:director-v3`) reads the telemetry after ~48 h of real traffic to answer: does Cerebras agree with Haiku, and is it faster? See [`docs/CEREBRAS-INTEGRATION.md`](docs/CEREBRAS-INTEGRATION.md) for the operator setup.
+
+Also ships the **Baba Booey fact-check gate** (per-pack sensitivity modes: `strict` for TWiST's Molly, `loose` for Howard's Baba), **fallback telemetry + self-correcting penalty loop** (every `persona_fallback_fired` event logged at warn; a decaying counter downweights personas that've been missing lately), **peanut avatar stage 1** (Phong lighting + 6-stop gradient + AO inner shadow; unclipped bottoms; non-freezing SMIL bob), **empty-state companions** in the side panel, **session-recall groundwork** via `chrome.storage.local`, and a **director debug panel** with source-filter chips + feed tooltips.
+
+### Added — Director v3 (flag-gated canary)
+
+- **v3 routing brain + Cerebras shadow** ([#68](https://github.com/Sethmr/peanut.gallery/pull/68)). `lib/director-llm-v2.ts` implements `tool_use` strict-enum routing, verbalized confidence vectors per persona, sticky-agent penalty applied externally to the argmax, and a SILENT 5th slot that short-circuits firing when nobody has something to say. Opus follow-up to #65 to bring Sonnet-written code to Opus-level quality.
+- **Haiku routing prompt-cache padding** ([#67](https://github.com/Sethmr/peanut.gallery/pull/67), [#74](https://github.com/Sethmr/peanut.gallery/pull/74)). `CACHED_ROUTING_STABLE_PREFIX_V2` padded past Haiku's 2048-token minimum so the cache actually hits. Shared JSON schema dedup'd between primary + shadow paths.
+- **Groq Llama 3.1 8B shadow router** ([#65](https://github.com/Sethmr/peanut.gallery/pull/65)) + **Cerebras/Groq v3-prompt port** ([#72](https://github.com/Sethmr/peanut.gallery/pull/72), SET-13). Two shadow providers, both callable via `X-Cerebras-Key` / `X-Groq-Key` headers or `ENABLE_SMART_DIRECTOR_V3_{CEREBRAS,GROQ}` env vars. Shadow is read-only: its pick is logged for comparison but never ships to the user.
+- **Unstable-tail heuristic** ([#80](https://github.com/Sethmr/peanut.gallery/pull/80), SET-7). `computeUnstableTailLen(current, previous)` marks the suffix of the prior transcript that didn't stabilize — v3 prompt is told not to anchor on it. Prevents partial-transcript bias on mid-word cuts.
+- **Live-callback ring buffer** ([#73](https://github.com/Sethmr/peanut.gallery/pull/73), SET-12). Auto-populates from persona responses — a Del Close Harold payoff beat now has a reference; v3 can call back to an earlier persona's line instead of rediscovering the thread.
+- **Across-turn semantic anti-repeat (Option B)** ([#70](https://github.com/Sethmr/peanut.gallery/pull/70), SET-15). OpenAI embeddings + K=10 ring + τ=0.82 similarity floor + across-turn injection. Suppresses "two different personas say the same thing 30 s apart" within a session.
+- **Fact-check gate in Director + per-pack sensitivity modes** ([#82](https://github.com/Sethmr/peanut.gallery/pull/82)). Moves the claim detector into the Director layer so Baba Booey / Molly only fire when there's a claim worth checking. `factCheckMode: "strict" | "loose"` per persona; strict = pattern-only, loose = pattern + proper-noun + number bonuses. Baba is `loose` (more sensitive, more troll-like); Molly is `strict` (no false-positive speculation triggers). Soft-gate penalty, not a veto — other Director factors still balance character rotation.
+- **Fallback telemetry + self-correcting penalty loop** ([#88](https://github.com/Sethmr/peanut.gallery/pull/88)). Unified `persona_fallback_fired` event at warn level (reason: `force_react_upstream_error` / `force_react_model_pass` / `director_producer_pass`). Per-persona rotating variants (never-repeat-last-used). A decaying `recentFallbackCounts` is threaded into the Director so a persona who's been falling back lately drops out of uncontested-tick rotation until they re-earn their slot.
+- **v3 canary analysis tooling + env docs** ([#71](https://github.com/Sethmr/peanut.gallery/pull/71), SET-14). `npm run analyze:director-v3` reads `logs/pipeline-debug.jsonl` and reports metric bands, cache hit rate, semantic anti-repeat health, live-callback buffer, unstable-tail, and fallback health.
+- **v3 logging gap fill** ([#75](https://github.com/Sethmr/peanut.gallery/pull/75)). Every v3 decision now emits `llm_director_v3_pick` + `director_v3_shadow_compare` so the analyzer has real signal.
+
+### Added — UI / avatar
+
+- **Peanut avatar stage 1: depth + bottoms** ([#85](https://github.com/Sethmr/peanut.gallery/pull/85), [#86](https://github.com/Sethmr/peanut.gallery/pull/86), SET-21/22). Phong-model lighting via `<feSpecularLighting>` + `<feDiffuseLighting>`; 6-stop body gradient; AO inner shadow. Scale reduced 1.22 → 1.10 to unclip bottoms (peanuts are round, not flat). Ground shadow removed (was scaled with the bobbing `<g>`). SMIL bob changed from `from/to` (freezes after one play) to `values` with `repeatCount="indefinite"` so the specular highlight keeps oscillating between reactions.
+- **Empty-state companions + v3 debug panel surfacing** ([#76](https://github.com/Sethmr/peanut.gallery/pull/76)). Side panel now shows variant empty-state text while waiting for the first reaction instead of a blank gallery. Debug panel surfaces v3 source info.
+- **Director debug panel polish** ([#77](https://github.com/Sethmr/peanut.gallery/pull/77)). Stats header, source-filter chips (rule / llm / silent-llm), feed tooltips.
+
+### Added — Other
+
+- **Session-recall groundwork** ([#78](https://github.com/Sethmr/peanut.gallery/pull/78)). `chrome.storage.local` hooks for persisting session state across side-panel close/reopen. Groundwork only — full session-recall flow is v2.0.
+- **60-second silence auto-stop** ([#92](https://github.com/Sethmr/peanut.gallery/pull/92)). Flush tick now computes RMS; if it stays below 1e-4 (~−80 dBFS) for 60 s, the session stops via the same path as a manual stop click. Side panel shows a toast ("Paused — no audio detected for 60 seconds. Press play to resume.") so the user knows why. Prevents a paused or idle tab from burning backend tokens on the router.
+
+### Changed
+
+- **Daemon model default flipped back to Opus** ([#66](https://github.com/Sethmr/peanut.gallery/pull/66)). `needs-sonnet` label is the new opt-in downgrade; bare-ticket daemon runs use Opus now. Reason: Sonnet quality on director v3 wasn't landing; Opus follow-up reworks ([#68](https://github.com/Sethmr/peanut.gallery/pull/68)) fixed that.
+
+### Fixed
+
+- **Baba Booey repeating himself** ([#87](https://github.com/Sethmr/peanut.gallery/pull/87), SET-20). The force-react fallback was a single deterministic string. Per-persona 5-variant rotation with never-repeat-last-used now. Same treatment for troll, soundfx, joker.
+- **Recent-fallback counter cap** ([#89](https://github.com/Sethmr/peanut.gallery/pull/89)). Counter incremented unboundedly — a persona who fell back 10+ times early in the session could never recover. Capped at 3 (same as the soft-gate threshold); decay on any successful fire.
+- **Daemon shutdown-save race + installer paths + interactive env** ([#63](https://github.com/Sethmr/peanut.gallery/pull/63)). SIGTERM handler could overwrite freshly-written state. Robustness fixes on the installer paths and the interactive env-file prompt.
+- **Kickoff + reply workflows reverted to Sonnet** ([#51](https://github.com/Sethmr/peanut.gallery/pull/51)). Opus default (set in [#48](https://github.com/Sethmr/peanut.gallery/pull/48)) hit the 30k input TPM cap on Seth's API tier. Sonnet is the kickoff default until tier is upgraded; `needs-opus` label is nominal opt-in that currently 429s.
+
+### Docs
+
+- **Cerebras shadow integration guide** ([#90](https://github.com/Sethmr/peanut.gallery/pull/90)). Six-section operational setup: signup at cloud.cerebras.ai, local `.env.local` + `curl` sanity check, Railway CLI vars, verification via `grep` on `pipeline-debug.jsonl`, analyzer read after 48 h, rollback (`railway variables delete`). Cost table: ~$2 canary / ~$20/mo steady / ~$200/mo at 10k sessions.
+- **Design principles + 100-transcript persona refinement plan** ([#83](https://github.com/Sethmr/peanut.gallery/pull/83)). `docs/DESIGN-PRINCIPLES.md` is the new canonical home for durable Seth-directives (soft-gate rule, never-empty-animation rule, fact-checker political restraint scope). Refinement plan blocks on canary telemetry.
+- **Peanut avatar 3D-feel research** ([#84](https://github.com/Sethmr/peanut.gallery/pull/84)). Pre-implementation research for the avatar stage 1/stage 2 split.
+- **STATE-OF-DIRECTOR + session notes refreshes** ([#69](https://github.com/Sethmr/peanut.gallery/pull/69), [#79](https://github.com/Sethmr/peanut.gallery/pull/79), [#81](https://github.com/Sethmr/peanut.gallery/pull/81)). Ongoing catalog of what's shipped, what's canary-gated, and what's ticketed.
+- **RELEASE + rubric + manual-steps + INDEX sync** ([#60](https://github.com/Sethmr/peanut.gallery/pull/60)). Post-v1.5.6 doc alignment.
+
+### Chore
+
+- **Gitignore `.claude/worktrees/` + untrack stale gitlink** ([#64](https://github.com/Sethmr/peanut.gallery/pull/64)). Daemon-spawned worktrees should never get committed.
+- **Retire webhook + GH-Actions kickoff path** ([#62](https://github.com/Sethmr/peanut.gallery/pull/62)). Local Linear daemon (shipped in v1.5.6) replaces the GH-Actions kickoff path; webhook endpoint + workflow removed.
+
+### Operational setup to light the canary
+
+Everything below is **optional** — shipping v1.6.0 without these flags is safe (v3 code is dormant). To turn on the canary per [`docs/CEREBRAS-INTEGRATION.md`](docs/CEREBRAS-INTEGRATION.md):
+
+```bash
+railway variables set ENABLE_SMART_DIRECTOR_V2=true
+railway variables set ENABLE_SMART_DIRECTOR_V3_CEREBRAS=true
+railway variables set CEREBRAS_API_KEY=csk-...
+railway up
+```
+
+Kill switch — one env var removal reverts to the rule-based Director:
+
+```bash
+railway variables delete ENABLE_SMART_DIRECTOR_V3_CEREBRAS
+railway up
+```
+
+Analyzer read after ~48 h of hosted sessions:
+
+```bash
+npm run analyze:director-v3
+```
+
 ## [1.5.6] — 2026-04-20 — "<TBD>"
 
 Dev-infrastructure release. No user-facing changes in the extension
