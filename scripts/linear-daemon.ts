@@ -846,6 +846,22 @@ async function processIssue(issue: LinearIssue): Promise<void> {
     return;
   }
 
+  // Re-check hasNewCommits AFTER rebase. Git's default rebase behavior drops
+  // commits whose patch-id matches something already in upstream (--empty=drop
+  // since git 2.26). If Claude's edit happened to exactly match a change that
+  // just landed on develop, the feature branch is now empty — there's nothing
+  // to ship. Clean up silently; don't push an empty branch or open a no-op PR.
+  if (!(await hasNewCommits(worktree))) {
+    await logEvent("info", "duplicate_commits_dropped", {
+      identifier: issue.identifier,
+      branch,
+      note: "rebase dropped all commits as already-applied in develop; cleaning up, no PR",
+    });
+    await gitRemoveWorktree(worktree);
+    await gitDeleteBranch(branch);
+    return;
+  }
+
   try {
     await pushBranchForcePushWithLease(worktree, branch);
   } catch (err) {
