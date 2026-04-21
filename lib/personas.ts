@@ -104,7 +104,15 @@ export function buildPersonaContext(
    * with "-" in this case — the user explicitly asked for a reaction, so we
    * force a meaningful in-character response even if the transcript is quiet.
    */
-  isForceReact?: boolean
+  isForceReact?: boolean,
+  /**
+   * When set, a previous response from this persona was flagged as too similar
+   * to a recent fire (semantic anti-repeat, SET-15). The text is injected as a
+   * "don't repeat this" instruction so the model finds a different angle. Set
+   * only when ENABLE_SEMANTIC_ANTI_REPEAT=true and the prior embed check hit.
+   * Cleared from the repeat slot on the next fire once the new draft passes.
+   */
+  lastRepeatText?: string
 ): string {
   let context = "";
 
@@ -189,6 +197,17 @@ export function buildPersonaContext(
   if (searchResults && persona.id === "producer") {
     context += `--- SEARCH RESULTS (use for fact-checking) ---\n${searchResults}\n\n`;
     context += `If you already fact-checked this claim in your recent lines, either add a NEW angle or pass with "-".\n\n`;
+  }
+
+  // ── ACROSS-TURN ANTI-REPEAT INJECTION (SET-15) ──
+  // When the previous response was flagged as too similar to a recent fire,
+  // we inject a hard "don't repeat this" instruction here. The model sees the
+  // exact text it already said and is told to find a different angle. The slot
+  // is cleared in persona-engine.ts once this draft passes the similarity check.
+  if (lastRepeatText) {
+    context += `--- AVOID REPEATING THIS (you said it just now) ---\n`;
+    context += `Do NOT repeat or paraphrase: "${lastRepeatText.slice(0, 300)}"\n`;
+    context += `You said something very close to this in a recent turn. Find a completely different angle, a new specific detail, a different emotional register, or a new subject within the transcript to react to. If you have nothing new, output a single "-" to pass.\n\n`;
   }
 
   // Silence behavior: the transcript has gone quiet — dead air, an ad break,

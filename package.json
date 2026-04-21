@@ -14,8 +14,9 @@
     "test:personas": "tsx scripts/test-personas.ts",
     "test:director": "tsx scripts/test-director.ts",
     "test:director-v2": "tsx scripts/test-director-llm-v2.ts",
+    "test:semantic-cache": "tsx scripts/test-semantic-cache.ts",
     "daemon:dev": "tsx scripts/linear-daemon.ts",
-    "check": "npm run typecheck && npm run check:extension && npm run test:director && npm run test:director-v2",
+    "check": "npm run typecheck && npm run check:extension && npm run test:director && npm run test:director-v2 && npm run test:semantic-cache",
     "prepare": "husky"
   },
   "dependencies": {

@@ -60,7 +60,7 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Groq-Key, X-Cerebras-Key, X-Search-Engine, X-Install-Id",
+    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Groq-Key, X-Cerebras-Key, X-OpenAI-Key, X-Search-Engine, X-Install-Id",
   "Access-Control-Expose-Headers": "X-Session-Id",
   "Access-Control-Max-Age": "86400",
 };
@@ -158,11 +158,17 @@ export async function POST(req: NextRequest) {
   const headerXai = req.headers.get("X-XAI-Key");
   const headerGroq = req.headers.get("X-Groq-Key");
   const headerCerebras = req.headers.get("X-Cerebras-Key");
+  // OpenAI key for semantic anti-repetition embeddings (SET-15). Only used
+  // when ENABLE_SEMANTIC_ANTI_REPEAT=true. Self-hosters who don't need
+  // anti-repeat can omit this entirely; the feature self-disables when the
+  // key is absent (fail-open, not fail-hard).
+  const headerOpenAi = req.headers.get("X-OpenAI-Key");
 
   const deepgramKey = headerDeepgram || process.env.DEEPGRAM_API_KEY;
   const anthropicKey = headerAnthropic || process.env.ANTHROPIC_API_KEY;
   const braveKey = headerBrave || process.env.BRAVE_SEARCH_API_KEY;
   const xaiKey = headerXai || process.env.XAI_API_KEY;
+  const openAiKey = headerOpenAi || process.env.OPENAI_API_KEY;
   // Shadow-provider keys for Smart Director v3 (SET-6). Never used for
   // user-facing persona calls — only for the parallel shadow LLM call that
   // logs agreement rate vs Haiku. Groq is deferred until Developer tier
@@ -306,6 +312,10 @@ export async function POST(req: NextRequest) {
     // valid Pack). Engine internally falls back to Howard if pack is unset,
     // so this is also the "self-documenting" seam.
     pack: resolvedPack,
+    // OpenAI key for semantic anti-repetition embeddings (SET-15). Only used
+    // when ENABLE_SEMANTIC_ANTI_REPEAT=true; the engine self-disables the
+    // feature if the key is absent.
+    openAiKey: openAiKey || "",
   });
 
   const director = new Director();

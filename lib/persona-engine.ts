@@ -28,6 +28,7 @@ import {
 } from "./personas";
 import { howardPack } from "./packs/howard";
 import type { Pack } from "./packs/types";
+import { SemanticCache } from "./semantic-cache";
 
 export interface PersonaResponse {
   personaId: string;
@@ -124,6 +125,22 @@ export class PersonaEngine {
    * means swapping packs is a constructor-arg change — no engine rewrite.
    */
   private pack: Pack;
+
+  // ── SEMANTIC ANTI-REPEAT (SET-15) ──
+  // One SemanticCache per persona, initialised when ENABLE_SEMANTIC_ANTI_REPEAT
+  // is on and an OpenAI key is available. Each cache holds a K=10 ring buffer
+  // of recent response embeddings. After each successful fire we embed the
+  // response and check it against the ring; on a hit we flag the draft and
+  // store it in `repeatSlots` so the NEXT fire for that persona gets an
+  // explicit "don't repeat this" injection in its prompt.
+  private readonly semanticEnabled: boolean;
+  private readonly semanticCaches: Map<string, SemanticCache> = new Map();
+  /**
+   * Per-persona "last flagged draft". When set, the text is injected into the
+   * next prompt for that persona and cleared once the new draft clears the
+   * similarity threshold (or on a successful addAndCheck with maxSim <= τ).
+   */
+  private readonly repeatSlots: Map<string, string> = new Map();
   private get personas(): Persona[] {
     return this.pack.personas;
   }
@@ -171,6 +188,12 @@ export class PersonaEngine {
      * for users who only want one key). Defaults to "brave".
      */
     searchEngine?: SearchEngine;
+    /**
+     * Optional. OpenAI API key for semantic anti-repetition embeddings (SET-15).
+     * Required when ENABLE_SEMANTIC_ANTI_REPEAT=true; ignored otherwise.
+     * Uses text-embedding-3-small via raw fetch (no SDK dep).
+     */
+    openAiKey?: string;
   }) {
     this.anthropic = new Anthropic({ apiKey: config.anthropicKey });
     this.braveApiKey = config.braveSearchKey;
@@ -181,6 +204,22 @@ export class PersonaEngine {
     // Initialize response history for every persona in the active pack
     for (const p of this.pack.personas) {
       this.previousResponses.set(p.id, []);
+    }
+
+    // ── Semantic anti-repeat setup ──
+    // Only activate when the feature flag is on AND an OpenAI key is present.
+    // Without a key the embed call would fail on every fire — fail-open would
+    // still work, but we'd burn 3s of timeout per response. Safer to gate
+    // entirely on key presence.
+    const semanticFlag = process.env.ENABLE_SEMANTIC_ANTI_REPEAT === "true";
+    const openAiKey = config.openAiKey ?? "";
+    this.semanticEnabled = semanticFlag && openAiKey.length > 0;
+    if (this.semanticEnabled) {
+      for (const p of this.pack.personas) {
+        // K=10 ring (covers a full 2-hour session's worth of recent fires for
+        // personas that fire frequently). τ=0.82 per the ticket spec.
+        this.semanticCaches.set(p.id, new SemanticCache(openAiKey, 10, 0.82));
+      }
     }
   }
 
@@ -468,6 +507,15 @@ export class PersonaEngine {
     });
 
     const previous = this.previousResponses.get(persona.id) || [];
+
+    // Inject the repeat-slot text (if any) so the model is told explicitly
+    // not to paraphrase its most-recently-flagged response. Skipped when
+    // isForceReact is true — force-react already overrides all pass/format
+    // rules and the additional constraint can conflict with the "you MUST
+    // produce something" directive, causing model confusion.
+    const lastRepeatText =
+      !isForceReact ? (this.repeatSlots.get(persona.id) ?? undefined) : undefined;
+
     const context = buildPersonaContext(
       persona,
       transcript,
@@ -476,7 +524,8 @@ export class PersonaEngine {
       otherPersonas,
       isSilence,
       conversationLog,
-      isForceReact
+      isForceReact,
+      lastRepeatText
     );
 
     let fullResponse = "";
@@ -681,6 +730,54 @@ export class PersonaEngine {
       timestamp: Date.now(),
     });
     this.trimLog();
+
+    // ── SEMANTIC ANTI-REPEAT CHECK (SET-15, Option B) ──
+    // Runs AFTER `done` has been sent — no streaming UX impact.
+    // Skipped on isForceReact (speed path) and when the feature is off.
+    if (this.semanticEnabled && !isForceReact && trimmed.length > 0) {
+      const cache = this.semanticCaches.get(persona.id);
+      if (cache) {
+        // Fire-and-forget at the call site, but we await it internally so
+        // the repeat-slot is written synchronously with respect to the next
+        // tick. The outer `firePersona` is still `async` so the route's
+        // `fireSingle` / `fireAll` wrapper waits for us here anyway.
+        const { flagged, maxSim, error } = await cache.addAndCheck(trimmed, persona.id);
+
+        if (error) {
+          // Already logged inside addAndCheck (semantic_embed_error). Nothing
+          // more to do — slot is left unchanged (neither set nor cleared) so
+          // the previous instruction (if any) is still injected next turn.
+        } else if (flagged) {
+          logPipeline({
+            event: "persona_reroll_flagged",
+            level: "info",
+            personaId: persona.id,
+            data: {
+              maxSim: Math.round(maxSim * 1000) / 1000,
+              textLen: trimmed.length,
+              preview: trimmed.slice(0, 80),
+            },
+          });
+          // Store the flagged draft for injection on the next fire.
+          this.repeatSlots.set(persona.id, trimmed);
+        } else {
+          // Draft cleared the threshold — remove any existing slot.
+          this.repeatSlots.delete(persona.id);
+          if (maxSim > 0) {
+            // Log near-misses (above 0.70) at debug level for τ calibration.
+            // These are not flagged but are useful data for SET-17.
+            if (maxSim > 0.70) {
+              logPipeline({
+                event: "persona_similarity_near_miss",
+                level: "debug",
+                personaId: persona.id,
+                data: { maxSim: Math.round(maxSim * 1000) / 1000 },
+              });
+            }
+          }
+        }
+      }
+    }
   }
 
   /**
