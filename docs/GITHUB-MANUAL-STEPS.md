@@ -340,12 +340,16 @@ The command walks you through a browser flow and prints the token. Copy it — y
 
 ##### 18b.3. Create the env file
 
+**Recommended:** just run `./scripts/install-linear-daemon.sh` — if `~/.config/peanut-gallery/daemon.env` doesn't exist, the installer prompts for both secrets interactively (input is hidden, written atomically to a mode-600 file).
+
+Manual setup if you prefer:
+
 ```bash
 mkdir -p ~/.config/peanut-gallery
 chmod 700 ~/.config/peanut-gallery
 cat > ~/.config/peanut-gallery/daemon.env <<'EOF'
 LINEAR_API_KEY=lin_api_xxxxxxxxxxxxxxxxxxxxxxxx
-CLAUDE_CODE_OAUTH_TOKEN=oauth-token-from-claude-setup-token
+CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...oauth-token-from-claude-setup-token...
 EOF
 chmod 600 ~/.config/peanut-gallery/daemon.env
 ```
@@ -364,18 +368,20 @@ In the team's label settings, make sure these labels exist (most overlap with th
 
 ```bash
 cd /path/to/chrome-extension
-PATH="$PWD/node_modules/.bin:$PATH" ./scripts/install-linear-daemon.sh
+./scripts/install-linear-daemon.sh
 ```
 
-**The `PATH="$PWD/node_modules/.bin:$PATH"` prefix is REQUIRED.** The installer uses `command -v tsx` to resolve `tsx`'s absolute path and bake it into the launchd plist's `ProgramArguments`. Without the prefix, `tsx` is only reachable via an npm-scripts wrapper and `command -v` resolves to nothing, so the installer bails with `tsx not found on PATH`.
+The installer auto-resolves `tsx` (prefers PATH, falls back to `./node_modules/.bin/tsx`) and `claude` (prefers PATH, falls back to `~/.local/bin/claude`). The `PATH="$PWD/node_modules/.bin:$PATH"` prefix that earlier versions required is no longer needed — the resolve-or-fallback logic in the installer handles it.
 
 What the installer does:
 
-- Verifies `tsx` (via `command -v tsx`), `tmux`, and authenticated `gh`.
-- Substitutes `{{TSX_PATH}}` and `{{PROJECT_ROOT}}` into the plist template at [`scripts/gallery.peanut.linear-daemon.plist`](../scripts/gallery.peanut.linear-daemon.plist), and ensures `~/.local/bin` is in the baked-in `PATH` so the daemon can find `claude`.
-- Writes `~/Library/LaunchAgents/gallery.peanut.linear-daemon.plist`.
-- Unloads any prior agent and loads the new one (`launchctl load`).
-- Verifies with `launchctl list | grep gallery.peanut.linear-daemon`.
+- **Resolves absolute paths** for `tsx` and `claude`. If either is missing from PATH, falls back to the canonical install locations (local `node_modules/.bin/tsx`, `~/.local/bin/claude`) — so the installer "just works" out of a fresh `npm install` + `Claude Code` download.
+- **Verifies** `tmux` (warn-only; daemon runs without it, just no live-view) and authenticated `gh` (hard-fail).
+- **Prompts interactively** for `LINEAR_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` if the env file doesn't exist, writing them to `~/.config/peanut-gallery/daemon.env` (mode 600) with hidden input so secrets don't hit shell history.
+- **Substitutes `{{TSX_PATH}}`, `{{PROJECT_ROOT}}`, and `{{EXTRA_PATH}}`** into the plist template at [`scripts/gallery.peanut.linear-daemon.plist`](../scripts/gallery.peanut.linear-daemon.plist). `{{EXTRA_PATH}}` is `dirname $CLAUDE_PATH` (usually `~/.local/bin`) prepended to the plist's PATH so the daemon's `child_process.spawn('claude', ...)` can find the CLI.
+- **Writes** `~/Library/LaunchAgents/gallery.peanut.linear-daemon.plist`.
+- **Unloads** any prior agent and **loads** the new one (`launchctl load`).
+- **Verifies** with `launchctl list | grep gallery.peanut.linear-daemon` (with a 2-second grace for launchd to register).
 
 #### 18d. Smoke test
 
@@ -415,8 +421,8 @@ With `--model claude-opus-4-7` for issues carrying the `needs-opus` label, and `
   - (a) The Linear issue has the `needs-review` label (case-insensitive) — daemon intentionally skipped `gh pr merge --auto` so you can review manually. Check the daemon log for `"autoMerge": false, "reason": "\"needs-review\" label present"`. Remove the label + click Merge if you want it to land.
   - (b) `auto_merge_enable_failed` logged — `gh pr merge --auto` returned non-zero; most commonly because `--delete-branch` can't delete a branch that's checked out in the daemon's worktree. The REMOTE branch deletion + auto-merge bit still get set correctly by `gh` despite the local error, so this is usually noise. Check the PR on github.com; if auto-merge is enabled, ignore the warning. Orphan worktrees in `.claude/worktrees/` are harmless — clean with `git worktree remove --force .claude/worktrees/claude-<id>` on your next pass.
 - **Worktree cleanup.** The daemon removes worktrees + branches only when (a) Claude exited 0 with no commits, (b) rebase dropped all commits (`duplicate_commits_dropped`), or (c) a ticket is re-fired while a prior worktree exists. Non-zero exits + `rebase_failed` intentionally leave artifacts behind for debugging. Clean manually with `git worktree remove --force .claude/worktrees/claude-<id>` and `git branch -D claude/<id>-<slug>` if needed.
-- **Re-fire a Linear ticket.** **Critical gotcha:** the daemon's SIGTERM handler writes its in-memory `DaemonState` back to `logs/daemon-state.json` on shutdown. If you edit the file while the daemon is still running (e.g. to remove an issue ID from `processedIssueIds` for re-firing), the next `launchctl unload` — or even a normal poll loop iteration — will clobber your edit. Correct sequence:
-  1. `launchctl unload ~/Library/LaunchAgents/gallery.peanut.linear-daemon.plist` (daemon persists state and exits).
+- **Re-fire a Linear ticket.** The daemon saves state after every processed item (not on shutdown), so external edits to `logs/daemon-state.json` are no longer clobbered by the SIGTERM handler (this was a bug through 2026-04-20 afternoon; fixed later that day). You can still edit the file either while the daemon is running or after stopping it — both are safe — but stopping first is the cleanest sequence:
+  1. `launchctl unload ~/Library/LaunchAgents/gallery.peanut.linear-daemon.plist` (daemon exits; state on disk is already up-to-date).
   2. Edit `logs/daemon-state.json` — remove the issue's Linear ID from the `processedIssueIds` array.
   3. `launchctl load ~/Library/LaunchAgents/gallery.peanut.linear-daemon.plist` (daemon picks up the edited state).
   4. The next poll cycle (within 30s) will re-process the ticket.
