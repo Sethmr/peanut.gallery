@@ -9,7 +9,21 @@
 
 # Linear-Agent Rubric — kickoff-Claude playbook for Linear tickets moved to Todo
 
-**Last updated:** 2026-04-20 (post-v1.5.6 / post-daemon-hardening pass). Born when Seth wired the Linear webhook → GitHub Actions pipeline; now reflects the local-daemon-only state of the world.
+**Last updated:** 2026-04-21 (assignee-based routing added — the board is now Seth ↔ Claude's state-comms channel, filtered by assignee email).
+
+## Board convention — assignee is the routing mechanism
+
+Every Linear ticket in the SET team is assigned to exactly one of:
+
+- **`ai@manugames.com`** — this is Claude / daemon-spawned agent work. The ticket's body is the full self-contained spec; a fresh Claude instance can execute it cold. **The daemon only picks up Todo-state tickets with this assignee.**
+- **`seth@manugames.com`** — manual work on Seth's side. Examples from 2026-04-21's backlog: Stripe account setup (SET-28), email provider (SET-29), legal review (SET-30), DNS (SET-31). The daemon skips these entirely; they live on the board purely as a todo-list + state channel between Seth and Claude.
+
+Tickets without an assignee are skipped by the daemon. This is by design — assignment is the explicit "this is ready to pick up" signal. Unassigned = triage-in-progress.
+
+Kick a ticket off: assign to the right person, move to Todo.
+Block a ticket on another: write "Blocks SET-NN" or "Blocked by SET-MM" in the body, and leave the upstream one in Backlog until its prerequisite flips to Done.
+
+**Audience:** a fresh Claude instance spawned by [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts) on Seth's Mac inside a worktree under `.claude/worktrees/claude-*`. You have no session memory, no auto-memory, no prior conversation. This file is your playbook.
 
 **Audience:** a fresh Claude instance spawned by [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts) on Seth's Mac inside a worktree under `.claude/worktrees/claude-*`. You have no session memory, no auto-memory, no prior conversation. This file is your playbook.
 
@@ -21,7 +35,7 @@ As of 2026-04-20 the Linear webhook was deleted on Linear's side AND the corresp
 
 The active path:
 
-- [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts) is a long-running launchd agent on Seth's Mac. It polls Linear every 30s for issues in an `unstarted`-type state (the "Todo" column) that it hasn't processed yet.
+- [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts) is a long-running launchd agent on Seth's Mac. It polls Linear every 30s for issues that are: (a) in an `unstarted`-type state (the "Todo" column), AND (b) assigned to **ai@manugames.com**, AND (c) not in the daemon's processedIssueIds list. Seth-assigned or unassigned tickets are skipped — they're a to-do list for Seth, not work for the daemon.
 - When it finds one, it creates a worktree under `.claude/worktrees/claude-<identifier>-<slug>`, symlinks `node_modules`, and spawns the `claude` CLI against Seth's **Claude Max subscription** (no API key, no 30k-TPM cap).
 - After Claude exits cleanly with new commits, the daemon — not you — handles rebase onto `origin/develop`, force-with-lease push, `gh pr create`, and (by default) `gh pr merge --auto --squash --delete-branch`.
 

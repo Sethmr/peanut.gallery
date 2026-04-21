@@ -8,7 +8,10 @@
  *
  * Responsibilities:
  *   1. Poll Linear GraphQL every 30s for issues transitioned into an
- *      "unstarted" (Todo) state that we haven't processed yet.
+ *      "unstarted" (Todo) state AND assigned to ai@manugames.com. Tickets
+ *      assigned to seth@manugames.com (or unassigned) are skipped — they
+ *      represent manual work on Seth's side, not daemon work. The board
+ *      is our state-comms channel; the assignee is the routing mechanism.
  *   2. Poll GitHub every 30s for `@claude` comments on open `claude/*` PRs
  *      authored by Sethmr that we haven't processed yet.
  *   3. Process items serially (one at a time).
@@ -442,12 +445,24 @@ async function transitionIssueToInReview(issue: LinearIssue): Promise<void> {
  * Fetches issues in an unstarted state, updated since `since` (or in the
  * last 24h if no `since` is provided). Returns them newest-first.
  */
+// v1.9 — Linear board convention (2026-04-21): the daemon only processes
+// tickets assigned to ai@manugames.com. seth@manugames.com-assigned
+// tickets are manual work items that sit on the board as a communication
+// channel between Seth + Claude — they signal "this is Seth's to do,"
+// not "daemon pick this up." Assignment is the routing mechanism;
+// Todo-state transitions are the "start now" signal. Documented in
+// docs/LINEAR-AGENT-RUBRIC.md.
+const AI_ASSIGNEE_EMAIL = "ai@manugames.com";
 async function fetchUnstartedIssues(since?: string): Promise<LinearIssue[]> {
   const sinceIso = since ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const query = `
-    query UnstartedIssues($since: DateTimeOrDuration!) {
+    query UnstartedIssues($since: DateTimeOrDuration!, $aiEmail: String!) {
       issues(
-        filter: { state: { type: { eq: "unstarted" } }, updatedAt: { gt: $since } }
+        filter: {
+          state: { type: { eq: "unstarted" } }
+          updatedAt: { gt: $since }
+          assignee: { email: { eq: $aiEmail } }
+        }
         first: 50
         orderBy: updatedAt
       ) {
@@ -467,6 +482,7 @@ async function fetchUnstartedIssues(since?: string): Promise<LinearIssue[]> {
   `;
   const data = await linearGraphQL<{ issues: { nodes: LinearIssue[] } }>(query, {
     since: sinceIso,
+    aiEmail: AI_ASSIGNEE_EMAIL,
   });
   return data.issues.nodes;
 }
