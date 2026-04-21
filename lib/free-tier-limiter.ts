@@ -3,12 +3,21 @@
  *
  * WHY THIS EXISTS
  * ───────────────
- * Peanut Gallery's hosted backend (peanutgallery.live) covers early users'
- * API costs out of the project's pocket. To prevent one or two heavy users
- * from draining the shared keys, each Chrome-extension installation gets a
- * free allowance (default: 15 minutes of transcription per rolling 24h
- * window). After that, the side panel asks them to paste their own free-tier
- * keys or self-host.
+ * Peanut Gallery's hosted backend (peanutgallery.live) covers non-technical
+ * users' API costs out of the project's pocket — they get a one-time trial
+ * (default: 15 minutes of transcription, lifetime) before they must either
+ * paste their own keys or subscribe to Peanut Gallery Plus. The trial is
+ * deliberately small — just enough for a user to see whether the product
+ * fits them — because the subscription tier (docs/SUBSCRIPTION-ARCHITECTURE.md)
+ * is where non-techs are supposed to land long-term.
+ *
+ * TRIAL SEMANTICS (v1.7 rewrite)
+ * ──────────────────────────────
+ * **One-off, not rolling.** The 15 minutes are lifetime per install, not
+ * per-24h. Once consumed, the trial never resets — the user has to pick a
+ * path forward (BYOK or subscribe). Self-hosters who want the old rolling-
+ * window behavior can set `FREE_TIER_WINDOW_HOURS=24` to restore it, but
+ * the hosted default is one-off.
  *
  * DESIGN NOTES (important if you change this)
  * ───────────────────────────────────────────
@@ -16,29 +25,37 @@
  *    redeploy — this is a deliberate trade-off: zero new infra, zero new
  *    failure modes, zero risk of a dead dep breaking the whole backend. The
  *    hosted instance is a single Railway process, which is the only place
- *    this matters; horizontally scaling would require Redis.
+ *    this matters; horizontally scaling would require Redis. CAVEAT:
+ *    one-off mode plus in-memory storage means a redeploy gives every
+ *    user another 15 minutes until we back this with durable storage.
+ *    For Phase 1 (pre-Stripe) that's acceptable — signup pressure is low.
+ *    Tracked as follow-up in docs/SUBSCRIPTION-ARCHITECTURE.md § Open items.
  * 2. **Soft limit, not security.** The `installId` is a UUID the extension
  *    generates on first run. A determined user can reset it by clearing
  *    chrome.storage.local. That's fine — the goal here is to discourage
- *    casual abuse, not stop dedicated attackers. The real budget guard is
- *    the global daily cap below.
+ *    casual abuse, not stop dedicated attackers. Subscription keys are
+ *    the real monetization gate, not this.
  * 3. **Opt-in via env.** The limiter only engages when
  *    `ENABLE_FREE_TIER_LIMIT=true`. Self-hosters never set it, so their
  *    servers behave exactly as before. This file has no effect on any
  *    backend unless the operator explicitly turns it on.
- * 4. **Lazy pruning.** We prune expired entries whenever a key is read, so
+ * 4. **Subscription bypass.** A valid `X-Subscription-Key` header
+ *    short-circuits the limiter — the route checks the subscription
+ *    status first, and if the key is valid, this limiter is skipped.
+ *    See lib/subscription.ts for the validation path.
+ * 5. **Lazy pruning.** We prune expired entries whenever a key is read, so
  *    no setInterval/timer is needed. Avoids creating background work inside
  *    a Next.js API route (which is spawned fresh-ish per request).
- * 5. **Charged at session end.** We only RESERVE usage at session start
+ * 6. **Charged at session end.** We only RESERVE usage at session start
  *    (by checking `remainingMs()`). Actual elapsed time is recorded when
  *    the session closes. A session that starts with 14 min left is allowed
  *    to run to completion even if the video is 2 hours long. This avoids
  *    the terrible UX of "we cut your show off mid-sentence."
- * 6. **Structured logging.** Every state change that affects a user
- *    (window roll-over, quota denial, usage recorded) goes through
- *    `logPipeline` from `debug-logger`. Info-level; keyed by installId so
- *    ops can grep the JSONL log when a user reports "I got capped" and
- *    see exactly how much they'd used + when their window resets.
+ * 7. **Structured logging.** Every state change that affects a user
+ *    (quota denial, usage recorded) goes through `logPipeline` from
+ *    `debug-logger`. Info-level; keyed by installId so ops can grep the
+ *    JSONL log when a user reports "I got capped" and see exactly how
+ *    much they'd used.
  */
 
 import { logPipeline } from "./debug-logger";
@@ -52,13 +69,18 @@ const FREE_TIER_MINUTES = Math.max(
   Number.parseInt(process.env.FREE_TIER_MINUTES || "15", 10) || 15
 );
 
+// v1.7: default is one-off (0 = never rolls). Self-hosters who want the
+// pre-v1.7 rolling-24h behavior can set FREE_TIER_WINDOW_HOURS=24.
 const FREE_TIER_WINDOW_HOURS = Math.max(
-  1,
-  Number.parseInt(process.env.FREE_TIER_WINDOW_HOURS || "24", 10) || 24
+  0,
+  Number.parseInt(process.env.FREE_TIER_WINDOW_HOURS || "0", 10) || 0
 );
 
 const QUOTA_MS = FREE_TIER_MINUTES * 60 * 1000;
+// When 0 (the default), the window never rolls — trial is lifetime.
+// Non-zero values restore the pre-v1.7 rolling behavior.
 const WINDOW_MS = FREE_TIER_WINDOW_HOURS * 60 * 60 * 1000;
+const ONE_OFF = WINDOW_MS === 0;
 
 // ── STATE ────────────────────────────────────────────────────────────────
 
@@ -111,8 +133,10 @@ function touchEntry(installId: string): UsageEntry {
     return fresh;
   }
 
-  // Window expired → reset. This is the "rolling 24h" behavior.
-  if (t - existing.windowStart >= WINDOW_MS) {
+  // Window expired → reset. Only applies when rolling-window mode is
+  // enabled (FREE_TIER_WINDOW_HOURS > 0). In one-off mode (the default)
+  // the trial is lifetime — no reset, no rollover.
+  if (!ONE_OFF && t - existing.windowStart >= WINDOW_MS) {
     const priorUsageMs = existing.usageMs;
     existing.usageMs = 0;
     existing.windowStart = t;
@@ -135,6 +159,9 @@ function maybePrune(): void {
   // Only prune occasionally — amortized across calls.
   if (store.size < 100) return;
   if (Math.random() > 0.01) return; // ~1% of calls when >= 100 entries
+  // In one-off mode entries live forever — no prune target. Rolling
+  // mode prunes entries whose window elapsed.
+  if (ONE_OFF) return;
 
   const cutoff = now() - WINDOW_MS;
   for (const [id, entry] of store) {
@@ -263,16 +290,21 @@ export function quotaDeniedBody(status: QuotaStatus): {
   code: "TRIAL_EXHAUSTED";
   quotaMinutes: number;
   windowHours: number;
+  oneOff: boolean;
   retryAfterMs: number;
-  resetAt: number;
+  resetAt: number | null;
 } {
-  const retryAfterMs = Math.max(0, status.resetAt - now());
+  const retryAfterMs = ONE_OFF ? 0 : Math.max(0, status.resetAt - now());
+  const message = ONE_OFF
+    ? `You've used your free ${FREE_TIER_MINUTES}-minute trial. To keep going, paste your own free-tier API keys below — every provider has one — or subscribe to Peanut Gallery Plus for ad-hoc access without managing keys.`
+    : `You've used your free ${FREE_TIER_MINUTES} minutes of hosted transcription for this ${FREE_TIER_WINDOW_HOURS}h window. Paste your own free-tier API keys below to keep going — every provider has one.`;
   return {
-    error: `You've used your free ${FREE_TIER_MINUTES} minutes of hosted transcription for this ${FREE_TIER_WINDOW_HOURS}h window. Paste your own free-tier API keys below to keep going — every provider has one.`,
+    error: message,
     code: "TRIAL_EXHAUSTED",
     quotaMinutes: FREE_TIER_MINUTES,
     windowHours: FREE_TIER_WINDOW_HOURS,
+    oneOff: ONE_OFF,
     retryAfterMs,
-    resetAt: status.resetAt,
+    resetAt: ONE_OFF ? null : status.resetAt,
   };
 }

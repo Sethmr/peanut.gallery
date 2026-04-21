@@ -337,7 +337,7 @@ function sendToOffscreen(msg, callback) {
   });
 }
 
-async function handleStartCapture({ serverUrl, apiKeys, searchEngine, youtubeUrl, tabTitle, audio, installId, rate, packId, sensitivity }) {
+async function handleStartCapture({ serverUrl, apiKeys, searchEngine, youtubeUrl, tabTitle, audio, installId, rate, packId, sensitivity, backendMode, subscriptionKey }) {
   const streamId = await takePendingStream();
   console.log("[PG:bg] handleStartCapture: took streamId from session?", !!streamId);
 
@@ -386,6 +386,11 @@ async function handleStartCapture({ serverUrl, apiKeys, searchEngine, youtubeUrl
         // X-Sensitivity header on /api/transcribe. Server defaults to
         // "normal" on missing / unknown values.
         sensitivity: typeof sensitivity === "string" ? sensitivity : "normal",
+        // v1.9: backend mode + subscription key. Passthrough to offscreen,
+        // which chooses whether to include X-Subscription-Key on the
+        // POST. BYOK / demo modes send neither; plus mode sends the key.
+        backendMode: typeof backendMode === "string" ? backendMode : "demo",
+        subscriptionKey: typeof subscriptionKey === "string" ? subscriptionKey : "",
       },
       (r) => resolve(r || { error: "Offscreen did not respond" })
     );

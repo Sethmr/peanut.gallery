@@ -70,7 +70,7 @@ The releases below are the explicit sequence on the way to the v2.0 launch ("The
 | **v1.6.0 "The Canary"** | Smart Director v3 canary (flag-gated) + fact-check gate + fallback telemetry + avatar stage 1 + 60 s silence auto-stop | ✅ Release PR open; awaiting merge + Railway flag flip |
 | **v1.7.x "Smart Director GA"** | LLM router becomes primary once v1.6 canary clears bands; rule-based scorer retires to thin safety-net only. Per-pack `directorHint` calibration from canary telemetry. Kill-switch flag stays. | Blocked on v1.6 canary data |
 | v1.8.x "Persona refinement sprint" | Re-run system prompts against 100+ transcripts per pack; tune anything canary telemetry says is under-firing. See [`PERSONA-REFINEMENT-PLAN.md`](PERSONA-REFINEMENT-PLAN.md). | Blocked on v1.7 canary |
-| v1.9.x "Subscription tier" | In-app subscription as an alternative to BYOK, with a weekly-hours cap targeted above top-10% user usage. Self-hosters and source-builders keep BYOK untouched. Pre-2.0 revenue test before the launch push. | Planning (see [Subscription tier](#subscription-tier-pre-v20) below) |
+| **v1.9.x "Peanut Gallery Plus"** | **Required for v2.0.** Subscription = accessibility tier for non-technical users. $8/mo · 16 h/week cap. BYOK always remains free alongside. NOT a profit center; goal is to drive price down over time. One-off 15-minute demo replaces the old rolling-daily free tier. Phase 1 scaffold shipped; Phases 2–4 (persistent ID, Stripe, email) via SET tickets. | Phase 1 scaffold shipped (see [Peanut Gallery Plus](#v19x-peanut-gallery-plus--subscription-for-non-techs) below) |
 | v1.10.x "Avatar stage 2" | Bobbleheads / 2.5D parallax / Lottie / MP4 fallback — whichever reads best in a 2-day spike per Seth's Day-1 eval | Planned |
 | v2.0.0 "The Gallery" | Session recall + shareable snippet (local, PNG-to-clipboard), full audit, CWS listing + marketing-site refresh, launch day | Horizon |
 | v2.x.x | Continuous Director + persona improvements while we wait for user-driven v3 direction | Post-launch |
@@ -132,45 +132,44 @@ Canonical planning doc: [`PERSONA-REFINEMENT-PLAN.md`](PERSONA-REFINEMENT-PLAN.m
 
 ---
 
-### v1.9.x "Subscription tier" — pre-2.0 revenue test
+### v1.9.x "Peanut Gallery Plus" — subscription for non-techs
 
-**Frame.** Peanut Gallery is open-source and BYOK-first. Self-hosters and developers will always bring their own keys — that's the core privacy posture (design principle #5) and that posture stays unchanged. The subscription is an **alternative** for users who don't want to manage keys: they pay Peanut Gallery a monthly fee and we run the API calls on their behalf, up to a weekly-hours cap.
+**Updated 2026-04-21 per Seth: this tier is REQUIRED for v2.0, not optional.** The purpose of the subscription is accessibility for non-technical users. Without Plus, the product is effectively gated behind "paste your Deepgram key" for anyone who wants to use it beyond the 15-minute demo. Seth's direction: "This is too important to avoid."
 
-**Guiding principles (per Seth, 2026-04-21):**
+**Canonical architecture:** [`SUBSCRIPTION-ARCHITECTURE.md`](SUBSCRIPTION-ARCHITECTURE.md). Legal drafts at [`legal/TERMS-OF-SERVICE.md`](legal/TERMS-OF-SERVICE.md) + [`legal/PRIVACY-POLICY.md`](legal/PRIVACY-POLICY.md).
 
-1. **BYOK stays primary and free.** The open-source path never regresses. Anyone cloning the repo, running `npm run dev`, or loading the extension against a self-hosted backend keeps the same experience they have today.
-2. **Subscription is an alternative, not a replacement.** In the extension UI, users toggle between "use my keys" and "use subscription" inside the Backend & keys drawer. Both work; the user picks per-session.
-3. **Weekly-hours cap, not token-counting.** The cap is expressed in hours of live listening per week. Target: slightly above what our top-10% of users consume (so a power user can still binge TWiST + Stern + whatever else without running out mid-episode).
-4. **Lean high initially.** There are real dev fees (Seth's time, infrastructure, support) that need covering before any tightening. Start with a generous cap and pull it in over time *if* the economics warrant it. If the cap has to be tightened to the point where it's hostile to normal usage, **that's a signal to rework the stack**, not to keep cutting.
-5. **No account system creep.** The subscription needs an identity (obviously) but the extension's local-first posture holds: session transcripts and reactions stay in `chrome.storage.local`; the backend only sees the audio stream + the subscription identity, and forgets both on session close. No server-side transcript storage, no analytics pipeline on user content.
-6. **Open-source compatibility.** The subscription code is open-source too — a self-hoster running the Next.js backend can set up their own Stripe (or equivalent) integration using the same code paths. The "hosted tier" isn't a closed fork; it's the same repo with a specific set of environment variables.
+**Decisions (Seth, 2026-04-21):**
 
-**Scope (planning only — NOT to be built yet):**
+1. **Price:** $8 / month — starting point, tune later based on economics.
+2. **Weekly cap:** 16 hours — tune later.
+3. **Identity:** license key (`pg-xxxx-xxxx-xxxx`), emailed at signup. Email owns the key — recovery + cancel happen via email-verified magic link to the Stripe portal.
+4. **Free tier:** 15 minutes, **one-off lifetime**, not daily. Exhaust → must bring keys or subscribe.
+5. **Three modes in the UI:** Demo / My keys / Plus. When Plus is active AND BYOK is filled in, a sub-toggle picks which keys the session uses (subscription hours only tick when hosted keys are used).
+6. **Not a profit center.** Explicit intent: accessibility lever. Over time, drive price down (cheaper APIs, better caching, v1.7 GA → Cerebras router) so the same subscription covers more. Anyone who wants can always BYOK for free.
+7. **No account system creep.** No login state, no sessions, no OAuth — the license key IS the identity. Email handles identity verification at security-perimeter events (signup, recovery, cancel) only.
+8. **Future speculation (NOT committed):** if the product gets traction, consider normalizing BYOK into a single managed key that Peanut Gallery issues + rotates. Off the table until traction.
 
-- **Pricing model.** A single tier to start (e.g., "Peanut Gallery Plus"). Price point to be set against the actual API cost per hour of typical usage × the weekly-hours cap × a dev-fee cushion. Target: a monthly fee that feels fair next to "Spotify but for podcast companions" rather than "enterprise SaaS." Actual number left to Seth; economics work is a pre-requisite before any build-out.
-- **Weekly-hours cap.** Tracked server-side against the subscription identity. Resets weekly on the same day of the week as signup (not calendar week) to avoid end-of-week clumping.
-- **UX surface.** A third radio option in the Backend & keys drawer: "Hosted demo" (existing), "My own keys" (existing), **"Peanut Gallery Plus"** (new). Selecting it prompts a sign-in flow → returns a session token → the extension attaches the token per-request instead of user keys. Clear hour-cap progress bar in the drawer footer ("You've used 3.2 h / 15 h this week. Resets Thursday.").
-- **Billing integration.** Stripe (most likely) — checkout redirect, webhook for subscription-status sync, a single `/api/subscription/status` endpoint the extension polls once per session start. No payment data in the extension; all flows route through Stripe's hosted pages.
-- **Cap-exceeded UX.** At 90 % cap: banner in the side panel ("2 h left this week"). At 100 %: session ends cleanly (same path as the 60 s silence auto-stop); drawer surfaces "Cap reset in 2 d 4 h — switch to My own keys or wait." Never a billing upsell mid-session.
+**Phases:**
 
-**Success signals that trigger the pre-2.0 build-out:**
+- **Phase 1 — scaffold (shipped 2026-04-21).** `lib/subscription.ts` + `/api/subscription/{status,manage,checkout,webhook}` routes + extension UI + one-off free tier. Feature-flagged behind `ENABLE_SUBSCRIPTION=true`; inert by default.
+- **Phase 2 — persistent identity (SET-25).** SQLite store, real license-key generator, admin CLI to issue keys.
+- **Phase 3 — Stripe integration (SET-26).** Real checkout + webhook signature verification + automatic key issuance on payment.
+- **Phase 4 — Email infrastructure (SET-27).** Resend / Postmark integration; welcome email, recovery email, cancellation email.
 
-- The v1.6 canary + v1.7 GA settle into a steady operating cost per session-hour that's predictable enough to price against.
-- There's actual user demand for "just let me pay you, I don't want to manage keys" — surfaced via support requests, Discussions, or CWS reviews.
-- Stripe (or an equivalent we like) is a one-afternoon integration, not a multi-week saga.
+**Anti-goals (explicit):**
 
-**Failure signals that force the stack rework:**
+- No advertising, ever. In any tier.
+- No multi-seat / team / enterprise pricing pre-v2.0.
+- No data mining. Feedback signals are opt-outable server-side (`DISABLE_FEEDBACK_LOGGING=true`).
+- No price increases without 30 days' notice + pro-rata refund on the current period.
 
-- The top-10%-user weekly-hours target implies a per-user cost that can't be covered by a reasonable fee. Fix: cheaper Deepgram plan (bulk), cheaper primary router (Cerebras once v1.7 GA), cheaper persona models, caching.
-- Stripe-equivalent integration drags into a multi-week project. Fix: defer until post-v2.0 and ship v2.0 with BYOK-only.
+**Economics guardrails** ([full math](SUBSCRIPTION-ARCHITECTURE.md#economics)):
 
-**Anti-goals:**
-
-- No "free tier with aggressive limits." The existing demo-keys flow already serves "try-before-buy"; the subscription is for users who've decided.
-- No enterprise / team / multi-seat pricing before v2.0. One tier, one price.
-- No advertising inside the extension. Ever. Not in the subscription, not in the free tier.
-
-**Canonical planning doc:** [`docs/SUBSCRIPTION-PLAN.md`](SUBSCRIPTION-PLAN.md) (to be written when v1.8 completes). Until then, this section IS the plan.
+- At 2026-04 API rates, 16 h/week ≈ $19 in API costs. That's more than $8. Works because:
+  - Most subscribers don't hit the cap (target: $8 fee against ~4 h/week of typical usage ≈ $4.80 API cost).
+  - v1.7 GA + Deepgram alternatives will cut backend cost meaningfully.
+  - "Not a profit center" means we accept thin margin (or slight loss) while the product finds its audience.
+- **Watch signals:** API spend / MRR > 1.0 ratio, P95 subscribers crossing 12 h/week, cap-reached events > 20% of base.
 
 ---
 

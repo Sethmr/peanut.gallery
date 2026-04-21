@@ -522,6 +522,214 @@ function hasRequiredUserKeys() {
   return !!(dg && anth && xai);
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// v1.9 BACKEND-MODE + PEANUT GALLERY PLUS
+// ═══════════════════════════════════════════════════════════════════
+//
+// Three backend modes the user can pick between:
+//   "demo"          — hosted demo keys, one-off 15-minute trial.
+//   "byok"          — bring your own API keys (Deepgram + Anthropic + xAI).
+//                     No Peanut Gallery consumption; user pays providers.
+//   "plus"          — Peanut Gallery Plus subscription. User pastes a
+//                     license key; backend uses its own keys and meters
+//                     the user's weekly hours.
+//
+// When mode is "plus" AND the user also has BYOK keys filled in, a
+// secondary "Use with" segmented control appears. Picking "my keys"
+// there uses the BYOK keys for the session (saving subscription
+// hours); picking "subscription" consumes subscription hours.
+
+let backendMode = "demo"; // "demo" | "byok" | "plus"
+let plusUseMode = "subscription"; // "subscription" | "byok" (only relevant when backendMode === "plus")
+
+function setBackendMode(mode, { persist = true } = {}) {
+  if (mode !== "demo" && mode !== "byok" && mode !== "plus") mode = "demo";
+  backendMode = mode;
+  // Update segmented visual state + aria.
+  for (const btn of backendModeSegmented?.querySelectorAll(".segmented-option") || []) {
+    const active = btn.dataset.value === mode;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-checked", active ? "true" : "false");
+  }
+  // Show/hide subscription block.
+  if (subscriptionBlock) subscriptionBlock.hidden = mode !== "plus";
+  // Update explanatory hint.
+  if (backendModeHint) {
+    backendModeHint.innerHTML =
+      mode === "demo"
+        ? "<strong>Demo:</strong> free 15-minute trial on our keys, one-off. After that: paste your own or subscribe."
+        : mode === "byok"
+          ? "<strong>My keys:</strong> you pay your own providers directly. No Peanut Gallery billing. Recommended if you use the product daily."
+          : "<strong>Plus:</strong> subscribe and we run the API calls. 16 hours a week; not a profit center — the goal is accessibility. Your keys below are still honored if you fill them in.";
+  }
+  refreshPlusUseWithVisibility();
+  if (persist) chrome.storage.local.set({ pgBackendMode: mode }).catch(() => {});
+  // If flipping into Plus and a key is already on hand, poll status.
+  if (mode === "plus" && subscriptionKeyInput?.value.trim()) {
+    refreshSubscriptionStatus();
+  }
+}
+
+function setPlusUseMode(mode) {
+  if (mode !== "subscription" && mode !== "byok") mode = "subscription";
+  plusUseMode = mode;
+  for (const btn of plusUseSegmented?.querySelectorAll(".segmented-option") || []) {
+    const active = btn.dataset.value === mode;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-checked", active ? "true" : "false");
+  }
+  chrome.storage.local.set({ pgPlusUseMode: mode }).catch(() => {});
+}
+
+function refreshPlusUseWithVisibility() {
+  if (!plusUseWith) return;
+  const inPlus = backendMode === "plus";
+  const hasByok = hasRequiredUserKeys();
+  const hasSubKey = !!subscriptionKeyInput?.value.trim();
+  plusUseWith.hidden = !(inPlus && hasByok && hasSubKey);
+}
+
+async function refreshSubscriptionStatus() {
+  const key = subscriptionKeyInput?.value.trim();
+  if (!key) {
+    if (subscriptionProgress) subscriptionProgress.hidden = true;
+    return;
+  }
+  const url = normalizeServerUrl(serverUrlInput?.value);
+  if (!url) return;
+  try {
+    const res = await fetch(`${url}/api/subscription/status`, {
+      headers: { "X-Subscription-Key": key },
+    });
+    if (!res.ok) {
+      if (subscriptionProgress) subscriptionProgress.hidden = true;
+      return;
+    }
+    const data = await res.json();
+    if (!subProgressFill || !subProgressText) return;
+    const usedH = (data.usedMs || 0) / (60 * 60 * 1000);
+    const capH = data.weeklyCapHours || 16;
+    const pct = Math.min(100, Math.max(0, (usedH / capH) * 100));
+    subProgressFill.style.width = `${pct.toFixed(1)}%`;
+    const resetDate = new Date(data.resetAt);
+    const resetDay = resetDate.toLocaleDateString(undefined, { weekday: "short" });
+    subProgressText.textContent = data.valid
+      ? `${usedH.toFixed(1)} h · ${capH} h · resets ${resetDay}`
+      : data.error === "CAP_REACHED"
+        ? `${capH} h used — resets ${resetDay}`
+        : "Key not recognized";
+    if (subscriptionProgress) subscriptionProgress.hidden = false;
+    refreshPlusUseWithVisibility();
+  } catch {
+    // Offline / backend down — leave the bar hidden, no error toast.
+    if (subscriptionProgress) subscriptionProgress.hidden = true;
+  }
+}
+
+async function openSubscriptionCheckout() {
+  const email = window.prompt(
+    "Email for your subscription (we'll send your license key here):"
+  );
+  if (!email || !email.trim()) return;
+  const url = normalizeServerUrl(serverUrlInput?.value);
+  if (!url) return;
+  try {
+    const res = await fetch(`${url}/api/subscription/checkout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim() }),
+    });
+    const data = await res.json();
+    if (data.checkoutUrl) {
+      window.open(data.checkoutUrl, "_blank", "noopener");
+    } else {
+      showError(data.error || "Couldn't start checkout. Try again later.", null);
+    }
+  } catch {
+    showError("Couldn't reach the backend to start checkout.", null);
+  }
+}
+
+async function requestSubscriptionManage(action) {
+  const email = window.prompt("Email on file for your subscription:");
+  if (!email || !email.trim()) return;
+  const url = normalizeServerUrl(serverUrlInput?.value);
+  if (!url) return;
+  try {
+    const res = await fetch(`${url}/api/subscription/manage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim(), action }),
+    });
+    const data = await res.json();
+    showError(data.message || "Request logged.", null);
+  } catch {
+    showError("Couldn't reach the backend. Try again later.", null);
+  }
+}
+
+// Wire the segmented controls + buttons.
+if (backendModeSegmented) {
+  backendModeSegmented.addEventListener("click", (e) => {
+    const btn = e.target.closest(".segmented-option");
+    if (!btn) return;
+    setBackendMode(btn.dataset.value);
+  });
+}
+if (plusUseSegmented) {
+  plusUseSegmented.addEventListener("click", (e) => {
+    const btn = e.target.closest(".segmented-option");
+    if (!btn) return;
+    setPlusUseMode(btn.dataset.value);
+  });
+}
+if (subscriptionKeyInput) {
+  let statusDebounce = null;
+  subscriptionKeyInput.addEventListener("input", () => {
+    chrome.storage.local.set({ pgSubscriptionKey: subscriptionKeyInput.value.trim() }).catch(() => {});
+    refreshPlusUseWithVisibility();
+    // Debounce status poll — don't hit the endpoint on every keystroke.
+    clearTimeout(statusDebounce);
+    statusDebounce = setTimeout(() => refreshSubscriptionStatus(), 500);
+  });
+}
+if (buySubBtn) buySubBtn.addEventListener("click", () => openSubscriptionCheckout());
+if (manageSubBtn) manageSubBtn.addEventListener("click", () => requestSubscriptionManage("cancel"));
+if (recoverSubBtn) recoverSubBtn.addEventListener("click", () => requestSubscriptionManage("recover_key"));
+
+// Keep the "use with" visibility in sync with BYOK filling state.
+for (const input of [deepgramKeyInput, anthropicKeyInput, xaiKeyInput]) {
+  input?.addEventListener("input", () => refreshPlusUseWithVisibility());
+}
+
+/** Load backend-mode + subscription state from storage on init. */
+function rehydrateBackendMode() {
+  chrome.storage.local.get(
+    ["pgBackendMode", "pgSubscriptionKey", "pgPlusUseMode"],
+    (data) => {
+      if (data?.pgSubscriptionKey && subscriptionKeyInput) {
+        subscriptionKeyInput.value = data.pgSubscriptionKey;
+      }
+      if (data?.pgPlusUseMode) setPlusUseMode(data.pgPlusUseMode);
+      if (data?.pgBackendMode) setBackendMode(data.pgBackendMode, { persist: false });
+      // Kick a status poll if we're in Plus with a key.
+      if (backendMode === "plus" && subscriptionKeyInput?.value.trim()) {
+        refreshSubscriptionStatus();
+      }
+    }
+  );
+}
+
+/** The effective session mode used by start-capture. `backendMode` says
+ *  what the user picked; this function resolves the actual "path" for
+ *  the request — collapsing the "plus + use with my keys" case into
+ *  effective BYOK so the backend doesn't see a subscription key it
+ *  shouldn't meter against. */
+function effectiveBackendMode() {
+  if (backendMode !== "plus") return backendMode;
+  return plusUseMode === "byok" ? "byok" : "plus";
+}
+
 function formatHMS(totalSec) {
   const s = Math.max(0, Math.floor(totalSec));
   const h = Math.floor(s / 3600);
@@ -607,6 +815,20 @@ const deepgramKeyInput = document.getElementById("deepgramKey");
 const anthropicKeyInput = document.getElementById("anthropicKey");
 const xaiKeyInput = document.getElementById("xaiKey");
 const braveKeyInput = document.getElementById("braveKey");
+// v1.9 Peanut Gallery Plus — subscription UI. All optional; older
+// sidepanel.html without these elements drops through to null handling.
+const subscriptionKeyInput = document.getElementById("subscriptionKey");
+const subscriptionBlock = document.getElementById("subscriptionBlock");
+const subProgressFill = document.getElementById("subProgressFill");
+const subProgressText = document.getElementById("subProgressText");
+const subscriptionProgress = document.getElementById("subscriptionProgress");
+const buySubBtn = document.getElementById("buySubBtn");
+const manageSubBtn = document.getElementById("manageSubBtn");
+const recoverSubBtn = document.getElementById("recoverSubBtn");
+const backendModeSegmented = document.getElementById("backendModeSegmented");
+const backendModeHint = document.getElementById("backendModeHint");
+const plusUseWith = document.getElementById("plusUseWith");
+const plusUseSegmented = document.getElementById("plusUseSegmented");
 // Search-engine selector — controls which backend the Producer uses for
 // fact-checking. Values: "brave" (default) | "xai". Older sidepanel.html
 // without this element drops through to null and we coerce to "brave".
@@ -1644,6 +1866,9 @@ function checkStatus() {
   // the segmented control reads correctly on first paint even if no
   // session is live yet.
   rehydrateFeedActions(null);
+  // v1.9: rehydrate backend mode + subscription key from storage so the
+  // Backend & keys drawer reflects state on first open.
+  rehydrateBackendMode();
   chrome.runtime.sendMessage({ type: "GET_STATUS" }, (response) => {
     if (chrome.runtime.lastError) return;
     if (response?.capturing) {
@@ -2417,6 +2642,14 @@ startBtn.addEventListener("click", async () => {
         // Director so the whole panel feels quieter or rowdier. Changing
         // mid-session has no effect; captured at Start Listening time.
         sensitivity: sensitivityValue,
+        // v1.9: the effective backend mode for this session ("demo" |
+        // "byok" | "plus"). Plus sends X-Subscription-Key; demo falls
+        // back on free-tier metering; byok sends the user's keys and
+        // skips both gates. The effective mode collapses "plus + use
+        // with my keys" into "byok" so subscription hours aren't
+        // charged when the user picked their own keys for the session.
+        backendMode: effectiveBackendMode(),
+        subscriptionKey: subscriptionKeyInput?.value.trim() || "",
         // Persona pack id (howard | twist | ...). Forwarded through the same
         // chain and handed to resolvePack() on the server. Unknown ids fall
         // back to Howard server-side, so a new client + old server still

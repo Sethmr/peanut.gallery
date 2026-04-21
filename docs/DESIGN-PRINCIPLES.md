@@ -72,15 +72,25 @@ User credentials live on the user's machine. The hosted tier has demo keys but n
 
 Session-recall (v2.0, PR [#78](https://github.com/Sethmr/peanut.gallery/pull/78)) is local-only: `chrome.storage.local` (Chrome backs it with IndexedDB under the hood — stored on the user's disk, never uploaded). One-click clear in the settings drawer; 30-day TTL with FIFO eviction. CWS listing copy should explicitly say "sessions saved locally to your device; zero server storage." Source: [`SESSION-NOTES-2026-04-17.md §3`](SESSION-NOTES-2026-04-17.md) (marked immutable).
 
-### 5a. Subscription is an alternative to BYOK, never a replacement
-*(2026-04-21 — planned for v1.9.x; full plan in [`ROADMAP.md § Subscription tier`](ROADMAP.md#v19x-subscription-tier--pre-20-revenue-test).)*
+### 5a. Peanut Gallery Plus — accessibility tier, not a profit center
+*(2026-04-21 — canonical plan in [`SUBSCRIPTION-ARCHITECTURE.md`](SUBSCRIPTION-ARCHITECTURE.md). Scope clarified 2026-04-21: the subscription is **required for v2.0**, not a pre-v2.0 revenue test, because the product isn't accessible to non-technical users without it.)*
 
-When the in-app subscription ships (pre-v2.0 revenue test), it adds a third radio option alongside "Hosted demo" and "My own keys" — it does NOT remove either existing path.
+The in-app subscription ("Peanut Gallery Plus") is a third segmented-control option alongside "Demo" and "My keys" — it does NOT remove either existing path. Mental model:
+
+- **Demo** — first taste (15-minute one-off trial on our hosted keys).
+- **My keys** — BYOK, the open-source path. Free forever.
+- **Plus** — accessibility tier for users who don't want to manage API keys. $8/mo, 16 h/week cap.
+
+**Durable rules:**
 
 - **Open-source + self-host flows keep BYOK unchanged.** Anyone running the Next.js backend themselves, or loading the extension against `localhost:3000`, still gets the same key-in-browser experience. The subscription code is open-source too.
-- **Weekly-hours cap, not token-counting.** Users understand hours of live listening. The cap is set slightly above the top-10%-user usage; lean high initially to cover dev fees, tighten only if economics warrant. If the cap has to be tightened to hostile levels, that's a signal to rework the stack (cheaper Deepgram, Cerebras as primary once v1.7 GA, cheaper persona models), not to keep cutting users.
-- **Privacy posture holds.** The backend sees the audio stream + the subscription identity; session transcripts and reactions stay in `chrome.storage.local`. No server-side transcript storage, no analytics on user content, no advertising. Ever.
-- **No account-system creep before v2.0.** One tier, one price. No free-tier-with-aggressive-limits (demo-keys flow already covers "try-before-buy"). No teams / multi-seat until post-v2.0.
+- **Subscription hours only consume when using our hosted keys.** When Plus + BYOK are both configured, a sub-toggle picks which set the session uses. Subscription is paying for *the keys*, not *the product*.
+- **Weekly-hours cap, not token-counting.** Users understand hours of live listening. Start at 16 h/week; lean high initially.
+- **Not a profit center.** The subscription exists so non-technical users can reach the product. The goal over time is to drive price DOWN (cheaper APIs, cached responses, v1.7 GA → Cerebras router), not to raise it. If the cap has to be tightened to hostile levels to make the math work, that's a signal to rework the stack.
+- **Privacy posture holds.** The backend sees the audio stream + the subscription identity (license key); session transcripts and reactions stay in `chrome.storage.local`. No server-side transcript storage, no analytics on user content, no advertising. Ever.
+- **No account-system creep.** License key IS the identity. Email handles identity verification at security-perimeter events (signup, recovery, cancel) only.
+- **No multi-seat / team / enterprise pricing pre-v2.0.** One tier, one price.
+- **Future speculation, NOT committed:** if the product gets traction, consider normalizing BYOK into a managed key. Off the table until traction.
 
 ### 6. War-zone restraint; other politics are normal territory
 *(Memory: `feedback_persona_political_restraint.md`.)*
