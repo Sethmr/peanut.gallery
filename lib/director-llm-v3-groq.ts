@@ -1,6 +1,12 @@
 /**
  * Peanut Gallery — Smart Director v3 (Groq Llama 3.1 8B) — SET-6
  *
+ * @deprecated Uses the v2 routing prompt (4-slot, no SILENT, no confidence).
+ * Kept for 1 week (until ~2026-04-28) so Seth can A/B v2-shadow vs v3-shadow
+ * agreement rates. After the transition window, replace with
+ * `director-llm-v3-groq-v3prompt.ts` (5-slot, confidence, json_schema).
+ * Gated behind ENABLE_SMART_DIRECTOR_V3_GROQ=true.
+ *
  * Shadow-test companion to director-llm.ts (Haiku v2). Identical routing
  * logic and identical prompt — only the provider differs. Gated behind
  * ENABLE_SMART_DIRECTOR_V3_GROQ=true; never routes user-facing traffic.
