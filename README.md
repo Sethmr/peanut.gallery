@@ -2,14 +2,14 @@
 
 > **A four-seat AI writers' room that watches YouTube with you and reacts in real time.** A fact-checker keeping the host honest. A sound-effects guy scoring every moment. A comedy writer dropping one-liners. A cynical troll saying what the audience is thinking.
 
-[![Version](https://img.shields.io/badge/version-1.5.3-000000?style=flat-square&label=version&labelColor=444)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.6.0-000000?style=flat-square&label=version&labelColor=444)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
-[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-v1.5.3%20"The%20Cast"-34a853?style=flat-square&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/peanut-gallery/jjlpinlhfiheegiddmddkgfialcknagh)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-v1.6.0%20"The%20Canary"-34a853?style=flat-square&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/peanut-gallery/jjlpinlhfiheegiddmddkgfialcknagh)
 [![Site](https://img.shields.io/badge/site-peanutgallery.live-000?style=flat-square)](https://www.peanutgallery.live)
 
-Peanut Gallery is a Chrome Manifest-V3 extension. It captures the active tab's audio silently (`chrome.tabCapture` — no permission picker, no playback interference), streams PCM to a local or hosted backend, transcribes with Deepgram Nova-3, and routes each chunk through a rule-based Director that picks which of four personas gets to fire next. Text reactions stream back via SSE and stack in the native Chrome side panel right next to the video.
+Peanut Gallery is a Chrome Manifest-V3 extension. It captures the active tab's audio silently (`chrome.tabCapture` — no permission picker, no playback interference), streams PCM to a local or hosted backend, transcribes with Deepgram Nova-3, and routes each chunk through the **Smart Director** — a Claude-powered routing brain that picks which of four personas gets to fire next (with a rule-based safety net). Text reactions stream back via SSE and stack in the native Chrome side panel right next to the video.
 
-Built in response to [Jason Calacanis](https://x.com/Jason) and [Lon Harris](https://x.com/Lons)'s $5K open bounty on [This Week in Startups](https://www.youtube.com/@ThisWeekInStartups). The TWiST pack puts Jason, Molly Wood, Lon Harris, and Alex Wilhelm on the panel — inspired by, not impersonating, with anti-impersonation guardrails baked into every prompt. As of v1.5.3, each persona ships with an illustrated peanut mascot carrying their signature prop (clipboard, match, headphones, mic, notebook, megaphone, clapperboard, pie chart).
+Built in response to [Jason Calacanis](https://x.com/Jason) and [Lon Harris](https://x.com/Lons)'s $5K open bounty on [This Week in Startups](https://www.youtube.com/@ThisWeekInStartups). The TWiST pack puts Jason, Molly Wood, Lon Harris, and Alex Wilhelm on the panel — inspired by, not impersonating, with anti-impersonation guardrails baked into every prompt. Each persona ships with an illustrated peanut mascot (v1.5.3) with Phong-shaded lighting and animated reactions (v1.6.0).
 
 ---
 
@@ -29,7 +29,7 @@ Load the extension in Chrome:
 3. Click **Load unpacked** → select the `extension/` folder at the repo root
 4. Open any YouTube video → click the 🥜 icon → **Start Listening**
 
-Your keys live in `.env.local` on your machine — git-ignored, never uploaded. Most users don't need to clone anything: [**install v1.5.3 from the Chrome Web Store**](https://chromewebstore.google.com/detail/peanut-gallery/jjlpinlhfiheegiddmddkgfialcknagh).
+Your keys live in `.env.local` on your machine — git-ignored, never uploaded. Most users don't need to clone anything: [**install the latest build from the Chrome Web Store**](https://chromewebstore.google.com/detail/peanut-gallery/jjlpinlhfiheegiddmddkgfialcknagh).
 
 **Prerequisites:** Node.js 18+. No yt-dlp or ffmpeg required for the extension flow.
 
@@ -73,7 +73,7 @@ Researched from public TWiST transcripts and episode clips. See [`docs/packs/twi
 
 Pack choice lives in the side-panel setup dropdown and persists across sessions. Change takes effect on the next Start Listening — no mid-session persona swap.
 
-More packs coming in v1.7 via [Pack Lab](docs/ROADMAP.md#v170-pack-lab). Want one sooner? Open a [pack request](.github/ISSUE_TEMPLATE/pack_request.yml).
+Want another pack? Open a [pack request](.github/ISSUE_TEMPLATE/pack_request.yml). A visual Pack Lab authoring surface is deferred to post-v2.0 — until then, curated packs ship with a guided skill walkthrough in [`docs/packs/`](docs/packs/).
 
 ---
 
@@ -84,9 +84,11 @@ YouTube Tab → chrome.tabCapture → Offscreen Doc → PCM 16kHz (250ms chunks)
            → Backend → Deepgram Nova-3 → Director → AI Personas → SSE → Side Panel
 ```
 
-The **Director** is the moat. It's a rule-based booth producer that reads each transcript chunk and picks the best persona to respond, then cascades to others with decreasing probability and staggered timing. Some moments get 1 reaction, some 2-3, occasionally all four pile on. As of v1.5 the Director can optionally consult a Claude Haiku routing model within a 400ms budget and fall back to the rule-based scorer on timeout — best of both worlds, no extra latency.
+The **Director** is the moat. It reads each transcript chunk and picks the best persona to respond, then cascades to others with decreasing probability and staggered timing. Some moments get 1 reaction, some 2-3, occasionally all four pile on. As of v1.6.0 ("The Canary") the primary router is a Claude Haiku `tool_use` call with verbalized confidence, sticky-agent penalty, unstable-tail heuristic, a live-callback ring buffer, and SILENT as a first-class choice — all behind a 400 ms budget with the rule-based scorer as the safety net. A fast-model shadow (Cerebras Llama 3.1 8B; Groq also wired) logs its pick alongside so we can verify agreement + latency before swapping primaries. The canary is flag-gated: `ENABLE_SMART_DIRECTOR_V2=true` on the backend turns the LLM router on; off keeps everything rule-based.
 
-The **Fact-Checker** has an extra step: it scores sentences for factual claims and runs parallel search queries to cross-reference. Pick **Brave Search** (separate key, dedicated search API) or **xAI Live Search** (reuses your xAI key, no extra signup) in the side-panel settings.
+The **Fact-Checker** has an extra step: it scores sentences for factual claims and runs parallel search queries to cross-reference. Sensitivity is per-pack design: Howard's Baba Booey is `loose` (fires on speculation + name-drops + predictions), TWiST's Molly Wood is `strict` (hard claims only). Pick **Brave Search** (separate key, dedicated search API) or **xAI Live Search** (reuses your xAI key, no extra signup) in the side-panel settings.
+
+If no audio is detected for 60 s, the extension auto-stops the session so it doesn't keep burning backend tokens on a paused tab. Press Start Listening again to resume.
 
 Full architecture, SSE event protocol, and cost table: [`docs/CONTEXT.md`](docs/CONTEXT.md).
 
@@ -140,7 +142,7 @@ Multi-provider by design. No platform trap.
 | Fact-Checker + Joker | Anthropic Claude Haiku | Reasoning + nuance |
 | Troll + Sound FX | xAI Grok 4.1 Fast (non-reasoning) | Reflexive, punchy output without deliberation |
 | Fact-check search | Brave Search API **or** xAI Live Search | User-selectable per-session |
-| Smart Director (v1.5) | Claude Haiku, 400ms budget | Optional LLM routing with rule-based fallback |
+| Smart Director (v1.6 canary) | Claude Haiku `tool_use`, 400 ms budget | Primary LLM router; rule-based scorer is the safety net. Cerebras Llama 3.1 8B runs as read-only shadow for agreement + latency validation. |
 
 **Cost per 2-hour episode: ~$1.15** at current API rates (Deepgram + Haiku + Grok Fast + one search call per fact-check candidate). Full breakdown: [`docs/CONTEXT.md#cost-per-episode`](docs/CONTEXT.md#cost-per-episode).
 
@@ -161,27 +163,37 @@ All services have free tiers.
 
 ## Roadmap
 
-Canonical source: [`docs/ROADMAP.md`](docs/ROADMAP.md). The sequence below is the explicit path to v2.0 — "The Gallery."
+Canonical source: [`docs/ROADMAP.md`](docs/ROADMAP.md). This table is what actually shipped; version numbers reflect reality, not earlier plans.
+
+### Shipped
+
+| Version | Theme | Date |
+|---------|-------|------|
+| v1.2.0 | **Mise en place** — Director debug panel + structured routing logs + fixture harness + pre-merge gate | 2026-04-17 |
+| v1.3.0 | **TWiST Pack** — selectable packs, Howard + TWiST voices, pack swap in side panel | 2026-04-14 |
+| v1.4.0 | **Grok & Stability** — xAI migration for troll + sound FX, search-engine toggle, session deadlock fix | 2026-04-17 |
+| v1.5.0 | **The Broadsheet** — tabloid side-panel rebuild, mute-a-critic, night theme, Markdown export | 2026-04-19 |
+| v1.5.1 | **Broadsheet Final** — 6-submenu settings drawer (absorbs old v1.6 "Settings Pane"), free-tier status strip, ON AIR, per-mug waveforms, round mugs | 2026-04-20 |
+| v1.5.2 | **First Run** — four-step Editor's Note onboarding tour, empty-state visibility fix | 2026-04-20 |
+| v1.5.3 | **The Cast** — illustrated peanut mascots for all 8 personas (absorbs old v1.8 "Peanut Mascots"), war-defense guardrail on fact-checkers | 2026-04-20 |
+| v1.5.4 | **The Sweep** — SEO refresh, legacy `/watch` deletion, a11y pass, ops logging, orphan-dep cleanup | 2026-04-20 |
+| v1.5.5 | Dev-infra — Linear ticket → Claude Code kickoff pipeline, framework + dev-dep refresh, release-model rewrite | 2026-04-20 |
+| v1.5.6 | Dev-infra — local Linear daemon on Seth's Mac (replaces GH-Actions kickoff, uses Claude Max subscription) | 2026-04-20 |
+| **v1.6.0** | **The Canary** — Smart Director v3 flag-gated canary (Haiku `tool_use`, 5-slot with SILENT, Cerebras/Groq shadow), fact-check gate with per-pack sensitivity, fallback telemetry + self-correcting penalty loop, peanut avatar stage 1 (Phong lighting + unclipped bottoms), empty-state companions, director debug panel, 60s silence auto-stop | 2026-04-21 |
+
+### Next
 
 | Version | Theme | Status |
 |---------|-------|--------|
-| v1.2.0 | Mise en place — Director debug panel, fixture harness, husky pre-merge gate | ✅ Shipped |
-| v1.3.0 | TWiST Pack — selectable packs, Howard + TWiST voices | ✅ Shipped |
-| v1.4.0 | Grok & Stability — xAI migration, search toggle, session-firing deadlock fix | ✅ Shipped |
-| v1.5.0 | The Broadsheet — Smart Director v2 + tabloid rebrand + Path-2 URL readiness | ✅ Shipped |
-| v1.5.1 | Broadsheet Final — settings drawer with six submenus, round persona mugs, ON AIR waveform, episode card, 15-min free-tier status strip, smooth-scrolling transcript ticker, muted-mug + filter-pill strike visuals | ✅ Shipped |
-| v1.5.2 | First Run — four-step Editor's Note onboarding tour, empty-state visibility fix | ✅ Shipped |
-| v1.5.3 | The Cast — illustrated peanut mascots for all 8 personas, two-card pack chooser, button + masthead polish, war-defense guardrail on fact-checkers | ✅ Shipped |
-| v1.5.4 | The Sweep — janitorial pass: SEO refresh, legacy `/watch` deletion, side-panel a11y, ops logging, orphan-dep removal | 🟡 Draft |
-| v1.6.0 | (absorbed into v1.5.1 — Settings Pane scope shipped as the 6-submenu drawer) | ✅ Shipped as v1.5.1 |
-| v1.7.0 | Smart Director GA — LLM director becomes the only director; static scorer retires | Next |
-| v1.8.0 | (absorbed into v1.5.3 — Peanut Mascots shipped early) | ✅ Shipped as v1.5.3 |
-| v1.9.0 | Bobbleheads (Stretch) — 2-day attempt at 3D peanut bobbleheads; max-credible visual upgrade if 3D doesn't land | Planned |
-| v2.0.0 | The Gallery — audit, refine, session recall + shareable snippet, launch | Horizon |
-| v2.x.x | Director + persona model improvements while we wait for user-driven 3.0 direction | Post-launch |
-| v3.0.0 | **User-driven** — direction defined by what 2.0 users ask for, not by us | TBD |
+| v1.7.x | **Smart Director GA** — once the v1.6 canary clears agreement + latency bands, promote the LLM router to primary and retire the rule-based scorer. Per-pack `directorHint` calibration from canary telemetry. Kill-switch flag stays. | Blocked on v1.6 canary data (~48 h of hosted sessions) |
+| v1.8.x | **Persona refinement sprint** — re-run system prompts against 100+ transcripts per pack, tune anything the canary says is under-firing. See [`docs/PERSONA-REFINEMENT-PLAN.md`](docs/PERSONA-REFINEMENT-PLAN.md). | Blocked on v1.7 canary |
+| v1.9.x | **Subscription tier (alt to BYOK)** — in-app toggle between "use my keys" and "use subscription"; weekly-hours cap targeted above top-10% user usage; self-hosters and source-builders keep BYOK unchanged. See [`docs/ROADMAP.md § Subscription`](docs/ROADMAP.md#subscription-tier-pre-v20). | Planning — see planning doc |
+| v1.10.x | **Avatar stage 2** — bobbleheads / 2.5D parallax / Lottie / MP4 fallback, whichever reads best in a 2-day spike. Contingent on Seth's Day-1 eval. | Planned |
+| **v2.0.0** | **The Gallery** — session recall + shareable snippet (local, PNG-to-clipboard), full audit, marketing-site refresh, launch day | Horizon |
+| v2.x.x | Continuous Director + persona improvements while we wait for user-driven v3 direction | Post-launch |
+| v3.0.0 | **User-driven** — direction defined by what v2.0 users ask for, not by us | TBD |
 
-Already supported, not yet marketed: non-YouTube sources (Twitch, Kick, any browser tab). `chrome.tabCapture` is tab-agnostic; personas are just tuned for podcast pacing.
+Already supported, not yet marketed: non-YouTube sources (Twitch, Kick, any browser tab). `chrome.tabCapture` is tab-agnostic; personas are tuned for podcast pacing so it's "works, not pitched" until a pack tunes for a different format.
 
 ---
 

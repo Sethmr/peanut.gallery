@@ -60,6 +60,16 @@ User credentials live on the user's machine. The hosted tier has demo keys but n
 
 Session-recall (v2.0, PR [#78](https://github.com/Sethmr/peanut.gallery/pull/78)) is local-only: `chrome.storage.local`, one-click clear, never uploaded. Source: [`SESSION-NOTES-2026-04-17.md §3`](SESSION-NOTES-2026-04-17.md) (marked immutable).
 
+### 5a. Subscription is an alternative to BYOK, never a replacement
+*(2026-04-21 — planned for v1.9.x; full plan in [`ROADMAP.md § Subscription tier`](ROADMAP.md#v19x-subscription-tier--pre-20-revenue-test).)*
+
+When the in-app subscription ships (pre-v2.0 revenue test), it adds a third radio option alongside "Hosted demo" and "My own keys" — it does NOT remove either existing path.
+
+- **Open-source + self-host flows keep BYOK unchanged.** Anyone running the Next.js backend themselves, or loading the extension against `localhost:3000`, still gets the same key-in-browser experience. The subscription code is open-source too.
+- **Weekly-hours cap, not token-counting.** Users understand hours of live listening. The cap is set slightly above the top-10%-user usage; lean high initially to cover dev fees, tighten only if economics warrant. If the cap has to be tightened to hostile levels, that's a signal to rework the stack (cheaper Deepgram, Cerebras as primary once v1.7 GA, cheaper persona models), not to keep cutting users.
+- **Privacy posture holds.** The backend sees the audio stream + the subscription identity; session transcripts and reactions stay in `chrome.storage.local`. No server-side transcript storage, no analytics on user content, no advertising. Ever.
+- **No account-system creep before v2.0.** One tier, one price. No free-tier-with-aggressive-limits (demo-keys flow already covers "try-before-buy"). No teams / multi-seat until post-v2.0.
+
 ### 6. War-zone restraint; other politics are normal territory
 *(Memory: `feedback_persona_political_restraint.md`.)*
 

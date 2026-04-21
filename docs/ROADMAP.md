@@ -2,9 +2,9 @@
 
 > Version-staged plan. Confirm scope with Seth before starting any item — this is a menu, not a queue, and release boundaries are load-bearing (each one tees up the next).
 
-**Last updated:** 2026-04-20 (v1.5.0 tagged + in CWS review; v1.5.1 merged to `main` via PR [#18](https://github.com/Sethmr/peanut.gallery/pull/18), tag pending; v1.5.2 "First Run" in flight — first-run tutorial)
-**Active release:** v1.5.2 "First Run" — four-step Editor's Note tutorial that walks first-time users through the settings drawer
-**Design principle:** one load-bearing change per release. If a release title needs an "and," split it. (v1.5 is the exception — Smart Director v2 + the Broadsheet rebrand shipped in the same window because both needed the CWS review cadence.)
+**Last updated:** 2026-04-21 (v1.6.0 "The Canary" release PR [#91](https://github.com/Sethmr/peanut.gallery/pull/91) open; canary awaiting Railway env-var flip + ~48 h of hosted sessions)
+**Active release:** v1.6.0 "The Canary" — Smart Director v3 flag-gated canary (primary + Cerebras/Groq shadow) + fact-check gate + fallback telemetry + peanut avatar stage 1 + 60 s silence auto-stop
+**Design principle:** one load-bearing change per release. If a release title needs an "and," split it. (v1.5.0 was the exception — Smart Director v2 + the Broadsheet rebrand shipped in the same window because both needed the CWS review cadence. v1.6.0 runs wider too because it bundles the v3 canary with shipped-alongside work that was already on develop.)
 
 ---
 
@@ -15,45 +15,46 @@
 | v1.2.0 | "Mise en place" | 2026-04-11 | Director debug panel + `director_decision` SSE + fixture harness |
 | v1.3.0 | "TWiST Pack" | 2026-04-14 | Pack refactor + TWiST crew + side-panel pack swap |
 | v1.4.0 | "Grok & Stability" | 2026-04-17 | Troll + Sound FX → xAI Grok; search-engine toggle; force-react hardening |
-| v1.5.0 | "The Broadsheet" | tagged 2026-04-19; **in CWS review** | Tabloid side-panel rebrand (mute-a-critic, night theme, Markdown export) + Smart Director v2 **client scaffold** (server flag `ENABLE_SMART_DIRECTOR` still off — canary gate pending) + Path-2 URL transition readiness |
-| v1.5.1 | "Broadsheet Final" | merged 2026-04-20; tag pending | 6-submenu settings drawer (Lineup / Backend & keys / Audio / Critics / Export / Appearance — absorbs v1.6 "Settings Pane" scope) + free-tier status strip + episode card + ON AIR + per-mug waveforms + rolling-window ticker + round mugs with category-colored borders |
+| v1.5.0 | "The Broadsheet" | 2026-04-19 | Tabloid side-panel rebrand (mute-a-critic, night theme, Markdown export) + Smart Director v2 client scaffold + Path-2 URL readiness |
+| v1.5.1 | "Broadsheet Final" | 2026-04-20 | 6-submenu settings drawer (absorbs old v1.6 "Settings Pane") + free-tier status strip + episode card + ON AIR + per-mug waveforms + rolling-window ticker + round mugs |
+| v1.5.2 | "First Run" | 2026-04-20 | Four-step Editor's Note onboarding tour + WIRE QUIET empty-state visibility fix |
+| v1.5.3 | "The Cast" | 2026-04-20 | Illustrated peanut mascots for all 8 personas (absorbs old v1.8 "Peanut Mascots") + two-card pack chooser + apex→www middleware + war-defense guardrail |
+| v1.5.4 | "The Sweep" | 2026-04-20 | Janitorial pass — SEO refresh + legacy `/watch` deletion + a11y polish + ops logging + orphan-dep removal |
+| v1.5.5 | Dev-infra | 2026-04-20 | Linear ticket → Claude Code kickoff pipeline; framework + dev-dep refresh; release-model rewrite |
+| v1.5.6 | Dev-infra | 2026-04-20 | Local Linear daemon on Seth's Mac (replaces GH-Actions kickoff; uses Claude Max subscription) |
+| **v1.6.0** | **"The Canary"** | **2026-04-21 (release PR open)** | **Smart Director v3 flag-gated canary** (Haiku `tool_use` with 5-slot + SILENT, Cerebras Llama 3.1 8B + Groq shadow providers, sticky penalty, unstable-tail heuristic, live-callback ring buffer, across-turn semantic anti-repeat) + fact-check gate with per-pack sensitivity modes + fallback telemetry + self-correcting penalty loop + peanut avatar stage 1 (Phong lighting, unclipped bottoms, non-freezing SMIL bob) + empty-state companions + director debug panel polish + session-recall groundwork + 60 s silence auto-stop |
 
-Details on any of these live in the corresponding `docs/V<x>-PLAN.md` or the `CHANGELOG.md` entry.
-
----
-
-## In flight — v1.5.2 "First Run" → merge → tag
-
-**Status (2026-04-20):** tutorial code + manifest bump + CHANGELOG entry land on `develop`; cutting `release/v1.5.2` and opening the `release/v1.5.2 → main` PR is the next step once Seth is ready (per the new branching model in [`RELEASE.md`](RELEASE.md)).
-
-**What v1.5.2 ships:** a first-run Editor's Note overlay that walks users through the v1.5.1 settings drawer in four steps (Welcome → Lineup → Backend & keys → Audio). Gated on a single `tutorialSeen` flag in `chrome.storage.local`; always skippable; always replayable via a new "Replay settings tour" row in the Appearance submenu. Spotlight ring pulses on the active target; `prefers-reduced-motion` opts out of the pulse. No backend changes.
-
-**What's left to ship v1.5.2:**
-
-1. **Self-merge the feature PR** to `develop` after `npm run check` passes.
-2. **Cut `release/v1.5.2` from `develop` and open the `release/v1.5.2 → main` PR.** Body = CHANGELOG [1.5.2] entry grouped by commit type.
-3. **Seth merges to `main`, cuts the `v1.5.2` git tag.** Manifest already matches.
-4. **Wait on CWS** — do NOT upload v1.5.2 while v1.5.0 is still in review (still the same supersede-and-reset risk).
-
-**Also pending from v1.5.1:** cut the `v1.5.1` git tag on `main` (the v1.5.1 release landed but no tag yet — can land before or after v1.5.2's tag, but each version should get its own tag for clean CHANGELOG/CWS traceability).
-
-**Narrated walkthrough (v1.5.0):** https://youtu.be/WPyknI7-N5U — embedded on the landing page at `#walkthrough` and exposed as a `VideoObject` in the site's JSON-LD.
+Details on any of these live in the corresponding `docs/V<x>-PLAN.md`, `docs/STATE-OF-*` doc, or the [`CHANGELOG.md`](../CHANGELOG.md) entry.
 
 ---
 
-## Still outstanding from v1.5.0 — Smart Director server-flag canary
+## In flight — v1.6.0 "The Canary" → Railway flags → analyze telemetry
 
-**v1.5.0 shipped the client scaffold only.** `ENABLE_SMART_DIRECTOR=true` on the hosted backend remains the gate to actually turn the LLM router on. This slipped out of v1.5.0's ship window and is now tracked as its own work item — it'll flip as part of v1.5.2 (or fold into v1.7 GA, Seth's call based on canary results).
+**Status (2026-04-21):** release PR [#91](https://github.com/Sethmr/peanut.gallery/pull/91) open and ready-to-merge via "Rebase and merge." All v3 paths are **flag-gated** — shipping with flags off is safe (rule-based Director keeps routing).
 
-**What's left:**
+**Seth's directive:** merge, then flip the Railway flags on the hosted backend so we collect real telemetry. See [`docs/CEREBRAS-INTEGRATION.md`](CEREBRAS-INTEGRATION.md) for the full operator walkthrough.
 
-1. **Deploy hosted with `ENABLE_SMART_DIRECTOR=true`** for ≥ 48 hours of real traffic.
-2. **Pull telemetry** from `logs/pipeline-debug.jsonl` on `director_v2_compare` events. Bands in [`V1.5-PLAN.md §4`](V1.5-PLAN.md#4-canary-checklist): agreement ≥ 0.55, override in [0.20, 0.45], p95 `llmElapsedMs` < 350 ms, timeout rate < 0.05.
-3. **Sanity-read 20 override transcripts.** Rationale should read like a producer's note, not a hallucination.
-4. If bands miss: iterate the prompt in `lib/director-llm.ts` and re-canary.
-5. If bands hit: decide whether to cut v1.5.2 with the flag defaulted on, or hold until v1.7 GA (which retires the rule-based scorer entirely).
+**What's left to complete the canary:**
 
-**Kill switch:** set `ENABLE_SMART_DIRECTOR=false` and redeploy. Reverts to rule-based routing instantly on the next tick. No session restart needed.
+1. **Seth merges release/v1.6.0 → main** via the GitHub UI's **"Rebase and merge"** button (per [`RELEASE.md § Merge method`](RELEASE.md#merge-method--main-facing-prs-rebase-and-merge-only)). Tag `v1.6.0` on `main` after merge.
+2. **Flip Railway env vars:**
+   ```bash
+   railway variables set ENABLE_SMART_DIRECTOR_V2=true
+   railway variables set ENABLE_SMART_DIRECTOR_V3_CEREBRAS=true
+   railway variables set CEREBRAS_API_KEY=csk-...
+   railway up
+   ```
+3. **Collect ≥ 48 h of hosted sessions.** The fast-provider shadow is read-only — it never ships to users. Cost expectation per [`CEREBRAS-INTEGRATION.md`](CEREBRAS-INTEGRATION.md#cost-expectations): ~$2 for a 48 h canary.
+4. **Run the analyzer:**
+   ```bash
+   npm run analyze:director-v3
+   ```
+   Key bands: agreement rate Haiku↔Cerebras ≥ 85 %, p95 Cerebras latency 3–5× faster than Haiku, timeout rate < 2 %.
+5. **Kill switch if something goes wrong:** `railway variables delete ENABLE_SMART_DIRECTOR_V3_CEREBRAS && railway up`. Zero state to clean up — shadow never touched user-facing traffic.
+
+**Decision point after 48 h:**
+- If bands hit → v1.7 GA plan is live (LLM router becomes primary; rule-based scorer retires to safety-net only).
+- If bands miss → iterate the v3 prompt in `lib/director-llm-v2.ts` and re-canary. Don't retire the rule-based path until v3 is provably better, not just plausibly so.
 
 ---
 
@@ -61,72 +62,140 @@ Details on any of these live in the corresponding `docs/V<x>-PLAN.md` or the `CH
 
 The releases below are the explicit sequence on the way to the v2.0 launch ("The Gallery"). Release boundaries are load-bearing — confirm scope before pulling work forward. The deferred features that previously held the old v1.6 / v1.7 / v1.8 slots (voice, clip share, pack lab, live overlay) moved to [Deferred](#deferred--off-the-critical-path-to-v20) below; they're still good ideas, just not on the critical path.
 
-**Cleanup note (2026-04-20):** v1.6 "Settings Pane" landed early inside v1.5.1 (the 6-submenu drawer absorbed the whole scope). v1.8 "Peanut Mascots" landed early inside v1.5.3 (illustrated SVG peanuts across both packs, shipped by Claude in one session rather than blocked on a designer pipeline). Both version numbers are now retired — the next planned release is **v1.7 "Smart Director GA"**. The corresponding v1.6 / v1.8 subsections below have been collapsed to pointers at the matching CHANGELOG entry.
+**Version-numbering note (2026-04-21):** the earlier roadmap assigned v1.6 to "Settings Pane" and v1.8 to "Peanut Mascots" as planned work. Both scopes shipped early inside v1.5.x releases (v1.5.1 and v1.5.3 respectively), so the version numbers were reclaimed — **v1.6.0 is now "The Canary"** (what actually shipped there), and the downstream slots (v1.7 GA, v1.8 persona refinement, v1.9 subscription tier, v1.10 avatar stage 2) renumber accordingly. Versioning matches reality, not the pre-plan.
 
 | Release | Theme | Status |
 |---|---|---|
-| v1.5.0 "The Broadsheet" | Broadsheet UI rebuild + Smart Director v2 scaffolding + Path-2 URL readiness | ✅ Shipped |
-| v1.5.1 "Broadsheet Final" | 6-submenu settings drawer (**absorbs v1.6 "Settings Pane" scope**) + free-tier status strip + ON AIR strip + per-mug waveforms + rolling-window ticker + round mugs | ✅ Shipped |
-| v1.5.2 "First Run" | Four-step Editor's Note onboarding tour + WIRE QUIET empty-state visibility fix | ✅ Shipped |
-| v1.5.3 "The Cast" | Illustrated peanut mascots for all 8 personas (**absorbs v1.8 "Peanut Mascots" scope**) + two-card pack chooser + apex→www middleware + war-defense guardrail on fact-checkers | ✅ Shipped |
-| v1.5.4 "The Sweep" | Janitorial pass — SEO refresh + legacy `/watch` deletion + side-panel a11y polish + ops logging + orphan-dep removal | 🟡 Draft PR [#37](https://github.com/Sethmr/peanut.gallery/pull/37); hold CWS upload until v1.5.3 clears review |
-| **v1.7.0 "Smart Director GA"** | LLM director becomes the only director; static rule-based scorer retired. Prompt + calibration work following an external research brief. | **Next** |
-| v1.9.0 "Bobbleheads (Stretch)" | 2-day gamble on 3D peanut bobbleheads with max-credible 2.5D / Lottie / sprite fallback | Planned |
-| v2.0.0 "The Gallery" | Session recall + shareable snippet, full audit, CWS listing + marketing-site refresh, launch day | Horizon |
-| v2.x.x | Continuous director + persona model improvements while we wait for user-driven v3.0 direction | Post-launch |
+| v1.5.0 – v1.5.6 | Broadsheet + Cast + Sweep + dev-infra | ✅ Shipped (see table above) |
+| **v1.6.0 "The Canary"** | Smart Director v3 canary (flag-gated) + fact-check gate + fallback telemetry + avatar stage 1 + 60 s silence auto-stop | ✅ Release PR open; awaiting merge + Railway flag flip |
+| **v1.7.x "Smart Director GA"** | LLM router becomes primary once v1.6 canary clears bands; rule-based scorer retires to thin safety-net only. Per-pack `directorHint` calibration from canary telemetry. Kill-switch flag stays. | Blocked on v1.6 canary data |
+| v1.8.x "Persona refinement sprint" | Re-run system prompts against 100+ transcripts per pack; tune anything canary telemetry says is under-firing. See [`PERSONA-REFINEMENT-PLAN.md`](PERSONA-REFINEMENT-PLAN.md). | Blocked on v1.7 canary |
+| v1.9.x "Subscription tier" | In-app subscription as an alternative to BYOK, with a weekly-hours cap targeted above top-10% user usage. Self-hosters and source-builders keep BYOK untouched. Pre-2.0 revenue test before the launch push. | Planning (see [Subscription tier](#subscription-tier-pre-v20) below) |
+| v1.10.x "Avatar stage 2" | Bobbleheads / 2.5D parallax / Lottie / MP4 fallback — whichever reads best in a 2-day spike per Seth's Day-1 eval | Planned |
+| v2.0.0 "The Gallery" | Session recall + shareable snippet (local, PNG-to-clipboard), full audit, CWS listing + marketing-site refresh, launch day | Horizon |
+| v2.x.x | Continuous Director + persona improvements while we wait for user-driven v3 direction | Post-launch |
 | v3.0.0 | **User-driven** — direction defined by what v2.0 users ask for, not by us | TBD |
 
-### v1.5.1 "Broadsheet Final" — Steps 1 + 2
+### ~~v1.6.0 "Settings Pane" (retired label)~~ — v1.6.0 now ships as "The Canary"
 
-One purpose: get v1.5.0 across the finish line and remove the legacy web-app surfaces that the extension no longer needs.
+**Version-number clarification.** The earlier roadmap reserved v1.6.0 for a "Settings Pane" scope. That scope landed early inside v1.5.1 (the 6-submenu drawer) and v1.5.4 (the a11y polish pass), so the v1.6 label was reclaimed. **v1.6.0 is now "The Canary"** — the Smart Director v3 flag-gated canary release. See the in-flight section above and the [`CHANGELOG.md`](../CHANGELOG.md) entry for details.
 
-**Sub-steps:**
+**Old sub-steps that already shipped:**
 
-1. **Complete the v1.5.0 canary loop** ([details](#in-flight--v150-canary--tag--cws-upload)). Pull telemetry on `director_v2_compare`, sanity-read 20 override transcripts, tag `v1.5.0`, upload the CWS zip.
-2. **Verify every Broadsheet feature on hosted + localhost.** Mute-a-critic, paper/night theme, Markdown export, footer filter pills, role tags, persona tap → force-react, director-trace badge. Walk the §5 verification checklist in [`SESSION-NOTES-2026-04-18.md`](SESSION-NOTES-2026-04-18.md) against the v1.5 build, not the v1.4 build it was originally written against.
-3. **Clean out the legacy web-app UI.** The Next.js `app/` tree currently still serves a `/watch` reference page that's been demoted to "abandoned prototype" in project memory. Surfaces to retire: `app/watch/`, the home page that points at it, any in-extension links that reach into the web app. Keep `app/api/*` (the backend the extension talks to). Update `docs/SELF-HOST-INSTALL.md` + `README.md` so self-hosters aren't told the web-app UI is a thing.
-4. **Smart Director canary follow-through.** If the v1.5 canary bands clear cleanly, leave `ENABLE_SMART_DIRECTOR=true` on by default in v1.5.1 (the fuller flip happens in v1.7). If they don't, codify the disagreement transcripts as fixtures (the original v1.5.1 plan, now condensed).
-5. **Tag `v1.5.1`** with release notes summarizing both the canary findings and the legacy-UI removal.
-
-**Touches:** removal of `app/watch/page.tsx` and related components, `app/page.tsx`, `extension/sidepanel.html` (any "open in web app" affordance), `docs/SELF-HOST-INSTALL.md`, `docs/BUILD-YOUR-OWN-BACKEND.md`, `README.md`, `docs/CONTEXT.md`.
-
-**Risk:** removing the web-app UI breaks the only browser-based way to demo the persona engine without the extension. Mitigation: keep `/api/personas` as the endpoint anyone can curl to demo the four voices on a string; document that path in the README "Build your own backend" section.
-
----
-
-### ~~v1.6.0 "Settings Pane"~~ — absorbed into v1.5.1 + v1.5.4
-
-**Retired.** The six sub-steps originally planned for v1.6 landed across two earlier releases:
-
-- **Sub-steps 1–3** — audit, sectioned settings page, persistence + `settingsSchemaVersion` — shipped in **v1.5.1 "Broadsheet Final"** as the 6-submenu drawer (Lineup / Backend & keys / Audio / Critics / Export / Appearance). See the v1.5.1 entry in [`../CHANGELOG.md`](../CHANGELOG.md).
+- **Sub-steps 1–3** — audit, sectioned settings page, persistence + `settingsSchemaVersion` — shipped in **v1.5.1 "Broadsheet Final"** as the 6-submenu drawer (Lineup / Backend & keys / Audio / Critics / Export / Appearance).
 - **Sub-step 7 (a11y audit)** — SR labels on every icon-only button, `aria-pressed` on filter pills, `role="log" aria-live="polite"` on the feed, universal `:focus-visible` rings — shipped in **v1.5.4 "The Sweep"** ([PR #31](https://github.com/Sethmr/peanut.gallery/pull/31)).
-- **Sub-step 5 (empty-state companions: no API keys / backend unreachable / audio denied / no pack selected)** — still open. Good next-tier polish candidate; small, self-contained, no regression surface.
-- **Sub-step 6 (Director debug panel reorganization)** — still open, but Director-adjacent; hold until the ongoing Smart-Director research brief returns.
+
+**Old sub-steps still open (can ride any release):**
+
+- **Sub-step 5 (empty-state companions)** — partially shipped in v1.6.0 ([PR #76](https://github.com/Sethmr/peanut.gallery/pull/76)).
+- **Sub-step 6 (Director debug panel reorganization)** — polished in v1.6.0 ([PR #77](https://github.com/Sethmr/peanut.gallery/pull/77)).
 - **Sub-step 4 (Claude Design UX polish pass)** + **Sub-step 7 contrast check across Paper + Night** — still open as design-owned work, not engineering-blocking.
 
-If any of the three still-open sub-items get picked up, they can ride with whichever release is in flight rather than waiting for a dedicated v1.6 cut. The version label itself is retired.
-
 ---
 
-### v1.7.0 "Smart Director GA"
+### v1.7.x "Smart Director GA"
 
-The Director is the moat. v1.5 shipped the LLM-assisted version behind a 400ms race; v1.7 makes it the only director and retires the static rule-based scorer. This is the load-bearing change of the v2.0 cycle — *Peanut Gallery without LLM routing* and *Peanut Gallery with LLM routing* are different products, and we're committing to the latter.
+The Director is the moat. v1.6.0 ships the LLM router as a flag-gated canary with Cerebras/Groq shadow validation; v1.7 promotes the LLM router to primary and retires the rule-based scorer to a thin safety-net. This is the load-bearing change of the v2.0 cycle — *Peanut Gallery without LLM routing* and *Peanut Gallery with LLM routing* are different products, and we're committing to the latter.
+
+**Pre-requisite:** v1.6.0 canary data. Don't start this work until the analyzer (`npm run analyze:director-v3`) shows agreement Haiku↔Cerebras ≥ 85 %, p95 Cerebras 3–5× faster than Haiku, timeout rate < 2 %, and the 20-override-transcript sanity read looks like producer notes, not hallucinations.
 
 **Sub-steps:**
 
-1. **Pre-flight check on canary data.** Before any code change: re-pull the `director_v2_compare` log, confirm agreement ≥ 55%, override rate is in [0.20, 0.45], p95 `llmElapsedMs` < 350 ms, timeout rate < 5%. If any band slips, polish the prompt in `lib/director-llm.ts` first; don't retire the rule-based path until the LLM path is provably better, not just plausibly so.
-2. **Per-pack `directorHint` calibration.** v1.5 set hints once and shipped. v1.7 revisits each pack's hints with the canary data and tunes any slot the router systematically under-picks.
-3. **Default-on, no flag.** `ENABLE_SMART_DIRECTOR` becomes the *kill switch* (defaults to true; setting false reverts to v1.4 behavior for emergency rollback). Self-host docs explain when to flip it.
-4. **Retire the rule-based scorer as primary.** `Director.decide` becomes "LLM picks; on null/timeout, fall through to a thin safety-net heuristic." The safety-net is intentionally dumber than today's full scorer — round-robin with a 5-second cooldown, no claim-density math, no pattern matching. The point is to avoid silent stalls, not to compete with the LLM.
-5. **Remove dead code paths.** The current `lib/director.ts` has a lot of complexity that only existed to score against the LLM. Once the LLM is the primary, the scorer's pattern-matching tables, claim-density estimator, and per-trigger weights are removable. Aim to shrink `lib/director.ts` by > 50%.
-6. **Update the fixture suite.** Every existing fixture currently asserts on the rule-based output. Convert them to assert on the LLM output (with the safety-net path as a separate, smaller suite). The harness now scores the *new* primary, not the old one.
-7. **Update `BUILD-YOUR-OWN-BACKEND.md` §7-§8.** The cascade rules and persona prompts sections both reference scoring formulas that no longer exist. Rewrite as: "the router picks one persona via LLM; cascade rules apply unchanged downstream; here's the spec for implementing your own routing model if you don't want to use Anthropic."
-8. **Cost note.** Smart Director adds ~$0.15 per 2-hour episode. Document it in the CONTEXT cost table; surface it in the side-panel debug footer as "Director spend this session: $0.0X."
-9. **Tag `v1.7.0`.** Release notes lead with: "the rule-based director is gone. Long live the smart one."
+1. **Re-pull the canary data** one more time on the day of work to confirm bands hold. If any band slipped, polish prompts in `lib/director-llm-v2.ts` first — don't retire the rule-based path until v3 is provably better, not just plausibly so.
+2. **Per-pack `directorHint` calibration.** v1.5 / v1.6 set hints once and shipped. v1.7 revisits each pack's hints with canary data; tune any slot the router systematically under-picks.
+3. **Swap Haiku → Cerebras as primary** *(contingent on canary result)*. If the agreement + latency story holds, Cerebras Llama 3.1 8B becomes the primary router and Haiku moves to shadow (or retires). If it doesn't, Haiku stays primary and Cerebras stays shadow indefinitely.
+4. **Default-on, flag is the kill switch.** `ENABLE_SMART_DIRECTOR_V2` defaults to true; setting false reverts to v1.4 rule-based behavior for emergency rollback. Self-host docs explain when to flip it.
+5. **Retire the rule-based scorer as primary.** `Director.decide` becomes "LLM picks; on null/timeout, fall through to a thin safety-net heuristic." The safety-net is intentionally dumber than today's full scorer — round-robin with a 5-second cooldown, no claim-density math, no pattern matching. Goal: avoid silent stalls, not compete with the LLM.
+6. **Remove dead code paths.** The current `lib/director.ts` has complexity that only existed to score against the LLM. Once the LLM is primary, the scorer's pattern-matching tables, claim-density estimator, and per-trigger weights are removable. Aim to shrink `lib/director.ts` by > 50%.
+7. **Update the fixture suite.** Every existing fixture currently asserts on rule-based output. Convert them to assert on LLM output (with the safety-net path as a separate, smaller suite). The harness now scores the new primary, not the old one.
+8. **Update `BUILD-YOUR-OWN-BACKEND.md` §7-§8.** Cascade rules + persona prompts sections reference scoring formulas that will no longer exist. Rewrite as: "the router picks one persona via LLM; cascade rules apply unchanged downstream; here's the spec for implementing your own routing model if you don't want to use Anthropic/Cerebras."
+9. **Cost note.** Smart Director adds ~$0.15/episode on Haiku (~$0.03 on Cerebras if that's the primary by this release). Document in `CONTEXT.md` cost table; surface in the side-panel debug footer.
+10. **Tag `v1.7.0`.** Release notes lead with: "the rule-based director is gone. Long live the smart one."
 
-**Touches:** `lib/director.ts` (large reduction), `lib/director-llm.ts` (no longer optional), `app/api/transcribe/route.ts` (race goes away — LLM is awaited unless killed), `lib/packs/*/personas.ts` (hint refinement), `scripts/test-director.ts` (fixture conversion), `scripts/fixtures/director/*.json` (re-baselined), `docs/BUILD-YOUR-OWN-BACKEND.md`, `docs/CONTEXT.md`.
+**Touches:** `lib/director.ts` (large reduction), `lib/director-llm-v2.ts` (no longer optional), `lib/director-llm-v3-cerebras.ts` (possibly promoted from shadow to primary), `app/api/transcribe/route.ts` (race goes away — LLM is awaited unless killed), `lib/packs/*/personas.ts` (hint refinement), `scripts/test-director.ts` (fixture conversion), `scripts/fixtures/director/*.json` (re-baselined), `docs/BUILD-YOUR-OWN-BACKEND.md`, `docs/CONTEXT.md`.
 
-**Risk:** if the LLM provider has a bad day, sessions go quiet. Mitigation: the safety-net heuristic exists for exactly that. Telemetry should page Seth (or at least log loudly) if the safety net is firing more than X% of ticks across all sessions.
+**Risk:** if the LLM provider has a bad day, sessions go quiet. **Mitigation:** the safety-net heuristic exists for exactly that. Telemetry should page Seth (or at least log loudly) if the safety net is firing more than X% of ticks across all sessions.
+
+---
+
+### v1.8.x "Persona refinement sprint"
+
+**Pre-requisite:** v1.7 canary must be steady. The persona refinement only works against a known-good router baseline — if the router's picking wrong personas, prompt tuning on those personas is measuring noise.
+
+**Scope:** re-run every pack's system prompt against 100+ recent transcripts from the reference shows (Howard Stern clips, TWiST episodes, plus whichever other packs have shipped by then). For each persona, score on three axes:
+
+1. *Did the right persona fire?* — Director's job; surfaced here only if a persona is systematically missing its moment because the Director is under-selecting it, which feeds a v1.7 hint-refinement loop.
+2. *Did the persona sound like itself?* — the main focus. Compare output against the pack's `docs/packs/<pack>/RESEARCH.md` characterization.
+3. *Did it avoid failure modes?* — political overreach (rule #6), impersonation slips, catchphrase overuse, etc.
+
+Canonical planning doc: [`PERSONA-REFINEMENT-PLAN.md`](PERSONA-REFINEMENT-PLAN.md). Ship iteratively as point releases (`v1.8.1`, `v1.8.2` per-persona) so each tune is independently roll-backable.
+
+---
+
+### v1.9.x "Subscription tier" — pre-2.0 revenue test
+
+**Frame.** Peanut Gallery is open-source and BYOK-first. Self-hosters and developers will always bring their own keys — that's the core privacy posture (design principle #5) and that posture stays unchanged. The subscription is an **alternative** for users who don't want to manage keys: they pay Peanut Gallery a monthly fee and we run the API calls on their behalf, up to a weekly-hours cap.
+
+**Guiding principles (per Seth, 2026-04-21):**
+
+1. **BYOK stays primary and free.** The open-source path never regresses. Anyone cloning the repo, running `npm run dev`, or loading the extension against a self-hosted backend keeps the same experience they have today.
+2. **Subscription is an alternative, not a replacement.** In the extension UI, users toggle between "use my keys" and "use subscription" inside the Backend & keys drawer. Both work; the user picks per-session.
+3. **Weekly-hours cap, not token-counting.** The cap is expressed in hours of live listening per week. Target: slightly above what our top-10% of users consume (so a power user can still binge TWiST + Stern + whatever else without running out mid-episode).
+4. **Lean high initially.** There are real dev fees (Seth's time, infrastructure, support) that need covering before any tightening. Start with a generous cap and pull it in over time *if* the economics warrant it. If the cap has to be tightened to the point where it's hostile to normal usage, **that's a signal to rework the stack**, not to keep cutting.
+5. **No account system creep.** The subscription needs an identity (obviously) but the extension's local-first posture holds: session transcripts and reactions stay in `chrome.storage.local`; the backend only sees the audio stream + the subscription identity, and forgets both on session close. No server-side transcript storage, no analytics pipeline on user content.
+6. **Open-source compatibility.** The subscription code is open-source too — a self-hoster running the Next.js backend can set up their own Stripe (or equivalent) integration using the same code paths. The "hosted tier" isn't a closed fork; it's the same repo with a specific set of environment variables.
+
+**Scope (planning only — NOT to be built yet):**
+
+- **Pricing model.** A single tier to start (e.g., "Peanut Gallery Plus"). Price point to be set against the actual API cost per hour of typical usage × the weekly-hours cap × a dev-fee cushion. Target: a monthly fee that feels fair next to "Spotify but for podcast companions" rather than "enterprise SaaS." Actual number left to Seth; economics work is a pre-requisite before any build-out.
+- **Weekly-hours cap.** Tracked server-side against the subscription identity. Resets weekly on the same day of the week as signup (not calendar week) to avoid end-of-week clumping.
+- **UX surface.** A third radio option in the Backend & keys drawer: "Hosted demo" (existing), "My own keys" (existing), **"Peanut Gallery Plus"** (new). Selecting it prompts a sign-in flow → returns a session token → the extension attaches the token per-request instead of user keys. Clear hour-cap progress bar in the drawer footer ("You've used 3.2 h / 15 h this week. Resets Thursday.").
+- **Billing integration.** Stripe (most likely) — checkout redirect, webhook for subscription-status sync, a single `/api/subscription/status` endpoint the extension polls once per session start. No payment data in the extension; all flows route through Stripe's hosted pages.
+- **Cap-exceeded UX.** At 90 % cap: banner in the side panel ("2 h left this week"). At 100 %: session ends cleanly (same path as the 60 s silence auto-stop); drawer surfaces "Cap reset in 2 d 4 h — switch to My own keys or wait." Never a billing upsell mid-session.
+
+**Success signals that trigger the pre-2.0 build-out:**
+
+- The v1.6 canary + v1.7 GA settle into a steady operating cost per session-hour that's predictable enough to price against.
+- There's actual user demand for "just let me pay you, I don't want to manage keys" — surfaced via support requests, Discussions, or CWS reviews.
+- Stripe (or an equivalent we like) is a one-afternoon integration, not a multi-week saga.
+
+**Failure signals that force the stack rework:**
+
+- The top-10%-user weekly-hours target implies a per-user cost that can't be covered by a reasonable fee. Fix: cheaper Deepgram plan (bulk), cheaper primary router (Cerebras once v1.7 GA), cheaper persona models, caching.
+- Stripe-equivalent integration drags into a multi-week project. Fix: defer until post-v2.0 and ship v2.0 with BYOK-only.
+
+**Anti-goals:**
+
+- No "free tier with aggressive limits." The existing demo-keys flow already serves "try-before-buy"; the subscription is for users who've decided.
+- No enterprise / team / multi-seat pricing before v2.0. One tier, one price.
+- No advertising inside the extension. Ever. Not in the subscription, not in the free tier.
+
+**Canonical planning doc:** [`docs/SUBSCRIPTION-PLAN.md`](SUBSCRIPTION-PLAN.md) (to be written when v1.8 completes). Until then, this section IS the plan.
+
+---
+
+### v1.10.x "Avatar stage 2"
+
+Seth's call: 3D bobbleheads land here **if and only if** we can get a credible v1 in two days. If two days isn't enough, we ship the **maximum visual upgrade possible** in the same time budget instead — never half-built 3D. The goal is a "holy shit" visual moment between the v1.6.0 avatar stage 1 (Phong-shaded 2D peanuts, shipped) and the v2.0 launch, not a long animation pipeline.
+
+**The 2-day gamble (preferred path):**
+
+1. **Day 1 — Spike + decision.** Stand up Three.js inside the side panel. Load one peanut bobblehead (Howard) with: a baked rig, an idle bob, and a single "react" pose triggered on fire. Eval at end-of-day: does it look like a Peanut Gallery thing or a generic Three.js demo? If generic → drop to fallback path Day 2. If on-brand → continue.
+2. **Day 2 — Pack rollout + animation hooks.** Replicate the rig across the four TWiST personas with their key items. Wire `Persona.bobblehead` schema (`modelSrc`, `idlePose`, `reactPose`, `prop`). Hook fire events to the react pose with a 600 ms decay back to idle. Performance budget: side panel render stays under 16 ms/frame at 60 fps on an M1.
+3. **Tag the minor.** Release notes lead with: "the gallery now reacts in 3D."
+
+**Fallback path (if Day 1 says "not credible"):** ship the **maximum** version of what 2 days *can* deliver. In priority order:
+
+- **2.5D parallax mascots.** Layer the v1.5.3 mascot SVGs across 3-4 depth planes; CSS transform on mouse / fire events. ~80% of the bobblehead "wow" for ~10% of the work.
+- **Lottie reaction loops.** Designer ships per-persona After Effects → Lottie JSON files; engineer wires them to fire events. Crisp at any DPR, animates through the reaction beat.
+- **Animated GIF / WebP sprite sheets.** Lowest fidelity but zero runtime cost. Designer ships sheets; engineer swaps `<img src>` on fire events.
+- **AI-generated MP4 reaction loops.** 1-2s seamless loops per persona × pack. Cheap to make, looks premium, no animation pipeline. Pre-cache and play on fire.
+
+The fallback is not a failure — it's the same "visual moment" goal hit with a different tool. The v2.0 launch story doesn't need 3D; it needs *aliveness*.
+
+**Touches:** `extension/sidepanel.html` (canvas/video slot), `extension/sidepanel.js` (animation hook on fire events), `extension/lib/bobblehead.js` (new — Three.js wrapper) **or** `extension/lib/parallax.js` / `extension/lib/lottie-host.js` / `extension/assets/reactions/*.mp4` depending on path, `lib/packs/*/personas.ts` (`bobblehead` or `reaction` field on Persona), `marketing/CLAUDE-DESIGN-BRIEF.md` (animation brief — designer source of truth).
+
+**Risk:** scope creep on the 3D path. **Mitigation:** the Day 1 eval is binding; if Howard doesn't read as on-brand by EOD, switch paths Day 2 morning. No "one more day" extensions. The point of v1.10 is the visual upgrade, not the technology choice.
 
 ---
 
@@ -152,38 +221,11 @@ The final prop mapping differs slightly from the designer reference list above:
 
 ---
 
-### v1.9.0 "Bobbleheads (Stretch)"
+## v2.0.0 "The Gallery" — launch
 
-Seth's call: 3D bobbleheads land here **if and only if** we can get a credible v1 in two days. If two days isn't enough, we ship the **maximum visual upgrade possible** in the same time budget instead — never half-built 3D. The goal is a "holy shit" visual moment between the v1.5.3 mascots and the v2.0 launch, not a long animation pipeline.
+The brand moment. Everything from v1.5 → v1.10 stacks into a single coherent product: the Broadsheet UI, the polished settings, the LLM director (now the primary via v1.7 GA), the peanut mascots (v1.5.3) + avatar depth pass (v1.6 stage 1) + bobblehead-or-equivalent (v1.10 stage 2), the pack catalog, the subscription alternative (v1.9), and the distribution loop. v2.0 is when we stop iterating and ship the version that tells the whole story.
 
-**The 2-day gamble (preferred path):**
-
-1. **Day 1 — Spike + decision.** Stand up Three.js inside the side panel. Load one peanut bobblehead (Howard) with: a baked rig, an idle bob, and a single "react" pose triggered on fire. Eval at end-of-day: does it look like a Peanut Gallery thing or a generic Three.js demo? If generic → drop to fallback path Day 2. If on-brand → continue.
-2. **Day 2 — Pack rollout + animation hooks.** Replicate the rig across the four TWiST personas with their key items (clipboard / cap-table / chyron / data-chart). Wire `Persona.bobblehead` schema (`modelSrc`, `idlePose`, `reactPose`, `prop`). Hook fire events to the react pose with a 600 ms decay back to idle. Performance budget: side panel render stays under 16 ms/frame at 60 fps on an M1.
-3. **Tag `v1.9.0`.** Release notes lead with: "the gallery now reacts in 3D."
-
-**Fallback path (if Day 1 says "not credible"):** ship the **maximum** version of what 2 days *can* deliver. In priority order:
-
-- **2.5D parallax mascots.** Layer the v1.5.3 mascot SVGs across 3-4 depth planes; CSS transform on mouse / fire events. ~80% of the bobblehead "wow" for ~10% of the work.
-- **Lottie reaction loops.** Designer ships per-persona After Effects → Lottie JSON files; engineer wires them to fire events. Crisp at any DPR, animates through the reaction beat.
-- **Animated GIF / WebP sprite sheets.** Lowest fidelity but zero runtime cost. Designer ships sheets; engineer swaps `<img src>` on fire events.
-- **AI-generated MP4 reaction loops.** 1-2s seamless loops per persona × pack. Cheap to make, looks premium, no animation pipeline. Pre-cache and play on fire.
-
-The fallback is not a failure — it's the same "visual moment" goal hit with a different tool. The v2.0 launch story doesn't need 3D; it needs *aliveness*.
-
-**Touches:** `extension/sidepanel.html` (canvas/video slot), `extension/sidepanel.js` (animation hook on fire events), `extension/lib/bobblehead.js` (new — Three.js wrapper) **or** `extension/lib/parallax.js` / `extension/lib/lottie-host.js` / `extension/assets/reactions/*.mp4` depending on path, `lib/packs/*/personas.ts` (`bobblehead` or `reaction` field on Persona), `marketing/CLAUDE-DESIGN-BRIEF.md` (animation brief — designer source of truth).
-
-**Risk:** scope creep on the 3D path. **Mitigation:** the Day 1 eval is binding; if Howard doesn't read as on-brand by EOD, switch paths Day 2 morning. No "one more day" extensions. The point of v1.9 is the visual upgrade, not the technology choice.
-
-**Persona deep-research upgrades are explicitly NOT in v1.9.** They moved to v2.x continuous improvement (below) where they belong — they're a quiet quality lift, not a launch story.
-
----
-
-## v2.0.0 "The Gallery" — Steps 9 + 10
-
-The brand moment. Everything from v1.5 → v1.9 stacks into a single coherent product: the Broadsheet UI, the polished settings, the LLM director, the peanut mascots, the bobblehead (or equivalent) moment, and the pack catalog. v2.0 is when we stop iterating and ship the version that tells the whole story.
-
-**Session recall + shareable snippet is a confirmed v2.0 launch feature.** It's the distribution loop — users reach back to a moment, clip the transcript + persona reactions into a Broadsheet-styled card, and post it. Zero new providers, fully client-side, plugs into the Markdown export already shipped in v1.5. This lands with the launch, not after.
+**Session recall + shareable snippet is a confirmed v2.0 launch feature.** It's the distribution loop — users reach back to a moment, clip the transcript + persona reactions into a Broadsheet-styled card, and post it. Zero new providers, fully client-side, plugs into the Markdown export already shipped in v1.5 and the `chrome.storage.local` groundwork shipped in v1.6.0. This lands with the launch, not after.
 
 **Sub-steps:**
 
