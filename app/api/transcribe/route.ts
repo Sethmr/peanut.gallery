@@ -26,6 +26,7 @@ import { resolvePack } from "@/lib/packs";
 import { Director } from "@/lib/director";
 import { pickPersonaLLM, type LlmRoutingPick } from "@/lib/director-llm";
 import { pickPersonaGroq } from "@/lib/director-llm-v3-groq";
+import { pickPersonaCerebras } from "@/lib/director-llm-v3-cerebras";
 import {
   pickPersonaLLMv2,
   applyStickyPenalty,
@@ -59,7 +60,7 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Groq-Key, X-Search-Engine, X-Install-Id",
+    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Groq-Key, X-Cerebras-Key, X-Search-Engine, X-Install-Id",
   "Access-Control-Expose-Headers": "X-Session-Id",
   "Access-Control-Max-Age": "86400",
 };
@@ -156,15 +157,18 @@ export async function POST(req: NextRequest) {
   const headerBrave = req.headers.get("X-Brave-Key");
   const headerXai = req.headers.get("X-XAI-Key");
   const headerGroq = req.headers.get("X-Groq-Key");
+  const headerCerebras = req.headers.get("X-Cerebras-Key");
 
   const deepgramKey = headerDeepgram || process.env.DEEPGRAM_API_KEY;
   const anthropicKey = headerAnthropic || process.env.ANTHROPIC_API_KEY;
   const braveKey = headerBrave || process.env.BRAVE_SEARCH_API_KEY;
   const xaiKey = headerXai || process.env.XAI_API_KEY;
-  // Groq key for Smart Director v3 shadow test (SET-6). Never used for
+  // Shadow-provider keys for Smart Director v3 (SET-6). Never used for
   // user-facing persona calls — only for the parallel shadow LLM call that
-  // logs agreement rate vs Haiku v2.
+  // logs agreement rate vs Haiku. Groq is deferred until Developer tier
+  // reopens (SET-11); Cerebras is the working fast-provider path today.
   const groqKey = headerGroq || process.env.GROQ_API_KEY;
+  const cerebrasKey = headerCerebras || process.env.CEREBRAS_API_KEY;
 
   // Search-engine selection. Client sends "brave" or "xai" via X-Search-Engine;
   // anything else (missing, typo, old client) falls through to Brave — that
@@ -268,6 +272,9 @@ export async function POST(req: NextRequest) {
     // events in pipeline-debug.jsonl.
     groqShadowEnabled:
       process.env.ENABLE_SMART_DIRECTOR_V3_GROQ === "true" && !!groqKey,
+    cerebrasShadowEnabled:
+      process.env.ENABLE_SMART_DIRECTOR_V3_CEREBRAS === "true" &&
+      !!cerebrasKey,
   });
 
   const transcriber = new TranscriptionManager(deepgramKey);
@@ -555,18 +562,21 @@ export async function POST(req: NextRequest) {
           const smartV2On =
             process.env.ENABLE_SMART_DIRECTOR_V2 === "true" && !!anthropicKey;
 
-          // ── Smart Director v3 Groq shadow (SET-6) ──
+          // ── Smart Director v3 fast-provider shadows (SET-6) ──
           // Fire in parallel with whichever Haiku call (v2 or v3) runs below.
           // Deliberately NOT awaited before routing — the shadow pick is
-          // logged but never fed to director.decide(). A 2s timeout bounds
-          // tail latency on the async log path; Groq's typical 50–120 ms
-          // TTFT means the shadow usually resolves before the cascade finishes.
+          // logged but never fed to director.decide(). A 2 s timeout bounds
+          // tail latency on the async log path; sub-200 ms TTFT on both
+          // providers means the shadow usually resolves before the cascade
+          // finishes.
           //
-          // (2026-04-21) Groq Developer tier is temporarily unavailable — Free
-          // tier's ~6k TPM cap will 429 on real production traffic. The Groq
-          // path is kept here for when Developer tier reopens (tracked in
-          // SET-11). For now, the working fast-provider shadow is Cerebras
-          // (tracked in the updated SET-6 spec); add-Cerebras is a follow-up.
+          // Two shadow providers are wired, independently flag-gated:
+          //   - Cerebras (ENABLE_SMART_DIRECTOR_V3_CEREBRAS): working today.
+          //     Llama 3.1 8B, ~100–440 ms TTFT, paid self-serve.
+          //   - Groq     (ENABLE_SMART_DIRECTOR_V3_GROQ): deferred, tracked
+          //     in Linear SET-11 until Developer tier reopens. Same model as
+          //     Cerebras so the eventual switch is a 1-env-flip.
+          // Both flags can be on at once for a head-to-head comparison.
           const groqShadowOn =
             process.env.ENABLE_SMART_DIRECTOR_V3_GROQ === "true" &&
             (smartOn || smartV2On) &&
@@ -581,6 +591,25 @@ export async function POST(req: NextRequest) {
                   cooldownsMs: director.getCooldownsMs(),
                   packPersonas: session.resolvedPack.personas,
                   groqKey: groqKey!,
+                  signal: AbortSignal.timeout(2000),
+                  sessionId,
+                }).catch(() => null)
+              : Promise.resolve(null);
+
+          const cerebrasShadowOn =
+            process.env.ENABLE_SMART_DIRECTOR_V3_CEREBRAS === "true" &&
+            (smartOn || smartV2On) &&
+            !!cerebrasKey;
+          const cerebrasShadowStart = cerebrasShadowOn ? Date.now() : null;
+          const cerebrasShadowPromise: Promise<LlmRoutingPick | null> =
+            cerebrasShadowOn
+              ? pickPersonaCerebras({
+                  recentTranscript: directorInput,
+                  isSilence: isSilenceTick,
+                  recentFirings: director.getRecentFirings(),
+                  cooldownsMs: director.getCooldownsMs(),
+                  packPersonas: session.resolvedPack.personas,
+                  cerebrasKey: cerebrasKey!,
                   signal: AbortSignal.timeout(2000),
                   sessionId,
                 }).catch(() => null)
@@ -696,13 +725,15 @@ export async function POST(req: NextRequest) {
           }
 
           // SET-6: Smart Director fast-provider shadow compare.
-          // Fired non-blocking — we don't await groqShadowPromise before the
-          // cascade so Groq's latency never adds to the routing critical path.
-          // The .then() handler logs after Groq resolves (typically 50–120 ms,
-          // well before the cascade finishes). The Haiku pick (v3 when the
-          // v3 flag is on; v2 otherwise) is captured in the closure so both
-          // results land in the same event.
-          if (groqShadowOn) {
+          // Fired non-blocking — we don't await the shadow promises before
+          // the cascade so fast-provider latency never adds to the routing
+          // critical path. The .then() handler logs after each provider
+          // resolves. The Haiku pick (v3 when the v3 flag is on; v2
+          // otherwise) is captured in the closure so results land in the
+          // same event. Each provider emits its own event — keeps the
+          // log schema flat when only one is on, avoids confusing "fast is
+          // null" ambiguity when both are on.
+          if (groqShadowOn || cerebrasShadowOn) {
             const capturedHaikuPick = smartV2On
               ? llmPickV2?.personaId ?? null
               : llmPick?.personaId ?? null;
@@ -711,9 +742,13 @@ export async function POST(req: NextRequest) {
               : llmPick?.rationale ?? null;
             const capturedHaikuElapsedMs = llmElapsedMs;
             const capturedHaikuVersion = smartV2On ? "v3" : "v2";
-            groqShadowPromise.then((groqPick) => {
-              const groqElapsedMs =
-                groqShadowStart !== null ? Date.now() - groqShadowStart : null;
+
+            const emitShadowCompare = (
+              provider: "groq" | "cerebras",
+              model: string,
+              shadowPick: LlmRoutingPick | null,
+              elapsedMs: number | null
+            ) => {
               log.info("director_v3_shadow_compare", {
                 haiku: {
                   version: capturedHaikuVersion,
@@ -722,18 +757,48 @@ export async function POST(req: NextRequest) {
                   elapsedMs: capturedHaikuElapsedMs,
                 },
                 fast: {
-                  pick: groqPick?.personaId ?? null,
-                  rationale: groqPick?.rationale ?? null,
-                  elapsedMs: groqElapsedMs,
-                  model: "llama-3.1-8b-instant",
-                  provider: "groq",
+                  pick: shadowPick?.personaId ?? null,
+                  rationale: shadowPick?.rationale ?? null,
+                  elapsedMs,
+                  model,
+                  provider,
                 },
                 agreed:
-                  groqPick?.personaId !== null &&
-                  groqPick?.personaId === capturedHaikuPick,
+                  shadowPick?.personaId !== null &&
+                  shadowPick?.personaId === capturedHaikuPick,
                 isSilence: isSilenceTick,
               });
-            });
+            };
+
+            if (groqShadowOn) {
+              groqShadowPromise.then((groqPick) => {
+                const elapsedMs =
+                  groqShadowStart !== null
+                    ? Date.now() - groqShadowStart
+                    : null;
+                emitShadowCompare(
+                  "groq",
+                  "llama-3.1-8b-instant",
+                  groqPick,
+                  elapsedMs
+                );
+              });
+            }
+
+            if (cerebrasShadowOn) {
+              cerebrasShadowPromise.then((cerebrasPick) => {
+                const elapsedMs =
+                  cerebrasShadowStart !== null
+                    ? Date.now() - cerebrasShadowStart
+                    : null;
+                emitShadowCompare(
+                  "cerebras",
+                  "llama3.1-8b",
+                  cerebrasPick,
+                  elapsedMs
+                );
+              });
+            }
           }
 
           // v1.2: emit the Director's decision to the side-panel debug panel
