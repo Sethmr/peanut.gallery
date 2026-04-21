@@ -78,6 +78,7 @@ const MAX_DESCRIPTION_CHARS = 8000;
 const OPUS_LABEL = "needs-opus";
 const SKIP_LABEL = "claude:skip";
 const LEGACY_GO_LABEL = "claude:go";
+const REVIEW_LABEL = "needs-review";
 const PR_HEAD_BRANCH_PREFIX = "claude/";
 
 // ─── Types ───────────────────────────────────────────────────────────────
@@ -443,8 +444,66 @@ async function hasNewCommits(worktree: string): Promise<boolean> {
   }
 }
 
-async function pushBranch(worktree: string, branch: string): Promise<void> {
-  await runCommand("git", ["-C", worktree, "push", "-u", "origin", branch]);
+/**
+ * Rebase the worktree's current branch onto the freshest `origin/develop`.
+ *
+ * Why: when the daemon opens a PR, we want CI to run against a branch that's a
+ * strict ancestor-plus-delta of `develop`. Otherwise a CI run that was green at
+ * branch-off time can regress after an unrelated PR merges, and auto-merge
+ * waiting on that stale CI signal is worthless. Rebasing here puts every
+ * kickoff PR in the same shape Seth would produce manually via
+ * `git pull --rebase develop`.
+ *
+ * On conflict: we abort the rebase so the worktree is clean enough for Seth to
+ * inspect, then bubble the error up. `processIssue` catches it and leaves the
+ * worktree in place without pushing or opening a PR.
+ */
+async function rebaseOntoDevelop(
+  worktree: string,
+  _branch: string,
+): Promise<void> {
+  await runCommand("git", ["-C", worktree, "fetch", "origin", BASE_BRANCH]);
+  try {
+    await runCommand("git", [
+      "-C",
+      worktree,
+      "rebase",
+      `origin/${BASE_BRANCH}`,
+    ]);
+  } catch (err) {
+    // Best-effort abort so the worktree is clean for Seth to inspect.
+    await runCommand("git", ["-C", worktree, "rebase", "--abort"]).catch(
+      () => {
+        /* ignore */
+      },
+    );
+    throw new Error(
+      `rebase onto origin/${BASE_BRANCH} failed: ${(err as Error).message}`,
+    );
+  }
+}
+
+/**
+ * Push the worktree's branch with `--force-with-lease`.
+ *
+ * `--force-with-lease` (not `--force`): if someone else pushed to the same
+ * remote branch between our fetch and our push, we want to fail loudly rather
+ * than silently clobbering their work. In practice nobody else pushes to
+ * `claude/*` branches, but the guardrail is cheap.
+ */
+async function pushBranchForcePushWithLease(
+  worktree: string,
+  branch: string,
+): Promise<void> {
+  await runCommand("git", [
+    "-C",
+    worktree,
+    "push",
+    "--force-with-lease",
+    "-u",
+    "origin",
+    branch,
+  ]);
 }
 
 // ─── Claude CLI invocation ───────────────────────────────────────────────
@@ -772,8 +831,23 @@ async function processIssue(issue: LinearIssue): Promise<void> {
     return;
   }
 
+  // Rebase onto the freshest origin/develop BEFORE pushing. If rebase
+  // conflicts, abort cleanly and leave the worktree in place for Seth — do
+  // NOT push or open a PR.
   try {
-    await pushBranch(worktree, branch);
+    await rebaseOntoDevelop(worktree, branch);
+  } catch (err) {
+    await logEvent("error", "rebase_failed", {
+      identifier: issue.identifier,
+      branch,
+      err: (err as Error).message,
+      note: "worktree left in place for inspection; no PR opened",
+    });
+    return;
+  }
+
+  try {
+    await pushBranchForcePushWithLease(worktree, branch);
   } catch (err) {
     await logEvent("error", "push_failed", {
       identifier: issue.identifier,
@@ -798,8 +872,11 @@ async function processIssue(issue: LinearIssue): Promise<void> {
   ].join("\n");
   await writeFile(bodyFile, bodyText, "utf8");
 
+  let prNumber: number | null = null;
   try {
-    await runCommand("gh", [
+    // gh pr create prints the PR URL on stdout; the last path segment is the
+    // PR number. We parse it so we can enable auto-merge below.
+    const { stdout } = await runCommand("gh", [
       "pr",
       "create",
       "--repo",
@@ -813,14 +890,75 @@ async function processIssue(issue: LinearIssue): Promise<void> {
       "--body-file",
       bodyFile,
     ]);
-    await logEvent("info", "kickoff_pr_opened", {
-      identifier: issue.identifier,
-      branch,
-    });
+    const urlMatch = stdout.match(/\/pull\/(\d+)/);
+    prNumber = urlMatch ? Number(urlMatch[1]) : null;
   } catch (err) {
     await logEvent("error", "gh_pr_create_failed", {
       identifier: issue.identifier,
       err: (err as Error).message,
+    });
+    return;
+  }
+
+  // Auto-merge by default, opt-out via the `needs-review` label on the
+  // Linear issue. Seth reserves manual review for changes that need
+  // app-testing; everything else gets `gh pr merge --auto --squash` so CI
+  // green → the PR self-merges on develop without Seth watching.
+  const needsReview = labelsLower.includes(REVIEW_LABEL);
+
+  if (prNumber === null) {
+    // PR opened but we couldn't parse the number — log and bail on the
+    // auto-merge attempt. Seth can merge manually.
+    await logEvent("warn", "kickoff_pr_opened", {
+      identifier: issue.identifier,
+      branch,
+      prNumber: null,
+      autoMerge: false,
+      note: "could not parse PR number from gh output; auto-merge skipped",
+    });
+    return;
+  }
+
+  if (needsReview) {
+    await logEvent("info", "kickoff_pr_opened", {
+      identifier: issue.identifier,
+      branch,
+      prNumber,
+      autoMerge: false,
+      reason: `"${REVIEW_LABEL}" label present`,
+    });
+    return;
+  }
+
+  try {
+    await runCommand("gh", [
+      "pr",
+      "merge",
+      String(prNumber),
+      "--repo",
+      `${REPO_OWNER}/${REPO_NAME}`,
+      "--squash",
+      "--delete-branch",
+      "--auto",
+    ]);
+    await logEvent("info", "kickoff_pr_opened", {
+      identifier: issue.identifier,
+      branch,
+      prNumber,
+      autoMerge: true,
+    });
+  } catch (err) {
+    // `--delete-branch` is known to fail locally because the branch is still
+    // checked out in the daemon's worktree, but the REMOTE branch + the
+    // auto-merge flag get set correctly by gh before that local step.
+    // Previous smoke testing confirmed orphan worktrees are harmless, so we
+    // don't try to clean up here. Log warn, keep going.
+    await logEvent("warn", "auto_merge_enable_failed", {
+      identifier: issue.identifier,
+      branch,
+      prNumber,
+      err: (err as Error).message,
+      note: "PR still opened; Seth can merge manually",
     });
   }
 }
