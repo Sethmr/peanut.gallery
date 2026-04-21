@@ -118,6 +118,26 @@ YouTube URL
 - **Lesson:** YouTube's extraction landscape changes constantly. Always keep yt-dlp updated, and cookie auth is increasingly mandatory, not optional.
 - **How to verify:** Run `yt-dlp --cookies-from-browser chrome -f bestaudio -o - "URL" | head -c 1024 | wc -c` — should output `1024`.
 
+### ISSUE-010: Sidepanel TDZ — nothing tappable after a new top-level block
+- **Date:** 2026-04-21 (PRs [#106](https://github.com/Sethmr/peanut.gallery/pull/106), [#112](https://github.com/Sethmr/peanut.gallery/pull/112))
+- **Symptom:** After the v1.9 Peanut Gallery Plus scaffold landed ([#102](https://github.com/Sethmr/peanut.gallery/pull/102)), the side panel rendered normally but NO buttons were clickable — settings gear, Start Listening, feed-entry menu, tutorial, all dead. Hover CSS (`:hover` highlight on buttons) still fired correctly. The only interactive element that worked was the `<a href>` "run your own backend" link (which uses native browser navigation, not JS).
+- **Root cause:** JavaScript temporal dead zone. The v1.9 block was inserted around line 534 of `extension/sidepanel.js`, several hundred lines ABOVE the main DOM-refs block (line ~964). Top-level code in the new block referenced `const` bindings declared below: #106 caught `backendModeSegmented` / `subscriptionKeyInput` / etc. used in an event-listener registration block at line ~670; #112 caught a second instance where a top-level `for` loop iterated over `[deepgramKeyInput, anthropicKeyInput, xaiKeyInput]` at line ~851 before those consts were declared. Either access throws `ReferenceError: Cannot access '<name>' before initialization`, which halts script execution. Every `addEventListener` past the throw point never attached, leaving a visually-correct but click-dead panel.
+- **Fix:** Two strategies depending on the site:
+  - **Hoist the specific refs** above the new block (#106 pattern). Works when you need the bindings later in the file too.
+  - **Reach through the DOM by id inline** (`document.getElementById("...")`) instead of referencing the lexical binding (#112 pattern). Zero TDZ possible; no need to move anything.
+- **Signature to recognize this class of bug:**
+  - DOM renders ✓
+  - `:hover` works on buttons ✓ (hit-testing is fine)
+  - `<a href>` links work ✓ (native nav, no JS needed)
+  - `<button>` clicks do nothing ✗
+  - DevTools console shows `Uncaught ReferenceError: Cannot access '<name>' before initialization` at the offending line
+  - `window.onerror` handler (now always installed at the top of `sidepanel.js`) surfaces the error even if DevTools is closed.
+- **Diagnostic pattern that cracked it:** a temporary on-panel "diag strip" at `z-index: 99999, pointer-events: none` showing load-timestamp + click-counter + last-phase-reached + sticky error. Phase breadcrumbs via `updatePhase()` at every major load site made the halt point readable from the panel alone. Reads like "phase:v1.9 backend-mode block · ERR: Uncaught ReferenceError ... @ sidepanel.js:851". Stripped once root cause was fixed ([#113](https://github.com/Sethmr/peanut.gallery/pull/113)). Full lesson in auto-memory `feedback_sidepanel_tdz_lesson.md`.
+- **Prevention:** when adding a large new top-level block to `sidepanel.js`, NEVER reference later-declared `const` bindings from top-level code. Either hoist the bindings or reach through `document.getElementById`. Function bodies that use those bindings internally are safe — bodies evaluate at call time, by which point the declarations have run. Only top-level evaluation is the danger zone.
+- **Longer-term fix:** decomposing `sidepanel.js` (3,500+ lines) into ES6 modules would make this class of bug impossible — each module has its own scope and can't forward-reference across boundaries. Tracked as a post-v2.0 refactor in [`AUDIT-2026-04-21.md` finding #3](AUDIT-2026-04-21.md).
+
+---
+
 ### ISSUE-009: GitHub push protection rejected v1.1.1 for embedded demo API keys
 - **Date:** 2026-04-17
 - **Symptom:** `git push` on the v1.1.1 commit failed with `remote: error: GH013: Repository rule violations found for refs/heads/main` and specific hits on "Groq API Key" at `extension/sidepanel.js:19` and "Anthropic API Key" at `extension/sidepanel.js:20`.
