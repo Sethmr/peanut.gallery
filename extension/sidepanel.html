@@ -1005,7 +1005,40 @@
       letter-spacing: .15em; text-transform: uppercase;
       color: var(--ink-3);
       padding-top: 12px; border-top: 1px dotted var(--ink-3);
-      max-width: 220px; line-height: 1.5;
+      max-width: 260px; line-height: 1.5;
+    }
+    /* ── EMPTY-STATE COMPANION CTA (v1.6 sub-step 5) ──
+       Appears when showError identifies an actionable category:
+       - needs-keys → "Open Settings" jumps to Backend & keys
+       - unreachable → "Open Settings" jumps to Backend & keys
+       - mic-denied → "Try Again" re-shows the toolbar-icon hint
+       - no-pack → "Choose Pack" jumps to Lineup
+       Hidden unless data-variant on #emptyState != "idle". */
+    .empty-state .empty-cta{
+      margin-top: 16px;
+      font-family: var(--slab-2); font-size: 11px;
+      font-weight: 700; letter-spacing: .15em;
+      text-transform: uppercase; color: var(--paper);
+      background: var(--ink); border: 2px solid var(--ink);
+      padding: 8px 16px; cursor: pointer;
+      transition: background 0.12s;
+    }
+    .empty-state .empty-cta:hover{
+      background: var(--stamp);
+      border-color: var(--stamp);
+    }
+    .empty-state .empty-cta:focus-visible{
+      outline: 2px solid var(--stamp); outline-offset: 2px;
+    }
+    .empty-state[data-variant="idle"] .empty-cta{display: none}
+    /* Alert variants dim the primary tagline slightly so the CTA reads
+       as the primary action (ink/stamp accent), not the "Wire Quiet." headline. */
+    .empty-state:not([data-variant="idle"]) .lg{
+      color: var(--stamp);
+    }
+    .empty-state:not([data-variant="idle"]) .dk{
+      color: var(--ink);
+      border-top-color: var(--ink);
     }
 
     /* ── FOOTER ── */
@@ -1672,9 +1705,10 @@
        showIdle() sets it back to flex on stop. An earlier inline style="display:none;" here
        made the element invisible on first load and only visible AFTER the user ran a
        start/stop cycle (because only showIdle wrote the style back). -->
-  <div id="emptyState" class="empty-state">
-    <div class="lg">Wire<br>Quiet.</div>
-    <div class="dk">Staff is standing by. Commentary posts here as the transcript comes in.</div>
+  <div id="emptyState" class="empty-state" data-variant="idle">
+    <div id="emptyStateLg" class="lg">Wire<br>Quiet.</div>
+    <div id="emptyStateDk" class="dk">Staff is standing by. Commentary posts here as the transcript comes in.</div>
+    <button id="emptyStateCta" class="empty-cta" type="button" data-action="" aria-hidden="true" tabindex="-1"></button>
   </div>
 
   <!-- ── FOOTER (shown during capture) ── -->

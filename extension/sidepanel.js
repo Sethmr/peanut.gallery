@@ -520,6 +520,9 @@ const transcriptSection = document.getElementById("transcriptSection");
 const transcriptTextEl = document.getElementById("transcriptText");
 const gallery = document.getElementById("gallery");
 const emptyState = document.getElementById("emptyState");
+const emptyStateLg = document.getElementById("emptyStateLg");
+const emptyStateDk = document.getElementById("emptyStateDk");
+const emptyStateCta = document.getElementById("emptyStateCta");
 const errorBanner = document.getElementById("errorBanner");
 const errorText = document.getElementById("errorText");
 const startBtn = document.getElementById("startBtn");
@@ -895,6 +898,10 @@ function showIdle() {
   updateTracePackLabel();
   setupSection.style.display = "block";
   emptyState.style.display = "flex";
+  // Reset any alert companion — a fresh idle state starts back at "Wire Quiet."
+  // The variant only flips back to alert via an explicit showError(...) with a
+  // category argument; showIdle is the canonical "clear everything" path.
+  setEmptyStateVariant("idle");
   statusBar.style.display = "none";
   statusBar.classList.remove("with-timer", "capped", "active", "live");
   if (episodeCard) {
@@ -1017,10 +1024,94 @@ function refreshCapturedTab() {
   });
 }
 
-function showError(msg) {
+// ── Empty-state companion variants (v1.6 sub-step 5) ──
+//
+// The idle empty state ("Wire Quiet.") is the first thing every user sees
+// if they land on the panel without an active session. For the four known
+// failure modes we swap in a variant that names the problem and offers a
+// one-click path to resolve it. Tied to showError categories — pass the
+// category hint at the call site, not inferred from error text.
+const EMPTY_STATE_VARIANTS = {
+  idle: {
+    lg: "Wire<br>Quiet.",
+    dk: "Staff is standing by. Commentary posts here as the transcript comes in.",
+    cta: null,
+  },
+  "needs-keys": {
+    lg: "Keys<br>Missing.",
+    dk: "Self-hosting requires Deepgram + Anthropic + search keys. Free tiers are linked in the Settings drawer.",
+    cta: { text: "Open Settings", action: "settings:backend" },
+  },
+  unreachable: {
+    lg: "Wire<br>Down.",
+    dk: "Can't reach the backend. Check your server URL and network, then Start Listening again.",
+    cta: { text: "Check Settings", action: "settings:backend" },
+  },
+  "mic-denied": {
+    lg: "Mic<br>Quiet.",
+    dk: "Audio capture needs a tab grant. Click the peanut icon in the Chrome toolbar on a YouTube tab, then come back here.",
+    cta: { text: "Got it — try again", action: "dismiss" },
+  },
+  "no-pack": {
+    lg: "Pick a<br>Pack.",
+    dk: "Choose a writers' room lineup from Settings → Lineup and you're live.",
+    cta: { text: "Choose Pack", action: "settings:lineup" },
+  },
+};
+
+function setEmptyStateVariant(variant) {
+  const v = EMPTY_STATE_VARIANTS[variant] ?? EMPTY_STATE_VARIANTS.idle;
+  if (!emptyStateLg || !emptyStateDk || !emptyStateCta) return;
+  emptyStateLg.innerHTML = v.lg;
+  emptyStateDk.textContent = v.dk;
+  if (v.cta) {
+    emptyStateCta.textContent = v.cta.text;
+    emptyStateCta.dataset.action = v.cta.action;
+    emptyStateCta.setAttribute("aria-hidden", "false");
+    emptyStateCta.removeAttribute("tabindex");
+  } else {
+    emptyStateCta.textContent = "";
+    emptyStateCta.dataset.action = "";
+    emptyStateCta.setAttribute("aria-hidden", "true");
+    emptyStateCta.setAttribute("tabindex", "-1");
+  }
+  emptyState.dataset.variant = EMPTY_STATE_VARIANTS[variant] ? variant : "idle";
+}
+
+// Single delegated handler for the empty-state CTA. Actions are short
+// colon-delimited strings so new variants don't need new event listeners.
+if (emptyStateCta) {
+  emptyStateCta.addEventListener("click", () => {
+    const action = emptyStateCta.dataset.action || "";
+    switch (action) {
+      case "settings:backend":
+        if (typeof openSettingsDrawer === "function") openSettingsDrawer();
+        if (typeof showDrawerSection === "function") showDrawerSection("backend");
+        break;
+      case "settings:lineup":
+        if (typeof openSettingsDrawer === "function") openSettingsDrawer();
+        if (typeof showDrawerSection === "function") showDrawerSection("lineup");
+        break;
+      case "dismiss":
+        setEmptyStateVariant("idle");
+        break;
+    }
+  });
+}
+
+/**
+ * Show a transient error banner AND optionally set the empty-state companion
+ * variant so the persistent "what's wrong" card picks up where the 10s banner
+ * leaves off. Call sites pass `variant` when they know the failure category;
+ * bare calls with no variant leave the empty state untouched (safe default).
+ */
+function showError(msg, variant) {
   errorText.textContent = msg;
   errorBanner.classList.add("visible");
   setTimeout(() => errorBanner.classList.remove("visible"), 10000);
+  if (variant && EMPTY_STATE_VARIANTS[variant]) {
+    setEmptyStateVariant(variant);
+  }
 }
 
 function checkStatus() {
@@ -1520,7 +1611,7 @@ startBtn.addEventListener("click", async () => {
     try { await ensureInstallId(); } catch { /* fall through — server will 400 if needed */ }
   }
   const serverUrl = normalizeServerUrl(serverUrlInput.value);
-  if (!serverUrl) { showError("Server URL is required"); return; }
+  if (!serverUrl) { showError("Server URL is required", "unreachable"); return; }
   // Reflect the normalized URL back into the input so it's visible to the user
   serverUrlInput.value = serverUrl;
 
@@ -1548,7 +1639,7 @@ startBtn.addEventListener("click", async () => {
       // Open settings → Backend & keys so the user can fill them in
       openSettingsDrawer();
       showDrawerSection("backend");
-      showError(`Self-hosting requires your own API key${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Free keys are linked in Settings.`);
+      showError(`Self-hosting requires your own API key${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Free keys are linked in Settings.`, "needs-keys");
       return;
     }
   }
@@ -1559,7 +1650,8 @@ startBtn.addEventListener("click", async () => {
   const granted = await ensureHostPermission(serverUrl);
   if (!granted) {
     showError(
-      "Permission to reach the server was declined. Click Start Listening again and accept the prompt."
+      "Permission to reach the server was declined. Click Start Listening again and accept the prompt.",
+      "unreachable"
     );
     return;
   }
@@ -1659,9 +1751,36 @@ startBtn.addEventListener("click", async () => {
       if (statusBar.classList.contains("with-timer")) flipToCapReached();
       openSettingsDrawer();
       showDrawerSection("backend");
-      showError(cleaned);
+      showError(cleaned, "needs-keys");
     } else {
-      showError(rawMsg);
+      // Categorise the raw message one level up. Known shapes:
+      //   - "Couldn't find a tab to capture" / tabCapture failures → mic-denied
+      //   - fetch failures / network / CORS / 5xx / offline → unreachable
+      //   - everything else → no empty-state change (generic banner only)
+      const lower = rawMsg.toLowerCase();
+      let cat;
+      if (
+        lower.includes("tab") && (lower.includes("capture") || lower.includes("toolbar")) ||
+        lower.includes("getusermedia") ||
+        lower.includes("notallowed") ||
+        lower.includes("microphone") ||
+        lower.includes("mic ")
+      ) {
+        cat = "mic-denied";
+      } else if (
+        lower.includes("fetch") ||
+        lower.includes("network") ||
+        lower.includes("connect") ||
+        lower.includes("timeout") ||
+        lower.includes("unreachable") ||
+        lower.includes("server") ||
+        lower.includes("502") ||
+        lower.includes("503") ||
+        lower.includes("504")
+      ) {
+        cat = "unreachable";
+      }
+      showError(rawMsg, cat);
     }
   } finally {
     startBtn.disabled = false;
