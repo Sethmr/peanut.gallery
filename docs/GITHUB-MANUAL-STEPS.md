@@ -361,7 +361,7 @@ chmod 600 ~/.config/peanut-gallery/daemon.env
 In the team's label settings, make sure these labels exist (most overlap with the webhook path in § 17b — this list is the daemon-path subset):
 
 - `claude:skip` — grey. **Opt-out.** Apply to a ticket you don't want the daemon to pick up even after it transitions into Todo. The daemon short-circuits on this label before spawning Claude.
-- `needs-opus` — red/magenta. **Model elevation.** Bumps kickoff-Claude from Sonnet 4.6 / 20 turns to Opus 4.7 / 40 turns. Requires the Anthropic org tier to have Opus TPM headroom.
+- `needs-sonnet` — green/teal. **Model downgrade.** Drops kickoff-Claude from Opus 4.7 / 40 turns (default) down to Sonnet 4.6 / 20 turns. Apply to trivial tickets — typo fixes, one-line docs tweaks, straightforward renames — where Opus's quality headroom is wasted. The daemon-default is Opus because it authenticates via `CLAUDE_CODE_OAUTH_TOKEN` (Claude Max subscription), NOT the standard API tier, so the 30k-ITPM Opus cap on API Tier 1 doesn't apply here.
 - `needs-review` — blue/indigo. **Auto-merge opt-out (daemon path).** Apply to a ticket whose resulting PR you want to review manually before it lands on `develop`. Without this label, the daemon opens the PR and immediately enables GitHub auto-merge (squash + delete-branch) so the PR self-merges on CI green. With this label, the PR opens but auto-merge is NOT enabled — it waits for your manual merge click. Use for changes that need app-testing (visual UI work, persona-pack tweaks that need side-panel QA, anything where "CI green" isn't sufficient evidence of quality).
 
 #### 18c. Install
@@ -397,10 +397,10 @@ Expected end state: the Linear ticket is in "Done", a squash-commit landed on `d
 Exact `claude` flag set wired into the daemon (mirrored from `spawnClaude()` in [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts)):
 
 ```
-claude -p <prompt> --model claude-sonnet-4-6 --allowedTools "Edit Write Read Glob Grep NotebookEdit Bash(git:*) Bash(npm:*) ..."
+claude -p <prompt> --model claude-opus-4-7 --max-turns 40 --allowedTools "Edit Write Read Glob Grep NotebookEdit Bash(git:*) Bash(npm:*) ..."
 ```
 
-With `--model claude-opus-4-7` for issues carrying the `needs-opus` label, and `--max-turns 10` on reply-Claude. Note: no `--permission-mode acceptEdits` — PR #54 removed it in favor of the explicit `--allowedTools` list, because `acceptEdits` only covered `Edit`/`Write` and still prompted for `Bash(git:*)` calls, which deadlocked headless runs. Full allowlist is in `spawnClaude()`.
+Kickoff defaults to `claude-opus-4-7 --max-turns 40`; reply defaults to `claude-opus-4-7 --max-turns 15`. Tickets carrying the `needs-sonnet` label downgrade kickoff to `claude-sonnet-4-6 --max-turns 20`. Note: no `--permission-mode acceptEdits` — PR #54 removed it in favor of the explicit `--allowedTools` list, because `acceptEdits` only covered `Edit`/`Write` and still prompted for `Bash(git:*)` calls, which deadlocked headless runs. Full allowlist is in `spawnClaude()`.
 
 #### 18e. Troubleshooting
 
