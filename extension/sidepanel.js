@@ -902,6 +902,11 @@ function showIdle() {
   // The variant only flips back to alert via an explicit showError(...) with a
   // category argument; showIdle is the canonical "clear everything" path.
   setEmptyStateVariant("idle");
+  // v1.7: clear session stats + per-persona tooltip map so the next session
+  // starts with a clean slate. Traces and filter state persist (operator
+  // debug-tool convenience, not user-visible).
+  resetSessionStats();
+  lastDecisionForPersona.clear();
   statusBar.style.display = "none";
   statusBar.classList.remove("with-timer", "capped", "active", "live");
   if (episodeCard) {
@@ -1076,6 +1081,24 @@ function setEmptyStateVariant(variant) {
     emptyStateCta.setAttribute("tabindex", "-1");
   }
   emptyState.dataset.variant = EMPTY_STATE_VARIANTS[variant] ? variant : "idle";
+}
+
+// v1.7: source-filter chips on the director trace panel. Click to hide a
+// source. State is DOM-only (no persistence) — debug-tool convenience.
+const traceFilterChips = document.querySelectorAll(".trace-filter-chip");
+for (const chip of traceFilterChips) {
+  chip.addEventListener("click", () => {
+    const filter = chip.dataset.filter;
+    if (!filter) return;
+    const on = chip.classList.toggle("on");
+    chip.setAttribute("aria-pressed", on ? "true" : "false");
+    // Mirror into a data-hide-* attribute on the list so pure CSS handles
+    // the hide. Avoids re-rendering the list on every filter flip.
+    const list = document.getElementById("traceList");
+    if (!list) return;
+    if (on) list.removeAttribute(`data-hide-${filter}`);
+    else list.setAttribute(`data-hide-${filter}`, "1");
+  });
 }
 
 // Single delegated handler for the empty-state CTA. Actions are short
@@ -1261,6 +1284,107 @@ function clearAllPersonaFiring() {
 // so it always agrees with the corresponding mug. Muted personas drop out
 // here — the gallery never receives their entries — and the streaming
 // buffer for that persona is left intact server-side; we just don't paint.
+// v1.7: per-session stats accumulator — fires the Director has emitted
+// since the session started. Feeds the debug panel's stats header so Seth
+// can eyeball v3 health (SILENT rate, LLM override rate, callback usage)
+// without exporting the JSONL. Reset on showIdle.
+const sessionStats = {
+  totalDecisions: 0,
+  silentPicks: 0,
+  llmOverrides: 0,
+  ruleFallbacks: 0,
+  callbackUses: 0,
+  perPersonaFires: { producer: 0, troll: 0, soundfx: 0, joker: 0 },
+};
+
+function resetSessionStats() {
+  sessionStats.totalDecisions = 0;
+  sessionStats.silentPicks = 0;
+  sessionStats.llmOverrides = 0;
+  sessionStats.ruleFallbacks = 0;
+  sessionStats.callbackUses = 0;
+  sessionStats.perPersonaFires = { producer: 0, troll: 0, soundfx: 0, joker: 0 };
+  renderSessionStats();
+}
+
+function updateSessionStats(decision) {
+  if (!decision) return;
+  sessionStats.totalDecisions++;
+  const source = decision.source ?? "rule";
+  if (source === "silent-llm") sessionStats.silentPicks++;
+  else if (source === "llm") sessionStats.llmOverrides++;
+  else sessionStats.ruleFallbacks++;
+  if (decision.callbackUsed) sessionStats.callbackUses++;
+  const chain = Array.isArray(decision.chain) ? decision.chain : [];
+  for (const pid of chain) {
+    if (pid in sessionStats.perPersonaFires) {
+      sessionStats.perPersonaFires[pid]++;
+    }
+  }
+  renderSessionStats();
+}
+
+function pct(n, d) {
+  if (!d) return "—";
+  return `${Math.round((n / d) * 100)}%`;
+}
+
+function renderSessionStats() {
+  const el = document.getElementById("traceStats");
+  if (!el) return;
+  const s = sessionStats;
+  if (s.totalDecisions === 0) {
+    el.innerHTML = "";
+    return;
+  }
+  const fires = s.perPersonaFires;
+  el.innerHTML =
+    `<div class="trace-stat-row">` +
+    `<span class="trace-stat"><b>${s.totalDecisions}</b> ticks</span>` +
+    `<span class="trace-stat src-rule">rule <b>${s.ruleFallbacks}</b></span>` +
+    `<span class="trace-stat src-llm">llm <b>${s.llmOverrides}</b></span>` +
+    `<span class="trace-stat src-silent-llm">silent <b>${s.silentPicks}</b> · ${pct(s.silentPicks, s.totalDecisions)}</span>` +
+    `<span class="trace-stat">↺ <b>${s.callbackUses}</b></span>` +
+    `</div>` +
+    `<div class="trace-stat-row trace-stat-fires">` +
+    `<span>fires:</span>` +
+    `<span>p <b>${fires.producer}</b></span>` +
+    `<span>t <b>${fires.troll}</b></span>` +
+    `<span>s <b>${fires.soundfx}</b></span>` +
+    `<span>j <b>${fires.joker}</b></span>` +
+    `</div>`;
+}
+
+// v1.7: hover tooltip on feed entries — shows the Director's reason +
+// source badge + callback phrase (if any). Fed by the most-recent
+// director_decision whose chain includes this personaId. Cleared each
+// tick when a new decision arrives. Missing values are tolerated — a
+// feed entry with no matching decision gets a generic tooltip.
+const lastDecisionForPersona = new Map();
+
+function recordDecisionForFeed(decision) {
+  if (!decision) return;
+  const chain = Array.isArray(decision.chain) ? decision.chain : [];
+  for (const pid of chain) {
+    lastDecisionForPersona.set(pid, decision);
+  }
+}
+
+function tooltipForPersonaFire(personaId) {
+  const d = lastDecisionForPersona.get(personaId);
+  if (!d) return "";
+  const bits = [];
+  if (d.reason) bits.push(d.reason);
+  const src = typeof d.source === "string" ? d.source : "rule";
+  bits.push(
+    src === "llm" ? "[LLM route]" : src === "silent-llm" ? "[SILENT route]" : "[rule route]"
+  );
+  if (d.callbackUsed && typeof d.callbackUsed === "string") {
+    bits.push(`↺ heightens: "${d.callbackUsed.slice(0, 80)}"`);
+  }
+  return bits.join("  ·  ");
+}
+
 function addFeedEntry(personaId, text) {
   const p = PERSONAS.find((x) => x.id === personaId);
   if (!p) return;
@@ -1271,10 +1395,12 @@ function addFeedEntry(personaId, text) {
   const now = Date.now();
   feedEntries.push({ id, personaId, role, text, timestamp: now });
 
+  const tooltip = tooltipForPersonaFire(personaId);
   const el = document.createElement("div");
   el.className = `feed-entry ${role}`;
   el.id = `feed-${id}`;
   el.dataset.role = role;
+  if (tooltip) el.title = tooltip;
   el.innerHTML = `
     <span class="ts">${escapeHtml(formatTime(now))}</span>
     <span class="tag">${escapeHtml(role.toUpperCase())}</span>
@@ -1404,6 +1530,14 @@ chrome.runtime.onMessage.addListener((message) => {
       // version badge. Push even when the panel is closed so opening it
       // shows recent history.
       pushDirectorTrace(data);
+      // v1.7: remember the decision per persona in the chain so the feed's
+      // hover tooltip can surface the Director's rationale + source + any
+      // callback heightening when the persona's line lands. Empty chain
+      // (SILENT) deliberately writes nothing — no feed entry will follow.
+      recordDecisionForFeed(data);
+      // v1.7: refresh session stats if the debug panel is open (cheap when
+      // closed — updateSessionStats short-circuits).
+      updateSessionStats(data);
       break;
 
     case "error":
@@ -2639,6 +2773,16 @@ function renderDirectorTrace() {
   for (const d of directorTrace) {
     const row = document.createElement("div");
     row.className = "trace-row";
+    // v1.7: data-source lets the filter chips hide rows by source class
+    // via CSS alone. Canonicalize same way the badge does (unknown → rule).
+    const rowSourceRaw = typeof d?.source === "string" ? d.source : "rule";
+    const rowSource =
+      rowSourceRaw === "llm"
+        ? "llm"
+        : rowSourceRaw === "silent-llm"
+        ? "silent-llm"
+        : "rule";
+    row.dataset.source = rowSource;
 
     const pick = d?.pick ?? "?";
     const score = typeof d?.score === "number" ? d.score.toFixed(1) : "—";
