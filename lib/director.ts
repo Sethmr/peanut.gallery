@@ -183,11 +183,12 @@ export interface TriggerDecision {
   cooldownsMs?: Record<string, number>;
   /**
    * v1.5: which routing path produced the primary.
-   *   "rule" — the legacy pattern-match scorer (default, always safe).
-   *   "llm"  — Smart Director v2 won the 400ms race.
+   *   "rule"       — the legacy pattern-match scorer (default, always safe).
+   *   "llm"        — Smart Director v2 won the 400ms race.
+   *   "silent-llm" — Smart Director v3 actively chose silence (empty chain).
    * Omitted on pre-v1.5 call sites that don't pass `opts`.
    */
-  source?: "rule" | "llm";
+  source?: "rule" | "llm" | "silent-llm";
   /**
    * v1.5: what the pattern-match scorer would have picked ABSENT the LLM
    * hoist. Same as `personaIds[0]` when `source === "rule"`. When
@@ -212,6 +213,22 @@ export interface TriggerDecision {
 export interface DecideOptions {
   /** LLM-chosen primary, or null if the LLM lost the race / returned nothing. */
   llmPick?: { personaId: string; rationale: string } | null;
+  /**
+   * v1.7 (Smart Director v3, experimental): the v2 router can return
+   * "silent" as a valid pick. When personaId === "silent", the Director
+   * returns an empty chain (no cascade, nobody fires) and stamps
+   * `source = "silent-llm"`. This is a positive, skilled pick — not a
+   * fallback — per the 2026-04 research brief.
+   *
+   * If this field is set AND llmPick is set, `llmPickV2` wins. Keep the
+   * two fields distinct so the route can thread v3's richer shape
+   * (confidence + callbackUsed) without disturbing v1.5's v2 path.
+   */
+  llmPickV2?: {
+    personaId: "producer" | "troll" | "soundfx" | "joker" | "silent";
+    rationale: string;
+    callbackUsed?: string | null;
+  } | null;
 }
 
 // ──────────────────────────────────────────────────────
@@ -241,6 +258,15 @@ export class Director {
     return { producer: t0, troll: t0, soundfx: t0, joker: t0 };
   })();
 
+  // v1.7 (experimental): ring buffer of "live callback candidates" —
+  // notable phrases the cast has uttered in the last 3-5 minutes. Surface
+  // up to 3 to the Smart Director v3 routing call; pick gets rewarded for
+  // heightening them (Del Close / UCB Manual: callbacks are the Harold's
+  // payoff beat). Capped to 8 entries to bound prompt size; oldest drops
+  // off when a new one is pushed.
+  private liveCallbacks: string[] = [];
+  private readonly CALLBACK_BUFFER_MAX = 8;
+
   /**
    * v1.5: read-only view of recent firings (oldest → newest). Used by the
    * Smart Director v2 orchestrator to build context for the LLM routing
@@ -264,6 +290,30 @@ export class Director {
       out[id] = now - this.lastFiredAt[id];
     }
     return out;
+  }
+
+  /**
+   * v1.7: push a notable phrase onto the live-callback ring buffer.
+   * Intended to be called by the persona engine after a persona drops a
+   * punchline / proper-noun / memorable metaphor. Silently ignores
+   * empty/whitespace-only input.
+   */
+  addLiveCallback(phrase: string): void {
+    const trimmed = phrase?.trim();
+    if (!trimmed) return;
+    // Dedupe: if the same (or very similar) phrase is already in the buffer,
+    // don't stack it — move it to the newest slot instead.
+    const existing = this.liveCallbacks.indexOf(trimmed);
+    if (existing >= 0) this.liveCallbacks.splice(existing, 1);
+    this.liveCallbacks.push(trimmed.slice(0, 160));
+    while (this.liveCallbacks.length > this.CALLBACK_BUFFER_MAX) {
+      this.liveCallbacks.shift();
+    }
+  }
+
+  /** v1.7: read-only view of the ring buffer, oldest → newest. */
+  getLiveCallbacks(): string[] {
+    return [...this.liveCallbacks];
   }
 
   /**
@@ -325,6 +375,55 @@ export class Director {
     sessionId?: string,
     opts?: DecideOptions
   ): TriggerDecision {
+    // v1.7 (Smart Director v3): SILENT short-circuit. If the v3 router
+    // returned a positive "silent" pick, we emit an empty-chain decision
+    // and advance every persona's dry-spell counter by one cycle (so
+    // nobody's sticky penalty bleeds into the next tick). Cooldowns /
+    // lastFiredAt are NOT touched because no one fired.
+    const v2 = opts?.llmPickV2;
+    if (v2 && v2.personaId === "silent") {
+      const now = Date.now();
+      const cooldownsMs: Record<string, number> = {};
+      for (const id of Object.keys(this.lastFiredAt)) {
+        cooldownsMs[id] = now - this.lastFiredAt[id];
+      }
+      // Every persona not firing this cycle: dry-spell++.
+      for (const id of Object.keys(this.cyclesSinceFire)) {
+        this.cyclesSinceFire[id]++;
+      }
+      const reason = `LLM routing chose SILENT: ${v2.rationale}`;
+      logPipeline({
+        event: "director_decision",
+        level: "info",
+        sessionId,
+        data: {
+          pick: null,
+          score: 0,
+          top3: [],
+          chainIds: [],
+          delays: [],
+          cascadeLen: 0,
+          cooldownsMs,
+          source: "silent-llm",
+          chain: "",
+          reason,
+          cascadeCount: 0,
+          isSilence,
+          drySpells: { ...this.cyclesSinceFire },
+        },
+      });
+      return {
+        personaIds: [],
+        reason,
+        delays: [],
+        score: 0,
+        top3: [],
+        cooldownsMs,
+        source: "silent-llm",
+        rulePrimary: undefined,
+      };
+    }
+
     const personaIds = Object.keys(PERSONA_PATTERNS);
 
     // Score each persona
@@ -355,7 +454,17 @@ export class Director {
     // cooldown updates) proceeds unchanged. If the LLM returned a slot
     // id the current pack doesn't expose we silently fall through to
     // the rule-based pick; this is the same as the timeout path.
-    const llmPick = opts?.llmPick;
+    //
+    // v1.7 compat: a non-silent v3 pick converts to the v2 shape so the
+    // existing hoist logic applies unchanged. (The silent case already
+    // short-circuited above.)
+    const llmPick =
+      opts?.llmPickV2 && opts.llmPickV2.personaId !== "silent"
+        ? {
+            personaId: opts.llmPickV2.personaId,
+            rationale: opts.llmPickV2.rationale,
+          }
+        : opts?.llmPick;
     let source: "rule" | "llm" = "rule";
     let llmRationale: string | undefined;
     if (llmPick && typeof llmPick.personaId === "string") {

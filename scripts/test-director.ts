@@ -61,6 +61,23 @@ interface DirectorFixture {
      * to the rule-based scorer (same shape as a production LLM timeout).
      */
     llmPick?: { personaId: string; rationale: string };
+    /**
+     * v1.7 (Smart Director v3, experimental): pre-computed v3 pick. Shape
+     * mirrors the real router's output including the SILENT slot and
+     * optional callbackUsed. When `personaId === "silent"` the Director
+     * returns an empty chain and stamps source="silent-llm".
+     */
+    llmPickV2?: {
+      personaId: "producer" | "troll" | "soundfx" | "joker" | "silent";
+      rationale: string;
+      callbackUsed?: string | null;
+    };
+    /**
+     * v1.7: seed the Director's live-callback ring buffer. Each string is
+     * push()'d in order before decide() runs, so fixtures can validate
+     * callback-aware behavior deterministically.
+     */
+    liveCallbacks?: string[];
   };
   assertions: {
     // pick constraints
@@ -71,13 +88,17 @@ interface DirectorFixture {
     chainMaxLength?: number;
     chainMinLength?: number;
     cascadeLenExact?: number;
+    cascadeLenMax?: number;        // v1.7: soft cap over distribution
     mustFirePersona?: string;
     mustFireRatio?: number;        // default 0.80
     mustNotFire?: string;          // strict — never
     // reason constraints
     reasonContains?: string;
     // v1.5: decision.source must equal one of these. Strict — checked every run.
-    sourceIn?: Array<"rule" | "llm">;
+    // v1.7: "silent-llm" joins the union for SILENT-slot fixtures.
+    sourceIn?: Array<"rule" | "llm" | "silent-llm">;
+    /** v1.7: chain must be empty (SILENT picks). Strict. */
+    chainEmpty?: boolean;
     // structural invariants
     delaysMonotonic?: boolean;     // strict
     delaysFirstZero?: boolean;     // strict
@@ -163,21 +184,52 @@ function loadFixtures(): DirectorFixture[] {
 function seedDirector(fixture: DirectorFixture): Director {
   const d = new Director() as DirectorPrivate;
   const state = fixture.initialState;
-  if (!state) return d;
-  if (Array.isArray(state.recentFirings)) {
-    d.recentFirings = [...state.recentFirings];
-  }
-  if (state.cyclesSinceFire) {
-    for (const [id, n] of Object.entries(state.cyclesSinceFire)) {
-      d.cyclesSinceFire[id] = n;
+  if (state) {
+    if (Array.isArray(state.recentFirings)) {
+      d.recentFirings = [...state.recentFirings];
+    }
+    if (state.cyclesSinceFire) {
+      for (const [id, n] of Object.entries(state.cyclesSinceFire)) {
+        d.cyclesSinceFire[id] = n;
+      }
+    }
+    if (state.lastFiredAt) {
+      for (const [id, t] of Object.entries(state.lastFiredAt)) {
+        d.lastFiredAt[id] = t;
+      }
     }
   }
-  if (state.lastFiredAt) {
-    for (const [id, t] of Object.entries(state.lastFiredAt)) {
-      d.lastFiredAt[id] = t;
+  // v1.7: seed live-callback ring buffer from fixture.input.liveCallbacks
+  // so callback-aware fixtures are deterministic.
+  if (Array.isArray(fixture.input.liveCallbacks)) {
+    for (const phrase of fixture.input.liveCallbacks) {
+      d.addLiveCallback(phrase);
     }
   }
   return d;
+}
+
+function buildOpts(fixture: DirectorFixture):
+  | {
+      llmPick?: { personaId: string; rationale: string };
+      llmPickV2?: {
+        personaId: "producer" | "troll" | "soundfx" | "joker" | "silent";
+        rationale: string;
+        callbackUsed?: string | null;
+      };
+    }
+  | undefined {
+  const opts: {
+    llmPick?: { personaId: string; rationale: string };
+    llmPickV2?: {
+      personaId: "producer" | "troll" | "soundfx" | "joker" | "silent";
+      rationale: string;
+      callbackUsed?: string | null;
+    };
+  } = {};
+  if (fixture.input.llmPick) opts.llmPick = fixture.input.llmPick;
+  if (fixture.input.llmPickV2) opts.llmPickV2 = fixture.input.llmPickV2;
+  return Object.keys(opts).length > 0 ? opts : undefined;
 }
 
 interface RunRecord {
@@ -201,6 +253,12 @@ function strictChecks(fixture: DirectorFixture, decision: TriggerDecision): stri
   if (a.cascadeLenExact !== undefined && decision.personaIds.length !== a.cascadeLenExact) {
     fail.push(`cascadeLenExact violated: got ${decision.personaIds.length} !== ${a.cascadeLenExact}`);
   }
+  if (a.cascadeLenMax !== undefined && decision.personaIds.length > a.cascadeLenMax) {
+    fail.push(`cascadeLenMax violated: got ${decision.personaIds.length} > ${a.cascadeLenMax}`);
+  }
+  if (a.chainEmpty && decision.personaIds.length !== 0) {
+    fail.push(`chainEmpty violated: got chain=[${decision.personaIds.join(",")}]`);
+  }
   if (a.mustNotFire && decision.personaIds.includes(a.mustNotFire)) {
     fail.push(`mustNotFire violated: ${a.mustNotFire} appeared in chain`);
   }
@@ -213,7 +271,7 @@ function strictChecks(fixture: DirectorFixture, decision: TriggerDecision): stri
       fail.push(`sourceIn violated: got source="${got}", expected one of [${a.sourceIn.join(",")}]`);
     }
   }
-  if (a.delaysFirstZero && decision.delays[0] !== 0) {
+  if (a.delaysFirstZero && decision.delays.length > 0 && decision.delays[0] !== 0) {
     fail.push(`delaysFirstZero violated: got ${decision.delays[0]}`);
   }
   if (a.delaysMonotonic) {
@@ -226,7 +284,13 @@ function strictChecks(fixture: DirectorFixture, decision: TriggerDecision): stri
   }
   if (a.returnShapeComplete) {
     if (typeof decision.score !== "number") fail.push(`returnShapeComplete: score missing`);
-    if (!Array.isArray(decision.top3) || decision.top3.length === 0) fail.push(`returnShapeComplete: top3 missing/empty`);
+    // v1.7: a silent-llm pick legitimately returns an empty top3 (no one
+    // was scored). Only enforce top3-non-empty when the chain fired.
+    if (decision.source !== "silent-llm") {
+      if (!Array.isArray(decision.top3) || decision.top3.length === 0) fail.push(`returnShapeComplete: top3 missing/empty`);
+    } else if (!Array.isArray(decision.top3)) {
+      fail.push(`returnShapeComplete: top3 must be an array (empty ok for silent-llm)`);
+    }
     if (!decision.cooldownsMs || typeof decision.cooldownsMs !== "object") fail.push(`returnShapeComplete: cooldownsMs missing`);
   }
   return fail;
@@ -267,7 +331,7 @@ function varianceCheck(fixture: DirectorFixture): string[] {
   let differentCount = 0;
   for (let i = 0; i < v.runs; i++) {
     const d = seedDirector(fixture);
-    const opts = fixture.input.llmPick ? { llmPick: fixture.input.llmPick } : undefined;
+    const opts = buildOpts(fixture);
     const a = d.decide(
       fixture.input.transcript,
       fixture.input.isSilence ?? false,
@@ -318,7 +382,7 @@ function runFixture(fixture: DirectorFixture): FixtureResult {
       fixture.input.transcript,
       fixture.input.isSilence ?? false,
       fixture.input.sessionId,
-      fixture.input.llmPick ? { llmPick: fixture.input.llmPick } : undefined
+      buildOpts(fixture)
     );
     const runFail = strictChecks(fixture, decision);
     for (const msg of runFail) perRunFailures[msg] = (perRunFailures[msg] ?? 0) + 1;

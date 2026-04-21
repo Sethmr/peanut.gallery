@@ -1,0 +1,28 @@
+{
+  "name": "v3-callback-memory-seed",
+  "description": "v1.7 Smart Director v3: Director's live-callback ring buffer is pre-seeded. The v3 router picked soundfx and flagged a callback. The fixture asserts the Director honored the LLM pick + the reason line contains the LLM rationale. Keeps the callback-memory plumbing end-to-end verifiable even in the synthetic (no-HTTP) harness.",
+  "pack": "howard",
+  "input": {
+    "transcript": "Anyway, right back to the quantum computing debate. I think IBM's approach is going to win.",
+    "liveCallbacks": [
+      "boiled peanut strategy",
+      "another rocketship pitch"
+    ],
+    "llmPickV2": {
+      "personaId": "soundfx",
+      "rationale": "Topic shift back to quantum; soundfx can echo 'another rocketship pitch' as a deadpan reframe",
+      "callbackUsed": "another rocketship pitch"
+    }
+  },
+  "assertions": {
+    "pickIn": ["soundfx"],
+    "pickInRatio": 1.0,
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true,
+    "reasonContains": "LLM routing:",
+    "sourceIn": ["llm"]
+  }
+}
