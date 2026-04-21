@@ -472,6 +472,10 @@ async function spawnClaude(opts: {
   const modelFlag =
     opts.model === "opus" ? "claude-opus-4-7" : "claude-sonnet-4-6";
 
+  // Use default text output format — matches Cowork's default verbosity.
+  // Seth sees streaming reasoning, tool calls with inputs, and tool results
+  // live in the tmux session. Daemon detects completion via subprocess exit
+  // code, so we don't need structured JSON output for control flow.
   const args: string[] = [
     "-p",
     opts.prompt,
@@ -479,8 +483,6 @@ async function spawnClaude(opts: {
     modelFlag,
     "--permission-mode",
     "acceptEdits",
-    "--output-format",
-    "json",
   ];
   if (opts.maxTurns !== undefined) {
     args.push("--max-turns", String(opts.maxTurns));
