@@ -1624,6 +1624,53 @@
       color: var(--ink-3); font-size: 10px;
       font-family: var(--mono);
     }
+    /* v1.7: session stats header inside the debug panel. Two-row strip of
+       counts so the Director's behavior is legible without exporting JSONL. */
+    .trace-stats{
+      padding: 6px 12px; background: var(--paper-2);
+      border-bottom: 1px dotted var(--rule);
+      font-family: var(--mono, var(--type));
+      font-size: 9px; color: var(--ink-2);
+    }
+    .trace-stats:empty{display: none}
+    .trace-stat-row{display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline}
+    .trace-stat-row + .trace-stat-row{margin-top: 3px}
+    .trace-stats .trace-stat{color: var(--ink-2)}
+    .trace-stats .trace-stat b{color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums}
+    .trace-stats .trace-stat.src-rule b{color: var(--ink-3)}
+    .trace-stats .trace-stat.src-llm{color: var(--ink)}
+    .trace-stats .trace-stat.src-silent-llm{color: var(--stamp)}
+    .trace-stats .trace-stat.src-silent-llm b{color: var(--stamp)}
+    .trace-stat-fires{color: var(--ink-3)}
+    .trace-stat-fires b{color: var(--ink); font-weight: 700}
+    /* v1.7: source-filter chip row. Click a chip to hide its source in the
+       trace list. Chips mirror the main role-filter aesthetic but compact. */
+    .trace-filter{
+      display: flex; gap: 4px;
+      padding: 6px 12px;
+      background: var(--paper-2);
+      border-bottom: 1px dotted var(--rule);
+    }
+    .trace-filter-chip{
+      font-family: var(--slab-2); font-size: 8px;
+      font-weight: 700; letter-spacing: .12em;
+      padding: 2px 6px;
+      border: 1px solid var(--rule);
+      background: var(--paper);
+      color: var(--ink-3);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .trace-filter-chip.on[data-filter="rule"]{color: var(--ink-3); border-color: var(--ink-3); background: var(--paper-3)}
+    .trace-filter-chip.on[data-filter="llm"]{color: var(--ink); border-color: var(--ink); background: var(--yellow)}
+    .trace-filter-chip.on[data-filter="silent-llm"]{color: var(--paper); border-color: var(--stamp); background: var(--stamp)}
+    .trace-filter-chip:not(.on){opacity: 0.45; text-decoration: line-through}
+    .trace-filter-chip:focus-visible{outline: 2px solid var(--stamp); outline-offset: 2px}
+    /* Filter hiding: each filter's off class hides its source in the trace.
+       Scoped to #traceList so we don't accidentally hide the chip itself. */
+    #traceList[data-hide-rule] .trace-row[data-source="rule"]{display: none}
+    #traceList[data-hide-llm] .trace-row[data-source="llm"]{display: none}
+    #traceList[data-hide-silent-llm] .trace-row[data-source="silent-llm"]{display: none}
   </style>
 </head>
 <body data-theme="paper">
@@ -2053,6 +2100,15 @@
       <span class="trace-header-label">Director trace · last 20</span>
       <span id="tracePackLabel" class="trace-pack-label" title="Active persona pack">pack: —</span>
       <button id="traceClear" class="trace-clear" type="button">Clear</button>
+    </div>
+    <!-- v1.7: session stats — per-tick counts so Seth can eyeball v3 health -->
+    <div id="traceStats" class="trace-stats" aria-hidden="true"></div>
+    <!-- v1.7: source-filter chips. Click to hide a source in the trace
+         below; useful when SILENT rows flood the view. Defaults: all on. -->
+    <div class="trace-filter" aria-label="Filter trace by routing source">
+      <button class="trace-filter-chip on" data-filter="rule" type="button" aria-pressed="true">RULE</button>
+      <button class="trace-filter-chip on" data-filter="llm" type="button" aria-pressed="true">LLM</button>
+      <button class="trace-filter-chip on" data-filter="silent-llm" type="button" aria-pressed="true">SILENT</button>
     </div>
     <div id="traceList">
       <div class="trace-empty">Waiting for director decisions…</div>
