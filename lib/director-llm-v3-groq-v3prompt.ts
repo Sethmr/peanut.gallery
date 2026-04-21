@@ -48,6 +48,7 @@ import {
   buildRoutingUserPromptV2,
   validatePickV2,
   VALID_ARCHETYPE_IDS_V2,
+  PICK_NEXT_SPEAKER_INPUT_SCHEMA,
   type LlmRoutingPickV2,
   type RoutingPromptCtxV2,
 } from "./director-llm-v2";
@@ -81,45 +82,10 @@ export interface PickPersonaCtxV3GroqV3 {
 
 const GROQ_MODEL = "llama-3.1-8b-instant";
 
-// JSON Schema mirroring the Anthropic pick_next_speaker tool input_schema.
-// `response_format: { type: "json_schema" }` on Groq's OpenAI-compat endpoint
-// enforces the enum at the provider level — same hard guarantee as
-// Anthropic tool_use. The callbackUsed field uses a type array to allow null.
-const PICK_SCHEMA = {
-  type: "object",
-  properties: {
-    personaId: {
-      type: "string",
-      enum: ["producer", "troll", "soundfx", "joker", "silent"],
-      description: "The archetype slot that speaks next, or 'silent' for nobody.",
-    },
-    confidence: {
-      type: "object",
-      description:
-        "Verbalized confidence across all 5 slots. Should sum to approximately 1.0.",
-      properties: {
-        producer: { type: "number", minimum: 0, maximum: 1 },
-        troll: { type: "number", minimum: 0, maximum: 1 },
-        soundfx: { type: "number", minimum: 0, maximum: 1 },
-        joker: { type: "number", minimum: 0, maximum: 1 },
-        silent: { type: "number", minimum: 0, maximum: 1 },
-      },
-      required: ["producer", "troll", "soundfx", "joker", "silent"],
-      additionalProperties: false,
-    },
-    rationale: {
-      type: "string",
-      description: "One short sentence explaining the pick.",
-    },
-    callbackUsed: {
-      type: ["string", "null"],
-      description:
-        "Exact phrase from LIVE CALLBACK CANDIDATES that the picked persona will heighten, or null if none.",
-    },
-  },
-  required: ["personaId", "confidence", "rationale", "callbackUsed"],
-  additionalProperties: false,
-};
+// JSON Schema is the single source of truth in director-llm-v2.ts so the
+// Anthropic tool_use path (main v3) and both Cerebras / Groq json_schema
+// paths validate against the same shape. Any edit to the 5-slot enum or
+// the confidence vector lands in exactly one place.
 
 // ──────────────────────────────────────────────────────
 // MAIN
@@ -158,7 +124,7 @@ export async function pickPersonaGroqV3(
           type: "json_schema",
           json_schema: {
             name: "pick_next_speaker",
-            schema: PICK_SCHEMA,
+            schema: PICK_NEXT_SPEAKER_INPUT_SCHEMA,
           },
         } as any,
         messages: [

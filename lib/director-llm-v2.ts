@@ -163,6 +163,166 @@ ROUTING RULES:
 
 Respond by calling the \`pick_next_speaker\` tool exactly once with your decision. The tool enforces the 5-slot enum.`;
 
+// ──────────────────────────────────────────────────────
+// CACHED STABLE PREFIX — v3
+// ──────────────────────────────────────────────────────
+//
+// Haiku's prompt-cache minimum is 2,048 tokens. The system prompt above is
+// ~400 tokens; the tool definition is ~200. Padding the system block past
+// the threshold with stable content (persona catalog + few-shots covering
+// all 5 slots, including SILENT) unlocks the ~85 % TTFT / ~90 % cost
+// reduction on cache hits. Load-bearing for the 400 ms routing budget.
+//
+// MUST stay stable across ticks within a session (or else cache invalidates).
+// Dynamic content (transcript / firings / cooldowns / callback candidates)
+// stays in the user message, NOT here.
+//
+// Designed to pair with `cache_control: { type: "ephemeral" }` on the
+// system block + tools array in `pickPersonaLLMv2`.
+const CACHED_V3_EXTENDED_PREFIX = `
+
+---
+
+## COMPLETE PERSONA CATALOG
+
+Both Peanut Gallery packs use the same five slots (four personas plus SILENT).
+
+### Howard Stern Pack
+slot: producer — Baba Booey (Fact-Checker): compulsive corrector on dates / dollar figures / founding years. Pick on specific verifiable claims.
+slot: troll    — The Troll (Cynical Commentator): puncture hype, valuation math, buzzword soup, name-drops. Pick on specific hype-cycle bait.
+slot: soundfx  — Fred (SFX & Context): drops bracketed sound cues as editorial commentary. Pick on mood shifts, awkward pauses, confident-but-wrong beats.
+slot: joker    — Jackie (Comedy Writer): rapid-fire one-liners, misdirection, rule of three, callbacks. Pick on absurdity or clean comic setups.
+
+### TWiST Pack
+slot: producer — Molly (Fact-Checker): veteran tech journalist; cites own reporting. Pick on verifiable funding / timeline / startup-history claims.
+slot: troll    — Jason (Provocateur): TWiST host energy; loud, founder-protective, brutal on hype cycles. Pick on bold claims + founder-market-fit moments.
+slot: soundfx  — Lon (Reframe): dry pop-culture reframes + sound cues ("this is WeWork energy"). Pick on mood shifts + cultural analogies.
+slot: joker    — Alex (Data Comedian): numbers-as-punchline, cap-table burns, hype-cycle comps. Pick on specific numbers / valuations / unit economics.
+
+---
+
+## FEW-SHOT ROUTING EXAMPLES
+
+Each example shows a transcript + correct pick. Load-bearing: all 5 slots appear, including multiple SILENT examples (the #1 failure mode of LLM reactors is false-positive firing — SILENT must be a live choice, not a fallback).
+
+### Example 1 — Hard numerical claim → producer
+TRANSCRIPT: "They raised \\$47 million at a \\$500 million valuation."
+SILENCE: false
+CORRECT: {"personaId":"producer","rationale":"Specific dollar figures are the producer's core trigger."}
+
+### Example 2 — Buzzword soup with no substance → troll
+TRANSCRIPT: "We're building an AI-native vertical SaaS platform that disrupts the entire enterprise ecosystem."
+SILENCE: false
+CORRECT: {"personaId":"troll","rationale":"Dense buzzword soup with zero concrete claims — troll specialty."}
+
+### Example 3 — Host mid-disfluency → SILENT (no restart interruption)
+TRANSCRIPT: "Yeah so the valuation was, uh, let me rephrase that — the thing about the Series B is that —"
+SILENCE: false
+CORRECT: {"personaId":"silent","rationale":"Mid-disfluency restart; no complete clause to react to yet."}
+
+### Example 4 — Tag-question backchannel invite → SILENT (let host land their thought)
+TRANSCRIPT: "And so the whole funding thing just fell apart, you know what I mean?"
+SILENCE: false
+CORRECT: {"personaId":"silent","rationale":"Backchannel-inviting tag question; host expects to answer their own thought."}
+
+### Example 5 — Absurd triple claim → joker
+TRANSCRIPT: "Their AI can write better code than most junior engineers, cure cancer, and also make a perfect cappuccino."
+SILENCE: false
+CORRECT: {"personaId":"joker","rationale":"Triple claim is a rule-of-three setup — joker's technique."}
+
+### Example 6 — Host directly addressed another participant → SILENT (let the human answer)
+TRANSCRIPT: "Jason pitched the whole AstroForge thing for ten minutes straight. Molly, what do you think about the market sizing?"
+SILENCE: false
+CORRECT: {"personaId":"silent","rationale":"Host directly addressed Molly by name — human should speak next."}
+
+### Example 7 — Awkward on-air stumble → soundfx
+TRANSCRIPT: "And then... sorry, I lost my train of thought."
+SILENCE: false
+CORRECT: {"personaId":"soundfx","rationale":"On-air stumble is a mood-shift moment — a timed sound cue lands it."}
+
+### Example 8 — Pure silence tick → soundfx
+TRANSCRIPT: ""
+SILENCE: true
+CORRECT: {"personaId":"soundfx","rationale":"Silence tick; soundfx fits dead air better than joker without a premise."}
+
+### Example 9 — Cap-table number (TWiST pack) → joker (data-comedy lane)
+TRANSCRIPT: "The founders retained 8% combined going into their Series B."
+SILENCE: false
+CORRECT: {"personaId":"joker","rationale":"Specific cap-table number is a data-comedy setup — joker owns it in TWiST."}
+
+### Example 10 — Speculative opinion, producer passes → joker
+TRANSCRIPT: "I believe AI will be smarter than humans within five years."
+SILENCE: false
+CORRECT: {"personaId":"joker","rationale":"Speculative prediction is not a verifiable fact — joker heightens."}
+
+### Example 11 — Minimal filler, nothing to react to → SILENT
+TRANSCRIPT: "Yeah, exactly."
+SILENCE: false
+CORRECT: {"personaId":"silent","rationale":"Trivial agreement filler; no content worth reacting to."}
+
+### Example 12 — Dominant hype-bubble trigger → troll (even if they just fired)
+TRANSCRIPT: "The company's revenue was \\$4 million — \\$4 MILLION — yet they raised at a \\$2 BILLION valuation. Five-hundred-times revenue!"
+SILENCE: false
+CORRECT: {"personaId":"troll","rationale":"500x revenue multiple is unambiguously dominant troll territory."}
+
+### Example 13 — Dramatic workplace fact → soundfx
+TRANSCRIPT: "They had 12 employees. They all quit on the same day."
+SILENCE: false
+CORRECT: {"personaId":"soundfx","rationale":"Dramatic fact landing cold wants a [sad trombone] beat, not a fact-check."}
+
+### Example 14 — Pure content-free restart → SILENT
+TRANSCRIPT: "so, so, um, so the thing I want to say is, hold on —"
+SILENCE: false
+CORRECT: {"personaId":"silent","rationale":"Repetitions and restarts; nothing to react to yet."}
+
+### Example 15 — Year + audible uncertainty → producer
+TRANSCRIPT: "Facebook was founded in 2005, I think."
+SILENCE: false
+CORRECT: {"personaId":"producer","rationale":"Verifiable year with flagged uncertainty — correction is the win."}
+
+---
+
+## ROUTING DECISION FRAMEWORK
+
+Evaluate these signals in order:
+
+1. CONTENT CLASS
+   - Hard verifiable claim (number / date / statistic) → producer
+   - Hype / buzzwords / confident-but-soft claim      → troll
+   - Mood shift / awkward pause / emotional beat       → soundfx
+   - Absurdity / comic premise / comparison setup      → joker
+   - None of the above applies this tick              → silent
+   - Silence tick (no new transcript)                   → prefer soundfx or joker
+
+2. WHEN TO PREFER SILENT
+   - Mid-clause / mid-thought tail ("because…", "so…", "if…")
+   - Disfluency, restart, repetition ("um", "uh", "let me rephrase")
+   - Backchannel-inviting tag question ("right?", "you know?")
+   - Another participant directly addressed by name
+   - Post-punchline moment (1–3 beats to breathe)
+   - Content-free filler agreement ("Yeah, exactly.")
+
+3. CONFIDENCE
+   Report HONEST specialty match across all 5 slots. Do NOT self-penalize recent speakers — an external sticky-agent penalty handles that deterministically after your response.
+
+4. CALLBACK
+   If a LIVE CALLBACK is listed and a persona can legitimately reuse / invert / heighten the phrase, prefer that persona and set callbackUsed to the exact snippet.
+
+5. OUTPUT
+   Call pick_next_speaker with: personaId ∈ {producer, troll, soundfx, joker, silent}, confidence (object summing to ~1.0 across all 5), one-sentence rationale, callbackUsed (exact snippet or null).
+`;
+
+/**
+ * Full cached stable prefix: the routing system prompt + extended catalog
+ * + few-shots + decision framework. Padded past the 2,048-token Haiku cache
+ * minimum so ephemeral caching actually fires. Composed once at load time.
+ *
+ * Sized for ~2,200 tokens in the combined block; stays comfortably above
+ * the cache threshold even if future edits trim a few examples.
+ */
+export const CACHED_ROUTING_STABLE_PREFIX_V2 =
+  ROUTING_SYSTEM_PROMPT_V2 + CACHED_V3_EXTENDED_PREFIX;
+
 /**
  * Subset of PickPersonaCtxV2 that contains only the fields needed to build
  * the routing user prompt. Shadow providers (Cerebras, Groq) construct this
@@ -242,45 +402,56 @@ export function buildRoutingUserPromptV2(ctx: RoutingPromptCtxV2): string {
 // TOOL SCHEMA
 // ──────────────────────────────────────────────────────
 
-// Anthropic tool_use input_schema. The `enum` on personaId is the
+/**
+ * Shared JSON schema for the v3 pick output. Exported so Cerebras / Groq
+ * shadow modules (which use OpenAI-compatible `response_format: json_schema`)
+ * can validate against the identical structure — single source of truth for
+ * the 5-slot enum + confidence vector shape.
+ */
+export const PICK_NEXT_SPEAKER_INPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    personaId: {
+      type: "string",
+      enum: ["producer", "troll", "soundfx", "joker", "silent"],
+      description: "The archetype slot that speaks next, or 'silent' for nobody.",
+    },
+    confidence: {
+      type: "object",
+      description:
+        "Verbalized confidence across all 5 slots. Should sum to approximately 1.0.",
+      properties: {
+        producer: { type: "number", minimum: 0, maximum: 1 },
+        troll: { type: "number", minimum: 0, maximum: 1 },
+        soundfx: { type: "number", minimum: 0, maximum: 1 },
+        joker: { type: "number", minimum: 0, maximum: 1 },
+        silent: { type: "number", minimum: 0, maximum: 1 },
+      },
+      required: ["producer", "troll", "soundfx", "joker", "silent"],
+    },
+    rationale: {
+      type: "string",
+      description: "One short sentence explaining the pick.",
+    },
+    callbackUsed: {
+      type: ["string", "null"],
+      description:
+        "Exact phrase from LIVE CALLBACK CANDIDATES that the picked persona will heighten, or null if none.",
+    },
+  },
+  required: ["personaId", "confidence", "rationale", "callbackUsed"],
+} as const;
+
+// Anthropic tool_use tool definition. The `enum` on personaId is the
 // hard guarantee — the model cannot return an invalid slot id.
 const PICK_NEXT_SPEAKER_TOOL: Anthropic.Tool = {
   name: "pick_next_speaker",
   description:
     "Decide who speaks next in the Peanut Gallery writers' room, or choose SILENT for no one.",
-  input_schema: {
-    type: "object",
-    properties: {
-      personaId: {
-        type: "string",
-        enum: ["producer", "troll", "soundfx", "joker", "silent"],
-        description: "The archetype slot that speaks next, or 'silent' for nobody.",
-      },
-      confidence: {
-        type: "object",
-        description:
-          "Verbalized confidence across all 5 slots. Should sum to approximately 1.0.",
-        properties: {
-          producer: { type: "number", minimum: 0, maximum: 1 },
-          troll: { type: "number", minimum: 0, maximum: 1 },
-          soundfx: { type: "number", minimum: 0, maximum: 1 },
-          joker: { type: "number", minimum: 0, maximum: 1 },
-          silent: { type: "number", minimum: 0, maximum: 1 },
-        },
-        required: ["producer", "troll", "soundfx", "joker", "silent"],
-      },
-      rationale: {
-        type: "string",
-        description: "One short sentence explaining the pick.",
-      },
-      callbackUsed: {
-        type: ["string", "null"],
-        description:
-          "Exact phrase from LIVE CALLBACK CANDIDATES that the picked persona will heighten, or null if none.",
-      },
-    },
-    required: ["personaId", "confidence", "rationale", "callbackUsed"],
-  },
+  // Cast: the shared schema is `as const`-frozen for JSON-Schema consumers;
+  // Anthropic's Tool type expects a mutable InputSchema. The structural
+  // contents are identical — only the readonly-ness differs.
+  input_schema: PICK_NEXT_SPEAKER_INPUT_SCHEMA as unknown as Anthropic.Tool["input_schema"],
 };
 
 // ──────────────────────────────────────────────────────
@@ -368,12 +539,28 @@ export async function pickPersonaLLMv2(
   try {
     const client = new Anthropic({ apiKey: ctx.anthropicKey });
 
+    // Haiku caching: mark the system block + the single tool definition as
+    // ephemeral-cacheable. On cache hit we pay ~10 % of normal input cost and
+    // get the ~85 % TTFT reduction that makes the 400 ms routing budget
+    // cleanly achievable. First request in a warm session pays the cache-write
+    // overhead; every subsequent tick in the same session rides the cache.
     const response = await client.messages.create(
       {
         model: "claude-haiku-4-5-20251001",
         max_tokens: 300,
-        system: ROUTING_SYSTEM_PROMPT_V2,
-        tools: [PICK_NEXT_SPEAKER_TOOL],
+        system: [
+          {
+            type: "text",
+            text: CACHED_ROUTING_STABLE_PREFIX_V2,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+        tools: [
+          {
+            ...PICK_NEXT_SPEAKER_TOOL,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
         tool_choice: { type: "tool", name: "pick_next_speaker" },
         messages: [
           { role: "user", content: buildRoutingUserPromptV2(ctx) },
@@ -412,6 +599,9 @@ export async function pickPersonaLLMv2(
       return null;
     }
 
+    // cacheCreationTokens: non-zero on cold-start (cache write on first use).
+    // cacheReadTokens: non-zero on cache hit (cheap + fast). SET-16 pulls
+    // these fields to validate hit rate ≥ 80 % and p95 TTFT ≤ 250 ms.
     logPipeline({
       event: "llm_director_v2_pick",
       level: "info",
@@ -422,6 +612,8 @@ export async function pickPersonaLLMv2(
         confidence: pick.confidence,
         callbackUsed: pick.callbackUsed,
         elapsedMs: Date.now() - started,
+        cacheCreationTokens: response.usage.cache_creation_input_tokens ?? 0,
+        cacheReadTokens: response.usage.cache_read_input_tokens ?? 0,
       },
     });
 
