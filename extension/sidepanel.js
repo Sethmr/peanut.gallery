@@ -522,6 +522,28 @@ function hasRequiredUserKeys() {
   return !!(dg && anth && xai);
 }
 
+// ─── v1.9 Peanut Gallery Plus — subscription DOM refs ───────────────────
+// Declared up here (rather than next to the other input refs near line 810)
+// because the v1.9 BACKEND-MODE code block below uses them as top-level
+// `const`s inside its body. In the temporal dead zone these would throw
+// `ReferenceError` on first access, silently killing every subsequent
+// event-listener registration in this file (drawer, Start Listening,
+// feed menu — all of it). Fixed in PR #<n>; keep these declarations
+// ABOVE the block until/unless a refactor splits the block into its
+// own module.
+const subscriptionKeyInput = document.getElementById("subscriptionKey");
+const subscriptionBlock = document.getElementById("subscriptionBlock");
+const subProgressFill = document.getElementById("subProgressFill");
+const subProgressText = document.getElementById("subProgressText");
+const subscriptionProgress = document.getElementById("subscriptionProgress");
+const buySubBtn = document.getElementById("buySubBtn");
+const manageSubBtn = document.getElementById("manageSubBtn");
+const recoverSubBtn = document.getElementById("recoverSubBtn");
+const backendModeSegmented = document.getElementById("backendModeSegmented");
+const backendModeHint = document.getElementById("backendModeHint");
+const plusUseWith = document.getElementById("plusUseWith");
+const plusUseSegmented = document.getElementById("plusUseSegmented");
+
 // ═══════════════════════════════════════════════════════════════════
 // v1.9 BACKEND-MODE + PEANUT GALLERY PLUS
 // ═══════════════════════════════════════════════════════════════════
@@ -815,20 +837,10 @@ const deepgramKeyInput = document.getElementById("deepgramKey");
 const anthropicKeyInput = document.getElementById("anthropicKey");
 const xaiKeyInput = document.getElementById("xaiKey");
 const braveKeyInput = document.getElementById("braveKey");
-// v1.9 Peanut Gallery Plus — subscription UI. All optional; older
-// sidepanel.html without these elements drops through to null handling.
-const subscriptionKeyInput = document.getElementById("subscriptionKey");
-const subscriptionBlock = document.getElementById("subscriptionBlock");
-const subProgressFill = document.getElementById("subProgressFill");
-const subProgressText = document.getElementById("subProgressText");
-const subscriptionProgress = document.getElementById("subscriptionProgress");
-const buySubBtn = document.getElementById("buySubBtn");
-const manageSubBtn = document.getElementById("manageSubBtn");
-const recoverSubBtn = document.getElementById("recoverSubBtn");
-const backendModeSegmented = document.getElementById("backendModeSegmented");
-const backendModeHint = document.getElementById("backendModeHint");
-const plusUseWith = document.getElementById("plusUseWith");
-const plusUseSegmented = document.getElementById("plusUseSegmented");
+// (subscription-UI const refs moved up to ~line 525 so they're declared
+//  before the v1.9 BACKEND-MODE code block references them. Leaving this
+//  comment here for grep traceability so anyone tracking "where did the
+//  subscription DOM refs go" lands on the right block.)
 // Search-engine selector — controls which backend the Producer uses for
 // fact-checking. Values: "brave" (default) | "xai". Older sidepanel.html
 // without this element drops through to null and we coerce to "brave".
