@@ -73,7 +73,7 @@ Researched from public TWiST transcripts and episode clips. See [`docs/packs/twi
 
 Pack choice lives in the side-panel setup dropdown and persists across sessions. Change takes effect on the next Start Listening — no mid-session persona swap.
 
-Want another pack? Open a [pack request](.github/ISSUE_TEMPLATE/pack_request.yml). A visual Pack Lab authoring surface is deferred to post-v2.0 — until then, curated packs ship with a guided skill walkthrough in [`docs/packs/`](docs/packs/).
+Want another pack? Open a [pack request](.github/ISSUE_TEMPLATE/pack_request.yml) — or author one yourself per [`docs/PACK-AUTHORING-GUIDE.md`](docs/PACK-AUTHORING-GUIDE.md) (living doc: archetype slots, producer contract, `factCheckMode` dial, registration, refinement loop). A visual Pack Lab authoring surface is deferred to post-v2.0; until then the guide plus the two reference packs in [`lib/packs/`](lib/packs/) are the template.
 
 ---
 
