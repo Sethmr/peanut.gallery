@@ -70,6 +70,12 @@ export interface PickPersonaCtxV3GroqV3 {
    * omit when the Director hasn't collected candidates yet.
    */
   liveCallbacks?: string[];
+  /**
+   * SET-7: number of tail chars in `recentTranscript` that are NEW since
+   * the previous tick. Prompt builder marks those chars as tentative so
+   * the router can downweight signals found only in the unstable tail.
+   */
+  unstableTailLen?: number;
   /** Groq API key. Passed in so this file doesn't read env directly. */
   groqKey: string;
   signal?: AbortSignal;
@@ -108,6 +114,7 @@ export async function pickPersonaGroqV3(
     cooldownsMs: ctx.cooldownsMs,
     packPersonas: ctx.packPersonas,
     liveCallbacks: ctx.liveCallbacks,
+    unstableTailLen: ctx.unstableTailLen,
   };
 
   try {

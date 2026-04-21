@@ -1,0 +1,19 @@
+{
+  "name": "v3-silent-unstable-tail-only",
+  "description": "v1.7 Smart Director v3 SET-7 — transcript tail is marked unstable in the v3 prompt because it just arrived this tick. The synthetic LLM pick is SILENT with rationale referencing the unstable tail. Exercises the Director's short-circuit (empty chain, source='silent-llm') given the v3 router's correct handling of the unstable-tail rule. The prompt wiring itself is a runtime concern — this fixture protects the downstream behavior when an unstable-tail-driven SILENT lands.",
+  "pack": "howard",
+  "input": {
+    "transcript": "Yeah so everyone was agreeing on the fund structure and then they said so we should probably just",
+    "llmPickV2": {
+      "personaId": "silent",
+      "rationale": "Only potentially-reactable signal lives in the unstable tail ('so we should probably just'); speaker is clearly mid-clause.",
+      "callbackUsed": null
+    }
+  },
+  "assertions": {
+    "chainEmpty": true,
+    "sourceIn": ["silent-llm"],
+    "reasonContains": "SILENT",
+    "returnShapeComplete": true
+  }
+}
