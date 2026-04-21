@@ -61,29 +61,30 @@ name: Claude Kickoff
 #     The handler's rate-limit Map is process-scoped; this workflow-level
 #     concurrency gate is belt-and-suspenders.
 #
-# Why model + --max-turns are hardcoded to Opus 4.7 / 40:
-#   - Kickoff always writes code (that's the whole point of this workflow:
-#     implement a Linear ticket end-to-end on a feature branch). Seth's
-#     operating rule is "Opus does everything that involves writing code
-#     unless it's so easy I already know line-for-line what the change is
-#     before starting." A Linear kickoff, by construction, is never that
-#     trivial — the ticket is text in a tracker, not a pre-specified diff.
-#     So Opus runs every time.
+# Why model + --max-turns default to Sonnet 4.6 / 20 with Opus-by-label:
+#   - Default: Sonnet 4.6 / `--max-turns 20`. This is the operational
+#     ceiling on Seth's current Anthropic org tier — Opus 4.7 is capped at
+#     30,000 input tokens/minute, which is too tight for a kickoff that
+#     has to read CLAUDE.md + the rubric + explore the repo before
+#     writing any code. The first smoke test on PR #48's Opus-default
+#     hit a 429 rate-limit immediately. Sonnet has roughly 16x more
+#     headroom on the same tier and runs comfortably.
+#   - Opus elevation: `needs-opus` label on the Linear issue. The webhook
+#     handler (app/api/linear-webhook/route.ts) sets
+#     `client_payload.model = "opus"` when the label is present, else
+#     "sonnet". This workflow reads that field below in the "Pick model +
+#     turns" step. Opus elevation requires the org tier to have enough
+#     Opus TPM headroom — if you hit 429s, either wait out the rate-limit
+#     window or request a TPM increase from Anthropic
+#     (https://docs.claude.com/en/api/rate-limits).
 #   - Cost note: Opus is roughly 5x more expensive per output token than
 #     Sonnet per Anthropic pricing
 #     (https://platform.claude.com/docs/en/docs/about-claude/pricing).
-#     Typical kickoff cost on Opus lands in the $0.30–$1.50 range per
-#     ticket. Seth has accepted this cost for code-writing tasks.
-#   - Why 40 turns for Opus: harder tickets benefit from more headroom; 40
-#     is still a cost cap. If a task doesn't finish in that budget, the
-#     ticket probably needs human decomposition anyway.
-#   - A `needs-sonnet` downgrade hook (cost-sensitive trigger for trivial
-#     tickets) is iteration-2 territory and not built here. The webhook
-#     handler still emits `client_payload.model` ("opus" or "sonnet"
-#     depending on whether `needs-opus` was applied), but this workflow
-#     ignores that field — Opus always wins. Removing the obsolete
-#     `needs-opus` label + wiring a `needs-sonnet` downgrade is a
-#     separate ticket in the webhook handler.
+#     Typical kickoff cost on Sonnet: ~$0.06–$0.30 per ticket. Typical on
+#     Opus (when rate limits permit): ~$0.30–$1.50 per ticket.
+#   - Why 20 turns on Sonnet default / 40 on Opus: Sonnet is faster so
+#     20 turns is usually sufficient; Opus gets 40 for harder tickets
+#     that were flagged as needing it.
 #
 # Why anthropic_api_key as ${{ secrets.ANTHROPIC_API_KEY }}:
 #   - Same posture as claude-triage.yml. GitHub encrypts repo secrets at
@@ -184,15 +185,22 @@ jobs:
 
       - name: Pick model + turns
         id: model
+        env:
+          PAYLOAD_MODEL: ${{ github.event.client_payload.model }}
         run: |
-          # Hardcoded Opus 4.7 / 40 turns. Kickoff always writes code, and
-          # Seth's rule is Opus for code-writing tasks unless the change
-          # is line-for-line pre-specified (which a Linear ticket isn't).
-          # The `client_payload.model` field the webhook still emits is
-          # intentionally ignored here — a `needs-sonnet` downgrade hook
-          # is iteration-2 territory.
-          echo "args=--max-turns 40 --model claude-opus-4-7" >> "$GITHUB_OUTPUT"
-          echo "model_label=Opus 4.7 / 40 turns" >> "$GITHUB_OUTPUT"
+          # Default: Sonnet 4.6 / 20 turns. Operational ceiling on the
+          # current Anthropic org tier — Opus 4.7 at 30k TPM rate-limits
+          # before a kickoff even finishes reading CLAUDE.md + the
+          # rubric. The webhook handler sets `client_payload.model` to
+          # "opus" when the `needs-opus` label is on the Linear issue,
+          # else "sonnet"; we honor that here.
+          if [ "$PAYLOAD_MODEL" = "opus" ]; then
+            echo "args=--max-turns 40 --model claude-opus-4-7" >> "$GITHUB_OUTPUT"
+            echo "model_label=Opus 4.7 / 40 turns (needs-opus label)" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=--max-turns 20 --model claude-sonnet-4-6" >> "$GITHUB_OUTPUT"
+            echo "model_label=Sonnet 4.6 / 20 turns (default)" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Seed PR body with Closes link
         env:
