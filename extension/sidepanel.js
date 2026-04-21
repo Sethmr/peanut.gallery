@@ -75,9 +75,14 @@ if (document.body) {
     document.body.appendChild(_diagEl),
   );
 }
-// Capture-phase listener fires BEFORE any stopPropagation. If this
-// counter never increments on taps, something is blocking at the
-// viewport level — a pointer-events:auto overlay or similar.
+// Capture-phase listener fires BEFORE any stopPropagation.
+// Seth 2026-04-21: every click is reporting e.target === body despite
+// buttons showing :hover. That means hit-testing during mousedown is
+// somehow bypassing the actual button DOM. elementsFromPoint tells
+// us the full Z-stack at the click coordinates — if body is the
+// only thing returned, something global has `pointer-events: none`
+// on every interactive child. If body is ABOVE the button in the
+// stack, we've got an overlay we need to find.
 document.addEventListener(
   "click",
   (e) => {
@@ -85,7 +90,20 @@ document.addEventListener(
     const t = e.target;
     const label =
       t && t.id ? "#" + t.id : t && t.tagName ? t.tagName.toLowerCase() : "?";
-    updateDiag("last-click:" + label);
+    // Stack dump: top-to-bottom elements at the click point, up to 6
+    const stack = document
+      .elementsFromPoint(e.clientX, e.clientY)
+      .slice(0, 6)
+      .map((el) => {
+        const id = el.id ? "#" + el.id : "";
+        const cls = el.className
+          ? "." + String(el.className).split(/\s+/).slice(0, 2).join(".")
+          : "";
+        return el.tagName.toLowerCase() + id + cls;
+      })
+      .join(" > ");
+    console.log("[PG:sp click] target:", label, "stack:", stack);
+    updateDiag("tgt:" + label + " / " + stack.slice(0, 60));
   },
   true,
 );
