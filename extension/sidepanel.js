@@ -26,6 +26,8 @@ window.addEventListener("error", (event) => {
     event.filename + ":" + event.lineno + ":" + event.colno,
     event.error?.stack?.split("\n").slice(0, 3).join("\n"),
   );
+  // Also surface to the on-panel diag strip so we don't need DevTools open.
+  updateDiag("ERR: " + event.message.slice(0, 60));
 });
 window.addEventListener("unhandledrejection", (event) => {
   console.error(
@@ -34,6 +36,54 @@ window.addEventListener("unhandledrejection", (event) => {
     event.reason?.stack?.split("\n").slice(0, 3).join("\n"),
   );
 });
+
+// ─── ON-PANEL DIAGNOSTIC STRIP ──────────────────────────────────────────
+// Writes a tiny black bar at the top of the panel showing:
+//   - Script load timestamp (proves sidepanel.js actually ran)
+//   - Click counter (proves clicks reach the document — i.e., no full-
+//     viewport overlay is intercepting)
+//   - Last error (proves any thrown error is surfaced without DevTools)
+// Strip once Seth confirms the panel is tappable again.
+const _diagEl = document.createElement("div");
+_diagEl.id = "pg-diag-strip";
+_diagEl.style.cssText =
+  "position:fixed;top:0;left:0;right:0;z-index:99999;" +
+  "background:#111;color:#ffd400;font:11px/1.4 ui-monospace,monospace;" +
+  "padding:3px 8px;pointer-events:none;";
+const _diagLoadAt = new Date().toLocaleTimeString();
+let _diagClickCount = 0;
+let _diagLastMsg = "";
+function updateDiag(msg) {
+  if (msg !== undefined) _diagLastMsg = msg;
+  _diagEl.textContent =
+    "[PG DIAG] loaded " +
+    _diagLoadAt +
+    " · clicks-reached-doc " +
+    _diagClickCount +
+    (_diagLastMsg ? " · " + _diagLastMsg : "");
+}
+updateDiag();
+if (document.body) {
+  document.body.appendChild(_diagEl);
+} else {
+  document.addEventListener("DOMContentLoaded", () =>
+    document.body.appendChild(_diagEl),
+  );
+}
+// Capture-phase listener fires BEFORE any stopPropagation. If this
+// counter never increments on taps, something is blocking at the
+// viewport level — a pointer-events:auto overlay or similar.
+document.addEventListener(
+  "click",
+  (e) => {
+    _diagClickCount += 1;
+    const t = e.target;
+    const label =
+      t && t.id ? "#" + t.id : t && t.tagName ? t.tagName.toLowerCase() : "?";
+    updateDiag("last-click:" + label);
+  },
+  true,
+);
 
 // ── Persona pack definitions (must match lib/packs/* on the server) ──
 //
@@ -941,6 +991,20 @@ async function ensureInstallId() {
 }
 
 // ── Init ──
+// Defensive force-hide on the tutorial overlay BEFORE anything else runs.
+// If a previous load left the overlay stuck visible (e.g. renderTutorialStep
+// threw after classList.add("visible") fired), the backdrop's pointer-
+// events: auto would intercept every click on this load. Forcibly
+// stripping the .visible class here costs nothing and rules out the
+// "stuck backdrop" hypothesis. If this fixes tappability, we know
+// the auto-start flow has a bug we still need to hunt.
+const _diagTutorialOverlay = document.getElementById("tutorialOverlay");
+if (_diagTutorialOverlay) {
+  _diagTutorialOverlay.classList.remove("visible");
+  _diagTutorialOverlay.setAttribute("aria-hidden", "true");
+}
+console.log("[PG:sp phase] init: force-hid tutorial overlay as defensive measure");
+
 console.log("[PG:sp phase] init: loadSettings()");
 loadSettings();
 console.log("[PG:sp phase] init: ensureInstallId()");
