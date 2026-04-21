@@ -881,6 +881,21 @@ function showCapturing() {
 
 function showIdle() {
   capturing = false;
+  // v2.0 session-recall: close out the session record before we null
+  // sessionId. Forces a transcript flush + end timestamp + stats snapshot
+  // so Past-Sessions UI (v2.0) has a clean terminal state to render.
+  // Capture sessionId into a local — the store call is async but `sessionId`
+  // gets reset synchronously below, and we need the id alive for the write.
+  const endingSessionId = sessionId;
+  if (self.PGSessionStore && endingSessionId) {
+    const stats = { ...sessionStats };
+    // Final transcript snapshot (force=true bypasses debounce so the
+    // stored tail matches what showIdle sees right now).
+    self.PGSessionStore.updateTranscript(endingSessionId, transcriptFinal, { force: true })
+      .catch(() => {})
+      .then(() => self.PGSessionStore.endSession(endingSessionId, stats))
+      .catch(() => {});
+  }
   sessionId = null;
   capturedTabInfo = null;
   // Demote the avatar row — cursor goes back to default, title attributes
@@ -1409,6 +1424,23 @@ function addFeedEntry(personaId, text) {
 
   gallery.appendChild(el);
   gallery.scrollTop = gallery.scrollHeight;
+
+  // v2.0 session-recall groundwork: persist the reaction alongside the
+  // Director's rationale for this persona (if any). Fire-and-forget —
+  // a storage failure has no user-visible consequence.
+  if (self.PGSessionStore && sessionId) {
+    const decision = lastDecisionForPersona.get(personaId);
+    self.PGSessionStore.appendReaction(sessionId, {
+      id,
+      personaId,
+      role,
+      text,
+      timestamp: now,
+      source: decision?.source ?? null,
+      reason: decision?.reason ?? null,
+      callbackUsed: decision?.callbackUsed ?? null,
+    }).catch(() => {});
+  }
 }
 
 function updateStreamingEntry(personaId, text) {
@@ -1456,6 +1488,12 @@ chrome.runtime.onMessage.addListener((message) => {
       if (data.isFinal) {
         transcriptFinal = (transcriptFinal + " " + data.text).trim().slice(-500);
         transcriptInterim = "";
+        // v2.0 session-recall: snapshot the running transcript tail to
+        // storage. updateTranscript() debounces at 15s cadence internally,
+        // so this is safe to call on every final chunk.
+        if (self.PGSessionStore && sessionId) {
+          self.PGSessionStore.updateTranscript(sessionId, transcriptFinal).catch(() => {});
+        }
       } else {
         transcriptInterim = data.text;
       }
@@ -1553,6 +1591,18 @@ chrome.runtime.onMessage.addListener((message) => {
         // Populate the "Listening to: …" banner now that we know a session
         // is live. Background remembers the captured tab across SW evictions.
         refreshCapturedTab();
+        // v2.0 session-recall groundwork: create a persistent session
+        // record so the "Past sessions" feature (roadmap v2.0) has data
+        // when the UI lands. Fires-and-forgets; silent on storage errors.
+        if (self.PGSessionStore) {
+          self.PGSessionStore.createSession({
+            sessionId,
+            packId: sessionPackId || currentPackId || null,
+            url: capturedTabInfo?.url || "",
+            title: capturedTabInfo?.title || "",
+            startedAt: Date.now(),
+          }).catch(() => {});
+        }
       }
       if (data.status === "live_detected") {
         if (data.isLive) {
