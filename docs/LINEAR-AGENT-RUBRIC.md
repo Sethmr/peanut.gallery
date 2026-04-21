@@ -11,11 +11,22 @@
 
 **Last updated:** 2026-04-20. Born when Seth wired the Linear webhook → GitHub Actions → fresh-Claude kickoff pipeline into the repo.
 
-**Audience:** a fresh Claude instance running inside [`.github/workflows/claude-kickoff.yml`](../.github/workflows/claude-kickoff.yml), triggered when a Linear issue transitions into a `unstarted`-type state (the "Todo" column). You have no session memory, no auto-memory, no prior conversation. This file is your playbook.
+**Audience:** a fresh Claude instance running either (a) inside [`.github/workflows/claude-kickoff.yml`](../.github/workflows/claude-kickoff.yml), triggered when a Linear issue transitions into a `unstarted`-type state (the "Todo" column), or (b) inside a local worktree spawned by [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts) on Seth's Mac. You have no session memory, no auto-memory, no prior conversation. This file is your playbook.
 
 ---
 
-## Trigger semantics (what fires you)
+## Two triggers for kickoff-Claude
+
+Kickoff-Claude has two entry points as of 2026-04-20:
+
+- **Local daemon (new, recommended).** [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts) polls Linear every 30s for issues transitioned into an `unstarted` state. When it finds one, it creates a worktree under `.claude/worktrees/claude-*`, symlinks `node_modules`, and spawns `claude -p --permission-mode acceptEdits` against Seth's Claude Max subscription (no API key, no 30k-TPM cap). The daemon pushes the branch and opens the PR after Claude exits cleanly. Install via [`scripts/install-linear-daemon.sh`](../scripts/install-linear-daemon.sh) — full setup in [`GITHUB-MANUAL-STEPS.md § 18`](GITHUB-MANUAL-STEPS.md). Logs: `logs/daemon-*.jsonl` + `logs/kickoff-<id>.log`. Live-view: `tmux attach -t claude-<id>`.
+- **Linear webhook → GitHub Actions (legacy — slated for removal after daemon verification).** Details below. Kept running until Seth verifies the daemon in production; deletion is a follow-up PR.
+
+Your behavior inside the rubric is identical regardless of trigger: same authority scope, same protected-file list, same commit style, same `npm run check` gate. The only difference is where the process runs.
+
+---
+
+## Trigger semantics (legacy — webhook path)
 
 The webhook at [`app/api/linear-webhook/route.ts`](../app/api/linear-webhook/route.ts) keys the kickoff trigger on Linear's **state transitions**, not on label presence. Specifically:
 

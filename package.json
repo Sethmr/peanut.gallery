@@ -13,6 +13,7 @@
     "test:transcription": "tsx scripts/test-transcription.ts",
     "test:personas": "tsx scripts/test-personas.ts",
     "test:director": "tsx scripts/test-director.ts",
+    "daemon:dev": "tsx scripts/linear-daemon.ts",
     "check": "npm run typecheck && npm run check:extension && npm run test:director",
     "prepare": "husky"
   },
