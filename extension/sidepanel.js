@@ -6,30 +6,12 @@
  * document via chrome.runtime.onMessage.
  */
 
-// ─── LOAD-PHASE DIAGNOSTICS (v1.9 hotfix, 2026-04-21) ────────────────────
-// The subscription scaffold introduced a TDZ that silently killed every
-// event listener on load (see PR #106). We now breadcrumb each major
-// phase of sidepanel.js with "[PG:sp phase] <name>" console logs. If the
-// script throws again in the future, the last phase logged tells us
-// within ~50 lines where it died — and the window.onerror handler
-// below surfaces anything that escapes a try/catch as a red console
-// line on page load.
-//
-// To strip this later: grep for "[PG:sp phase]" and delete the logs. The
-// window.onerror handler can stay — it's zero-cost when nothing throws.
-// ─── LOAD-PHASE DIAG STATE (declared FIRST so error handlers below can
-// reference these without hitting TDZ when an error fires mid-load) ────
-var _diagClickCount = 0;
-var _diagLastMsg = "";
-var _diagStickyError = "";
-var _diagLastPhase = "";
-var _diagGearClicks = 0;
-var _diagStartClicks = 0;
-var _diagEl;
-var _diagLoadAt;
-
-console.log("[PG:sp phase] sidepanel.js evaluating");
-
+// ─── LOAD-TIME ERROR HYGIENE ─────────────────────────────────────────────
+// Minimal surfacing of uncaught errors + promise rejections. Kept after
+// the 2026-04-21 diagnostic pass because it's zero-cost when nothing
+// throws and makes the next silent-TDZ-style failure trivially
+// observable in the console. No on-panel UI — strip that shipped in
+// PRs #108–#111 was removed once the root cause was fixed (#112).
 window.addEventListener("error", (event) => {
   console.error(
     "[PG:sp fatal]",
@@ -38,98 +20,14 @@ window.addEventListener("error", (event) => {
     event.filename + ":" + event.lineno + ":" + event.colno,
     event.error?.stack?.split("\n").slice(0, 3).join("\n"),
   );
-  _diagStickyError =
-    "ERR: " +
-    event.message.slice(0, 50) +
-    " @ " +
-    (event.filename || "?").split("/").pop() +
-    ":" +
-    event.lineno;
-  if (typeof updateDiag === "function") updateDiag();
 });
 window.addEventListener("unhandledrejection", (event) => {
-  const msg = event.reason?.message || String(event.reason);
   console.error(
     "[PG:sp fatal rejection]",
-    msg,
+    event.reason?.message || String(event.reason),
     event.reason?.stack?.split("\n").slice(0, 3).join("\n"),
   );
-  _diagStickyError = "REJ: " + msg.slice(0, 60);
-  if (typeof updateDiag === "function") updateDiag();
 });
-
-// ─── ON-PANEL DIAGNOSTIC STRIP ──────────────────────────────────────────
-_diagEl = document.createElement("div");
-_diagEl.id = "pg-diag-strip";
-_diagEl.style.cssText =
-  "position:fixed;top:0;left:0;right:0;z-index:99999;" +
-  "background:#111;color:#ffd400;font:11px/1.4 ui-monospace,monospace;" +
-  "padding:3px 8px;pointer-events:none;";
-_diagLoadAt = new Date().toLocaleTimeString();
-function updateDiag(msg) {
-  if (msg !== undefined) _diagLastMsg = msg;
-  const base =
-    "[PG DIAG] loaded " +
-    _diagLoadAt +
-    " · clicks " +
-    _diagClickCount +
-    " · phase:" +
-    (_diagLastPhase || "?");
-  const tail = _diagStickyError
-    ? " · " + _diagStickyError
-    : _diagLastMsg
-      ? " · " + _diagLastMsg
-      : "";
-  _diagEl.textContent = base + tail;
-}
-// updatePhase: every major load phase calls this INSTEAD of console.log
-// so the last-phase-reached is always visible on the diag strip. If
-// script halts mid-load, this reads as the last phase before silence.
-function updatePhase(name) {
-  _diagLastPhase = name;
-  console.log("[PG:sp phase] " + name);
-  updateDiag();
-}
-updateDiag();
-if (document.body) {
-  document.body.appendChild(_diagEl);
-} else {
-  document.addEventListener("DOMContentLoaded", () =>
-    document.body.appendChild(_diagEl),
-  );
-}
-// Capture-phase listener fires BEFORE any stopPropagation.
-// Seth 2026-04-21: every click is reporting e.target === body despite
-// buttons showing :hover. That means hit-testing during mousedown is
-// somehow bypassing the actual button DOM. elementsFromPoint tells
-// us the full Z-stack at the click coordinates — if body is the
-// only thing returned, something global has `pointer-events: none`
-// on every interactive child. If body is ABOVE the button in the
-// stack, we've got an overlay we need to find.
-document.addEventListener(
-  "click",
-  (e) => {
-    _diagClickCount += 1;
-    const t = e.target;
-    const label =
-      t && t.id ? "#" + t.id : t && t.tagName ? t.tagName.toLowerCase() : "?";
-    // Stack dump: top-to-bottom elements at the click point, up to 6
-    const stack = document
-      .elementsFromPoint(e.clientX, e.clientY)
-      .slice(0, 6)
-      .map((el) => {
-        const id = el.id ? "#" + el.id : "";
-        const cls = el.className
-          ? "." + String(el.className).split(/\s+/).slice(0, 2).join(".")
-          : "";
-        return el.tagName.toLowerCase() + id + cls;
-      })
-      .join(" > ");
-    console.log("[PG:sp click] target:", label, "stack:", stack);
-    updateDiag("tgt:" + label + " / " + stack.slice(0, 60));
-  },
-  true,
-);
 
 // ── Persona pack definitions (must match lib/packs/* on the server) ──
 //
@@ -616,7 +514,6 @@ const firingTimeoutIds = Object.create(null);
 let capturedTabInfo = null; // { tabId, title, url, windowId }
 
 // ── DOM refs ──
-updatePhase("DOM refs");
 const setupSection = document.getElementById("setupSection");
 const statusBar = document.getElementById("statusBar");
 const statusText = document.getElementById("statusText");
@@ -657,7 +554,6 @@ function hasRequiredUserKeys() {
 // feed menu — all of it). Fixed in PR #<n>; keep these declarations
 // ABOVE the block until/unless a refactor splits the block into its
 // own module.
-updatePhase("subscription DOM refs");
 const subscriptionKeyInput = document.getElementById("subscriptionKey");
 const subscriptionBlock = document.getElementById("subscriptionBlock");
 const subProgressFill = document.getElementById("subProgressFill");
@@ -671,7 +567,6 @@ const backendModeHint = document.getElementById("backendModeHint");
 const plusUseWith = document.getElementById("plusUseWith");
 const plusUseSegmented = document.getElementById("plusUseSegmented");
 
-updatePhase("v1.9 backend-mode block");
 // ═══════════════════════════════════════════════════════════════════
 // v1.9 BACKEND-MODE + PEANUT GALLERY PLUS
 // ═══════════════════════════════════════════════════════════════════
@@ -1018,7 +913,6 @@ const filterPillEls = Array.from(
   document.querySelectorAll("#footer .pill[data-filter]")
 );
 
-updatePhase("install-id + init block");
 // ── Install ID ──
 // Stable per-installation UUID. Generated on first load, persisted in
 // chrome.storage.local, and sent to the hosted backend as X-Install-Id so
@@ -1047,32 +941,24 @@ async function ensureInstallId() {
 
 // ── Init ──
 // Defensive force-hide on the tutorial overlay BEFORE anything else runs.
-// If a previous load left the overlay stuck visible (e.g. renderTutorialStep
-// threw after classList.add("visible") fired), the backdrop's pointer-
-// events: auto would intercept every click on this load. Forcibly
-// stripping the .visible class here costs nothing and rules out the
-// "stuck backdrop" hypothesis. If this fixes tappability, we know
-// the auto-start flow has a bug we still need to hunt.
-const _diagTutorialOverlay = document.getElementById("tutorialOverlay");
-if (_diagTutorialOverlay) {
-  _diagTutorialOverlay.classList.remove("visible");
-  _diagTutorialOverlay.setAttribute("aria-hidden", "true");
+// If a previous load ever left the overlay stuck visible (e.g. a
+// renderTutorialStep that threw AFTER classList.add("visible") already
+// fired), the backdrop's pointer-events: auto would invisibly intercept
+// every click on the next reload. Stripping the .visible class here is
+// zero-cost insurance — the real startTutorial() call path adds it
+// back intentionally when needed.
+const _initTutorialOverlay = document.getElementById("tutorialOverlay");
+if (_initTutorialOverlay) {
+  _initTutorialOverlay.classList.remove("visible");
+  _initTutorialOverlay.setAttribute("aria-hidden", "true");
 }
-updatePhase("init: force-hid tutorial");
 
-updatePhase("init: loadSettings");
 loadSettings();
-updatePhase("init: ensureInstallId");
 ensureInstallId();
-updatePhase("init: buildPersonaAvatars");
 buildPersonaAvatars();
-updatePhase("init: renderPackChooser");
 renderPackChooser();
-updatePhase("init: checkStatus");
 checkStatus();
-updatePhase("init: detectCurrentTab");
 detectCurrentTab();
-updatePhase("init complete");
 
 // Detect the current tab and show its title
 function detectCurrentTab() {
@@ -2744,10 +2630,7 @@ async function ensureHostPermission(serverUrl) {
   return chrome.permissions.request({ origins: [origin] });
 }
 
-updatePhase("attach:startBtn");
 startBtn.addEventListener("click", async () => {
-  console.log("[PG:sp click] startBtn fired");
-  updateDiag("start-click #" + (++_diagStartClicks));
   saveSettings();
   // Make sure we have an install-id before we fire. Normally ensureInstallId
   // resolved long ago during panel init, but if the user was quick and storage
@@ -3088,23 +2971,9 @@ drawerSectionBacks.forEach((btn) => {
 // just reachable before capture has started (the footer gear is only
 // visible during capture). openSettingsDrawer is declared below; function
 // declarations hoist so the forward reference is safe.
-updatePhase("attach:settingsToggleTop");
 const settingsToggleTopBtn = document.getElementById("settingsToggleTop");
 if (settingsToggleTopBtn) {
-  settingsToggleTopBtn.addEventListener("click", () => {
-    console.log("[PG:sp click] settingsToggleTop fired");
-    updateDiag("gear-click #" + (++_diagGearClicks));
-    try {
-      openSettingsDrawer();
-    } catch (err) {
-      console.error("[PG:sp click error] openSettingsDrawer threw:", err);
-      updateDiag("ERR gear: " + String(err.message || err).slice(0, 40));
-    }
-  });
-  updatePhase("attached:settingsToggleTop");
-} else {
-  console.error("[PG:sp phase] settingsToggleTop element NOT FOUND");
-  updateDiag("ERR: gear btn missing");
+  settingsToggleTopBtn.addEventListener("click", openSettingsDrawer);
 }
 
 // Free-tier banner deep-links into Backend & keys — when the trial nudges
