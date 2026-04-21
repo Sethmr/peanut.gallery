@@ -941,9 +941,18 @@ export async function POST(req: NextRequest) {
               reason: decision.reason,
               isSilence: isSilenceTick,
               isForceReact: false,
-              // v1.5: "rule" | "llm" — which routing path produced this pick.
-              // The debug panel can badge the decision card accordingly.
+              // v1.5: "rule" | "llm" | "silent-llm" — which routing path
+              // produced this pick. The debug panel badges the decision
+              // card accordingly; "silent-llm" means pick is intentionally
+              // null (v3 actively chose silence).
               source: decision.source ?? "rule",
+              // v3 extras — null on v2 / rule paths. `callbackUsed` lets
+              // the debug panel surface the Del-Close-style callback beat
+              // when the router decides to heighten a recent phrase;
+              // `confidence` exposes the verbalized probability vector so
+              // Seth can eyeball whether the model was confident or close.
+              callbackUsed: llmPickV2?.callbackUsed ?? null,
+              confidence: llmPickV2?.confidence ?? null,
             });
           } catch {
             // SSE writer may be closed — ignore and continue the cascade.
