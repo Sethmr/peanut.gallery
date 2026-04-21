@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Launchd template for the Linear local daemon. Do NOT hand-edit the
+  installed copy in ~/Library/LaunchAgents/ — re-run scripts/install-linear-daemon.sh
+  to regenerate it. {{TSX_PATH}} and {{PROJECT_ROOT}} are substituted by
+  the installer.
+
+  LINEAR_API_KEY is NOT in this plist. The daemon loads it from
+  ~/.config/peanut-gallery/daemon.env at startup (mode 600). Keeps the
+  secret off the filesystem outside that single file.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>gallery.peanut.linear-daemon</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{TSX_PATH}}</string>
+    <string>{{PROJECT_ROOT}}/scripts/linear-daemon.ts</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>{{PROJECT_ROOT}}</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>{{PROJECT_ROOT}}/logs/daemon-stdout.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>{{PROJECT_ROOT}}/logs/daemon-stderr.log</string>
+</dict>
+</plist>
