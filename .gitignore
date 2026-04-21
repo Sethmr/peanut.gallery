@@ -45,3 +45,11 @@ next-env.d.ts
 # local smoke / scratch harnesses (never meant to ship)
 scratch-*.ts
 scratch-*.js
+
+# Claude worktrees — ephemeral per-ticket working copies spawned by the
+# Linear local daemon (scripts/linear-daemon.ts), plus preserved release/*
+# worktrees Seth cuts locally. Git auto-manages these via `git worktree add`;
+# they should never appear in commits. Earlier `wip: auto-commit` passes
+# accidentally tracked release worktrees as gitlinks — this ignore prevents
+# recurrence.
+.claude/worktrees/
