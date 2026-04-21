@@ -32,6 +32,15 @@ let sseAbortController = null;
 let passthrough = true;
 let outputDeviceId = "default";
 
+// ── Silence auto-stop ──
+// If no audio arrives for SILENCE_TIMEOUT_MS, we stop the session so it
+// doesn't keep burning backend tokens on a paused tab. "No audio" means
+// RMS below SILENCE_RMS_THRESHOLD — paused YouTube sends exact digital
+// zeros, any real playback stays well above the threshold.
+const SILENCE_TIMEOUT_MS = 60_000;
+const SILENCE_RMS_THRESHOLD = 1e-4;
+let lastAudioAtMs = 0;
+
 // ── Message handler ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log("[PG:off] message received:", message?.type, "target:", message?.target);
@@ -221,6 +230,7 @@ async function startRecording(config) {
 
     capturing = true;
     chunkBuffer = [];
+    lastAudioAtMs = Date.now();
     sendInterval = setInterval(flushAudio, 250);
 
     // ONLY now tell the side panel that capture is truly live. Previously
@@ -338,6 +348,22 @@ function flushAudio() {
   const merged = new Float32Array(totalLength);
   let offset = 0;
   for (const chunk of chunks) { merged.set(chunk, offset); offset += chunk.length; }
+
+  // RMS → silence auto-stop. Processor fires every ~85ms even when the tab
+  // is silent, so chunkBuffer being non-empty tells us nothing about whether
+  // there's actual audio. Paused tabs send exact zeros; real playback crosses
+  // the threshold immediately.
+  let sumSquares = 0;
+  for (let i = 0; i < merged.length; i++) sumSquares += merged[i] * merged[i];
+  const rms = Math.sqrt(sumSquares / merged.length);
+  if (rms > SILENCE_RMS_THRESHOLD) {
+    lastAudioAtMs = Date.now();
+  } else if (capturing && Date.now() - lastAudioAtMs > SILENCE_TIMEOUT_MS) {
+    console.log(`[PG:off] ${SILENCE_TIMEOUT_MS / 1000}s silence — auto-stopping to save tokens`);
+    broadcast({ type: "SSE_EVENT", event: "status", data: { status: "silence_timeout" } });
+    stopRecording();
+    return;
+  }
 
   // Downsample 48kHz → 16kHz
   const ratio = (audioContext?.sampleRate || 48000) / 16000;
