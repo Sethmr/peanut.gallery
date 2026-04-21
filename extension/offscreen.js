@@ -122,6 +122,12 @@ async function startRecording(config) {
     // installation (see docs/BUILD-YOUR-OWN-BACKEND.md §non-negotiables).
     // Self-hosters' servers ignore it when ENABLE_FREE_TIER_LIMIT is unset.
     if (config.installId) headers["X-Install-Id"] = config.installId;
+    // v1.7: global sensitivity from the Critics drawer segmented control.
+    // Scales cascade probability on the Director. Older backends ignore
+    // the header, so omitting or sending an unknown value is always safe.
+    if (config.sensitivity === "quiet" || config.sensitivity === "rowdy") {
+      headers["X-Sensitivity"] = config.sensitivity;
+    }
 
     sseAbortController = new AbortController();
 

@@ -1408,6 +1408,160 @@
     /* When any section is open, hide the menu */
     .drawer-body:has(.drawer-section.visible) .drawer-menu{display: none}
 
+    /* ── FEED-ENTRY ACTION MENU (popover) ──
+       Shared absolutely-positioned popover. JS anchors it to the tapped
+       entry via top/left. Shares the broadsheet visual language (serif,
+       2px ink border, offset shadow). z-index below the settings drawer
+       (30) and tutorial overlay (40) so those dismiss first. */
+    .feed-entry-menu{
+      position: fixed;
+      display: none;
+      z-index: 25;
+      background: var(--paper);
+      border: 2px solid var(--ink);
+      box-shadow: 4px 4px 0 var(--ink);
+      padding: 4px;
+      min-width: 168px;
+      font-family: var(--serif);
+    }
+    .feed-entry-menu.visible{display: block}
+    .feed-menu-item{
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 8px 10px;
+      background: transparent; border: 0;
+      font-family: inherit; font-size: 13px;
+      color: var(--ink); text-align: left;
+      cursor: pointer;
+    }
+    .feed-menu-item:hover,
+    .feed-menu-item:focus-visible{
+      background: color-mix(in srgb, var(--stamp) 12%, transparent);
+      outline: none;
+    }
+    .feed-menu-item[disabled]{opacity: .4; cursor: default}
+    .feed-menu-item[data-active="true"]{
+      background: color-mix(in srgb, var(--stamp) 20%, transparent);
+      font-weight: 600;
+    }
+    .fmi-ico{
+      display: inline-block; width: 14px;
+      text-align: center; font-size: 11px;
+      color: var(--stamp);
+    }
+
+    /* Feed entry click affordance — make the whole entry tap-target and
+       show vote state in the left margin via ::before glyphs (non-
+       disruptive to the existing ts/tag/msg grid). */
+    .feed-entry{ cursor: pointer }
+    .feed-entry[data-vote="up"]::before{
+      content: "\25B2"; color: var(--stamp);
+      font-size: 9px; margin-right: 4px;
+    }
+    .feed-entry[data-vote="down"]::before{
+      content: "\25BC"; color: color-mix(in srgb, var(--ink) 50%, transparent);
+      font-size: 9px; margin-right: 4px;
+    }
+    .feed-entry[data-pinned="true"]{
+      border-left: 3px solid var(--stamp);
+      padding-left: 6px;
+    }
+
+    /* ── SEGMENTED CONTROL (Room volume) ──
+       Three-option radio in the Critics drawer. Mirrors the button-row
+       visual of the existing theme-grid so it reads as a drawer control. */
+    .drawer-subsection-head{
+      margin-top: 14px; padding-top: 10px;
+      border-top: 1px solid var(--ink-3);
+    }
+    .drawer-subsection-title{
+      font-family: var(--slab);
+      text-transform: uppercase; letter-spacing: .06em;
+      font-size: 11px; color: var(--ink-2);
+    }
+    .segmented{
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      margin-top: 6px;
+      border: 2px solid var(--ink);
+    }
+    .segmented-option{
+      background: transparent; color: var(--ink);
+      font-family: var(--serif); font-size: 13px;
+      padding: 8px 6px;
+      border: 0;
+      border-right: 1px solid var(--ink);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .segmented-option:last-child{border-right: 0}
+    .segmented-option:hover{
+      background: color-mix(in srgb, var(--stamp) 12%, transparent);
+    }
+    .segmented-option.is-active{
+      background: var(--ink);
+      color: var(--paper);
+      font-weight: 600;
+    }
+
+    /* ── PINNED-STRIP (drop-down at top of feed) ──
+       Broadsheet-styled mini card that slides down from the masthead.
+       Shares visual language with the tutorial card (2px ink border,
+       offset shadow, serif body). Transform-only transition keeps it
+       cheap; display:none when hidden so it doesn't eat click events
+       on the gallery below. */
+    .pinned-strip{
+      display: none;
+      position: relative;
+      margin: 0 12px 6px;
+      background: var(--paper);
+      border: 2px solid var(--ink);
+      box-shadow: 3px 3px 0 var(--ink);
+      transform: translateY(-6px);
+      opacity: 0;
+      transition: transform 180ms ease-out, opacity 180ms ease-out;
+    }
+    .pinned-strip.visible{
+      display: block;
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .pinned-strip.collapsed .pinned-strip-body{display: none}
+    .pinned-strip-inner{ padding: 8px 10px }
+    .pinned-strip-slug{
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--slab);
+      text-transform: uppercase; letter-spacing: .08em;
+      font-size: 10px; color: var(--ink-2);
+      border-bottom: 1px solid var(--ink-3);
+      padding-bottom: 4px; margin-bottom: 6px;
+    }
+    .pinned-strip-stamp{
+      color: var(--stamp); font-weight: 700;
+      padding: 1px 5px;
+      border: 1px solid var(--stamp);
+    }
+    .pinned-strip-toggle{
+      background: transparent; border: 0;
+      font-family: var(--serif); color: var(--ink-2);
+      font-size: 13px; line-height: 1;
+      cursor: pointer; padding: 2px 4px;
+      margin-left: auto;
+    }
+    .pinned-strip-toggle + .pinned-strip-toggle{ margin-left: 4px }
+    .pinned-strip-toggle:hover{ color: var(--ink) }
+    .pinned-strip.collapsed #pinnedStripCollapse{ transform: rotate(180deg) }
+    .pinned-strip-persona{
+      font-family: var(--slab);
+      text-transform: uppercase; letter-spacing: .05em;
+      font-size: 12px;
+      margin-bottom: 3px;
+    }
+    .pinned-role{ color: var(--stamp); font-size: 10px; margin-left: 4px }
+    .pinned-strip-text{
+      font-family: var(--serif);
+      font-size: 13px; line-height: 1.35;
+      color: var(--ink);
+    }
+
     /* ── FIRST-RUN TUTORIAL OVERLAY ──
        Newspaper "Editor's Note" card at the bottom of the panel, dim backdrop
        above the drawer (z-index 40 > drawer's 30), spotlight ring drawn via a
@@ -1779,6 +1933,25 @@
     </div>
   </div>
 
+  <!-- ── PINNED-STRIP (drop-down above gallery) ──
+       Positioned in flow right above the gallery so its margin/border
+       shows correctly. Hidden by default via display:none; JS adds the
+       .visible class on pin, which swaps to display:block and
+       triggers the transform/opacity transition. -->
+  <section id="pinnedStrip" class="pinned-strip" aria-hidden="true">
+    <div class="pinned-strip-inner">
+      <div class="pinned-strip-slug">
+        <span class="pinned-strip-stamp">Pinned</span>
+        <button type="button" id="pinnedStripCollapse" class="pinned-strip-toggle" aria-label="Collapse pinned">&#9650;</button>
+        <button type="button" id="pinnedStripUnpin" class="pinned-strip-toggle" aria-label="Unpin">&#10005;</button>
+      </div>
+      <div class="pinned-strip-body">
+        <div class="pinned-strip-persona"><span id="pinnedPersonaName"></span> <span id="pinnedPersonaRole" class="pinned-role"></span></div>
+        <div id="pinnedText" class="pinned-strip-text"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ── GALLERY FEED ── -->
   <div id="gallery" class="gallery" role="log" aria-live="polite" aria-label="Live reactions from the writers' room" style="display:none;"></div>
 
@@ -2043,6 +2216,16 @@
         </div>
         <div id="mutesContainer" class="mutes"></div>
         <div class="help">Muted critics won't post to the feed. Toggles save instantly; the wire keeps running in the background.</div>
+
+        <div class="drawer-subsection-head">
+          <span class="drawer-subsection-title">Room volume</span>
+        </div>
+        <div class="segmented" id="sensitivitySegmented" role="radiogroup" aria-label="Room volume">
+          <button type="button" class="segmented-option" data-value="quiet" role="radio" aria-checked="false">Quieter</button>
+          <button type="button" class="segmented-option is-active" data-value="normal" role="radio" aria-checked="true">Normal</button>
+          <button type="button" class="segmented-option" data-value="rowdy" role="radio" aria-checked="false">Rowdy</button>
+        </div>
+        <div class="help">How often the critics chain into each other. <strong>Quieter</strong> = primary only, cascades rare. <strong>Rowdy</strong> = pile-ons expected. Applies to the next tick.</div>
       </section>
 
       <!-- ═══════ EXPORT ═══════ -->
@@ -2081,6 +2264,26 @@
       <button id="drawerBackBtn" class="btn primary" style="width:100%">&#9664; Back to wire</button>
     </div>
   </aside>
+
+  <!-- ── FEED-ENTRY ACTION MENU (popover) ──
+       Shared popover for per-response actions (quote card, pin, upvote,
+       downvote). Positioned absolutely next to the tapped entry; JS
+       manages show/hide + positioning + which entry is the target.
+       Tap outside or press Escape to dismiss. -->
+  <div id="feedEntryMenu" class="feed-entry-menu" role="menu" aria-hidden="true">
+    <button type="button" class="feed-menu-item" data-action="quote-card" role="menuitem">
+      <span class="fmi-ico" aria-hidden="true">&#9632;</span> Make a quote card
+    </button>
+    <button type="button" class="feed-menu-item" data-action="pin" role="menuitem">
+      <span class="fmi-ico" aria-hidden="true">&#x2605;</span> <span class="fmi-label">Pin to top</span>
+    </button>
+    <button type="button" class="feed-menu-item feed-menu-vote" data-action="upvote" role="menuitem">
+      <span class="fmi-ico" aria-hidden="true">&#9650;</span> Upvote
+    </button>
+    <button type="button" class="feed-menu-item feed-menu-vote" data-action="downvote" role="menuitem">
+      <span class="fmi-ico" aria-hidden="true">&#9660;</span> Downvote
+    </button>
+  </div>
 
   <!-- ── FIRST-RUN TUTORIAL OVERLAY ── -->
   <aside id="tutorialOverlay" class="tutorial-overlay" aria-hidden="true" role="dialog" aria-labelledby="tutorialTitle">

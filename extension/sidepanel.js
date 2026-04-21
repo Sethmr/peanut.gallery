@@ -429,10 +429,27 @@ let capturing = false;
 let sessionId = null;
 let transcriptFinal = "";
 let transcriptInterim = "";
-let feedEntries = []; // { id, personaId, role, text, timestamp }
+let feedEntries = []; // { id, personaId, role, text, timestamp, transcript }
 let streamBuffers = {}; // personaId → accumulated streaming text
 let streamingPersonaId = null;
 let messageCount = 0;
+
+// v1.7 feed-entry interactions (upvote/downvote/pin/quote-card).
+//
+// Votes + pin live in memory for the active session and persist via
+// chrome.storage.local under session-scoped keys so a reload of the side
+// panel keeps them. Per-session keys (not a global log) because the
+// smart-highlight picker works on a single session at a time.
+//
+// Transcript-per-persona captures the tail of the transcript window at
+// the moment the Director decided to fire this persona — used by the
+// quote-card renderer so the "quote" half of the card matches what the
+// model actually saw. Populated from the director_decision SSE event.
+const feedVotes = new Map(); // entryId → "up" | "down"
+let pinnedEntry = null; // { id, personaId, role, name, text, transcript, timestamp } | null
+const lastTranscriptForPersona = new Map(); // personaId → string (recent tail)
+let currentMenuTargetId = null; // entryId currently anchored by the popover menu
+let sensitivityValue = "normal"; // "quiet" | "normal" | "rowdy"
 
 // Per-persona mute set. Persisted in chrome.storage.local as a plain array
 // under `mutedPersonas`. Client-side filter for v1 — muted personas still
@@ -938,6 +955,15 @@ function showCapturing() {
 
 function showIdle() {
   capturing = false;
+  // v1.7 feed-action state: clear per-session votes + pin + menu. Keep
+  // the global sensitivity (it's not session-scoped). If the user
+  // re-starts a session they'll get a fresh vote/pin slate.
+  feedVotes.clear();
+  if (pinnedEntry) {
+    pinnedEntry = null;
+    hidePinnedStrip();
+  }
+  hideFeedMenu();
   // v2.0 session-recall: close out the session record before we null
   // sessionId. Forces a transcript flush + end timestamp + stats snapshot
   // so Past-Sessions UI (v2.0) has a clean terminal state to render.
@@ -1172,6 +1198,315 @@ function setEmptyStateVariant(variant) {
   emptyState.dataset.variant = EMPTY_STATE_VARIANTS[variant] ? variant : "idle";
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// v1.7 FEED-ENTRY ACTIONS — popover menu, vote, pin, quote-card stub
+// ═══════════════════════════════════════════════════════════════════
+//
+// State (top of file): feedVotes, pinnedEntry, currentMenuTargetId.
+// Storage keys: pgVotes_<sessionId>, pgPin_<sessionId>, pgSensitivity.
+
+const feedMenu = document.getElementById("feedEntryMenu");
+const pinnedStripEl = document.getElementById("pinnedStrip");
+const pinnedTextEl = document.getElementById("pinnedText");
+const pinnedPersonaNameEl = document.getElementById("pinnedPersonaName");
+const pinnedPersonaRoleEl = document.getElementById("pinnedPersonaRole");
+const pinnedStripCollapseBtn = document.getElementById("pinnedStripCollapse");
+const pinnedStripUnpinBtn = document.getElementById("pinnedStripUnpin");
+
+function showFeedMenu(entryId, anchorEl) {
+  if (!feedMenu || !anchorEl) return;
+  currentMenuTargetId = entryId;
+  refreshFeedMenuState();
+  // Position: below the entry if there's room, above otherwise. Clamp
+  // horizontally to the viewport. Fixed positioning means we measure
+  // against getBoundingClientRect (viewport coords).
+  const rect = anchorEl.getBoundingClientRect();
+  const menuH = 164; // rough height; updated after render via offsetHeight
+  const menuW = 184;
+  const viewportH = window.innerHeight;
+  const viewportW = window.innerWidth;
+  let top = rect.bottom + 4;
+  if (top + menuH > viewportH - 8) top = Math.max(8, rect.top - menuH - 4);
+  let left = rect.left + 8;
+  if (left + menuW > viewportW - 8) left = Math.max(8, viewportW - menuW - 8);
+  feedMenu.style.top = `${top}px`;
+  feedMenu.style.left = `${left}px`;
+  feedMenu.classList.add("visible");
+  feedMenu.setAttribute("aria-hidden", "false");
+}
+
+function hideFeedMenu() {
+  if (!feedMenu) return;
+  feedMenu.classList.remove("visible");
+  feedMenu.setAttribute("aria-hidden", "true");
+  currentMenuTargetId = null;
+}
+
+function refreshFeedMenuState() {
+  if (!feedMenu || !currentMenuTargetId) return;
+  const currentVote = feedVotes.get(currentMenuTargetId) || null;
+  const isPinned = pinnedEntry?.id === currentMenuTargetId;
+  for (const btn of feedMenu.querySelectorAll(".feed-menu-item")) {
+    const action = btn.dataset.action;
+    if (action === "upvote") {
+      btn.dataset.active = currentVote === "up" ? "true" : "false";
+    } else if (action === "downvote") {
+      btn.dataset.active = currentVote === "down" ? "true" : "false";
+    } else if (action === "pin") {
+      btn.dataset.active = isPinned ? "true" : "false";
+      const labelEl = btn.querySelector(".fmi-label");
+      if (labelEl) labelEl.textContent = isPinned ? "Unpin" : "Pin to top";
+    }
+  }
+}
+
+// Menu item click dispatch — delegated on the menu container so we don't
+// attach per-button handlers and so dynamic state (current target) is
+// always fresh.
+if (feedMenu) {
+  feedMenu.addEventListener("click", (e) => {
+    const btn = e.target.closest(".feed-menu-item");
+    if (!btn || btn.disabled) return;
+    const action = btn.dataset.action;
+    const entryId = currentMenuTargetId;
+    if (!entryId) return;
+    if (action === "upvote") toggleVote(entryId, "up");
+    else if (action === "downvote") toggleVote(entryId, "down");
+    else if (action === "pin") togglePin(entryId);
+    else if (action === "quote-card") openQuoteCardPlaceholder(entryId);
+    hideFeedMenu();
+  });
+}
+
+// Dismiss on outside click / Escape. Capture-phase click on document
+// because the menu buttons need to process their click first.
+document.addEventListener("click", (e) => {
+  if (!feedMenu?.classList.contains("visible")) return;
+  if (feedMenu.contains(e.target)) return;
+  hideFeedMenu();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && feedMenu?.classList.contains("visible")) {
+    hideFeedMenu();
+  }
+});
+
+// ── Upvote / downvote ──
+// Toggle semantics: tapping the same vote a second time clears it. Vote
+// state is per-session and writes through to chrome.storage.local so a
+// side-panel reload doesn't lose the signal. The smart-highlight picker
+// (separate backlog item) reads the upvoted set when present; falls
+// back to "pick best from all fires" when none.
+function toggleVote(entryId, vote) {
+  const current = feedVotes.get(entryId);
+  if (current === vote) {
+    feedVotes.delete(entryId);
+  } else {
+    feedVotes.set(entryId, vote);
+  }
+  const next = feedVotes.get(entryId);
+  const el = document.getElementById(`feed-${entryId}`);
+  if (el) {
+    if (next) el.dataset.vote = next;
+    else delete el.dataset.vote;
+  }
+  persistVotes();
+}
+
+function persistVotes() {
+  if (!sessionId) return;
+  const obj = {};
+  for (const [id, v] of feedVotes) obj[id] = v;
+  const key = `pgVotes_${sessionId}`;
+  chrome.storage.local.set({ [key]: obj }).catch(() => {});
+}
+
+// ── Pin / unpin + drop-down strip ──
+// One pinned entry at a time; re-pinning a different entry replaces.
+// Unpin clears. Collapse toggles body visibility without discarding the
+// pin. Animation uses CSS transform + opacity transition (see
+// .pinned-strip CSS in sidepanel.html).
+function togglePin(entryId) {
+  if (pinnedEntry?.id === entryId) {
+    unpinEntry();
+    return;
+  }
+  const entry = feedEntries.find((e) => e.id === entryId);
+  if (!entry) return;
+  const persona = PERSONAS.find((p) => p.id === entry.personaId);
+  pinnedEntry = {
+    id: entry.id,
+    personaId: entry.personaId,
+    role: entry.role,
+    name: persona?.name || entry.personaId,
+    text: entry.text,
+    transcript: entry.transcript || "",
+    timestamp: entry.timestamp,
+  };
+  renderPinned();
+  persistPin();
+  markPinnedEntryDom();
+}
+
+function unpinEntry() {
+  const prevId = pinnedEntry?.id;
+  pinnedEntry = null;
+  hidePinnedStrip();
+  persistPin();
+  if (prevId) {
+    const el = document.getElementById(`feed-${prevId}`);
+    if (el) delete el.dataset.pinned;
+  }
+}
+
+function renderPinned() {
+  if (!pinnedEntry || !pinnedStripEl) return;
+  pinnedPersonaNameEl.textContent = pinnedEntry.name;
+  pinnedPersonaRoleEl.textContent = pinnedEntry.role.toUpperCase();
+  pinnedTextEl.textContent = pinnedEntry.text;
+  showPinnedStrip();
+}
+
+function showPinnedStrip() {
+  if (!pinnedStripEl) return;
+  pinnedStripEl.classList.remove("collapsed");
+  // display:block first so the browser picks up the initial state, then
+  // .visible in the next frame to trigger the transform/opacity
+  // transition. Without the rAF the transition short-circuits.
+  pinnedStripEl.style.display = "block";
+  pinnedStripEl.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => pinnedStripEl.classList.add("visible"));
+}
+
+function hidePinnedStrip() {
+  if (!pinnedStripEl) return;
+  pinnedStripEl.classList.remove("visible");
+  pinnedStripEl.setAttribute("aria-hidden", "true");
+  // Wait for the transition to end before removing from flow so the
+  // slide-up is visible. Duration matches the CSS (180ms).
+  setTimeout(() => {
+    if (!pinnedEntry) pinnedStripEl.style.display = "none";
+  }, 200);
+}
+
+function markPinnedEntryDom() {
+  // Remove prior pin marker, add new one.
+  for (const el of document.querySelectorAll('.feed-entry[data-pinned="true"]')) {
+    delete el.dataset.pinned;
+  }
+  if (pinnedEntry) {
+    const el = document.getElementById(`feed-${pinnedEntry.id}`);
+    if (el) el.dataset.pinned = "true";
+  }
+}
+
+function persistPin() {
+  if (!sessionId) return;
+  const key = `pgPin_${sessionId}`;
+  chrome.storage.local.set({ [key]: pinnedEntry }).catch(() => {});
+}
+
+if (pinnedStripCollapseBtn) {
+  pinnedStripCollapseBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    pinnedStripEl?.classList.toggle("collapsed");
+  });
+}
+if (pinnedStripUnpinBtn) {
+  pinnedStripUnpinBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    unpinEntry();
+  });
+}
+
+// ── Quote card (placeholder) ──
+// The real quote-card PNG renderer is tracked as a separate Linear ticket
+// (canvas + font embedding + clipboard write) — see ticket SET-XX. Stub
+// here so the menu item has a working handler: show a toast explaining
+// the feature is being built + capture the data in a session-local
+// draft so the PNG pass can pick it up from the same source.
+function openQuoteCardPlaceholder(entryId) {
+  const entry = feedEntries.find((e) => e.id === entryId);
+  if (!entry) return;
+  showError(
+    "Quote card is on the way — the button is live but the PNG renderer ships in a separate PR. Tap to copy the raw text instead.",
+    null
+  );
+  // Copy "transcript → response" as text so the user gets something
+  // usable right now. When the PNG renderer lands it replaces this
+  // branch with canvas render + image copy.
+  const persona = PERSONAS.find((p) => p.id === entry.personaId);
+  const body = [
+    entry.transcript ? `"${entry.transcript.trim()}"` : null,
+    `— ${persona?.name || entry.personaId} (${entry.role.toUpperCase()})`,
+    "",
+    entry.text,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  navigator.clipboard?.writeText(body).catch(() => {});
+}
+
+// ── Sensitivity segmented control (Critics drawer) ──
+// Three-way radio: Quieter / Normal / Rowdy. Scales cascade probability
+// on the Director (via X-Sensitivity header on session start). Change
+// takes effect on the next session — we don't restart mid-stream.
+const sensitivitySegmented = document.getElementById("sensitivitySegmented");
+if (sensitivitySegmented) {
+  sensitivitySegmented.addEventListener("click", (e) => {
+    const btn = e.target.closest(".segmented-option");
+    if (!btn) return;
+    const value = btn.dataset.value;
+    if (value !== "quiet" && value !== "normal" && value !== "rowdy") return;
+    setSensitivity(value);
+  });
+}
+
+function setSensitivity(value) {
+  sensitivityValue = value;
+  for (const btn of sensitivitySegmented?.querySelectorAll(".segmented-option") || []) {
+    const active = btn.dataset.value === value;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-checked", active ? "true" : "false");
+  }
+  chrome.storage.local.set({ pgSensitivity: value }).catch(() => {});
+}
+
+// Rehydrate feed-action state when the side panel opens — sensitivity is
+// global; votes + pin are session-scoped and only rehydrate if the
+// current sessionId matches.
+function rehydrateFeedActions(activeSessionId) {
+  chrome.storage.local.get(["pgSensitivity"], (data) => {
+    const v = data?.pgSensitivity;
+    if (v === "quiet" || v === "normal" || v === "rowdy") setSensitivity(v);
+  });
+  if (activeSessionId) {
+    chrome.storage.local.get(
+      [`pgVotes_${activeSessionId}`, `pgPin_${activeSessionId}`],
+      (data) => {
+        const votes = data?.[`pgVotes_${activeSessionId}`];
+        if (votes && typeof votes === "object") {
+          feedVotes.clear();
+          for (const [id, v] of Object.entries(votes)) {
+            if (v === "up" || v === "down") feedVotes.set(id, v);
+          }
+          // Paint data-vote on any already-rendered entries.
+          for (const [id, v] of feedVotes) {
+            const el = document.getElementById(`feed-${id}`);
+            if (el) el.dataset.vote = v;
+          }
+        }
+        const pin = data?.[`pgPin_${activeSessionId}`];
+        if (pin && pin.id) {
+          pinnedEntry = pin;
+          renderPinned();
+          markPinnedEntryDom();
+        }
+      }
+    );
+  }
+}
+
 // v1.7: source-filter chips on the director trace panel. Click to hide a
 // source. State is DOM-only (no persistence) — debug-tool convenience.
 const traceFilterChips = document.querySelectorAll(".trace-filter-chip");
@@ -1227,6 +1562,10 @@ function showError(msg, variant) {
 }
 
 function checkStatus() {
+  // v1.7: rehydrate global sensitivity regardless of session state —
+  // the segmented control reads correctly on first paint even if no
+  // session is live yet.
+  rehydrateFeedActions(null);
   chrome.runtime.sendMessage({ type: "GET_STATUS" }, (response) => {
     if (chrome.runtime.lastError) return;
     if (response?.capturing) {
@@ -1237,6 +1576,9 @@ function checkStatus() {
       // Re-opening the side panel into an existing session — rehydrate the
       // "Listening to: …" banner too.
       refreshCapturedTab();
+      // v1.7: rehydrate vote/pin state for THIS session so a side-panel
+      // close+reopen mid-session preserves the user's upvotes and pin.
+      rehydrateFeedActions(sessionId);
     }
   });
 }
@@ -1467,6 +1809,13 @@ function recordDecisionForFeed(decision) {
   const chain = Array.isArray(decision.chain) ? decision.chain : [];
   for (const pid of chain) {
     lastDecisionForPersona.set(pid, decision);
+    // v1.7 quote-card groundwork: stash the transcript tail that informed
+    // this decision so addFeedEntry can attach it to the feed entry when
+    // the persona's reaction lands. Bounded server-side to ~500 chars;
+    // missing field (old backend) = empty string, quote card handles it.
+    if (typeof decision.transcript === "string") {
+      lastTranscriptForPersona.set(pid, decision.transcript);
+    }
   }
 }
 
@@ -1493,19 +1842,31 @@ function addFeedEntry(personaId, text) {
   const role = roleForSlot(personaId);
   const id = `${personaId}-${messageCount++}`;
   const now = Date.now();
-  feedEntries.push({ id, personaId, role, text, timestamp: now });
+  // v1.7: attach the transcript tail the Director saw when it picked this
+  // persona — used by the quote-card renderer so the "quote" half of the
+  // card matches what the model actually reacted to.
+  const transcript = lastTranscriptForPersona.get(personaId) || "";
+  feedEntries.push({ id, personaId, role, text, timestamp: now, transcript });
 
   const tooltip = tooltipForPersonaFire(personaId);
   const el = document.createElement("div");
   el.className = `feed-entry ${role}`;
   el.id = `feed-${id}`;
   el.dataset.role = role;
+  el.dataset.entryId = id;
   if (tooltip) el.title = tooltip;
   el.innerHTML = `
     <span class="ts">${escapeHtml(formatTime(now))}</span>
     <span class="tag">${escapeHtml(role.toUpperCase())}</span>
     <span class="msg"><span class="nm">${escapeHtml(p.name)}</span> ${escapeHtml(text)}</span>
   `;
+  // v1.7: the whole entry is tap-target — opens the feed-action popover
+  // (quote card / pin / upvote / downvote). Handler delegates to the
+  // shared showFeedMenu() so we don't retain per-entry closures.
+  el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    showFeedMenu(id, el);
+  });
 
   gallery.appendChild(el);
   gallery.scrollTop = gallery.scrollHeight;
@@ -1973,6 +2334,11 @@ startBtn.addEventListener("click", async () => {
         // session's paceMultiplier. Changing this mid-session has no
         // effect — it's captured at Start Listening time.
         rate: currentResponseRate(),
+        // v1.7: global sensitivity ("quiet" | "normal" | "rowdy"). Forwarded
+        // as X-Sensitivity header. Scales cascade probability on the
+        // Director so the whole panel feels quieter or rowdier. Changing
+        // mid-session has no effect; captured at Start Listening time.
+        sensitivity: sensitivityValue,
         // Persona pack id (howard | twist | ...). Forwarded through the same
         // chain and handed to resolvePack() on the server. Unknown ids fall
         // back to Howard server-side, so a new client + old server still
