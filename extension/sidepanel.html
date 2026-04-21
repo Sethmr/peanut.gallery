@@ -1583,10 +1583,41 @@
       background: var(--yellow);
       border: 1px solid var(--ink);
     }
+    /* v3 SILENT — intentionally quiet pick. Stamp accent (tabloid red/orange)
+       so it reads as distinct-from-LLM at a glance. Same strong letter-spacing
+       as the other badges. */
+    .trace-line1 .trace-source.src-silent-llm{
+      color: var(--paper);
+      background: var(--stamp);
+      border: 1px solid var(--stamp);
+    }
+    /* v3 SILENT pick renders the "persona" slot as em-dash in stamp color.
+       No halftone halo (that's for real persona picks in the feed). */
+    .trace-line1 .trace-pick.trace-pick-silent{
+      color: var(--stamp);
+      font-style: italic;
+    }
     .trace-line2{color: var(--ink-3); margin-top: 1px; font-size: 9px}
     .trace-line3{
       color: var(--ink-2); margin-top: 1px;
       padding-left: 10px; font-size: 9px;
+    }
+    /* v3 extras: callback heightening + confidence vector. Both dim-ink and
+       monospace so they read as "data" not "content". Only rendered when
+       the backend sends them (v3 path). */
+    .trace-line-callback{
+      color: var(--stamp); margin-top: 1px;
+      padding-left: 10px; font-size: 9px;
+      font-family: var(--mono, var(--type));
+    }
+    .trace-line-callback::before{
+      content: "↺ callback: "; color: var(--ink-3); font-weight: 700;
+    }
+    .trace-line-confidence{
+      color: var(--ink-3); margin-top: 1px;
+      padding-left: 10px; font-size: 8px;
+      font-family: var(--mono, var(--type));
+      letter-spacing: .04em;
     }
     .trace-empty{
       padding: 20px 12px; text-align: center;

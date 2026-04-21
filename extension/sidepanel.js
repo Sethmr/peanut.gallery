@@ -2663,28 +2663,51 @@ function renderDirectorTrace() {
         .join(" · ");
     }
 
-    // v1.5: routing-source badge. Backend sends source="rule"|"llm" on every
-    // director_decision; older backends omit the field so we default to "rule"
-    // — that matches the effective behavior when ENABLE_SMART_DIRECTOR is off.
-    // Normalize unknown values back to "rule" so a malformed payload never
-    // colors the badge as a false-positive LLM win.
+    // v1.5 / v1.7: routing-source badge. Backend sends
+    // source = "rule" | "llm" | "silent-llm" on every director_decision.
+    // Older backends omit the field so we default to "rule" (matches the
+    // effective behavior when ENABLE_SMART_DIRECTOR is off). Normalize
+    // unknown values back to "rule" so a malformed payload never paints a
+    // false-positive LLM badge.
     const rawSource = typeof d?.source === "string" ? d.source : "rule";
-    const source = rawSource === "llm" ? "llm" : "rule";
-    const sourceClass = source === "llm" ? "src-llm" : "src-rule";
-    const sourceLabel = source === "llm" ? "LLM" : "RULE";
+    const source =
+      rawSource === "llm"
+        ? "llm"
+        : rawSource === "silent-llm"
+        ? "silent-llm"
+        : "rule";
+    const sourceClass =
+      source === "llm"
+        ? "src-llm"
+        : source === "silent-llm"
+        ? "src-silent-llm"
+        : "src-rule";
+    const sourceLabel =
+      source === "llm" ? "LLM" : source === "silent-llm" ? "SILENT" : "RULE";
+
+    // v1.7: when the router picked SILENT, the pick slot is null. Render an
+    // italic em-dash in stamp color so it reads as "intentionally quiet" —
+    // not a missing value. Persona picks keep their pack color.
+    const isSilent = source === "silent-llm" || pick == null;
+    const pickDisplay = isSilent ? "— silent —" : pick;
+    const pickClass = isSilent
+      ? "trace-pick trace-pick-silent"
+      : "trace-pick";
+    const pickColor = isSilent ? "" : `style="color:${color}"`;
 
     // Line 1: pick · score · top3 · cascadeLen · source
     const line1 = document.createElement("div");
     line1.className = "trace-line1";
     line1.innerHTML =
-      `<span class="trace-pick" style="color:${color}">${escapeHtml(pick)}</span>` +
+      `<span class="${pickClass}" ${pickColor}>${escapeHtml(pickDisplay)}</span>` +
       ` <span class="trace-score">${escapeHtml(String(score))}</span>` +
       (top3Str ? ` <span class="trace-top3">(${escapeHtml(top3Str)})</span>` : "") +
       ` <span class="trace-cascade">×${cascadeLen}${d?.isSilence ? " · silence" : ""}${d?.isForceReact ? " · force" : ""}</span>` +
       ` <span class="trace-source ${sourceClass}">${sourceLabel}</span>`;
     row.appendChild(line1);
 
-    // Line 2: chain, e.g. "troll → joker → producer"
+    // Line 2: chain, e.g. "troll → joker → producer". Silent picks have an
+    // empty chain — skip the line rather than render an empty row.
     if (Array.isArray(d?.chain) && d.chain.length > 0) {
       const line2 = document.createElement("div");
       line2.className = "trace-line2";
@@ -2698,6 +2721,33 @@ function renderDirectorTrace() {
       line3.className = "trace-line3";
       line3.textContent = d.reason;
       row.appendChild(line3);
+    }
+
+    // v1.7: callback line — the router decided to heighten a phrase from
+    // the Director's live-callback ring. Truncated to 120 chars so a runaway
+    // monologue entry doesn't stretch the trace panel.
+    if (d?.callbackUsed && typeof d.callbackUsed === "string") {
+      const cbLine = document.createElement("div");
+      cbLine.className = "trace-line-callback";
+      const text = d.callbackUsed.slice(0, 120);
+      cbLine.textContent = `"${text}${d.callbackUsed.length > 120 ? "…" : ""}"`;
+      row.appendChild(cbLine);
+    }
+
+    // v1.7: confidence vector — compact "p:0.12 t:0.45 s:0.08 j:0.30 ·:0.05".
+    // Only rendered when the v3 router fired AND the backend sent the
+    // distribution. Debug-panel users can see whether a pick was confident
+    // (single high number) or close (multiple mid-range values).
+    if (d?.confidence && typeof d.confidence === "object") {
+      const c = d.confidence;
+      const fmt = (n) =>
+        typeof n === "number" ? n.toFixed(2).replace(/^0/, "") : "—";
+      const cLine = document.createElement("div");
+      cLine.className = "trace-line-confidence";
+      cLine.textContent =
+        `p:${fmt(c.producer)} t:${fmt(c.troll)} s:${fmt(c.soundfx)} ` +
+        `j:${fmt(c.joker)} ·:${fmt(c.silent)}`;
+      row.appendChild(cLine);
     }
 
     frag.appendChild(row);
