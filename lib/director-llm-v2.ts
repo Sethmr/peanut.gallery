@@ -67,7 +67,7 @@ export type ArchetypeIdV2 =
   | "joker"
   | "silent";
 
-const VALID_ARCHETYPE_IDS_V2: readonly ArchetypeIdV2[] = [
+export const VALID_ARCHETYPE_IDS_V2: readonly ArchetypeIdV2[] = [
   "producer",
   "troll",
   "soundfx",
@@ -134,7 +134,7 @@ export interface PickPersonaCtxV2 {
 // ROUTING PROMPT
 // ──────────────────────────────────────────────────────
 
-const ROUTING_SYSTEM_PROMPT_V2 = `You are the ROUTING BRAIN for Peanut Gallery, an AI writers' room that reacts to live podcast audio in real time.
+export const ROUTING_SYSTEM_PROMPT_V2 = `You are the ROUTING BRAIN for Peanut Gallery, an AI writers' room that reacts to live podcast audio in real time.
 
 Your job: pick ONE of FIVE options for this tick — four personas, or SILENT. You are NOT writing dialogue. A separate LLM does that once you pick.
 
@@ -163,6 +163,20 @@ ROUTING RULES:
 
 Respond by calling the \`pick_next_speaker\` tool exactly once with your decision. The tool enforces the 5-slot enum.`;
 
+/**
+ * Subset of PickPersonaCtxV2 that contains only the fields needed to build
+ * the routing user prompt. Shadow providers (Cerebras, Groq) construct this
+ * directly so they don't need to carry anthropicKey / signal / sessionId.
+ */
+export interface RoutingPromptCtxV2 {
+  recentTranscript: string;
+  isSilence: boolean;
+  recentFirings: string[];
+  cooldownsMs: Record<string, number>;
+  packPersonas: Persona[];
+  liveCallbacks?: string[];
+}
+
 function shuffled<T>(arr: readonly T[]): T[] {
   const out = [...arr];
   for (let i = out.length - 1; i > 0; i--) {
@@ -172,7 +186,7 @@ function shuffled<T>(arr: readonly T[]): T[] {
   return out;
 }
 
-function buildRoutingUserPromptV2(ctx: PickPersonaCtxV2): string {
+export function buildRoutingUserPromptV2(ctx: RoutingPromptCtxV2): string {
   const lines: string[] = [];
 
   lines.push(`RECENT TRANSCRIPT (silence=${ctx.isSilence}):`);
@@ -305,7 +319,7 @@ function normalizeConfidence(raw: unknown): ConfidenceVectorV2 | null {
   };
 }
 
-function validatePickV2(raw: unknown): LlmRoutingPickV2 | null {
+export function validatePickV2(raw: unknown): LlmRoutingPickV2 | null {
   if (!raw || typeof raw !== "object") return null;
   const obj = raw as Record<string, unknown>;
 
