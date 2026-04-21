@@ -7,22 +7,27 @@
 
 > **🔒 Protected file.** External PRs that change this file will be auto-closed. Open an issue to request a change — see [`AI-INSTRUCTIONS-POLICY.md`](AI-INSTRUCTIONS-POLICY.md).
 
-# Linear-Agent Rubric — kickoff-Claude playbook for `claude:go` Linear tickets
+# Linear-Agent Rubric — kickoff-Claude playbook for Linear tickets moved to Todo
 
-**Last updated:** 2026-04-20. Born when Seth wired the Linear webhook → GitHub Actions → fresh-Claude kickoff pipeline into the repo.
+**Last updated:** 2026-04-20 (post-v1.5.6 / post-daemon-hardening pass). Born when Seth wired the Linear webhook → GitHub Actions pipeline; now reflects the local-daemon-only state of the world.
 
-**Audience:** a fresh Claude instance running either (a) inside [`.github/workflows/claude-kickoff.yml`](../.github/workflows/claude-kickoff.yml), triggered when a Linear issue transitions into a `unstarted`-type state (the "Todo" column), or (b) inside a local worktree spawned by [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts) on Seth's Mac. You have no session memory, no auto-memory, no prior conversation. This file is your playbook.
+**Audience:** a fresh Claude instance spawned by [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts) on Seth's Mac inside a worktree under `.claude/worktrees/claude-*`. You have no session memory, no auto-memory, no prior conversation. This file is your playbook.
 
 ---
 
-## Two triggers for kickoff-Claude
+## Trigger: local daemon is the sole active kickoff path
 
-Kickoff-Claude has two entry points as of 2026-04-20:
+As of 2026-04-20 the Linear webhook in `app/api/linear-webhook/route.ts` is **deleted** on the Linear side — no events ever reach GitHub Actions from Linear anymore. The webhook handler code and the `.github/workflows/claude-kickoff.yml` + `.github/workflows/claude-reply.yml` workflow files are still in the tree but **vestigial**; a separate follow-up PR removes them. Treat them as retired, not architecture.
 
-- **Local daemon (new, recommended).** [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts) polls Linear every 30s for issues transitioned into an `unstarted` state. When it finds one, it creates a worktree under `.claude/worktrees/claude-*`, symlinks `node_modules`, and spawns `claude -p --permission-mode acceptEdits` against Seth's Claude Max subscription (no API key, no 30k-TPM cap). The daemon pushes the branch and opens the PR after Claude exits cleanly. Install via [`scripts/install-linear-daemon.sh`](../scripts/install-linear-daemon.sh) — full setup in [`GITHUB-MANUAL-STEPS.md § 18`](GITHUB-MANUAL-STEPS.md). Logs: `logs/daemon-*.jsonl` + `logs/kickoff-<id>.log`. Live-view: `tmux attach -t claude-<id>`.
-- **Linear webhook → GitHub Actions (legacy — slated for removal after daemon verification).** Details below. Kept running until Seth verifies the daemon in production; deletion is a follow-up PR.
+The active path:
 
-Your behavior inside the rubric is identical regardless of trigger: same authority scope, same protected-file list, same commit style, same `npm run check` gate. The only difference is where the process runs.
+- [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts) is a long-running launchd agent on Seth's Mac. It polls Linear every 30s for issues in an `unstarted`-type state (the "Todo" column) that it hasn't processed yet.
+- When it finds one, it creates a worktree under `.claude/worktrees/claude-<identifier>-<slug>`, symlinks `node_modules`, and spawns the `claude` CLI against Seth's **Claude Max subscription** (no API key, no 30k-TPM cap).
+- After Claude exits cleanly with new commits, the daemon — not you — handles rebase onto `origin/develop`, force-with-lease push, `gh pr create`, and (by default) `gh pr merge --auto --squash --delete-branch`.
+
+Install + operate: [`GITHUB-MANUAL-STEPS.md § 18`](GITHUB-MANUAL-STEPS.md#18-linear-local-daemon-on-seths-mac-replaces--17-once-verified). Logs: `logs/daemon-*.jsonl` + `logs/kickoff-<identifier>.log`. Live-view: `tmux attach -t claude-<identifier>`.
+
+> **Legacy webhook path (retired, awaiting code deletion):** earlier drafts of this rubric described "two triggers" — a Linear-webhook → GitHub-Actions path alongside the daemon. The webhook has been deleted on Linear; the code in `app/api/linear-webhook/route.ts` and the `claude-kickoff.yml` / `claude-reply.yml` workflows no longer fire. Documentation that mentions them (including the trigger-semantics section further down, preserved for git-archaeology) should be read as **retired — awaiting code deletion in a follow-up PR**, not as current architecture.
 
 ---
 
@@ -32,9 +37,10 @@ After kickoff-Claude exits 0 with commits on the feature branch, the daemon — 
 
 1. **Rebase onto latest `origin/develop`.** The daemon runs `git fetch origin develop` then `git rebase origin/develop` inside the worktree. This ensures CI on the PR runs against a branch that's a strict ancestor-plus-delta of `develop` — otherwise an unrelated PR merging between branch-off and kickoff-finish could leave us auto-merging a stale green signal.
    - **If rebase conflicts:** the daemon aborts the rebase (`git rebase --abort`), logs a structured `rebase_failed` event, leaves the worktree in place for Seth to inspect, and does **not** push or open a PR. Seth either resolves manually or resets the ticket.
+   - **If rebase drops all your commits as patch-id matches with develop** (i.e. the edit you made turns out to be already-applied on develop — git's default `--empty=drop` behavior since git 2.26): the daemon re-checks `hasNewCommits` post-rebase, logs `duplicate_commits_dropped`, silently cleans up the worktree + local branch, and does **not** push an empty branch or open a no-op PR. This is how duplicate commits are prevented end-to-end: the combination of `--empty=drop` during rebase plus the post-rebase `hasNewCommits` re-check guarantees the daemon never opens a PR that the squash-merge would reduce to zero delta.
 2. **Push the feature branch** with `--force-with-lease` (not `--force`). The lease means if anyone else has pushed to `claude/*` in the meantime, the push fails loudly rather than clobbering their work. In practice nobody else touches `claude/*` branches.
 3. **Open a PR** against `develop` via `gh pr create`.
-4. **Enable GitHub auto-merge** via `gh pr merge <N> --auto --squash --delete-branch`. With `--auto`, the PR self-merges on develop the moment required CI checks go green. `--delete-branch` cleans up the remote branch on merge.
+4. **Enable GitHub auto-merge by default** via `gh pr merge <N> --auto --squash --delete-branch`. With `--auto`, the PR self-merges on develop the moment required CI checks go green. `--delete-branch` cleans up the remote branch on merge.
    - **Opt-out:** if the Linear issue carries the `needs-review` label (case-insensitive), the daemon skips the `gh pr merge --auto` step — the PR opens and waits for Seth's manual merge. Use this label for changes that need app-testing, visual QA, or any human-in-the-loop review before landing.
 
 What this means for you as kickoff-Claude:
@@ -45,7 +51,9 @@ What this means for you as kickoff-Claude:
 
 ---
 
-## Trigger semantics (legacy — webhook path)
+## Trigger semantics (retired — webhook path, kept for git-archaeology only)
+
+> **Retired 2026-04-20 — awaiting code deletion.** The Linear webhook was deleted on Linear's side; no events reach GitHub Actions anymore. This subsection describes how the webhook *used to* work, preserved so future Claudes reading old PRs / commit messages can decode what "the webhook path" meant. Do **not** treat this as active behavior.
 
 The webhook at [`app/api/linear-webhook/route.ts`](../app/api/linear-webhook/route.ts) keys the kickoff trigger on Linear's **state transitions**, not on label presence. Specifically:
 
@@ -65,13 +73,17 @@ The webhook at [`app/api/linear-webhook/route.ts`](../app/api/linear-webhook/rou
 
 ## Model + turn budget
 
-**Default: Sonnet 4.6 / `--max-turns 20`** for both kickoff and `@claude` replies. **Opus elevation via the `needs-opus` label on the Linear issue** bumps kickoff to `claude-opus-4-7 / --max-turns 40`.
+**Default: Sonnet 4.6 / `--max-turns 20`** for kickoff, **Sonnet 4.6 / `--max-turns 10`** for reply (see `processReply` / `spawnClaude` in [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts)). **Opus elevation via the `needs-opus` label on the Linear issue** bumps kickoff to `claude-opus-4-7`. (PR #48 briefly defaulted both to Opus; PR #51 reverted that when smoke tests immediately 429'd on the standard Anthropic tier.)
 
-Why Sonnet as the default: the current Anthropic org tier caps Opus 4.7 at **30,000 input tokens per minute**, which rate-limits before a kickoff can even finish reading `CLAUDE.md` + this rubric + exploring the repo. The first smoke test on the prior Opus-default configuration hit a 429 immediately. Sonnet has roughly 16x more TPM headroom on the same tier and runs comfortably. Typical kickoff cost on Sonnet: ~$0.06–$0.30 per ticket. Typical `@claude` reply cost on Sonnet: ~$0.02–$0.10.
+**Honest context on Opus availability — read before applying `needs-opus`:** the daemon runs `claude` from Seth's Claude Max *subscription* (not a raw API key), so most of this is about TPM capacity, not dollars. But model selection still funnels through Anthropic's rate-limit tiers under the hood, and the **standard account tier caps Opus 4.7 at 30,000 input tokens per minute** — that ceiling is too tight for a typical kickoff, which reads `CLAUDE.md` + this rubric + several source files + the Linear ticket body within the first few turns. First Opus-default smoke test 429'd before Claude finished orientation. Sonnet has roughly 16x more TPM headroom on the same tier and runs comfortably.
 
-Opus elevation (via `needs-opus` label) assumes the org tier has Opus TPM headroom. If you hit 429s on an elevated kickoff, the options are (a) wait out the rate-limit window, or (b) request a TPM increase from Anthropic — see https://docs.claude.com/en/api/rate-limits. Typical kickoff cost on Opus (when rate limits permit): ~$0.30–$1.50 per ticket.
+**What that means in practice:**
 
-The reply workflow (`claude-reply.yml`) currently does **not** read `needs-opus` — wiring label lookup over a GitHub comment event adds ~15 lines of YAML for marginal value, so per-reply Opus elevation is deferred to iteration-2 alongside the Sonnet-review-against-checklist pattern. If you're a kickoff-Claude reading this and think your ticket genuinely needed Opus but ran on Sonnet, note it in `/tmp/pr-body.md` so Seth can calibrate when to apply the `needs-opus` label going forward.
+- **Default is Sonnet.** Leave it there unless you have a specific reason the ticket needs Opus and Seth has confirmed the account tier has Opus TPM headroom.
+- **`needs-opus` only makes sense once Seth's account tier is upgraded** — requesting a TPM bump from Anthropic via https://docs.claude.com/en/api/rate-limits is the prerequisite. Until then, the label is a rate-limit trap: you get a 429 mid-run and the daemon logs an error you'd rather not debug.
+- **Typical costs** (for calibration even though the subscription absorbs them): kickoff on Sonnet ~$0.06–$0.30/ticket. Reply on Sonnet ~$0.02–$0.10. Kickoff on Opus when rate limits permit ~$0.30–$1.50/ticket.
+
+If you're kickoff-Claude reading this and you think your ticket genuinely needed Opus but ran on Sonnet, note it in `/tmp/pr-body.md` so Seth can calibrate when to apply `needs-opus` going forward (and whether the account-tier upgrade is overdue).
 
 ---
 
@@ -134,6 +146,20 @@ You have exactly three things you can produce:
 3. **Your final exit.** The workflow pushes the branch and opens the PR after you exit. If you exit with no commits, no PR opens.
 
 No comments on Linear. No comments on GitHub outside the PR body. No issue labels. No PR labels. One PR per fire.
+
+---
+
+## Tool allowlist (what the daemon actually grants you)
+
+The daemon spawns you with an explicit `--allowedTools` list rather than `--permission-mode acceptEdits`. Reason: `acceptEdits` only covers `Edit` / `Write`; `Bash(git:*)` and other tool-uses still prompted interactively, which deadlocked the first headless smoke-test kickoff (PR #54 landed the allowlist fix). The list mirrors what normal code-task Claude needs while excluding network, privilege, and GitHub CLI (the daemon owns push/PR, not you).
+
+Current allowlist, mirrored from [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts) `spawnClaude()`:
+
+- **File ops:** `Edit`, `Write`, `Read`, `Glob`, `Grep`, `NotebookEdit`.
+- **Bash namespaces allowed:** `git:*`, `npm:*`, `npx:*`, `node:*`, `tsx:*`, `jq:*`, `python3:*`, `python:*`, `cat:*`, `ls:*`, `head:*`, `tail:*`, `wc:*`, `find:*`, `grep:*`, `sed:*`, `awk:*`, `sort:*`, `uniq:*`, `tr:*`, `cut:*`, `xargs:*`, `tee:*`, `mkdir:*`, `rm:*`, `mv:*`, `cp:*`, `touch:*`, `chmod:*`, `ln:*`, `echo:*`, `printf:*`, `diff:*`, `basename:*`, `dirname:*`, `realpath:*`, `readlink:*`, `env:*`, `pwd:*`, `date:*`, `which:*`, `test:*`, `make:*`.
+- **Bash namespaces excluded on purpose:** `curl`, `wget`, `ssh`, `scp`, `rsync` (network exfil vectors); `sudo` (privilege); `gh` (daemon owns push/PR/comment — you don't touch GitHub CLI); raw `Bash` without a namespace (catch-all is too broad).
+
+If you hit a "tool not allowed" error on something that clearly belongs — e.g. a build step needing a tool the codebase has standardized on that isn't in the list — note it in `/tmp/pr-body.md` and exit. The allowlist grows by intentional edit to `scripts/linear-daemon.ts`, not by workaround. Do not try to shell out through an allowed tool to reach a disallowed one.
 
 ---
 
@@ -214,11 +240,12 @@ The `Co-Authored-By: Claude` trailer is **load-bearing**: [`pr-checklist-comment
 
 Iteration plan once Seth confirms first-batch behavior:
 
-- **Iteration 1 (current):** implement-and-PR, no self-merge. **Sonnet-by-default** for both kickoff and `@claude` replies (30k TPM ceiling on the current Anthropic tier makes Opus unusable as a default). **Opus elevation via the `needs-opus` label on the Linear issue** for kickoff. Seth reviews every kickoff PR manually before it lands on `develop`.
-- **Iteration 1b (landed alongside kickoff):** Seth can iterate on an open kickoff PR by leaving a comment containing `@claude` on the PR or a review. A separate workflow — [`claude-reply.yml`](../.github/workflows/claude-reply.yml) — fires a fresh Claude instance against the PR branch at Sonnet 4.6 / `--max-turns 10`. The workflow is gated to `@Sethmr` as the comment author to avoid exfiltration vectors if the repo ever goes public. Kickoff-Claude's scope (this rubric) still applies to the reply workflow: same protected-file list, same commit style, same CAN/CANNOT authority. Per-reply Opus elevation via label is deferred to iteration-2 (the reply workflow fires on GitHub comment events, not Linear webhooks, so the `client_payload.model` plumbing isn't available without an extra `gh api` call).
-- **Iteration 2a (future):** per-reply Opus elevation. Teach `claude-reply.yml` to fetch the PR's linked Linear issue labels (or the PR's own labels) and honor `needs-opus` the same way the kickoff workflow does. ~15 lines of YAML; deferred because marginal value on the first batch.
-- **Iteration 2b (future):** Sonnet-review-against-checklist. Run Sonnet as a pre-self-merge reviewer that reads a fixed rubric (npm check passed, commit style clean, protected files untouched, `Co-Authored-By` trailer present, etc.) and hands the result back to Opus for any required fixes. This is a natural fit for Sonnet because the checklist is fully specified; Opus still owns the code edits. Not built yet — the cost/benefit only shows up once we have enough kickoff volume to measure the review latency.
-- **Iteration 3:** grant self-merge authority on `develop` **after `npm run check` passes** and the self-merge contract in `RELEASE.md` is satisfied. This mirrors Claude's existing self-merge authority in normal Cowork sessions. Naturally sequences after iteration 2b — the Sonnet reviewer is the gate that makes self-merge safe to grant.
+- **Iteration 1 (current — daemon path):** implement-and-auto-merge-on-green, `needs-review` label opts out. **Sonnet-by-default** for both kickoff (20 turns) and `@claude` replies (10 turns); Opus usable only once the account tier has Opus TPM headroom. Daemon handles rebase + force-with-lease push + PR open + auto-merge toggle.
+- **Iteration 1b (landed with daemon):** Seth can iterate on an open kickoff PR by leaving a comment containing `@claude` on the PR. The daemon's GitHub poll notices, spawns a fresh Claude instance against the PR branch in a worktree, commits follow-ups, pushes, and comments on the PR. The reply Claude runs at Sonnet 4.6 / `--max-turns 10` and is gated to `@Sethmr` as the comment author. Same protected-file list, commit style, and CAN/CANNOT authority as kickoff. Per-reply Opus elevation is deferred to iteration-2.
+- **Iteration 2a (future):** per-reply Opus elevation. Teach the daemon's reply path to read the linked Linear issue's labels (or the PR's own labels) and honor `needs-opus`. Small change; deferred because the account tier still caps Opus hard.
+- **Iteration 2b (future):** Sonnet-review-against-checklist as a pre-auto-merge reviewer (npm check passed, commit style clean, protected files untouched, `Co-Authored-By` trailer present). Natural fit for Sonnet; Opus still owns code edits. Cost/benefit only pencils out once kickoff volume is high enough to measure review latency.
+- **Iteration 3:** tighter self-merge guardrails on `develop` beyond "CI green" — e.g. require the Sonnet reviewer from 2b to pass before `--auto` fires. Current state (auto-merge on CI green) is already effectively self-merge; this iteration makes it smarter, not more permissive.
 - **Iteration 4 (maybe):** allow multi-ticket coordination (e.g. a `claude:epic` label that spawns a stack of dependent PRs).
+- **Retirement task (pending):** delete the dead webhook + GH-Actions kickoff path — `app/api/linear-webhook/route.ts`, `.github/workflows/claude-kickoff.yml`, `.github/workflows/claude-reply.yml`, and the related secrets (`LINEAR_WEBHOOK_SECRET`, `GITHUB_DISPATCH_TOKEN`) — once the daemon has enough production runs under its belt that Seth is comfortable throwing the safety net away. Tracked separately from this rubric.
 
 Don't pre-empt the iteration order. Stay in scope.
