@@ -2435,5 +2435,8 @@
        Must load before sidepanel.js so the hook points below resolve. -->
   <script src="session-store.js"></script>
   <script src="sidepanel.js"></script>
+  <!-- Quote-card PNG renderer. Loads after sidepanel.js so personaMascotHTML
+       is already defined when buildQuoteCardBlob is called at runtime. -->
+  <script src="lib/quote-card.js"></script>
 </body>
 </html>
