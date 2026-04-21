@@ -6,6 +6,38 @@ All notable changes to Peanut Gallery are recorded here. Format loosely follows 
 
 Tracks in-flight work for the next release.
 
+## [1.5.6] — 2026-04-20 — "<TBD>"
+
+Dev-infrastructure release. No user-facing changes in the extension
+itself. Ships the local Linear daemon — a launchd agent on Seth's Mac
+that polls Linear for Todo-state issues, spawns headless `claude` CLI
+runs in fresh worktrees, pushes branches, and opens PRs on `develop`.
+Replaces the GitHub-Actions kickoff path for local-first AI work
+using Seth's Claude Max subscription instead of API pricing.
+
+### Added
+- **Local Linear daemon on Seth's Mac** ([#52](https://github.com/Sethmr/peanut.gallery/pull/52)). New `scripts/linear-daemon.ts` polls Linear every 30s for issues moved to Todo, spawns `claude` CLI in fresh worktrees inside the project directory (live-viewable via `tmux attach -t claude-<id>`), pushes branch + opens PR on develop. Replaces the GitHub-Actions kickoff path for local-first AI work using Seth's Claude Max subscription instead of API pricing. See `docs/LINEAR-AGENT-RUBRIC.md` + `docs/GITHUB-MANUAL-STEPS.md § 18` for setup, plus `scripts/install-linear-daemon.sh` and `scripts/gallery.peanut.linear-daemon.plist` for the launchd agent install.
+
+### Changed
+- **Daemon uses `--allowedTools` allowlist** ([#54](https://github.com/Sethmr/peanut.gallery/pull/54)). Prior `--permission-mode acceptEdits` blocked the daemon from running `git add` / `git commit` headlessly. Explicit allowlist covers git, npm, node, tsx, jq, python, and common file ops while excluding network (curl/wget), remote (ssh/scp), privilege (sudo), and gh (daemon owns push/PR). Defense-in-depth against prompt-injected Linear ticket bodies.
+- **Daemon output format defaults to streaming text** ([#53](https://github.com/Sethmr/peanut.gallery/pull/53)). Was `--output-format json`, which only prints a final result blob; switched to CLI default so `tmux attach` shows Cowork-level verbosity (streaming reasoning, tool calls with inputs, tool results).
+- **Daemon rebases feature branch onto `origin/develop` before pushing + enables auto-merge by default** ([#56](https://github.com/Sethmr/peanut.gallery/pull/56)). Rebase ensures commit history between develop and the feature branch is linear; auto-merge squash-merges the PR when CI is green. Opt-out: `needs-review` label on the Linear issue (reserved for changes that need app-testing).
+- **Daemon drops rebase-empty branches** ([#57](https://github.com/Sethmr/peanut.gallery/pull/57)). If rebase drops all of Claude's commits as already-applied to develop (patch-id match), daemon cleans up instead of pushing an empty branch + opening a no-op PR. Prevents duplicate commits end-to-end.
+
+### Fixed
+- (none in this release beyond the daemon operational fixes above)
+
+### Removed
+- (none — the older webhook + GH-Actions kickoff path is still in the tree; its removal is queued as a separate cleanup PR after the local daemon is verified in production.)
+
+### Claude-authored ticket
+- **SET-5 smoke test** ([#55](https://github.com/Sethmr/peanut.gallery/pull/55)). One-bullet addition to `docs/INDEX.md` pointing at `docs/LINEAR-AGENT-RUBRIC.md`. First fully-autonomous Claude PR from the local daemon, verifying the Todo → In Progress → In Review → Done Linear lifecycle end-to-end.
+
+### Manual follow-ups for operators
+- If using the local daemon: install with `PATH="$PWD/node_modules/.bin:$PATH" ./scripts/install-linear-daemon.sh` (PATH prefix because the installer needs `tsx` in-PATH to bake its absolute path into the launchd plist). Hardening queued for a future PR.
+- Daemon env file at `~/.config/peanut-gallery/daemon.env` (mode 600) requires both `LINEAR_API_KEY` (Linear → Settings → API → Member API keys) AND `CLAUDE_CODE_OAUTH_TOKEN` (run `claude setup-token` in a terminal; token is Claude Max subscription-bound).
+- **To un-process a Linear ticket for re-fire:** stop daemon FIRST (`launchctl unload …plist`), edit `logs/daemon-state.json` to remove the issue ID, THEN start daemon. Shutdown handler currently overwrites disk state on SIGTERM — race fix queued.
+
 ## [1.5.5] — 2026-04-20 — "<TBD>"
 
 Dev-infrastructure release. No user-facing changes in the extension
