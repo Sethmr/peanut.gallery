@@ -92,6 +92,7 @@ To avoid the duplication that prompted this audit, each topic has ONE canonical 
 | AI-instruction file protection (who can edit what) | [`AI-INSTRUCTIONS-POLICY.md`](AI-INSTRUCTIONS-POLICY.md) + [`../.github/workflows/protect-ai-instructions.yml`](../.github/workflows/protect-ai-instructions.yml) + [`../.github/CODEOWNERS`](../.github/CODEOWNERS) |
 | "What Jason wants" spec | [`CONTEXT.md` — What Jason Wants](CONTEXT.md#what-jason-wants-master-truth) |
 | Persona list + character research | `lib/packs/<pack>/personas.ts` (code) + [`CONTEXT.md` — The 4 Archetype Slots](CONTEXT.md#the-4-archetype-slots-swappable-via-persona-packs) (table). TWiST-specific voice notes: [`docs/packs/twist/RESEARCH.md`](packs/twist/RESEARCH.md). |
+| **Pack authoring + producer contract** | [`PACK-AUTHORING-GUIDE.md`](PACK-AUTHORING-GUIDE.md) — living doc. Archetype slots, `Persona` type fields, producer correction-tier system, `factCheckMode` dial, pack registration, refinement loop. |
 | Architecture diagram | [`CONTEXT.md` — Architecture](CONTEXT.md#architecture) |
 | Chrome extension architecture | [`extension/README.md`](../extension/README.md) + [`CONTEXT.md` — Chrome Extension](CONTEXT.md#chrome-extension) |
 | Chrome extension permissions + gesture flow | [`SESSION-NOTES-2026-04-16.md §3`](SESSION-NOTES-2026-04-16.md) (immutable) |
@@ -104,7 +105,7 @@ To avoid the duplication that prompted this audit, each topic has ONE canonical 
 | Director state (modules, flags, telemetry, PR lineage) | [`STATE-OF-DIRECTOR-2026-04-21.md`](STATE-OF-DIRECTOR-2026-04-21.md) |
 | Design principles (Seth-directives, durable) | [`DESIGN-PRINCIPLES.md`](DESIGN-PRINCIPLES.md) |
 | Persona refinement plan (100+ transcript study) | [`PERSONA-REFINEMENT-PLAN.md`](PERSONA-REFINEMENT-PLAN.md) |
-| Competitive landscape / positioning | [`COMPETITIVE-LANDSCAPE-2026-04-18.md`](COMPETITIVE-LANDSCAPE-2026-04-18.md) (refresh every ~90 days) |
+| Competitive landscape / positioning | [`COMPETITIVE-LANDSCAPE-2026-04-21.md`](COMPETITIVE-LANDSCAPE-2026-04-21.md) (latest — feature-gap pass; priors: [`2026-04-18`](COMPETITIVE-LANDSCAPE-2026-04-18.md)). Refresh every ~90 days. |
 | Finish-strong checklist for the bounty | [`SESSION-NOTES-2026-04-17.md §5`](SESSION-NOTES-2026-04-17.md) |
 
 If you find yourself duplicating any of these into a new file, stop and link instead.

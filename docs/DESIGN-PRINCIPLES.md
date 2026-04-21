@@ -46,6 +46,18 @@ Each pack's producer declares `Persona.factCheckMode: "strict" | "loose"`.
 
 The mode is a pack-design decision, NOT a user setting. When adding a new pack, pick the mode that fits the character.
 
+### 3a. Persona prompts are the lever, not the Director
+*(2026-04-21 — codified after the Baba Booey false-pass audit; see [PACK-AUTHORING-GUIDE.md § Refinement loop](PACK-AUTHORING-GUIDE.md#refinement-loop-how-we-evolve-packs-over-time).)*
+
+When a pack's behavior is off, the fix order is:
+
+1. **Persona system prompt** (your main lever). The Director has had multiple iterations; the personas haven't been retuned with the same rigor. Most behavioral problems live in the persona's tier definitions or escape hatches.
+2. **`directorHint`** — shapes when the Director's LLM picks that persona.
+3. **`factCheckMode`** (producer only, rare — character-design decision, not a calibration knob).
+4. **Claim-detector patterns or Director penalties** — last resort; changes affect every pack.
+
+Tightening the Director to fix one pack's behavior violates design principle #2 (Director balances characters) by accident — it makes every future pack inherit a constraint that was really a one-pack prompt problem. Fix at the closest layer to the behavior.
+
 ### 4. Customer value wins over industry norms
 *(2026-04-20 — explicit during the Director research review.)*
 
