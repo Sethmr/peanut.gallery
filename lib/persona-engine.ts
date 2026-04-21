@@ -515,6 +515,20 @@ export class PersonaEngine {
     // produce something" directive, causing model confusion.
     const lastRepeatText =
       !isForceReact ? (this.repeatSlots.get(persona.id) ?? undefined) : undefined;
+    if (lastRepeatText) {
+      // Info level: this is the rarer half of the across-turn mechanism — on
+      // injection we want to see it so we can correlate with the next tick's
+      // outcome (did the model find a new angle? did it re-flag?).
+      logPipeline({
+        event: "persona_reroll_injected",
+        level: "info",
+        personaId: persona.id,
+        data: {
+          preview: lastRepeatText.slice(0, 80),
+          textLen: lastRepeatText.length,
+        },
+      });
+    }
 
     const context = buildPersonaContext(
       persona,
@@ -762,7 +776,21 @@ export class PersonaEngine {
           this.repeatSlots.set(persona.id, trimmed);
         } else {
           // Draft cleared the threshold — remove any existing slot.
+          // Surface the clear transition at info level so the v3 canary can
+          // verify the across-turn mechanism end-to-end (flag → inject → clear).
+          const hadSlot = this.repeatSlots.has(persona.id);
           this.repeatSlots.delete(persona.id);
+          if (hadSlot) {
+            logPipeline({
+              event: "persona_reroll_cleared",
+              level: "info",
+              personaId: persona.id,
+              data: {
+                maxSim: Math.round(maxSim * 1000) / 1000,
+                preview: trimmed.slice(0, 80),
+              },
+            });
+          }
           if (maxSim > 0) {
             // Log near-misses (above 0.70) at debug level for τ calibration.
             // These are not flagged but are useful data for SET-17.

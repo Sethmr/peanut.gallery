@@ -309,4 +309,140 @@ if (llmOverrideRows.length === 0) {
   }
 }
 
+// ── Cache hit-rate (SET-16) ──────────────────────────────────────────────────
+//
+// Pulls `llm_director_v2_pick` events for the same window and computes the
+// Haiku prompt-cache hit rate + TTFT split by hit/miss. Target bands from
+// SET-16: hit rate ≥ 80 % after warmup, p95 TTFT ≤ 250 ms on hits.
+
+interface V2PickData {
+  pick: string;
+  rationale: string;
+  elapsedMs: number;
+  cacheCreationTokens?: number;
+  cacheReadTokens?: number;
+  callbackUsed?: string | null;
+}
+
+const pickRows: Array<{ ts: string; sessionId: string | undefined; d: V2PickData }> = [];
+for (const line of lines) {
+  let entry: LogEntry;
+  try {
+    entry = JSON.parse(line) as LogEntry;
+  } catch {
+    continue;
+  }
+  if (entry.event !== "llm_director_v2_pick") continue;
+  if (!entry.data) continue;
+  pickRows.push({
+    ts: entry.timestamp,
+    sessionId: entry.sessionId,
+    d: entry.data as unknown as V2PickData,
+  });
+}
+
+if (pickRows.length > 0) {
+  console.log("\n── Cache Hit Rate — SET-16 validation ───────────────\n");
+  console.log(`  ${pickRows.length} llm_director_v2_pick events analyzed`);
+
+  const hits = pickRows.filter((r) => (r.d.cacheReadTokens ?? 0) > 0);
+  const misses = pickRows.filter((r) => (r.d.cacheReadTokens ?? 0) === 0);
+  const hitRate = pickRows.length === 0 ? 0 : hits.length / pickRows.length;
+
+  console.log(
+    `  ${hitRate >= 0.80 ? "✓" : "✗"} Cache hit rate: ${(hitRate * 100).toFixed(1)}%  (target ≥ 80% after warmup)`
+  );
+  console.log(`    hits: ${hits.length}  misses: ${misses.length}`);
+
+  if (hits.length > 0) {
+    const hitLatencies = hits.map((r) => r.d.elapsedMs).sort((a, b) => a - b);
+    const hitP50 = percentile(hitLatencies, 50);
+    const hitP95 = percentile(hitLatencies, 95);
+    console.log(
+      `  ${hitP95 <= 250 ? "✓" : "✗"} Cache-hit p95 TTFT: ${hitP95.toFixed(0)} ms  (target ≤ 250 ms)`
+    );
+    console.log(`    cache-hit p50: ${hitP50.toFixed(0)} ms`);
+  }
+
+  if (misses.length > 0) {
+    const missLatencies = misses.map((r) => r.d.elapsedMs).sort((a, b) => a - b);
+    const missP50 = percentile(missLatencies, 50);
+    const missP95 = percentile(missLatencies, 95);
+    console.log(`    cache-miss p50: ${missP50.toFixed(0)} ms`);
+    console.log(`    cache-miss p95: ${missP95.toFixed(0)} ms`);
+  }
+
+  // Callback usage — info-signal that the ring-buffer → prompt → pick cycle
+  // is actually flowing end-to-end. Zero means callback plumbing is wired
+  // but nothing is ever surfaced or the model ignores them.
+  const withCallback = pickRows.filter((r) => r.d.callbackUsed != null);
+  console.log(
+    `  Callback usage: ${withCallback.length}/${pickRows.length}  (${pct(withCallback.length, pickRows.length)})`
+  );
+}
+
+// ── Semantic anti-repeat (SET-15) health ─────────────────────────────────────
+
+const rerollEvents = lines
+  .map((l) => {
+    try {
+      return JSON.parse(l) as LogEntry;
+    } catch {
+      return null;
+    }
+  })
+  .filter((e): e is LogEntry =>
+    e !== null &&
+    (e.event === "persona_reroll_flagged" ||
+      e.event === "persona_reroll_cleared" ||
+      e.event === "persona_reroll_injected" ||
+      e.event === "persona_similarity_near_miss" ||
+      e.event === "semantic_embed_error")
+  );
+
+if (rerollEvents.length > 0) {
+  console.log("\n── Semantic Anti-Repeat — SET-15 health ─────────────\n");
+  const byEvent: Record<string, number> = {};
+  for (const e of rerollEvents) {
+    byEvent[e.event] = (byEvent[e.event] ?? 0) + 1;
+  }
+  for (const [event, count] of Object.entries(byEvent).sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${event.padEnd(32)} ${count}`);
+  }
+
+  // Full cycle check: flagged → injected → cleared. If `flagged` > 0 but
+  // `injected` ≈ 0, the across-turn mechanism isn't being triggered (persona
+  // never fires again, or context-injection is silently broken).
+  const flagged = byEvent["persona_reroll_flagged"] ?? 0;
+  const injected = byEvent["persona_reroll_injected"] ?? 0;
+  const cleared = byEvent["persona_reroll_cleared"] ?? 0;
+  if (flagged > 0) {
+    const injectRate = injected / flagged;
+    const clearRate = cleared / Math.max(1, injected);
+    console.log(
+      `\n  Flag→Inject rate: ${(injectRate * 100).toFixed(0)}%  (persona re-fires after being flagged)`
+    );
+    console.log(
+      `  Inject→Clear rate: ${(clearRate * 100).toFixed(0)}%  (model finds a new angle after injection)`
+    );
+  }
+}
+
+// ── Live-callback buffer population ──────────────────────────────────────────
+
+const callbackAdds = lines.filter((l) => l.includes('"event":"live_callback_added"')).length;
+if (callbackAdds > 0 || pickRows.length > 0) {
+  console.log("\n── Live-Callback Buffer — SET-12 activation ─────────\n");
+  console.log(
+    `  live_callback_added: ${callbackAdds}  (persona responses pushed into ring)`
+  );
+  if (pickRows.length > 0) {
+    const withCallback = pickRows.filter((r) => r.d.callbackUsed != null).length;
+    const callbackUseRate = withCallback / pickRows.length;
+    console.log(
+      `  Router callback pickup: ${(callbackUseRate * 100).toFixed(1)}%  of picks reference a buffered phrase`
+    );
+  }
+}
+
 console.log("══════════════════════════════════════════════════════\n");

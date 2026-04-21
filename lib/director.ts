@@ -305,10 +305,25 @@ export class Director {
     // don't stack it — move it to the newest slot instead.
     const existing = this.liveCallbacks.indexOf(trimmed);
     if (existing >= 0) this.liveCallbacks.splice(existing, 1);
-    this.liveCallbacks.push(trimmed.slice(0, 160));
+    const stored = trimmed.slice(0, 160);
+    this.liveCallbacks.push(stored);
+    let evicted: string | null = null;
     while (this.liveCallbacks.length > this.CALLBACK_BUFFER_MAX) {
-      this.liveCallbacks.shift();
+      evicted = this.liveCallbacks.shift() ?? null;
     }
+    // Debug-level event so the v3-canary run can verify the buffer is
+    // populating in production. At info this would be too chatty (fires on
+    // every cascade response); debug is grep-sharp but off by default.
+    logPipeline({
+      event: "live_callback_added",
+      level: "debug",
+      data: {
+        preview: stored.slice(0, 80),
+        bufferSize: this.liveCallbacks.length,
+        replaced: existing >= 0,
+        evicted: evicted ? evicted.slice(0, 80) : null,
+      },
+    });
   }
 
   /** v1.7: read-only view of the ring buffer, oldest → newest. */
