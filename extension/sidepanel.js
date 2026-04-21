@@ -1335,6 +1335,11 @@ function toggleVote(entryId, vote) {
     else delete el.dataset.vote;
   }
   persistVotes();
+  // v1.7: also send the signal to the backend so it can be used for
+  // model tuning + smart-highlight picking across sessions. Fire-and-
+  // forget — a network failure shouldn't undo the local state.
+  const action = next ? (next === "up" ? "upvote" : "downvote") : "clear_vote";
+  sendFeedback(action, entryId);
 }
 
 function persistVotes() {
@@ -1343,6 +1348,47 @@ function persistVotes() {
   for (const [id, v] of feedVotes) obj[id] = v;
   const key = `pgVotes_${sessionId}`;
   chrome.storage.local.set({ [key]: obj }).catch(() => {});
+}
+
+/**
+ * v1.7: post a feedback event to the backend so the server-side log
+ * captures what the user liked / disliked / kept / shared. Accumulates
+ * in `logs/pipeline-debug.jsonl` as `persona_feedback` events for
+ * downstream use — model tuning, the v1.8 persona-refinement sprint,
+ * and the smart-highlight picker fallback when it runs server-side.
+ *
+ * Fire-and-forget — the local state is the source of truth for the
+ * UI, so a network drop has no user-visible consequence. If the
+ * backend is unreachable we swallow and move on.
+ *
+ * Action values must match the server's validator in
+ * `app/api/feedback/route.ts`: upvote | downvote | clear_vote |
+ * pin | unpin | quote_card. Anything else is rejected with 400.
+ */
+function sendFeedback(action, entryId) {
+  const serverUrl = normalizeServerUrl(serverUrlInput?.value);
+  if (!serverUrl) return; // extension not configured yet
+  const entry = feedEntries.find((e) => e.id === entryId);
+  if (!entry) return;
+  const headers = { "Content-Type": "application/json" };
+  if (installId) headers["X-Install-Id"] = installId;
+  const body = JSON.stringify({
+    sessionId: sessionId || null,
+    entryId,
+    action,
+    personaId: entry.personaId,
+    packId: currentPackId || null,
+    responseText: entry.text,
+    transcriptTail: entry.transcript || null,
+    timestamp: entry.timestamp,
+  });
+  fetch(`${serverUrl}/api/feedback`, { method: "POST", headers, body }).catch(
+    () => {
+      // Older backends without /api/feedback return 404; that's
+      // fine — the local state still drives the UI. No retry,
+      // no user-visible error.
+    }
+  );
 }
 
 // ── Pin / unpin + drop-down strip ──
@@ -1370,6 +1416,9 @@ function togglePin(entryId) {
   renderPinned();
   persistPin();
   markPinnedEntryDom();
+  // Pin is a strong positive signal (stronger than upvote — the user
+  // wants this to stay visible). Log to backend for model tuning.
+  sendFeedback("pin", entry.id);
 }
 
 function unpinEntry() {
@@ -1380,6 +1429,7 @@ function unpinEntry() {
   if (prevId) {
     const el = document.getElementById(`feed-${prevId}`);
     if (el) delete el.dataset.pinned;
+    sendFeedback("unpin", prevId);
   }
 }
 
@@ -1469,6 +1519,10 @@ function openQuoteCardPlaceholder(entryId) {
     .filter(Boolean)
     .join("\n");
   navigator.clipboard?.writeText(body).catch(() => {});
+  // Choosing to quote-card a line is a strong positive signal on both
+  // the persona's performance and the transcript moment — worth a
+  // beat on par with a pin.
+  sendFeedback("quote_card", entryId);
 }
 
 // ── Sensitivity segmented control (Critics drawer) ──
