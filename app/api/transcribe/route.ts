@@ -26,6 +26,12 @@ import { resolvePack } from "@/lib/packs";
 import { Director } from "@/lib/director";
 import { pickPersonaLLM, type LlmRoutingPick } from "@/lib/director-llm";
 import { pickPersonaGroq } from "@/lib/director-llm-v3-groq";
+import { pickPersonaCerebras } from "@/lib/director-llm-v3-cerebras";
+import {
+  pickPersonaLLMv2,
+  applyStickyPenalty,
+  type LlmRoutingPickV2,
+} from "@/lib/director-llm-v2";
 import { personas } from "@/lib/personas";
 import type { Pack } from "@/lib/packs/types";
 import { createSessionLogger } from "@/lib/debug-logger";
@@ -54,7 +60,7 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Groq-Key, X-Search-Engine, X-Install-Id",
+    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Groq-Key, X-Cerebras-Key, X-Search-Engine, X-Install-Id",
   "Access-Control-Expose-Headers": "X-Session-Id",
   "Access-Control-Max-Age": "86400",
 };
@@ -151,15 +157,18 @@ export async function POST(req: NextRequest) {
   const headerBrave = req.headers.get("X-Brave-Key");
   const headerXai = req.headers.get("X-XAI-Key");
   const headerGroq = req.headers.get("X-Groq-Key");
+  const headerCerebras = req.headers.get("X-Cerebras-Key");
 
   const deepgramKey = headerDeepgram || process.env.DEEPGRAM_API_KEY;
   const anthropicKey = headerAnthropic || process.env.ANTHROPIC_API_KEY;
   const braveKey = headerBrave || process.env.BRAVE_SEARCH_API_KEY;
   const xaiKey = headerXai || process.env.XAI_API_KEY;
-  // Groq key for Smart Director v3 shadow test (SET-6). Never used for
+  // Shadow-provider keys for Smart Director v3 (SET-6). Never used for
   // user-facing persona calls — only for the parallel shadow LLM call that
-  // logs agreement rate vs Haiku v2.
+  // logs agreement rate vs Haiku. Groq is deferred until Developer tier
+  // reopens (SET-11); Cerebras is the working fast-provider path today.
   const groqKey = headerGroq || process.env.GROQ_API_KEY;
+  const cerebrasKey = headerCerebras || process.env.CEREBRAS_API_KEY;
 
   // Search-engine selection. Client sends "brave" or "xai" via X-Search-Engine;
   // anything else (missing, typo, old client) falls through to Brave — that
@@ -263,6 +272,9 @@ export async function POST(req: NextRequest) {
     // events in pipeline-debug.jsonl.
     groqShadowEnabled:
       process.env.ENABLE_SMART_DIRECTOR_V3_GROQ === "true" && !!groqKey,
+    cerebrasShadowEnabled:
+      process.env.ENABLE_SMART_DIRECTOR_V3_CEREBRAS === "true" &&
+      !!cerebrasKey,
   });
 
   const transcriber = new TranscriptionManager(deepgramKey);
@@ -537,20 +549,37 @@ export async function POST(req: NextRequest) {
           // rolls.
           const directorInput = recentTranscript || transcript.slice(-500);
           let llmPick: LlmRoutingPick | null = null;
+          let llmPickV2: LlmRoutingPickV2 | null = null;
           let llmElapsedMs: number | null = null;
           const LLM_BUDGET_MS = 400;
           const smartOn =
             process.env.ENABLE_SMART_DIRECTOR === "true" && !!anthropicKey;
+          // v1.7 experimental: v3 router (SILENT slot + tool_use + confidence
+          // + callback memory). Opt-in only. When the v3 flag is set, v3 wins
+          // — v2 fallback is the already-shipped code path, so we don't race
+          // both Haiku calls. The Groq shadow still fires in parallel below
+          // and compares against whichever of v2/v3 was the active pick.
+          const smartV2On =
+            process.env.ENABLE_SMART_DIRECTOR_V2 === "true" && !!anthropicKey;
 
-          // ── Smart Director v3 Groq shadow (SET-6) ──
-          // Start the Groq call early so it runs in parallel with v2.
-          // We deliberately do NOT await it before making the routing decision
-          // — the v3 pick is shadow-only, never fed to director.decide().
-          // A 2 s timeout gives Groq (50–120 ms typical TTFT) ample room
-          // while bounding any tail-latency cost on the async log path.
+          // ── Smart Director v3 fast-provider shadows (SET-6) ──
+          // Fire in parallel with whichever Haiku call (v2 or v3) runs below.
+          // Deliberately NOT awaited before routing — the shadow pick is
+          // logged but never fed to director.decide(). A 2 s timeout bounds
+          // tail latency on the async log path; sub-200 ms TTFT on both
+          // providers means the shadow usually resolves before the cascade
+          // finishes.
+          //
+          // Two shadow providers are wired, independently flag-gated:
+          //   - Cerebras (ENABLE_SMART_DIRECTOR_V3_CEREBRAS): working today.
+          //     Llama 3.1 8B, ~100–440 ms TTFT, paid self-serve.
+          //   - Groq     (ENABLE_SMART_DIRECTOR_V3_GROQ): deferred, tracked
+          //     in Linear SET-11 until Developer tier reopens. Same model as
+          //     Cerebras so the eventual switch is a 1-env-flip.
+          // Both flags can be on at once for a head-to-head comparison.
           const groqShadowOn =
             process.env.ENABLE_SMART_DIRECTOR_V3_GROQ === "true" &&
-            smartOn &&
+            (smartOn || smartV2On) &&
             !!groqKey;
           const groqShadowStart = groqShadowOn ? Date.now() : null;
           const groqShadowPromise: Promise<LlmRoutingPick | null> =
@@ -567,7 +596,59 @@ export async function POST(req: NextRequest) {
                 }).catch(() => null)
               : Promise.resolve(null);
 
-          if (smartOn) {
+          const cerebrasShadowOn =
+            process.env.ENABLE_SMART_DIRECTOR_V3_CEREBRAS === "true" &&
+            (smartOn || smartV2On) &&
+            !!cerebrasKey;
+          const cerebrasShadowStart = cerebrasShadowOn ? Date.now() : null;
+          const cerebrasShadowPromise: Promise<LlmRoutingPick | null> =
+            cerebrasShadowOn
+              ? pickPersonaCerebras({
+                  recentTranscript: directorInput,
+                  isSilence: isSilenceTick,
+                  recentFirings: director.getRecentFirings(),
+                  cooldownsMs: director.getCooldownsMs(),
+                  packPersonas: session.resolvedPack.personas,
+                  cerebrasKey: cerebrasKey!,
+                  signal: AbortSignal.timeout(2000),
+                  sessionId,
+                }).catch(() => null)
+              : Promise.resolve(null);
+
+          if (smartV2On) {
+            const llmStart = Date.now();
+            try {
+              llmPickV2 = await pickPersonaLLMv2({
+                recentTranscript: directorInput,
+                isSilence: isSilenceTick,
+                recentFirings: director.getRecentFirings(),
+                cooldownsMs: director.getCooldownsMs(),
+                packPersonas: session.resolvedPack.personas,
+                liveCallbacks: director.getLiveCallbacks(),
+                anthropicKey: anthropicKey!,
+                signal: AbortSignal.timeout(LLM_BUDGET_MS),
+                sessionId,
+              });
+            } catch {
+              llmPickV2 = null;
+            }
+            // Apply deterministic sticky-agent penalty BEFORE argmax — the
+            // v3 prompt explicitly tells the model NOT to penalize recent
+            // speakers itself. We handle it here so the specialty signal
+            // stays honest and the penalty is audit-able.
+            if (llmPickV2) {
+              const adjusted = applyStickyPenalty(
+                llmPickV2.confidence,
+                director.getRecentFirings()
+              );
+              llmPickV2 = {
+                ...llmPickV2,
+                confidence: adjusted.confidence,
+                personaId: adjusted.argmax,
+              };
+            }
+            llmElapsedMs = Date.now() - llmStart;
+          } else if (smartOn) {
             const llmStart = Date.now();
             try {
               llmPick = await pickPersonaLLM({
@@ -591,7 +672,16 @@ export async function POST(req: NextRequest) {
             directorInput,
             isSilenceTick,
             sessionId,
-            { llmPick }
+            {
+              llmPick,
+              llmPickV2: llmPickV2
+                ? {
+                    personaId: llmPickV2.personaId,
+                    rationale: llmPickV2.rationale,
+                    callbackUsed: llmPickV2.callbackUsed,
+                  }
+                : null,
+            }
           );
 
           // v1.5: canary telemetry. One structured event per tick when the
@@ -599,63 +689,116 @@ export async function POST(req: NextRequest) {
           // distribution, and how often the LLM actually overrode the rules.
           // Kept in the route (not the Director) because only the route
           // knows llmElapsedMs and whether the race happened at all.
-          if (smartOn) {
-            const llmPrimary = llmPick?.personaId ?? null;
+          if (smartOn || smartV2On) {
+            const llmPrimary = smartV2On
+              ? llmPickV2?.personaId ?? null
+              : llmPick?.personaId ?? null;
             const finalPrimary = decision.personaIds[0] ?? null;
             const rulePrimary = decision.rulePrimary ?? finalPrimary ?? null;
-            log.info("director_v2_compare", {
+            // v1.5: include the LLM's one-liner on the compare event itself
+            // so canary triage (sanity-reading 20 `overrode=true` rows in
+            // logs/pipeline-debug.jsonl) can see *why* the LLM picked,
+            // not just what. Null on ticks where the LLM lost the race
+            // or returned nothing.
+            const llmRationale = smartV2On
+              ? llmPickV2?.rationale ?? null
+              : llmPick?.rationale ?? null;
+            log.info(smartV2On ? "director_v3_compare" : "director_v2_compare", {
               rulePrimary,
               llmPrimary,
               finalPrimary,
               source: decision.source ?? "rule",
-              // v1.5: include the LLM's one-liner on the compare event itself
-              // so canary triage (sanity-reading 20 `overrode=true` rows in
-              // logs/pipeline-debug.jsonl) can see *why* the LLM picked,
-              // not just what. Null on ticks where the LLM lost the race
-              // or returned nothing.
-              llmRationale: llmPick?.rationale ?? null,
+              llmRationale,
               llmElapsedMs,
               llmTimedOut: llmPrimary === null && (llmElapsedMs ?? 0) >= LLM_BUDGET_MS,
               agreed: llmPrimary !== null && llmPrimary === rulePrimary,
               overrode:
-                (decision.source ?? "rule") === "llm" &&
+                (decision.source === "llm" || decision.source === "silent-llm") &&
                 llmPrimary !== null &&
                 llmPrimary !== rulePrimary,
               isSilence: isSilenceTick,
+              // v3-only fields (null on v2 path):
+              confidence: llmPickV2?.confidence ?? null,
+              callbackUsed: llmPickV2?.callbackUsed ?? null,
+              silentPicked: decision.source === "silent-llm",
             });
           }
 
-          // SET-6: Smart Director v3 Groq shadow compare.
-          // Fired non-blocking — we don't await groqShadowPromise before the
-          // cascade so Groq's latency never adds to the routing critical path.
-          // The .then() handler logs after Groq resolves (typically 50–120 ms,
-          // well before the cascade finishes). v2 llmPick is captured in the
-          // closure so both results land in the same log event.
-          if (groqShadowOn) {
-            const capturedLlmPick = llmPick;
-            const capturedLlmElapsedMs = llmElapsedMs;
-            groqShadowPromise.then((groqPick) => {
-              const groqElapsedMs =
-                groqShadowStart !== null ? Date.now() - groqShadowStart : null;
+          // SET-6: Smart Director fast-provider shadow compare.
+          // Fired non-blocking — we don't await the shadow promises before
+          // the cascade so fast-provider latency never adds to the routing
+          // critical path. The .then() handler logs after each provider
+          // resolves. The Haiku pick (v3 when the v3 flag is on; v2
+          // otherwise) is captured in the closure so results land in the
+          // same event. Each provider emits its own event — keeps the
+          // log schema flat when only one is on, avoids confusing "fast is
+          // null" ambiguity when both are on.
+          if (groqShadowOn || cerebrasShadowOn) {
+            const capturedHaikuPick = smartV2On
+              ? llmPickV2?.personaId ?? null
+              : llmPick?.personaId ?? null;
+            const capturedHaikuRationale = smartV2On
+              ? llmPickV2?.rationale ?? null
+              : llmPick?.rationale ?? null;
+            const capturedHaikuElapsedMs = llmElapsedMs;
+            const capturedHaikuVersion = smartV2On ? "v3" : "v2";
+
+            const emitShadowCompare = (
+              provider: "groq" | "cerebras",
+              model: string,
+              shadowPick: LlmRoutingPick | null,
+              elapsedMs: number | null
+            ) => {
               log.info("director_v3_shadow_compare", {
-                v2: {
-                  pick: capturedLlmPick?.personaId ?? null,
-                  rationale: capturedLlmPick?.rationale ?? null,
-                  elapsedMs: capturedLlmElapsedMs,
+                haiku: {
+                  version: capturedHaikuVersion,
+                  pick: capturedHaikuPick,
+                  rationale: capturedHaikuRationale,
+                  elapsedMs: capturedHaikuElapsedMs,
                 },
-                v3: {
-                  pick: groqPick?.personaId ?? null,
-                  rationale: groqPick?.rationale ?? null,
-                  elapsedMs: groqElapsedMs,
-                  model: "llama-3.1-8b-instant",
-                  provider: "groq",
+                fast: {
+                  pick: shadowPick?.personaId ?? null,
+                  rationale: shadowPick?.rationale ?? null,
+                  elapsedMs,
+                  model,
+                  provider,
                 },
                 agreed:
-                  groqPick?.personaId !== null &&
-                  groqPick?.personaId === capturedLlmPick?.personaId,
+                  shadowPick?.personaId !== null &&
+                  shadowPick?.personaId === capturedHaikuPick,
                 isSilence: isSilenceTick,
               });
-            });
+            };
+
+            if (groqShadowOn) {
+              groqShadowPromise.then((groqPick) => {
+                const elapsedMs =
+                  groqShadowStart !== null
+                    ? Date.now() - groqShadowStart
+                    : null;
+                emitShadowCompare(
+                  "groq",
+                  "llama-3.1-8b-instant",
+                  groqPick,
+                  elapsedMs
+                );
+              });
+            }
+
+            if (cerebrasShadowOn) {
+              cerebrasShadowPromise.then((cerebrasPick) => {
+                const elapsedMs =
+                  cerebrasShadowStart !== null
+                    ? Date.now() - cerebrasShadowStart
+                    : null;
+                emitShadowCompare(
+                  "cerebras",
+                  "llama3.1-8b",
+                  cerebrasPick,
+                  elapsedMs
+                );
+              });
+            }
           }
 
           // v1.2: emit the Director's decision to the side-panel debug panel
