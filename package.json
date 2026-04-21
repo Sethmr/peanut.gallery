@@ -21,6 +21,7 @@
     "@anthropic-ai/sdk": "^0.90.0",
     "bufferutil": "^4.1.0",
     "dotenv": "^17.4.2",
+    "groq-sdk": "^1.1.2",
     "next": "^15.5.15",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",

@@ -60,7 +60,7 @@ import type { Persona } from "./personas";
  */
 export type ArchetypeId = "producer" | "troll" | "soundfx" | "joker";
 
-const VALID_ARCHETYPE_IDS: readonly ArchetypeId[] = [
+export const VALID_ARCHETYPE_IDS: readonly ArchetypeId[] = [
   "producer",
   "troll",
   "soundfx",
@@ -100,7 +100,7 @@ export interface PickPersonaCtx {
 // ROUTING PROMPT
 // ──────────────────────────────────────────────────────
 
-const ROUTING_SYSTEM_PROMPT = `You are the ROUTING BRAIN for Peanut Gallery, an AI writers' room that reacts to live podcast audio in real time.
+export const ROUTING_SYSTEM_PROMPT = `You are the ROUTING BRAIN for Peanut Gallery, an AI writers' room that reacts to live podcast audio in real time.
 
 Your job: pick exactly ONE of four personas to speak next, based on the recent transcript and who has recently spoken. You are NOT writing dialogue — a separate LLM will do that once you pick.
 
@@ -122,7 +122,15 @@ Respond ONLY with JSON in this exact shape:
 
 No preamble. No code fences. Just the JSON object.`;
 
-function buildRoutingUserPrompt(ctx: PickPersonaCtx): string {
+export interface RoutingPromptCtx {
+  recentTranscript: string;
+  isSilence: boolean;
+  recentFirings: string[];
+  cooldownsMs: Record<string, number>;
+  packPersonas: Persona[];
+}
+
+export function buildRoutingUserPrompt(ctx: RoutingPromptCtx): string {
   const lines: string[] = [];
 
   lines.push(`RECENT TRANSCRIPT (silence=${ctx.isSilence}):`);
@@ -172,7 +180,7 @@ function buildRoutingUserPrompt(ctx: PickPersonaCtx): string {
  * Haiku usually returns clean JSON when prompted, but if it wraps the
  * output in a code fence or prose this recovers it.
  */
-function extractFirstJsonObject(raw: string): string | null {
+export function extractFirstJsonObject(raw: string): string | null {
   const trimmed = raw.trim();
   if (trimmed.startsWith("{")) return trimmed;
 
@@ -191,7 +199,7 @@ function extractFirstJsonObject(raw: string): string | null {
   return null;
 }
 
-function validatePick(raw: unknown): LlmRoutingPick | null {
+export function validatePick(raw: unknown): LlmRoutingPick | null {
   if (!raw || typeof raw !== "object") return null;
   const obj = raw as Record<string, unknown>;
 

@@ -25,6 +25,7 @@ import { PersonaEngine } from "@/lib/persona-engine";
 import { resolvePack } from "@/lib/packs";
 import { Director } from "@/lib/director";
 import { pickPersonaLLM, type LlmRoutingPick } from "@/lib/director-llm";
+import { pickPersonaGroq } from "@/lib/director-llm-v3-groq";
 import { personas } from "@/lib/personas";
 import type { Pack } from "@/lib/packs/types";
 import { createSessionLogger } from "@/lib/debug-logger";
@@ -53,7 +54,7 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Search-Engine, X-Install-Id",
+    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Groq-Key, X-Search-Engine, X-Install-Id",
   "Access-Control-Expose-Headers": "X-Session-Id",
   "Access-Control-Max-Age": "86400",
 };
@@ -149,11 +150,16 @@ export async function POST(req: NextRequest) {
   const headerAnthropic = req.headers.get("X-Anthropic-Key");
   const headerBrave = req.headers.get("X-Brave-Key");
   const headerXai = req.headers.get("X-XAI-Key");
+  const headerGroq = req.headers.get("X-Groq-Key");
 
   const deepgramKey = headerDeepgram || process.env.DEEPGRAM_API_KEY;
   const anthropicKey = headerAnthropic || process.env.ANTHROPIC_API_KEY;
   const braveKey = headerBrave || process.env.BRAVE_SEARCH_API_KEY;
   const xaiKey = headerXai || process.env.XAI_API_KEY;
+  // Groq key for Smart Director v3 shadow test (SET-6). Never used for
+  // user-facing persona calls — only for the parallel shadow LLM call that
+  // logs agreement rate vs Haiku v2.
+  const groqKey = headerGroq || process.env.GROQ_API_KEY;
 
   // Search-engine selection. Client sends "brave" or "xai" via X-Search-Engine;
   // anything else (missing, typo, old client) falls through to Brave — that
@@ -253,6 +259,10 @@ export async function POST(req: NextRequest) {
     // requestedPackId="Howard", packId="howard" — or unknown → "howard").
     requestedPackId: typeof packId === "string" ? packId : null,
     packId: resolvedPack.meta.id,
+    // SET-6: shadow flag state, for filtering director_v3_shadow_compare
+    // events in pipeline-debug.jsonl.
+    groqShadowEnabled:
+      process.env.ENABLE_SMART_DIRECTOR_V3_GROQ === "true" && !!groqKey,
   });
 
   const transcriber = new TranscriptionManager(deepgramKey);
@@ -531,6 +541,32 @@ export async function POST(req: NextRequest) {
           const LLM_BUDGET_MS = 400;
           const smartOn =
             process.env.ENABLE_SMART_DIRECTOR === "true" && !!anthropicKey;
+
+          // ── Smart Director v3 Groq shadow (SET-6) ──
+          // Start the Groq call early so it runs in parallel with v2.
+          // We deliberately do NOT await it before making the routing decision
+          // — the v3 pick is shadow-only, never fed to director.decide().
+          // A 2 s timeout gives Groq (50–120 ms typical TTFT) ample room
+          // while bounding any tail-latency cost on the async log path.
+          const groqShadowOn =
+            process.env.ENABLE_SMART_DIRECTOR_V3_GROQ === "true" &&
+            smartOn &&
+            !!groqKey;
+          const groqShadowStart = groqShadowOn ? Date.now() : null;
+          const groqShadowPromise: Promise<LlmRoutingPick | null> =
+            groqShadowOn
+              ? pickPersonaGroq({
+                  recentTranscript: directorInput,
+                  isSilence: isSilenceTick,
+                  recentFirings: director.getRecentFirings(),
+                  cooldownsMs: director.getCooldownsMs(),
+                  packPersonas: session.resolvedPack.personas,
+                  groqKey: groqKey!,
+                  signal: AbortSignal.timeout(2000),
+                  sessionId,
+                }).catch(() => null)
+              : Promise.resolve(null);
+
           if (smartOn) {
             const llmStart = Date.now();
             try {
@@ -586,6 +622,39 @@ export async function POST(req: NextRequest) {
                 llmPrimary !== null &&
                 llmPrimary !== rulePrimary,
               isSilence: isSilenceTick,
+            });
+          }
+
+          // SET-6: Smart Director v3 Groq shadow compare.
+          // Fired non-blocking — we don't await groqShadowPromise before the
+          // cascade so Groq's latency never adds to the routing critical path.
+          // The .then() handler logs after Groq resolves (typically 50–120 ms,
+          // well before the cascade finishes). v2 llmPick is captured in the
+          // closure so both results land in the same log event.
+          if (groqShadowOn) {
+            const capturedLlmPick = llmPick;
+            const capturedLlmElapsedMs = llmElapsedMs;
+            groqShadowPromise.then((groqPick) => {
+              const groqElapsedMs =
+                groqShadowStart !== null ? Date.now() - groqShadowStart : null;
+              log.info("director_v3_shadow_compare", {
+                v2: {
+                  pick: capturedLlmPick?.personaId ?? null,
+                  rationale: capturedLlmPick?.rationale ?? null,
+                  elapsedMs: capturedLlmElapsedMs,
+                },
+                v3: {
+                  pick: groqPick?.personaId ?? null,
+                  rationale: groqPick?.rationale ?? null,
+                  elapsedMs: groqElapsedMs,
+                  model: "llama-3.1-8b-instant",
+                  provider: "groq",
+                },
+                agreed:
+                  groqPick?.personaId !== null &&
+                  groqPick?.personaId === capturedLlmPick?.personaId,
+                isSilence: isSilenceTick,
+              });
             });
           }
 
