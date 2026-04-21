@@ -62,15 +62,89 @@ interface LogEntry {
  * deliberately short + hedge-shaped — enough to fill the bubble, easy on
  * the eye, not trying to impersonate the specific persona's sharp voice.
  */
-const FORCE_REACT_FALLBACKS: Record<string, string> = {
-  producer: "Eh — nothing clean on that one. Let me keep my ears open.",
-  troll: "Not enough meat on that bone. I'll get the next one.",
-  soundfx: "[crickets]",
-  joker: "*still writing — hold.*",
+/**
+ * v1.7 — fallback variants per persona.
+ *
+ * Before v1.7 this was a single deterministic string per persona. That
+ * bit us when SET-20 surfaced: once the director-driven producer safety
+ * net (PR #82) started emitting these on every passed fire, Baba would
+ * repeat the SAME line across every tick where the transcript had no
+ * fresh claim — "Baba Booey just keeps repeating this." Safety-net
+ * fallback + single-string + no anti-repeat coverage on the
+ * non-LLM path = deterministic loop.
+ *
+ * Fix: 4–5 variants per slot, rotated with a "never pick last-used"
+ * guard. The last-used index is held on the PersonaEngine so rotation
+ * survives across `firePersona` calls within a session. Non-destructive
+ * — if a ScheduleLess pack persona has no entry here, the generic
+ * "[<name> is still thinking.]" string still applies.
+ */
+const FORCE_REACT_FALLBACKS: Record<string, string[]> = {
+  producer: [
+    "Eh — nothing clean on that one. Let me keep my ears open.",
+    "Hmm, that one slipped past me. I'll catch the next claim.",
+    "Nothing jumping out. Rolling.",
+    "I got nothing on that — moving on.",
+    "Let me double-check and get back to you on that one.",
+  ],
+  troll: [
+    "Not enough meat on that bone. I'll get the next one.",
+    "Weak. Next.",
+    "Save it for something that matters.",
+    "Meh. Wake me when it's interesting.",
+    "I'll wait for the actual take.",
+  ],
+  soundfx: [
+    "[crickets]",
+    "[record scratch]",
+    "[sad trombone]",
+    "[awkward silence]",
+    "[elevator music]",
+  ],
+  joker: [
+    "*still writing — hold.*",
+    "*no joke yet — pass.*",
+    "*couldn't land it; next setup.*",
+    "*not feeling it — skip.*",
+    "*working on it…*",
+  ],
 };
 
-function getForceReactFallback(persona: Persona): string {
-  return FORCE_REACT_FALLBACKS[persona.id] ?? `[${persona.name} is still thinking.]`;
+/**
+ * Per-PersonaEngine rotation state. Keyed by persona id → last-used
+ * index in FORCE_REACT_FALLBACKS[persona.id]. Picking differs from the
+ * last index guarantees no back-to-back duplicates (the specific bug
+ * SET-20 flagged). We keep state on the engine instance rather than in
+ * module scope so sessions don't leak rotation state into each other
+ * when a fresh PersonaEngine is constructed per-request on the hosted
+ * backend.
+ */
+function pickFallbackVariant(
+  persona: Persona,
+  lastUsedIdx: Map<string, number>
+): { text: string; idx: number } {
+  const variants = FORCE_REACT_FALLBACKS[persona.id];
+  if (!variants || variants.length === 0) {
+    return { text: `[${persona.name} is still thinking.]`, idx: 0 };
+  }
+  if (variants.length === 1) return { text: variants[0], idx: 0 };
+  const last = lastUsedIdx.get(persona.id);
+  // Pick any index except the last one used. Random across the
+  // remaining N-1 options so consecutive fires look genuinely varied.
+  let idx: number;
+  do {
+    idx = Math.floor(Math.random() * variants.length);
+  } while (idx === last && variants.length > 1);
+  return { text: variants[idx], idx };
+}
+
+function getForceReactFallback(
+  persona: Persona,
+  lastUsedIdx: Map<string, number>
+): string {
+  const { text, idx } = pickFallbackVariant(persona, lastUsedIdx);
+  lastUsedIdx.set(persona.id, idx);
+  return text;
 }
 
 // Claim-detector patterns + scoring now live in lib/claim-detector.ts so the
@@ -130,6 +204,13 @@ export class PersonaEngine {
    * similarity threshold (or on a successful addAndCheck with maxSim <= τ).
    */
   private readonly repeatSlots: Map<string, string> = new Map();
+  /**
+   * v1.7 — last-used index into FORCE_REACT_FALLBACKS[personaId] so
+   * pickFallbackVariant can skip it on the next fire. Fixes SET-20
+   * "Baba Booey just keeps repeating this" by preventing the deterministic
+   * safety-net fallback from selecting the same string twice in a row.
+   */
+  private readonly lastFallbackIdx: Map<string, number> = new Map();
   private get personas(): Persona[] {
     return this.pack.personas;
   }
@@ -653,7 +734,7 @@ export class PersonaEngine {
       // that case preserve what the viewer saw and let the done frame close
       // it cleanly rather than double-bubbling the fallback on top.
       if (isForceReact && !passDecided) {
-        const fallback = getForceReactFallback(persona);
+        const fallback = getForceReactFallback(persona, this.lastFallbackIdx);
         logPipeline({
           event: "force_react_fallback",
           level: "warn",
@@ -698,7 +779,7 @@ export class PersonaEngine {
       // director-driven fires (where the director hasn't committed to a
       // response yet); it's not fine for user-initiated taps.
       if (isForceReact) {
-        const fallback = getForceReactFallback(persona);
+        const fallback = getForceReactFallback(persona, this.lastFallbackIdx);
         logPipeline({
           event: "force_react_fallback",
           level: "warn",
@@ -730,7 +811,7 @@ export class PersonaEngine {
       // animation). Only the producer has the "there's something to
       // fact-check but Haiku balked" failure mode worth rescuing.
       if (persona.id === "producer") {
-        const fallback = getForceReactFallback(persona);
+        const fallback = getForceReactFallback(persona, this.lastFallbackIdx);
         logPipeline({
           event: "producer_pass_safety_net",
           level: "warn",
