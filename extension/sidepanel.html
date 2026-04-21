@@ -1502,6 +1502,56 @@
       font-weight: 600;
     }
 
+    /* ── SUBSCRIPTION BLOCK (v1.9 Peanut Gallery Plus) ──
+       Shown inside the Backend & keys drawer only when backend mode
+       is "plus". Subscription key input + weekly progress bar +
+       subscribe/manage buttons + optional "use with" sub-toggle. */
+    .subscription-block{
+      padding: 10px;
+      margin: 10px 0 14px;
+      border: 2px solid var(--ink);
+      background: color-mix(in srgb, var(--stamp) 6%, var(--paper));
+    }
+    .subscription-progress{
+      margin: 8px 0 6px;
+    }
+    .sub-progress-bar{
+      height: 8px;
+      background: color-mix(in srgb, var(--ink) 15%, transparent);
+      border: 1px solid var(--ink);
+      overflow: hidden;
+    }
+    .sub-progress-fill{
+      height: 100%;
+      background: var(--stamp);
+      width: 0%;
+      transition: width 0.25s ease-out;
+    }
+    .sub-progress-text{
+      font-family: var(--slab);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      font-size: 10px;
+      color: var(--ink-2);
+      margin-top: 4px;
+      text-align: right;
+    }
+    .subscription-actions{
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .subscription-intent{
+      font-style: italic;
+      color: var(--ink-2);
+      margin-top: 8px;
+    }
+    .plus-use-with{
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--ink-3);
+    }
+
     /* ── PINNED-STRIP (drop-down at top of feed) ──
        Broadsheet-styled mini card that slides down from the masthead.
        Shares visual language with the tutorial card (2px ink border,
@@ -2087,6 +2137,22 @@
           <span class="drawer-section-title">Backend &amp; keys</span>
         </div>
 
+        <!-- v1.9 BACKEND MODE segmented control. Demo is the default one-
+             off trial; My keys = BYOK (no Peanut Gallery billing); Plus =
+             subscription against Peanut Gallery's hosted keys. Full
+             walkthrough in docs/SUBSCRIPTION-ARCHITECTURE.md. -->
+        <div class="drawer-subsection-head" style="margin-top:0; padding-top:0; border-top:0">
+          <span class="drawer-subsection-title">How do you want to reach the keys?</span>
+        </div>
+        <div class="segmented" id="backendModeSegmented" role="radiogroup" aria-label="Backend mode">
+          <button type="button" class="segmented-option is-active" data-value="demo" role="radio" aria-checked="true">Demo</button>
+          <button type="button" class="segmented-option" data-value="byok" role="radio" aria-checked="false">My keys</button>
+          <button type="button" class="segmented-option" data-value="plus" role="radio" aria-checked="false">Plus</button>
+        </div>
+        <p class="field-hint" id="backendModeHint">
+          <strong>Demo:</strong> free 15-minute trial on our keys, one-off. After that: paste your own or subscribe.
+        </p>
+
         <div class="key-row">
           <div class="key-label-row">
             <label for="serverUrl">Backend server</label>
@@ -2099,6 +2165,47 @@
             or the
             <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">build-your-own spec&nbsp;&#8599;</a>.
           </p>
+        </div>
+
+        <!-- v1.9 PEANUT GALLERY PLUS block. Shown only when backend mode
+             is "plus". The sub-segmented "Use with" toggle appears only
+             if BYOK keys are ALSO filled in — otherwise subscription
+             is the only option and the sub-toggle is hidden. -->
+        <div class="subscription-block" id="subscriptionBlock" hidden>
+          <div class="key-row">
+            <div class="key-label-row">
+              <label for="subscriptionKey">Subscription key</label>
+              <span class="key-tag">Plus</span>
+            </div>
+            <input type="text" id="subscriptionKey" class="key-input" placeholder="pg-xxxx-xxxx-xxxx" />
+            <p class="field-hint">
+              Paste the code we emailed you. Lost it? <button type="button" id="recoverSubBtn" class="inline-settings-link">Email me my key</button>.
+            </p>
+          </div>
+          <div class="subscription-progress" id="subscriptionProgress" hidden>
+            <div class="sub-progress-bar"><div class="sub-progress-fill" id="subProgressFill"></div></div>
+            <div class="sub-progress-text" id="subProgressText">&mdash;</div>
+          </div>
+          <div class="subscription-actions">
+            <button type="button" id="buySubBtn" class="btn small" style="flex:1">&#x271A;&nbsp; Subscribe ($8/mo · 16 h/week)</button>
+            <button type="button" id="manageSubBtn" class="btn small">Manage</button>
+          </div>
+          <p class="field-hint subscription-intent">
+            Peanut Gallery Plus is an accessibility tier, not a profit center &mdash; it exists so non-technical users can reach the product without juggling API keys. Your data doesn't train anything; cancel anytime from Manage.
+          </p>
+
+          <div class="plus-use-with" id="plusUseWith" hidden>
+            <div class="drawer-subsection-head">
+              <span class="drawer-subsection-title">Use this session with</span>
+            </div>
+            <div class="segmented" id="plusUseSegmented" role="radiogroup" aria-label="Use with">
+              <button type="button" class="segmented-option is-active" data-value="subscription" role="radio" aria-checked="true">Subscription</button>
+              <button type="button" class="segmented-option" data-value="byok" role="radio" aria-checked="false">My keys</button>
+            </div>
+            <p class="field-hint">
+              You have both a subscription key and your own keys configured. Pick which set burns on this session. Subscription hours only count when you're using our hosted keys.
+            </p>
+          </div>
         </div>
 
         <p class="keys-intro">

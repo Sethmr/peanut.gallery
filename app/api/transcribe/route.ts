@@ -44,6 +44,12 @@ import {
   recordUsage,
   quotaDeniedBody,
 } from "@/lib/free-tier-limiter";
+import {
+  isSubscriptionEnabled,
+  getSubscriptionStatus,
+  recordSubscriptionUsage,
+  subscriptionDeniedBody,
+} from "@/lib/subscription";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,7 +69,7 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Groq-Key, X-Cerebras-Key, X-OpenAI-Key, X-Search-Engine, X-Install-Id, X-Sensitivity",
+    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Groq-Key, X-Cerebras-Key, X-OpenAI-Key, X-Search-Engine, X-Install-Id, X-Sensitivity, X-Subscription-Key",
   "Access-Control-Expose-Headers": "X-Session-Id",
   "Access-Control-Max-Age": "86400",
 };
@@ -107,6 +113,14 @@ interface Session {
    */
   chargeableInstallId: string | null;
   /**
+   * The subscription key that opened this session, if any. Set only when
+   * Peanut Gallery Plus is active AND the install is consuming hosted
+   * keys via the subscription gate. BYOK sessions have `null` here and
+   * don't tick subscription hours — user-paid keys mean "no subscription
+   * consumption," per design.
+   */
+  subscriptionKey: string | null;
+  /**
    * Guards against double-charging. DELETE and the client-disconnect cleanup
    * can both fire for the same session; we only want to record usage once.
    */
@@ -133,9 +147,16 @@ const sessions = new Map<string, Session>();
 function chargeSessionUsage(session: Session): void {
   if (session.charged) return;
   session.charged = true;
-  if (!session.chargeableInstallId) return;
   const elapsedMs = Math.max(0, Date.now() - session.startedAt);
-  recordUsage(session.chargeableInstallId, elapsedMs);
+  // One or the other — a session either burns free-tier quota
+  // (install-id on file, no subscription) or subscription hours
+  // (subscription key on file), never both. The session-open flow
+  // guards which path was taken.
+  if (session.subscriptionKey) {
+    recordSubscriptionUsage(session.subscriptionKey, elapsedMs);
+  } else if (session.chargeableInstallId) {
+    recordUsage(session.chargeableInstallId, elapsedMs);
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -225,15 +246,30 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Free-tier limiter (hosted-backend only) ──────────────────────────
-  // If the operator has ENABLE_FREE_TIER_LIMIT=true and this session is
-  // going to burn at least one demo key (i.e. the user didn't paste a
-  // header AND the server has a fallback env var to use), we meter usage
-  // per install-id. Self-hosters and BYO-keys users bypass this branch
-  // entirely. We check env existence explicitly so a self-hosted server
-  // that happens to lack (say) ANTHROPIC_API_KEY doesn't get falsely
-  // flagged as "consuming a demo key" just because the header is absent.
+  // ── Subscription + Free-tier gate (hosted-backend only) ──────────────
+  //
+  // Three paths converge here, selected by what the client sends:
+  //
+  //   1. BYOK — user attached their own keys (X-Deepgram-Key + X-Anthropic-Key
+  //      + X-XAI-Key). The route uses those; no subscription consumption,
+  //      no free-tier metering. This path always works, even when
+  //      ENABLE_SUBSCRIPTION is off on this backend.
+  //
+  //   2. Peanut Gallery Plus — user attached an X-Subscription-Key header.
+  //      The key is validated against `lib/subscription.ts`. If valid
+  //      + under weekly cap, the session proceeds on hosted keys and
+  //      usage is metered against the subscription's ledger. If invalid
+  //      or over cap, 402 with a code the extension surfaces.
+  //
+  //   3. Hosted demo — user sent neither keys nor subscription. One-off
+  //      15-minute trial gated by `lib/free-tier-limiter.ts`, keyed on
+  //      X-Install-Id. Once exhausted, user must bring keys or subscribe.
+  //
+  // Subscription wins when present — we don't cross-charge the free
+  // tier against a subscription session.
   const installId = (req.headers.get("X-Install-Id") || "").trim() || null;
+  const subscriptionKeyHeader =
+    (req.headers.get("X-Subscription-Key") || "").trim() || null;
   const usingAnyDemoKey =
     (!headerDeepgram && !!process.env.DEEPGRAM_API_KEY) ||
     (!headerAnthropic && !!process.env.ANTHROPIC_API_KEY) ||
@@ -242,8 +278,29 @@ export async function POST(req: NextRequest) {
     // usage for free-tier metering purposes.
     (!headerXai && !!process.env.XAI_API_KEY);
   let chargeableInstallId: string | null = null;
+  let subscriptionKey: string | null = null;
 
-  if (isFreeTierLimitEnabled() && usingAnyDemoKey) {
+  // Path 2 — subscription. Only meaningful when the user is asking to
+  // use hosted keys (demo-key path). BYOK with a subscription key
+  // attached is fine — we validate the key but don't charge it because
+  // the session isn't burning hosted resources.
+  if (subscriptionKeyHeader && usingAnyDemoKey) {
+    if (!isSubscriptionEnabled()) {
+      const status = getSubscriptionStatus(subscriptionKeyHeader);
+      return jsonResponse(subscriptionDeniedBody(status), 503);
+    }
+    const status = getSubscriptionStatus(subscriptionKeyHeader);
+    if (!status.valid) {
+      return jsonResponse(subscriptionDeniedBody(status), 402, {
+        "Retry-After": String(Math.ceil((status.resetAt - Date.now()) / 1000)),
+      });
+    }
+    subscriptionKey = subscriptionKeyHeader;
+    // Subscription path short-circuits the free-tier check — user is
+    // paying for hosted access, they don't also burn trial minutes.
+  } else if (isFreeTierLimitEnabled() && usingAnyDemoKey) {
+    // Path 3 — free-tier trial. No subscription key on hand; we enforce
+    // the one-off 15-minute allowance per install.
     if (!installId) {
       // Hosted backend with demo keys but no install-id header — refuse
       // politely so we can't be abused by anonymous scripts. Legit clients
@@ -322,6 +379,7 @@ export async function POST(req: NextRequest) {
     resolvedPack,
     startedAt: Date.now(),
     chargeableInstallId,
+    subscriptionKey,
     charged: false,
     // v1.7 (SET-7): empty on first tick — computeUnstableTailLen reports
     // current.length back, which the prompt builder renders as the whole

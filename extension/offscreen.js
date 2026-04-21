@@ -128,6 +128,13 @@ async function startRecording(config) {
     if (config.sensitivity === "quiet" || config.sensitivity === "rowdy") {
       headers["X-Sensitivity"] = config.sensitivity;
     }
+    // v1.9: Peanut Gallery Plus subscription. Only sent when the user
+    // explicitly picked the Plus mode + the "use with subscription"
+    // sub-toggle (if present). If the header's missing, the backend
+    // falls through to free-tier / BYOK logic as if Plus didn't exist.
+    if (config.backendMode === "plus" && config.subscriptionKey) {
+      headers["X-Subscription-Key"] = config.subscriptionKey;
+    }
 
     sseAbortController = new AbortController();
 
