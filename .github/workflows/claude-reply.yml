@@ -3,10 +3,11 @@ name: Claude Reply
 # Fires fresh-Claude on `@claude` mentions in PR/issue/review comments so Seth
 # can iterate on a kickoff PR without manually dispatching a new workflow.
 # Claude reads the comment, makes changes on the current PR branch, and
-# commits. Default: Opus 4.7 / --max-turns 15 — PR iteration is almost always
-# code-writing (apply review feedback, fix bugs, refactor), which per Seth's
-# operating rule is Opus territory. Sonnet is the outlier for PR replies,
-# not the norm.
+# commits. Default: Sonnet 4.6 / --max-turns 10 — operational ceiling on
+# Seth's current Anthropic tier (Opus 4.7 at 30k TPM rate-limits on the
+# first call). Reply iterations are usually small, targeted edits where
+# Sonnet is fine; label-based Opus elevation on reply is iteration-2
+# territory (see "Why no needs-opus hook on reply" below).
 #
 # === Security model ===
 #
@@ -66,17 +67,28 @@ name: Claude Reply
 #     Newer mention wins; older in-flight run is cancelled to avoid two
 #     Claudes racing each other on the same branch.
 #
-# Why --max-turns 15 on Opus 4.7:
-#   - PR iteration is almost always code-writing: apply a review comment,
-#     fix a bug, refactor the diff. Seth's operating rule is Opus for
-#     code-writing tasks. 15 turns is plenty of headroom — typical PR
-#     replies resolve in 2–6 turns; 15 is the safety belt.
-#   - Typical cost per reply iteration: $0.10–$0.50. Seth has accepted
-#     this cost for the quality bump over Sonnet on code edits.
-#   - If Sonnet-on-reply ever becomes useful (e.g. a future "review
-#     against a checklist then hand back to Opus" pattern), that's
-#     iteration-2 work and gets its own workflow or conditional. Not
-#     done here.
+# Why --max-turns 10 on Sonnet 4.6:
+#   - Reply iterations are usually small, targeted edits — apply a review
+#     comment, tweak a field, fix a typo. Sonnet handles these fine, and
+#     the first smoke test on the prior Opus-default configuration hit a
+#     429 rate-limit (Opus TPM ceiling on the current Anthropic org tier
+#     is too tight for any kickoff/reply that reads meaningful context).
+#     See https://docs.claude.com/en/api/rate-limits.
+#   - Typical cost per reply iteration on Sonnet: ~$0.02–$0.10. Typical
+#     on Opus (when rate limits permit): ~$0.10–$0.50.
+#   - Why 10 turns: replies usually resolve in 2–6 turns; 10 is the
+#     safety belt. Bumping to 20+ would just hide tasks that need human
+#     decomposition.
+#
+# Why no `needs-opus` hook on reply (yet):
+#   - The reply workflow fires on GitHub comment events, not Linear
+#     webhooks, so `client_payload.model` isn't available. Wiring label
+#     elevation here would require a `gh api` call to fetch the PR's
+#     linked Linear issue labels (or the PR's own labels) — a ~15-line
+#     YAML addition for a pattern that's still marginal value. Deferred
+#     to iteration-2 alongside the Sonnet-review-against-checklist work.
+#     If Seth finds a reply genuinely needed Opus, he can always rerun
+#     the kickoff with `needs-opus` on the original ticket.
 #
 # Why anthropic_api_key as ${{ secrets.ANTHROPIC_API_KEY }}:
 #   - Same posture as claude-triage.yml / claude-kickoff.yml. GitHub
@@ -146,4 +158,4 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: --max-turns 15 --model claude-opus-4-7
+          claude_args: --max-turns 10 --model claude-sonnet-4-6
