@@ -9,7 +9,7 @@
 
 # Release Pipeline — Branch Model + Self-Merge Contract
 
-**Last updated:** 2026-04-20. Branching model reset: `release/*` is now the only path into `main`; hotfixes route through `develop` instead of branching off `main`; no more back-merges.
+**Last updated:** 2026-04-20 (post-v1.5.6 / develop-realignment pass). Branching model reset: `release/*` is now the only path into `main`; hotfixes route through `develop` instead of branching off `main`; no more back-merges. **New hard rule** (learned the hard way via PR #49): main-facing PRs merge via GitHub's "Rebase and merge" button only — never "Squash and merge". See [Merge method](#merge-method--main-facing-prs-rebase-and-merge-only) below.
 
 Everything else about how to contribute (commit style, pre-merge checks, PR shape, non-negotiables, git-lock rule) lives where it already lived — [`.github/CONTRIBUTING.md`](../.github/CONTRIBUTING.md), [`.github/PULL_REQUEST_TEMPLATE.md`](../.github/PULL_REQUEST_TEMPLATE.md), [`CLAUDE.md`](../CLAUDE.md), [`AI-GIT-PROTOCOL.md`](AI-GIT-PROTOCOL.md). This file only documents what's **new**.
 
@@ -38,13 +38,60 @@ Never:
 3. **Feature / bugfix / research work** = cut from `develop`, PR back to `develop`, merged (squash), branch deleted. Seth doesn't review develop-facing PRs.
 4. **Only persistent branches are `develop`, `main`, and `release/*`.** Every release's `release/*` branch is preserved forever. Feature branches (including `hotfix/*`) are deleted on merge.
 
+## Merge method — main-facing PRs: "Rebase and merge" only
+
+The GitHub UI offers three merge buttons: **Merge**, **Squash and merge**, and **Rebase and merge**. The choice matters more than it looks like it does, because rule #2 above depends on `main`, `develop`, and `release/*` sharing commit SHAs for release-sourced commits.
+
+- **Main-facing PRs (`release/* → main`, and the rare emergency `hotfix/* → main` if Seth ever greenlights one):** **"Rebase and merge" only.** Fast-forward is also fine when `main` is a strict ancestor of the PR head (usually is). **Never "Squash and merge"** — squashing creates a fresh commit SHA on `main` that doesn't exist on `develop`, which breaks the SHA identity rule #2 is built on. Once the SHAs diverge, the next `release/*` cut from `develop` will conflict against `main` at rebase time and you're stuck shipping via `hotfix/*`-with-delta (see [Historical note — v1.5.5 squash accident](#historical-note--v155-squash-accident-and-the-v156-hotfix-delta-shipment) below).
+- **Develop-facing PRs (`feature/* → develop`, `hotfix/* → develop`, daemon-driven `claude/* → develop`):** **squash is fine and encouraged.** The local Linear daemon uses `gh pr merge --squash --auto --delete-branch` on every PR it opens; CI-green → auto-squash → branch deleted. Develop's history doesn't need SHA identity with anything else, so squash keeps the log readable without costing us anything.
+
+**Operational note for Seth (and future Seths):** when merging a `release/*` PR from the GitHub UI, double-check that the dropdown on the merge button reads "Rebase and merge" before clicking. GitHub remembers the last choice per repo — if you've been squash-merging develop-facing PRs all day, the button can silently be left on "Squash and merge". A one-second glance before the click saves the cleanup.
+
+## Realignment recipe — if rule #2 breaks again
+
+If an accidental squash (or any other history-rewriting misstep) leaves `main` no longer a strict ancestor of `develop`, the fix is mechanical but requires `--force-with-lease` on `develop`. It happened once (v1.5.5 → v1.5.6, 2026-04-20). The recipe:
+
+1. **Cut the current release as a `hotfix/*` off `main`** (not `release/*`). The `release/*` branch for that version stays preserved per rule #4, but you skip using it for the ship. Reason: `release/*` was cut from `develop`, which now diverges from `main`, so rebasing `release/*` onto `main` will conflict. A fresh `hotfix/*` off `main` carries only the delta you actually need to ship.
+2. **Ship the `hotfix/* → main` PR via "Rebase and merge"** (per the merge-method rule above). Tag `main`, upload CWS, done.
+3. **Realign `develop` on top of the new `main`:**
+   ```bash
+   git checkout develop
+   git fetch origin
+   # Identify the commits on develop that landed AFTER the last release's squash commit —
+   # those are the ones you need to preserve.
+   git log origin/main..origin/develop --oneline   # what's "ahead" on develop that you want to keep
+   git tag backup/develop-pre-realign-$(date -u +%Y%m%d-%H%M%S)   # safety net before force-reset
+   git reset --hard origin/main
+   git cherry-pick <each post-release-squash commit from the log above, in order>
+   git push --force-with-lease origin develop
+   ```
+4. **Verify the invariant is restored:**
+   ```bash
+   git merge-base --is-ancestor origin/main origin/develop && echo "OK" || echo "STILL BROKEN"
+   ```
+   Must print `OK`. If it doesn't, stop and diagnose before any new work lands.
+5. **Push the backup tag** (`git push origin backup/develop-pre-realign-…`) so the pre-realignment develop tip is recoverable from the remote if anyone needs to audit what got thrown away.
+
+The backup tag from the 2026-04-20 realignment is `backup/develop-pre-realign-20260420-230739` — still on the remote for reference.
+
+## Historical note — v1.5.5 squash accident and the v1.5.6 hotfix-delta shipment
+
+**2026-04-20 incident, documented for future readers (humans + Claudes) so nobody re-derives the reasoning cold:**
+
+- **v1.5.5** ([PR #49](https://github.com/Sethmr/peanut.gallery/pull/49)) was **squash-merged** into `main` by accident. The GitHub UI's merge dropdown was left on "Squash and merge" from an earlier develop-facing PR. The merge created a new single-commit SHA on `main` for v1.5.5 that did not match any commit on `develop`, quietly breaking rule #2's SHA-identity invariant.
+- **v1.5.6 first attempt** was cut as `release/v1.5.6` from `develop` ([PR #58](https://github.com/Sethmr/peanut.gallery/pull/58), closed). Rebasing `release/v1.5.6` onto `main` conflicted because of the v1.5.5 squash mismatch — the commits that went into the v1.5.5 squash were still present individually on `develop`, and rebase couldn't reconcile the identity of "already merged" with them.
+- **v1.5.6 actual ship** was a `hotfix/v1.5.6` cut directly off `main` ([PR #59](https://github.com/Sethmr/peanut.gallery/pull/59)). This was a **one-time hotfix-delta exception** to the rule-#2 shape: because `main` and `develop` had already diverged, the only way to ship without rewriting `main` was to carry the delta in a branch that was always `main`-rooted. `release/v1.5.6` is **preserved on the remote** per rule #4 even though it was never merged — future readers who grep the branch list for "why is there a release branch that never shipped" will land here.
+- **After v1.5.6 merged**, the realignment recipe above was executed: `develop` was force-reset to `main`'s tip and the 8 post-v1.5.5 commits (the local-daemon stack: PRs #51–#57 plus one auto-commit `wip:`) were cherry-picked back on top. This restored rule #2's invariant (`git merge-base --is-ancestor origin/main origin/develop` now returns true). The pre-realignment tip is preserved on the remote as `backup/develop-pre-realign-20260420-230739`.
+
+The fix for the root cause — the squash itself — is the "Rebase and merge" only rule above. The fix for the symptom — a broken SHA-identity invariant — is the realignment recipe. Both are documented here so the next accident (if it happens) is a 10-minute cleanup instead of an afternoon.
+
 ## Branch lifecycle reference
 
 | Branch | Cut from | Merged to | Merge method | Deleted after merge? | Notes |
 |---|---|---|---|---|---|
 | `develop` | — | — | — | No | Long-lived integration trunk. Claude self-merges here under the contract below. |
 | `main` | — | — | — | No | Long-lived. Only `release/*` lands here. 1 approval required, linear history, signed commits. |
-| `release/vX.Y.Z` | `develop` | `main` | rebase-and-merge **or** fast-forward (never squash) | **No — preserved forever** | Holds the manifest bump + CHANGELOG entry. Shares SHAs with `main` and `develop` post-merge. |
+| `release/vX.Y.Z` | `develop` | `main` | **"Rebase and merge"** (UI button) or fast-forward. Squash is **prohibited** — see [Merge method](#merge-method--main-facing-prs-rebase-and-merge-only). | **No — preserved forever** | Holds the manifest bump + CHANGELOG entry. Shares SHAs with `main` and `develop` post-merge. |
 | `feature/*` (also `feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/`, `ci/`) | `develop` | `develop` | squash | Yes | Claude can self-merge on green `npm run check` + self-merge contract below. |
 | `hotfix/*` | `develop` | `develop` | squash | Yes | Ships to `main` via the next `release/vX.Y.(Z+1)`. No direct-to-main PRs. |
 
@@ -60,7 +107,7 @@ Never:
 4. **Push + open the `main` PR.** `git push -u origin release/vX.Y.Z`. Then:
    - `gh pr create --base main --head release/vX.Y.Z --title "release: vX.Y.Z — <codename>" --body-file <CHANGELOG-delta.md>`
    - Body = the CHANGELOG entry, grouped by type. Draft if anything is still canary; otherwise ready-to-merge.
-5. **Merge method.** **Rebase-and-merge** (preserves individual commit SHAs on `main`) **or** fast-forward if `main` is a strict ancestor of `develop` (usually is under this model). **Never squash** — squashing breaks the SHA identity between `main`, `develop`, and `release/*` that rule #2 depends on. Seth merges; Claude cannot (branch protection + `.claude/settings.json` deny list).
+5. **Merge method.** Click **"Rebase and merge"** in the GitHub UI (preserves individual commit SHAs on `main`), or fast-forward if `main` is a strict ancestor of `develop` (usually is under this model). **Never click "Squash and merge"** for a main-facing PR — squashing breaks the SHA identity between `main`, `develop`, and `release/*` that rule #2 depends on. Full reasoning + the realignment recipe for when this rule gets broken live in [Merge method](#merge-method--main-facing-prs-rebase-and-merge-only) and [Realignment recipe](#realignment-recipe--if-rule-2-breaks-again) below. Seth merges; Claude cannot (branch protection + `.claude/settings.json` deny list).
 6. **Tag on `main`.** `git tag -a vX.Y.Z -m "vX.Y.Z — <codename>" <main-sha>` then `git push origin vX.Y.Z`. **Do NOT delete `release/vX.Y.Z`** — it stays forever. Feature branches on the other hand get deleted on squash-merge.
 7. **CWS upload.** Build + upload the `.zip` per [`OPS.md`](OPS.md). Or **skip** if a newer version is already ready — that's the "intermediate versioning" case from rule #1: the tag exists on `main` for the historical record, the CWS just skips to the newest version.
 

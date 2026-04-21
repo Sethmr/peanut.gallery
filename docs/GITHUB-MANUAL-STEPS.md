@@ -267,7 +267,9 @@ If/when broader code automation is in scope, the code-quality audit is a separat
 
 ## Priority 1.6 — Linear → Claude Code kickoff pipeline
 
-### 17. (Legacy — retiring after § 18 is proven) Wire Linear "Todo" transition → kickoff-Claude PR via Linear webhook + GitHub Actions
+### 17. (Retired 2026-04-20 — awaiting code deletion) Linear webhook → GitHub Actions kickoff path
+
+> **Status (2026-04-20):** the Linear webhook has been **deleted on Linear's side**; no events reach GitHub Actions from Linear anymore. The webhook handler code at `app/api/linear-webhook/route.ts` and the `claude-kickoff.yml` / `claude-reply.yml` workflow files are still in the repo but vestigial — deletion is queued as a separate follow-up PR after § 18 has a few more production runs under its belt. **Do not follow § 17's setup steps below.** Kept in the doc purely so Claudes / humans reading old PRs can decode what "the webhook path" meant. For the active kickoff path, go to § 18.
 
 Fires fresh-Claude inside [`.github/workflows/claude-kickoff.yml`](../.github/workflows/claude-kickoff.yml) when a Linear issue transitions into a state of type `unstarted` (i.e. the "Todo" column). The handler at [`/api/linear-webhook`](../app/api/linear-webhook/route.ts) verifies Linear's HMAC signature, rate-limits, and dispatches a `repository_dispatch` event at GitHub. Kickoff-Claude implements the ticket on a fresh `claude/<identifier>-<slug>` branch, runs `npm run check`, and the workflow opens a PR against `develop`. Linear's native GitHub integration auto-moves the ticket to "In Review" on PR open and "Done" on merge — we do NOT touch Linear's REST API for status.
 
@@ -344,13 +346,13 @@ All three are environment-level secrets. None of them should land in source cont
 
 ---
 
-## Priority 1.7 — Linear local daemon (new architecture)
+## Priority 1.7 — Linear local daemon (active architecture)
 
-### 18. Linear local daemon on Seth's Mac (replaces § 17 once verified)
+### 18. Linear local daemon on Seth's Mac (sole active kickoff path as of 2026-04-20)
 
-Replaces the GitHub-Actions-hosted kickoff path with a long-running local daemon that polls Linear + GitHub and spawns `claude -p` against Seth's **Claude Max subscription** (no API key, no 30k-TPM cap). The legacy webhook + Actions workflows in § 17 remain in place until this path is proven in production — a follow-up PR removes them.
+Long-running launchd agent on Seth's Mac that polls Linear + GitHub and spawns `claude` against Seth's **Claude Max subscription** (no API key, no 30k-input-TPM rate-limit cap). This is the active kickoff path. § 17's webhook-based path is retired; the webhook has been deleted on Linear, and the vestigial workflow files + handler will be removed in a follow-up PR.
 
-**Why:** the GitHub Actions path hit Anthropic's 30k-input-TPM rate limit on the current org tier before kickoff-Claude could finish reading `CLAUDE.md` + the rubric. Local `claude` uses the Max subscription's much higher limits.
+**Why the daemon won:** the GitHub Actions path hit Anthropic's 30k-input-TPM rate limit on the standard account tier before kickoff-Claude could finish reading `CLAUDE.md` + the rubric. Local `claude` uses Seth's Max subscription limits, which are high enough that TPM has never been the bottleneck in testing.
 
 **What happens when you drag a ticket to Todo** (canonical sequence — also in [`LINEAR-AGENT-RUBRIC.md § What happens after kickoff`](LINEAR-AGENT-RUBRIC.md#what-happens-after-kickoff-daemon-path)):
 
@@ -370,26 +372,46 @@ Pieces that ship with the daemon:
 
 #### 18a. Prereqs
 
-1. **tmux.** `brew install tmux` if missing. Used for live-viewing the running Claude session (`tmux attach -t claude-<id>`). The daemon works without tmux — you just lose the live-view affordance.
-2. **tsx.** Already in `devDependencies`; `npm install` gets it.
-3. **gh CLI authenticated.** `gh auth status` must succeed. The daemon uses `gh api` + `gh pr create` + `gh pr comment`, which reuse your existing gh credentials (no new PAT needed).
-4. **`claude` CLI authenticated.** `claude auth status` should show your Max-subscription login. `claude login` if not.
+Install / verify each before running the installer script — if any are missing the installer will fail mid-way, which is annoying to unwind.
 
-#### 18b. Linear API key
+1. **tmux.** `brew install tmux` if missing. Used for live-viewing the running Claude session (`tmux attach -t claude-<id>`). The daemon works without tmux — the `tmux new-session` call is best-effort — but you lose the live-view affordance, which is the most useful debug lens you'll have.
+2. **tsx.** Already in `devDependencies`; `npm install` inside `chrome-extension/` gets it. The installer resolves `tsx` via `command -v tsx`, which expects `node_modules/.bin` to be on `PATH` at install time — see § 18c's "PATH prefix" note.
+3. **gh CLI authenticated.** `gh auth status` must succeed. The daemon uses `gh api` + `gh pr create` + `gh pr merge` + `gh pr comment`, which reuse your existing gh credentials (no new PAT needed).
+4. **`claude` CLI installed at `~/.local/bin/claude`.** The launchd plist explicitly adds `~/.local/bin` to `PATH` so the daemon can find `claude` when spawning subprocesses. If `claude` lives somewhere else (e.g. `/opt/homebrew/bin`), you'll need to adjust the plist template in `scripts/gallery.peanut.linear-daemon.plist` before running the installer.
+5. **`claude` CLI headless auth.** See § 18b.2 below — `claude login` alone is NOT sufficient for headless use; you need `claude setup-token` and the resulting `CLAUDE_CODE_OAUTH_TOKEN` in the env file. This is the single most common install-failure mode.
 
-Create a personal API key (distinct from the webhook signing secret):
+#### 18b. Secrets — Linear API key + Claude OAuth token
 
-1. https://linear.app → **Settings → API → Personal API keys** → "Create key".
+The daemon reads two secrets from `~/.config/peanut-gallery/daemon.env` at startup. Both are required; the daemon exits 1 on missing `LINEAR_API_KEY`, and Claude runs fail with "Not logged in — Please run /login" on missing `CLAUDE_CODE_OAUTH_TOKEN`.
+
+##### 18b.1. Linear API key (LINEAR_API_KEY)
+
+Create a personal API key (distinct from the now-deleted webhook signing secret):
+
+1. https://linear.app → **Settings → API → Personal API keys** → "Create key". (Make sure you're on the **Personal API keys** tab — Linear also surfaces "OAuth applications" and team-level keys that won't authorize the daemon the same way.)
 2. Name it `peanut.gallery local daemon` for easy revocation.
 3. Copy the value (starts with `lin_api_`).
 
-Create the env file:
+##### 18b.2. Claude OAuth token (CLAUDE_CODE_OAUTH_TOKEN)
+
+Claude's interactive `claude login` flow stores credentials in the macOS keychain, which the daemon can't reach from its launchd context (no interactive UI, no unlocked keychain session). The workaround is `claude setup-token` — it produces a long-lived OAuth token you can pass via env var for headless use:
+
+```bash
+# Absolute path because `claude` may not be on launchd's PATH (and is often
+# not on every shell's PATH on macOS either):
+/Users/seth/.local/bin/claude setup-token
+```
+
+The command walks you through a browser flow and prints the token. Copy it — you'll paste it as `CLAUDE_CODE_OAUTH_TOKEN` in `daemon.env` below.
+
+##### 18b.3. Create the env file
 
 ```bash
 mkdir -p ~/.config/peanut-gallery
 chmod 700 ~/.config/peanut-gallery
 cat > ~/.config/peanut-gallery/daemon.env <<'EOF'
 LINEAR_API_KEY=lin_api_xxxxxxxxxxxxxxxxxxxxxxxx
+CLAUDE_CODE_OAUTH_TOKEN=oauth-token-from-claude-setup-token
 EOF
 chmod 600 ~/.config/peanut-gallery/daemon.env
 ```
@@ -408,12 +430,15 @@ In the team's label settings, make sure these labels exist (most overlap with th
 
 ```bash
 cd /path/to/chrome-extension
-./scripts/install-linear-daemon.sh
+PATH="$PWD/node_modules/.bin:$PATH" ./scripts/install-linear-daemon.sh
 ```
 
-The installer:
-- Verifies `tsx`, `tmux`, and authenticated `gh`.
-- Substitutes `{{TSX_PATH}}` and `{{PROJECT_ROOT}}` into the plist template.
+**The `PATH="$PWD/node_modules/.bin:$PATH"` prefix is REQUIRED.** The installer uses `command -v tsx` to resolve `tsx`'s absolute path and bake it into the launchd plist's `ProgramArguments`. Without the prefix, `tsx` is only reachable via an npm-scripts wrapper and `command -v` resolves to nothing, so the installer bails with `tsx not found on PATH`.
+
+What the installer does:
+
+- Verifies `tsx` (via `command -v tsx`), `tmux`, and authenticated `gh`.
+- Substitutes `{{TSX_PATH}}` and `{{PROJECT_ROOT}}` into the plist template at [`scripts/gallery.peanut.linear-daemon.plist`](../scripts/gallery.peanut.linear-daemon.plist), and ensures `~/.local/bin` is in the baked-in `PATH` so the daemon can find `claude`.
 - Writes `~/Library/LaunchAgents/gallery.peanut.linear-daemon.plist`.
 - Unloads any prior agent and loads the new one (`launchctl load`).
 - Verifies with `launchctl list | grep gallery.peanut.linear-daemon`.
@@ -421,27 +446,45 @@ The installer:
 #### 18d. Smoke test
 
 1. Create a Linear issue in Backlog titled `test: daemon echo hello`, description `Add a one-line comment to README.md explaining this was the local-daemon smoke test.`
-2. Drag it into the Todo column.
-3. Within ~30s, run `tmux ls` — you should see `claude-<identifier>` (e.g. `claude-lin-123`).
-4. `tmux attach -t claude-lin-123` to watch the Claude session live. Ctrl-b then d to detach.
+2. Drag it into the Todo column — that's the fire.
+3. Within ~30s, run `tmux ls` — you should see `claude-<identifier>` (e.g. `claude-set-5`).
+4. `tmux attach -t claude-set-5` to watch the Claude session live. Ctrl-b then d to detach. The tmux session is kept alive for **300s after Claude exits** so you can post-mortem inspect without the session disappearing on you.
 5. Watch the daemon's structured log: `tail -f logs/daemon-$(date -u +%Y-%m-%d).jsonl`.
-6. Once Claude exits cleanly with new commits, the daemon rebases onto `origin/develop`, pushes with `--force-with-lease`, opens a PR against `develop`, then enables GitHub auto-merge (`--squash --delete-branch --auto`) unless the Linear issue carries the `needs-review` label. Linear auto-moves the ticket to "In Review" (native GitHub integration). On CI green, the PR self-merges and the ticket moves to "Done".
+6. Once Claude exits cleanly with new commits, the daemon rebases onto `origin/develop`, pushes with `--force-with-lease`, opens a PR against `develop`, and enables GitHub auto-merge (`--squash --delete-branch --auto`) unless the Linear issue carries the `needs-review` label. Linear auto-moves the ticket to "In Review" via its native GitHub integration. On CI green, the PR self-merges and the ticket moves to "Done".
 
-Exact `claude` flag set wired into the daemon (verify against your local `claude --version`):
+Expected end state: the Linear ticket is in "Done", a squash-commit landed on `develop`, the `claude/*` remote branch is deleted, and the Linear-generated PR URL is visible in `logs/daemon-*.jsonl` under a `kickoff_pr_opened` event.
+
+Exact `claude` flag set wired into the daemon (mirrored from `spawnClaude()` in [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts)):
 
 ```
-claude -p <prompt> --model claude-sonnet-4-6 --permission-mode acceptEdits --output-format json
+claude -p <prompt> --model claude-sonnet-4-6 --allowedTools "Edit Write Read Glob Grep NotebookEdit Bash(git:*) Bash(npm:*) ..."
 ```
 
-With `--model claude-opus-4-7` for issues carrying the `needs-opus` label, and `--max-turns 10` on reply-Claude.
+With `--model claude-opus-4-7` for issues carrying the `needs-opus` label, and `--max-turns 10` on reply-Claude. Note: no `--permission-mode acceptEdits` — PR #54 removed it in favor of the explicit `--allowedTools` list, because `acceptEdits` only covered `Edit`/`Write` and still prompted for `Bash(git:*)` calls, which deadlocked headless runs. Full allowlist is in `spawnClaude()`.
 
 #### 18e. Troubleshooting
 
-- **`launchctl list` doesn't show the agent after install.** Check `logs/daemon-stderr.log`. Most common: missing `LINEAR_API_KEY` in `~/.config/peanut-gallery/daemon.env` (daemon exits 1 at startup with a `missing_linear_api_key` event).
-- **Daemon runs but nothing happens when a ticket moves to Todo.** Check `logs/daemon-$(date).jsonl` for `poll_linear_failed` errors. The most common cause is a bad API key or a Linear API 401.
-- **Claude exits but no PR opens.** Three subcases: (a) exit code != 0 → worktree is left in place under `.claude/worktrees/` for inspection; `logs/kickoff-<id>.log` has the transcript. (b) exit code == 0 but no new commits → the daemon logs `claude_no_commits` and cleans up; the task was likely ambiguous or required a forbidden action. (c) exit code == 0 with commits but `rebase_failed` logged → the feature branch conflicted with `origin/develop` at rebase time; the daemon aborted the rebase and left the worktree in place for manual resolution. Re-fire by removing the issue ID from `logs/daemon-state.json` after resolving.
-- **PR opened but didn't auto-merge.** Two common causes: (a) the Linear issue has the `needs-review` label (case-insensitive) — daemon intentionally skipped `gh pr merge --auto` so you can review manually. Check the daemon log for `"autoMerge": false, "reason": "\"needs-review\" label present"`. Remove the label + click Merge if you want it to land. (b) `auto_merge_enable_failed` logged — `gh pr merge --auto` returned non-zero; most commonly because `--delete-branch` can't delete a branch that's checked out in the daemon's worktree. The REMOTE branch deletion + auto-merge bit still get set correctly by `gh` despite the local error, so this is usually noise. Check the PR on github.com; if auto-merge is enabled, ignore the warning. Orphan worktrees in `.claude/worktrees/` are harmless — clean with `git worktree remove --force .claude/worktrees/claude-<id>` on your next pass.
-- **Worktree cleanup.** The daemon removes worktrees + branches only when (a) Claude exited 0 with no commits, or (b) a ticket is re-fired while a prior worktree exists. Non-zero exits intentionally leave artifacts behind for debugging. Clean manually with `git worktree remove --force .claude/worktrees/claude-<id>` and `git branch -D claude/<id>-<slug>` if needed.
-- **Stuck processing the same ticket.** The daemon marks an issue as processed whether or not the run succeeded (fail-safe against broken tickets causing infinite retry). To re-fire a ticket, edit `logs/daemon-state.json` and remove the issue's Linear ID from `processedIssueIds`.
-- **Stop the daemon.** `launchctl unload ~/Library/LaunchAgents/gallery.peanut.linear-daemon.plist` — agent stops immediately. `./scripts/uninstall-linear-daemon.sh` for full teardown.
+- **`launchctl list` doesn't show the agent after install.** Check `logs/daemon-stderr.log`. Most common: missing `LINEAR_API_KEY` in `~/.config/peanut-gallery/daemon.env` (daemon exits 1 at startup with a `missing_linear_api_key` event). Second most common: env file still contains the placeholder value from the example (e.g. `lin_api_xxxxxxxxx...` verbatim) — the daemon starts but every Linear poll 401's.
+- **Daemon runs but nothing happens when a ticket moves to Todo.** Check `logs/daemon-$(date).jsonl` for `poll_linear_failed` errors. The most common cause is a bad API key or a Linear API 401. Second: the ticket was already processed in a prior run — Linear IDs are tracked in `logs/daemon-state.json`'s `processedIssueIds` array. See "Re-fire a ticket" below for the right un-process procedure.
+- **Daemon spawns `claude` with `ENOENT`.** The plist's `PATH` doesn't include `~/.local/bin` (or wherever `claude` lives on your system). Verify:
+  ```bash
+  grep -A1 PATH ~/Library/LaunchAgents/gallery.peanut.linear-daemon.plist
+  ```
+  Must include `~/.local/bin`. The installer should handle this automatically; if it didn't, re-run the installer or edit the plist manually and `launchctl unload` + `launchctl load`.
+- **Claude logs "Not logged in · Please run /login" and exits immediately.** The daemon can't access the interactive-auth keychain session. `CLAUDE_CODE_OAUTH_TOKEN` is either missing from `daemon.env` or expired. Re-run `/Users/seth/.local/bin/claude setup-token` (absolute path!), paste the new token into `daemon.env`, then restart the daemon (`launchctl unload … && launchctl load …`).
+- **Claude exits but no PR opens.** Four subcases:
+  - (a) exit code != 0 → worktree is left in place under `.claude/worktrees/` for inspection; `logs/kickoff-<id>.log` has the transcript.
+  - (b) exit code == 0 but no new commits → the daemon logs `claude_no_commits` and cleans up; the task was likely ambiguous or required a forbidden action.
+  - (c) exit code == 0 with commits but `rebase_failed` logged → the feature branch conflicted with `origin/develop` at rebase time; the daemon aborted the rebase and left the worktree in place for manual resolution.
+  - (d) exit code == 0 with commits, rebase succeeded, but `duplicate_commits_dropped` logged → git's `--empty=drop` rebase behavior dropped all of Claude's commits as patch-id matches with commits already on develop (Claude re-derived a change that just landed). The daemon cleans up silently; no PR is opened. Expected behavior, not an error.
+- **PR opened but didn't auto-merge.** Two common causes:
+  - (a) The Linear issue has the `needs-review` label (case-insensitive) — daemon intentionally skipped `gh pr merge --auto` so you can review manually. Check the daemon log for `"autoMerge": false, "reason": "\"needs-review\" label present"`. Remove the label + click Merge if you want it to land.
+  - (b) `auto_merge_enable_failed` logged — `gh pr merge --auto` returned non-zero; most commonly because `--delete-branch` can't delete a branch that's checked out in the daemon's worktree. The REMOTE branch deletion + auto-merge bit still get set correctly by `gh` despite the local error, so this is usually noise. Check the PR on github.com; if auto-merge is enabled, ignore the warning. Orphan worktrees in `.claude/worktrees/` are harmless — clean with `git worktree remove --force .claude/worktrees/claude-<id>` on your next pass.
+- **Worktree cleanup.** The daemon removes worktrees + branches only when (a) Claude exited 0 with no commits, (b) rebase dropped all commits (`duplicate_commits_dropped`), or (c) a ticket is re-fired while a prior worktree exists. Non-zero exits + `rebase_failed` intentionally leave artifacts behind for debugging. Clean manually with `git worktree remove --force .claude/worktrees/claude-<id>` and `git branch -D claude/<id>-<slug>` if needed.
+- **Re-fire a Linear ticket.** **Critical gotcha:** the daemon's SIGTERM handler writes its in-memory `DaemonState` back to `logs/daemon-state.json` on shutdown. If you edit the file while the daemon is still running (e.g. to remove an issue ID from `processedIssueIds` for re-firing), the next `launchctl unload` — or even a normal poll loop iteration — will clobber your edit. Correct sequence:
+  1. `launchctl unload ~/Library/LaunchAgents/gallery.peanut.linear-daemon.plist` (daemon persists state and exits).
+  2. Edit `logs/daemon-state.json` — remove the issue's Linear ID from the `processedIssueIds` array.
+  3. `launchctl load ~/Library/LaunchAgents/gallery.peanut.linear-daemon.plist` (daemon picks up the edited state).
+  4. The next poll cycle (within 30s) will re-process the ticket.
+- **Stop the daemon.** `launchctl unload ~/Library/LaunchAgents/gallery.peanut.linear-daemon.plist` — agent stops immediately. `./scripts/uninstall-linear-daemon.sh` for full teardown (removes the plist + unloads the agent).
 
