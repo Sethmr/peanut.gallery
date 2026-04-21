@@ -1,18 +1,26 @@
-# State of the Director — 2026-04-21
+# State of the Director — 2026-04-21 (end-of-overnight-push snapshot)
 
-Post-merge audit after the Opus catch-up session. One source of truth for where the Director is today, what's merged, what's pending, and what gates the next move.
+Post-merge audit after the 12-PR overnight push. One source of truth for where the Director is today, what's merged, what's pending, and what gates the next move.
 
 > For the wider product state (UI, packs, backend, roadmap), see [`STATE-OF-PRODUCT-2026-04-18.md`](STATE-OF-PRODUCT-2026-04-18.md). This doc is narrow to the Director.
+>
+> For the overnight-run handoff (step-by-step testing quickstart + PR list + flag matrix), see [`SESSION-NOTES-2026-04-21-overnight-push.md`](SESSION-NOTES-2026-04-21-overnight-push.md).
 
 ---
 
 ## TL;DR
 
 - **Smart Director v3** (5-slot with SILENT, Anthropic tool_use, verbalized confidence, sticky penalty, live-callback ring buffer) landed on `develop`.
-- **Two shadow providers** wired: Cerebras (working today) + Groq (dormant until Developer tier reopens — tracked in SET-11).
-- **Prompt-cache padding** on the v2 Haiku router is live. v3 doesn't yet benefit — follow-up.
+- **Two shadow providers** wired: Cerebras (working today) + Groq (dormant until Developer tier reopens — tracked in SET-11). **v3-prompt variants** for both providers shipped too (PR #72).
+- **Prompt-cache padding** covers both v2 (#67) AND v3 (#74). v3 now rides the Haiku cache past the 2,048-token threshold via a padded stable prefix + `cache_control: ephemeral` on system + tools. Expected p95 TTFT drop: ~700 ms → ~100–150 ms after warmup.
+- **Semantic anti-repetition** (#70) shipped in across-turn Option B shape — streams normally, injects an "avoid repeating" instruction into the next context on similarity hit. Zero UX regression.
+- **Live-callback ring buffer auto-populates** (#73). Every cascade/force-react response tail is pushed, so v3's callback-aware routing has real data to work with in production.
+- **Debug panel surfaces v3 state** (#76, #77) — SILENT picks in stamp-italic with dedicated source badge, callback heightening line, verbalized confidence vector, session-stats header with silent/llm/rule split, source-filter chips, feed-entry hover tooltips.
+- **Empty-state companions** (#76) turn the four known failure modes into actionable cards with one-click CTAs.
+- **Session-recall groundwork** (#78) persists every session to `chrome.storage.local` — ready for the v2.0 "Past Sessions" UI to light up.
+- **Canary analyzer** (`npm run analyze:director-v3`) covers SET-14 bands + SET-15 anti-repeat funnel + SET-16 cache hit-rate + SET-12 callback activation in one run.
 - **All flag-gated off by default.** Hosted + self-host behavior is byte-for-byte unchanged until someone flips `ENABLE_SMART_DIRECTOR_V2` or a shadow flag.
-- **Zero production telemetry exists yet.** No v2 canary has run. No v3 canary has run. No shadow provider has seen a live request. Every next decision gates on telemetry we haven't collected.
+- **Zero production telemetry exists yet.** No v2 canary has run. No v3 canary has run. No shadow provider has seen a live request. Every next decision gates on telemetry we haven't collected — quickstart in the overnight-push notes.
 
 ---
 

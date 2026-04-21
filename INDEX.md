@@ -59,7 +59,7 @@ Chrome extension + Next.js backend that captures a YouTube tab's audio, transcri
 | Self-host flow | [`docs/SELF-HOST-INSTALL.md`](docs/SELF-HOST-INSTALL.md) |
 | Alternative-backend contract | [`docs/BUILD-YOUR-OWN-BACKEND.md`](docs/BUILD-YOUR-OWN-BACKEND.md) |
 | Key rotation / ops | [`docs/OPS.md`](docs/OPS.md) |
-| Most recent session handoff | [`docs/SESSION-NOTES-2026-04-21-opus-catchup.md`](docs/SESSION-NOTES-2026-04-21-opus-catchup.md) |
+| Most recent session handoff | [`docs/SESSION-NOTES-2026-04-21-overnight-push.md`](docs/SESSION-NOTES-2026-04-21-overnight-push.md) |
 | Director state (modules, flags, telemetry, PR lineage) | [`docs/STATE-OF-DIRECTOR-2026-04-21.md`](docs/STATE-OF-DIRECTOR-2026-04-21.md) |
 | Persona character research (TWiST pack) | [`docs/packs/twist/RESEARCH.md`](docs/packs/twist/RESEARCH.md) |
 | Linear → Claude kickoff pipeline (local daemon) | [`docs/LINEAR-AGENT-RUBRIC.md`](docs/LINEAR-AGENT-RUBRIC.md) + [`scripts/linear-daemon.ts`](scripts/linear-daemon.ts) + [`scripts/install-linear-daemon.sh`](scripts/install-linear-daemon.sh) — setup in [`docs/GITHUB-MANUAL-STEPS.md § 18`](docs/GITHUB-MANUAL-STEPS.md) |
