@@ -22,6 +22,7 @@ Map of every markdown file in the repo, ordered by when you should read it.
 - [`docs/SERVER-SIDE-DEMO-KEYS.md`](SERVER-SIDE-DEMO-KEYS.md) — how the backend covers demo users via env-var fallback, and why the extension ships with zero keys. Read before any change to the extension's key-handling code.
 - [`docs/OPS.md`](OPS.md) — key rotation runbook, provider dashboards, cap locations, post-TWiST checklist.
 - [`docs/AI-GIT-PROTOCOL.md`](AI-GIT-PROTOCOL.md) — **read before any git write.** Prevention rules + one-shot escalation when `.git/index.lock` appears. Source of truth for the hard "no third method" rule. Supersedes all earlier ad-hoc guidance.
+- [`docs/LINEAR-AGENT-RUBRIC.md`](LINEAR-AGENT-RUBRIC.md) — Linear → Claude kickoff pipeline (went live 2026-04-20): webhook/daemon → worktree → PR; Claude's authority scope, commit style, and pre-merge gate for Linear-triggered work.
 - [`docs/BUILD-YOUR-OWN-BACKEND.md`](BUILD-YOUR-OWN-BACKEND.md) — contract for anyone running an alternative backend.
 - [`docs/SELF-HOST-INSTALL.md`](SELF-HOST-INSTALL.md) — install flow for users deploying their own Next.js app.
 
