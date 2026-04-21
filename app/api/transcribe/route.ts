@@ -63,7 +63,7 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Groq-Key, X-Cerebras-Key, X-OpenAI-Key, X-Search-Engine, X-Install-Id",
+    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Groq-Key, X-Cerebras-Key, X-OpenAI-Key, X-Search-Engine, X-Install-Id, X-Sensitivity",
   "Access-Control-Expose-Headers": "X-Session-Id",
   "Access-Control-Max-Age": "86400",
 };
@@ -193,6 +193,16 @@ export async function POST(req: NextRequest) {
   // preserves pre-v1.4 behavior for any extension that hasn't updated yet.
   const rawSearchEngine = (req.headers.get("X-Search-Engine") || "").toLowerCase();
   const searchEngine: "brave" | "xai" = rawSearchEngine === "xai" ? "xai" : "brave";
+
+  // v1.7: global sensitivity. Client sends "quiet" | "normal" | "rowdy" via
+  // X-Sensitivity; anything else (missing, typo) defaults to "normal" —
+  // preserves behavior for older extensions that don't send this header.
+  // Scales cascade probability in the Director (quieter = fewer chained
+  // responses; rowdier = more pile-ons). Producer fact-check mode is
+  // still per-pack, not per-user — that's a character-design decision.
+  const rawSensitivity = (req.headers.get("X-Sensitivity") || "").toLowerCase();
+  const sensitivity: "quiet" | "normal" | "rowdy" =
+    rawSensitivity === "quiet" ? "quiet" : rawSensitivity === "rowdy" ? "rowdy" : "normal";
 
   if (!deepgramKey) {
     return jsonResponse(
@@ -797,6 +807,10 @@ export async function POST(req: NextRequest) {
               // happy personas fall out of rotation until they can speak
               // to real content again.
               recentFallbackCounts: personaEngine.getRecentFallbackCounts(),
+              // v1.7: global sensitivity from the X-Sensitivity header.
+              // Scales cascade probability so the whole panel feels
+              // quieter or rowdier without retuning every persona.
+              sensitivity,
             }
           );
 
@@ -1009,6 +1023,12 @@ export async function POST(req: NextRequest) {
               // Seth can eyeball whether the model was confident or close.
               callbackUsed: llmPickV2?.callbackUsed ?? null,
               confidence: llmPickV2?.confidence ?? null,
+              // v1.7 quote-card groundwork: include the last ~500 chars of the
+              // transcript window that informed this decision so the side
+              // panel can attach it to the feed entry and use it later as
+              // the "quote" half of a share card. Trimmed hard to keep SSE
+              // bandwidth bounded even on long-running sessions.
+              transcript: recentTranscript.slice(-500),
             });
           } catch {
             // SSE writer may be closed — ignore and continue the cascade.

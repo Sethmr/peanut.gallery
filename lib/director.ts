@@ -282,7 +282,31 @@ export interface DecideOptions {
    * call sites that don't pass this opt into the pre-v1.7 scoring.
    */
   recentFallbackCounts?: Record<string, number>;
+  /**
+   * v1.7: global sensitivity. Scales cascade probability so the
+   * whole panel feels quieter or rowdier without retuning every
+   * persona. "quiet" halves cascade rolls (primary fires normally;
+   * pile-ons rare). "rowdy" multiplies them by 1.5 (pile-ons
+   * expected). "normal" (default) is unchanged from pre-v1.7. User-
+   * facing knob lives in the Critics drawer as a three-way
+   * segmented control. Missing / unknown value = "normal".
+   */
+  sensitivity?: "quiet" | "normal" | "rowdy";
 }
+
+/**
+ * Cascade-probability multiplier by sensitivity level. Applied against
+ * `CASCADE_PROBABILITY[i]` per slot in the cascade roll. Kept as a named
+ * constant so the math is grep-sharp during future tuning.
+ */
+const SENSITIVITY_CASCADE_SCALE: Record<
+  NonNullable<DecideOptions["sensitivity"]>,
+  number
+> = {
+  quiet: 0.5,
+  normal: 1.0,
+  rowdy: 1.5,
+};
 
 // ──────────────────────────────────────────────────────
 // DIRECTOR
@@ -613,6 +637,11 @@ export class Director {
       [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
     }
 
+    // v1.7: pull the sensitivity scale once so it's applied uniformly to
+    // every cascade slot (including the Troll floor). "quiet" halves the
+    // whole cascade; "rowdy" 1.5×'s it; "normal" passes through.
+    const sensitivityScale = SENSITIVITY_CASCADE_SCALE[opts?.sensitivity ?? "normal"];
+
     let cumulativeDelay = 0;
     for (let i = 0; i < remaining.length; i++) {
       let prob = CASCADE_PROBABILITY[i + 1]; // +1 because index 0 is primary
@@ -626,6 +655,11 @@ export class Director {
       if (personaId === "troll" && silent >= 2) {
         prob = Math.max(prob, TROLL_CASCADE_FLOOR);
       }
+
+      // Apply sensitivity scale AFTER the troll-floor bump so "quiet" still
+      // suppresses the troll floor (the floor ensures the troll shows up;
+      // quiet mode says the user wants less overall; the user wins).
+      prob *= sensitivityScale;
 
       if (Math.random() < prob) {
         const delay = CASCADE_DELAY_MIN_MS + Math.random() * (CASCADE_DELAY_MAX_MS - CASCADE_DELAY_MIN_MS);

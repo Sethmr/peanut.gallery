@@ -337,7 +337,7 @@ function sendToOffscreen(msg, callback) {
   });
 }
 
-async function handleStartCapture({ serverUrl, apiKeys, searchEngine, youtubeUrl, tabTitle, audio, installId, rate, packId }) {
+async function handleStartCapture({ serverUrl, apiKeys, searchEngine, youtubeUrl, tabTitle, audio, installId, rate, packId, sensitivity }) {
   const streamId = await takePendingStream();
   console.log("[PG:bg] handleStartCapture: took streamId from session?", !!streamId);
 
@@ -381,6 +381,11 @@ async function handleStartCapture({ serverUrl, apiKeys, searchEngine, youtubeUrl
         // the field, so omitting or sending an unknown value is always safe
         // — the server defaults to Howard via resolvePack().
         packId: typeof packId === "string" && packId.length > 0 ? packId : "howard",
+        // v1.7: global sensitivity from the Critics drawer segmented
+        // control. Pure passthrough — offscreen.js maps this to the
+        // X-Sensitivity header on /api/transcribe. Server defaults to
+        // "normal" on missing / unknown values.
+        sensitivity: typeof sensitivity === "string" ? sensitivity : "normal",
       },
       (r) => resolve(r || { error: "Offscreen did not respond" })
     );
