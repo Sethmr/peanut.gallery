@@ -1502,7 +1502,7 @@ if (feedMenu) {
     if (action === "upvote") toggleVote(entryId, "up");
     else if (action === "downvote") toggleVote(entryId, "down");
     else if (action === "pin") togglePin(entryId);
-    else if (action === "quote-card") openQuoteCardPlaceholder(entryId);
+    else if (action === "quote-card") exportQuoteCard(entryId);
     hideFeedMenu();
   });
 }
@@ -1715,36 +1715,71 @@ if (pinnedStripUnpinBtn) {
   });
 }
 
-// ── Quote card (placeholder) ──
-// The real quote-card PNG renderer is tracked as a separate Linear ticket
-// (canvas + font embedding + clipboard write) — see ticket SET-XX. Stub
-// here so the menu item has a working handler: show a toast explaining
-// the feature is being built + capture the data in a session-local
-// draft so the PNG pass can pick it up from the same source.
-function openQuoteCardPlaceholder(entryId) {
+// ── Quote card (PNG renderer) ──
+// Renders a 1200×1200 Broadsheet-style PNG via PGQuoteCard.buildQuoteCardBlob
+// (extension/lib/quote-card.js) and writes it to the clipboard.
+// Falls back to a download if navigator.clipboard.write is rejected
+// (e.g. the panel lost focus). Sends the quote_card feedback signal
+// regardless of which path succeeds.
+async function exportQuoteCard(entryId) {
   const entry = feedEntries.find((e) => e.id === entryId);
   if (!entry) return;
-  showError(
-    "Quote card is on the way — the button is live but the PNG renderer ships in a separate PR. Tap to copy the raw text instead.",
-    null
-  );
-  // Copy "transcript → response" as text so the user gets something
-  // usable right now. When the PNG renderer lands it replaces this
-  // branch with canvas render + image copy.
+
   const persona = PERSONAS.find((p) => p.id === entry.personaId);
-  const body = [
-    entry.transcript ? `"${entry.transcript.trim()}"` : null,
-    `— ${persona?.name || entry.personaId} (${entry.role.toUpperCase()})`,
-    "",
-    entry.text,
-  ]
-    .filter(Boolean)
-    .join("\n");
-  navigator.clipboard?.writeText(body).catch(() => {});
-  // Choosing to quote-card a line is a strong positive signal on both
-  // the persona's performance and the transcript moment — worth a
-  // beat on par with a pin.
+  const enriched = { ...entry, personaName: persona?.name || entry.personaId };
+
+  // sendFeedback is a strong positive signal — fire it before the
+  // async render so the signal lands even if the render throws.
   sendFeedback("quote_card", entryId);
+
+  if (!window.PGQuoteCard) {
+    // Renderer not yet loaded — degrade gracefully to text copy.
+    const body = [
+      entry.transcript ? `\u201C${entry.transcript.trim()}\u201D` : null,
+      `\u2014 ${enriched.personaName} (${entry.role.toUpperCase()})`,
+      "",
+      entry.text,
+    ].filter(Boolean).join("\n");
+    navigator.clipboard?.writeText(body).catch(() => {});
+    showError("Copied as text (image renderer not ready yet).", null);
+    return;
+  }
+
+  let blob;
+  try {
+    blob = await PGQuoteCard.buildQuoteCardBlob(enriched, currentPackId, currentTheme);
+  } catch (err) {
+    showError("Quote card render failed — see console for details.", null);
+    console.error("[PGQuoteCard] render error:", err);
+    return;
+  }
+
+  // Try clipboard write first; fall back to download on rejection.
+  let usedClipboard = false;
+  if (navigator.clipboard?.write) {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({ "image/png": blob }),
+      ]);
+      usedClipboard = true;
+    } catch (_) {
+      // Clipboard write rejected (focus loss, permissions, etc.) —
+      // fall through to download.
+    }
+  }
+
+  if (!usedClipboard) {
+    // Download fallback
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement("a");
+    a.href     = url;
+    a.download = "peanut-gallery-quote.png";
+    a.click();
+    URL.revokeObjectURL(url);
+    showError("Saved quote card as a download.", null);
+  } else {
+    showError("Copied quote card to clipboard \u00B7 paste into any app.", null);
+  }
 }
 
 // ── Sensitivity segmented control (Critics drawer) ──

@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "check:extension": "node --check extension/background.js && node --check extension/offscreen.js && node --check extension/sidepanel.js && node --check extension/content.js && node --check extension/session-store.js",
+    "check:extension": "node --check extension/background.js && node --check extension/offscreen.js && node --check extension/sidepanel.js && node --check extension/content.js && node --check extension/session-store.js && node --check extension/lib/quote-card.js",
     "test:transcription": "tsx scripts/test-transcription.ts",
     "test:personas": "tsx scripts/test-personas.ts",
     "test:director": "tsx scripts/test-director.ts",
