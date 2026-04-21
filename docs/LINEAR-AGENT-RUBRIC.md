@@ -17,7 +17,7 @@
 
 ## Trigger: local daemon is the sole active kickoff path
 
-As of 2026-04-20 the Linear webhook in `app/api/linear-webhook/route.ts` is **deleted** on the Linear side — no events ever reach GitHub Actions from Linear anymore. The webhook handler code and the `.github/workflows/claude-kickoff.yml` + `.github/workflows/claude-reply.yml` workflow files are still in the tree but **vestigial**; a separate follow-up PR removes them. Treat them as retired, not architecture.
+As of 2026-04-20 the Linear webhook was deleted on Linear's side AND the corresponding code — the webhook handler route and the kickoff + reply GitHub Actions workflows — was deleted from the repo. The only kickoff path is the local daemon below.
 
 The active path:
 
@@ -27,7 +27,7 @@ The active path:
 
 Install + operate: [`GITHUB-MANUAL-STEPS.md § 18`](GITHUB-MANUAL-STEPS.md#18-linear-local-daemon-on-seths-mac-replaces--17-once-verified). Logs: `logs/daemon-*.jsonl` + `logs/kickoff-<identifier>.log`. Live-view: `tmux attach -t claude-<identifier>`.
 
-> **Legacy webhook path (retired, awaiting code deletion):** earlier drafts of this rubric described "two triggers" — a Linear-webhook → GitHub-Actions path alongside the daemon. The webhook has been deleted on Linear; the code in `app/api/linear-webhook/route.ts` and the `claude-kickoff.yml` / `claude-reply.yml` workflows no longer fire. Documentation that mentions them (including the trigger-semantics section further down, preserved for git-archaeology) should be read as **retired — awaiting code deletion in a follow-up PR**, not as current architecture.
+> **Legacy webhook path — removed 2026-04-20.** The earlier Linear-webhook → GitHub-Actions kickoff path has been retired: the Linear webhook was deleted on Linear's side, the `/api/linear-webhook` route + `claude-kickoff.yml` + `claude-reply.yml` workflows were deleted from the repo, and Railway's `LINEAR_WEBHOOK_SECRET` / `GITHUB_DISPATCH_TOKEN` env vars are now unused (can be cleaned up at leisure). If you're reading an old PR or commit that mentions "the webhook path," "claude-kickoff.yml," or "repository_dispatch: linear-kickoff" — that's what it meant; ignore it as historical.
 
 ---
 
@@ -51,19 +51,15 @@ What this means for you as kickoff-Claude:
 
 ---
 
-## Trigger semantics (retired — webhook path, kept for git-archaeology only)
+## Trigger semantics (daemon)
 
-> **Retired 2026-04-20 — awaiting code deletion.** The Linear webhook was deleted on Linear's side; no events reach GitHub Actions anymore. This subsection describes how the webhook *used to* work, preserved so future Claudes reading old PRs / commit messages can decode what "the webhook path" meant. Do **not** treat this as active behavior.
+The daemon keys the kickoff trigger on Linear's **state transitions**, not on label presence:
 
-The webhook at [`app/api/linear-webhook/route.ts`](../app/api/linear-webhook/route.ts) keys the kickoff trigger on Linear's **state transitions**, not on label presence. Specifically:
-
-- **Primary trigger — state moved to `unstarted` (i.e. the "Todo" column).** Detected by either:
-  - `action === "create"` AND `data.state.type === "unstarted"` (ticket created directly in Todo), or
-  - `action === "update"` AND `data.state.type === "unstarted"` AND `updatedFrom.stateId` exists (ticket moved to Todo from another state).
-- **Secondary (legacy) trigger — `claude:go` label.** Kept so users who staged the label in Backlog or Triage pre-research can still fire the pipeline without the state transition. `(unstarted_transition || has_claude_go_label)` is the OR gate.
-- **Opt-out — `claude:skip` label.** If present, the webhook short-circuits and never dispatches. Use this on tickets in the "Todo" column that you don't want Claude to pick up.
-- **Model elevation — `needs-opus` label.** Bumps kickoff-Claude from Sonnet 4.6 / 20 turns to Opus 4.7 / 40 turns. See "Model + turn budget" above.
-- **Auto-merge opt-out — `needs-review` label.** Daemon path only. The daemon normally enables GitHub auto-merge on the PR it opens so it self-merges on CI green; this label tells the daemon to open the PR **without** auto-merge so Seth can review manually. Use for changes that need app-testing. See "What happens after kickoff (daemon path)" above.
+- **Primary trigger — state is `unstarted` (i.e. the "Todo" column).** The daemon polls Linear every 30s for issues with `state.type === "unstarted"` that it hasn't processed yet. Matches both freshly-created tickets and tickets dragged from Backlog/Triage into Todo.
+- **Secondary (legacy) trigger — `claude:go` label.** Kept as an OR gate so users who label tickets in Backlog pre-move can still fire without the state transition. `(unstarted || has_claude_go_label)` is the OR.
+- **Opt-out — `claude:skip` label.** If present, the daemon short-circuits and never processes the ticket. Use this on Todo-column tickets that you don't want Claude to pick up.
+- **Model elevation — `needs-opus` label.** Bumps kickoff-Claude from Sonnet 4.6 / 20 turns to Opus 4.7 / 40 turns. See "Model + turn budget" above. **Nominal only** on Seth's current Anthropic API tier — the 30k-TPM Opus cap 429s most kickoffs; useful once Seth's tier is upgraded.
+- **Auto-merge opt-out — `needs-review` label.** The daemon normally enables GitHub auto-merge on the PR it opens so it self-merges on CI green; this label tells the daemon to open the PR **without** auto-merge so Seth can review manually. Use for changes that need app-testing. See "What happens after kickoff (daemon path)" above.
 
 **Why key on `state.type` (and not `state.name`):** Linear's state `.type` is a schema-fixed enum (`triage | backlog | unstarted | started | completed | canceled`); state `.name` is workspace-configurable. Keying on `.type` survives column renames.
 
@@ -246,6 +242,6 @@ Iteration plan once Seth confirms first-batch behavior:
 - **Iteration 2b (future):** Sonnet-review-against-checklist as a pre-auto-merge reviewer (npm check passed, commit style clean, protected files untouched, `Co-Authored-By` trailer present). Natural fit for Sonnet; Opus still owns code edits. Cost/benefit only pencils out once kickoff volume is high enough to measure review latency.
 - **Iteration 3:** tighter self-merge guardrails on `develop` beyond "CI green" — e.g. require the Sonnet reviewer from 2b to pass before `--auto` fires. Current state (auto-merge on CI green) is already effectively self-merge; this iteration makes it smarter, not more permissive.
 - **Iteration 4 (maybe):** allow multi-ticket coordination (e.g. a `claude:epic` label that spawns a stack of dependent PRs).
-- **Retirement task (pending):** delete the dead webhook + GH-Actions kickoff path — `app/api/linear-webhook/route.ts`, `.github/workflows/claude-kickoff.yml`, `.github/workflows/claude-reply.yml`, and the related secrets (`LINEAR_WEBHOOK_SECRET`, `GITHUB_DISPATCH_TOKEN`) — once the daemon has enough production runs under its belt that Seth is comfortable throwing the safety net away. Tracked separately from this rubric.
+- **Retirement task (done 2026-04-20):** the dead webhook + GH-Actions kickoff path has been removed. `app/api/linear-webhook/route.ts`, `.github/workflows/claude-kickoff.yml`, and `.github/workflows/claude-reply.yml` are deleted from the repo. Railway's `LINEAR_WEBHOOK_SECRET` and `GITHUB_DISPATCH_TOKEN` env vars are no longer read by any code and can be removed from Railway at leisure.
 
 Don't pre-empt the iteration order. Stay in scope.

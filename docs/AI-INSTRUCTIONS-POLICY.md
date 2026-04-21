@@ -8,7 +8,7 @@
 
 # AI Instructions — Protection Policy
 
-**Last updated:** 2026-04-19. Born when Seth wired the first webhook-triggered Claude into the repo.
+**Last updated:** 2026-04-20. Originally born 2026-04-19 when Seth wired the first webhook-triggered Claude into the repo; the protected set was re-confirmed this pass after the webhook kickoff path was retired in favor of a local daemon ([`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts)). The policy itself — who may edit, what's protected, how change requests work — is unchanged.
 
 ## TL;DR
 

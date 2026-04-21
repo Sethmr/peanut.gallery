@@ -175,14 +175,15 @@ Three rules cover this class. These run **before** any git write that touches mo
 
 ### F1. Know the canonical branch names — don't guess
 
-This repo has exactly two long-lived branches. This is settled and documented in [`RELEASE.md`](RELEASE.md) — if you find yourself wondering "what's the branch called again," open that file, don't improvise.
+This repo has three persistent branch types: `main`, `develop`, and `release/vX.Y.Z` (every shipped release's release branch is preserved forever per rule #4 in [`RELEASE.md`](RELEASE.md)). If you find yourself wondering "what's the branch called again," open that file — don't improvise.
 
-- **`main`** — release-only. Only @Sethmr merges. Every merge ships a tagged build to the Chrome Web Store. Auto-protected by [`protect-main-branch.yml`](../.github/workflows/protect-main-branch.yml).
-- **`develop`** — integration. Claude self-merges from `feature/*` / `fix/*` / `chore/*` / `docs/*` / `refactor/*` / `test/*` / `ci/*` under the self-merge contract in [`RELEASE.md`](RELEASE.md). Seth also merges here when convenient.
+- **`main`** — release-only. Only @Sethmr merges. Every merge ships a tagged build to the Chrome Web Store. Auto-protected by [`protect-main-branch.yml`](../.github/workflows/protect-main-branch.yml), which only allows `release/*` head branches (with a Sethmr-author carve-out for emergencies). Main-facing PRs merge via GitHub UI's **"Rebase and merge"** button — squash-merge broke rule #2 once and is now prohibited.
+- **`develop`** — integration. Claude self-merges from `feature/*` / `fix/*` / `chore/*` / `docs/*` / `refactor/*` / `test/*` / `ci/*` / `hotfix/*` under the self-merge contract in [`RELEASE.md`](RELEASE.md). Seth also merges here when convenient. `main` is expected to be a strict ancestor of `develop` (rule #2).
+- **`release/vX.Y.Z`** — preserved release-snapshot branches. Cut from `develop`, merged to `main`, never deleted. There's one per version.
 
-Feature branches use conventional-commit prefixes (`feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/`, `ci/`). `hotfix/*` is the only non-`develop` path into `main`.
+Feature branches use conventional-commit prefixes (`feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/`, `ci/`). **`hotfix/*` routes through `develop` under the current model** — not directly to `main`. Under emergency-override-only, Seth may greenlight a `hotfix/* → main` PR; in that case, he merges it himself (author carve-out bypasses the `release/*`-only head pattern).
 
-Do not invent names like "staging," "release," "qa," "main-dev." There are exactly two. If the branch model ever changes, `RELEASE.md` is the source of truth — refresh your understanding there before acting.
+Do not invent names like "staging," "release," "qa," "main-dev." The persistent branch set is `main`, `develop`, and `release/*` — plus short-lived feature branches. If the branch model ever changes, `RELEASE.md` is the source of truth — refresh your understanding there before acting.
 
 ### F2. Verify cross-branch state BEFORE proposing a command set
 

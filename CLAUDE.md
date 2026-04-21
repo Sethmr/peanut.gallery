@@ -75,11 +75,11 @@ If something about git is about to go sideways, **stop and ask Seth before actin
 
 These are not one-off tasks — they're ongoing habits Claude maintains without being asked.
 
-### 1. Proactively draft the `develop → main` release PR when work is release-worthy
+### 1. Proactively draft the `release/vX.Y.Z → main` release PR when work is release-worthy
 
-Seth has delegated release-PR drafting to Claude. As soon as a batch of work on `develop` crosses the release-worthy threshold (see [`docs/RELEASE.md § What counts as release-worthy`](docs/RELEASE.md#what-counts-as-release-worthy)), Claude opens the `develop → main` PR without waiting for Seth to ask. The PR has a proper `release: vX.Y.Z — <codename>` title, a CHANGELOG-shaped body grouped by commit type, and is either ready-to-merge or `draft` depending on whether it's safe to ship immediately.
+Seth has delegated release-PR drafting to Claude. As soon as a batch of work on `develop` crosses the release-worthy threshold (see [`docs/RELEASE.md § What counts as release-worthy`](docs/RELEASE.md#what-counts-as-release-worthy)), Claude cuts a `release/vX.Y.Z` branch from `develop` (bumps manifest + CHANGELOG on that branch; the branch is preserved forever per rule #4) and opens the `release/vX.Y.Z → main` PR without waiting for Seth to ask. The PR has a proper `release: vX.Y.Z — <codename>` title, a CHANGELOG-shaped body grouped by commit type, and is either ready-to-merge or `draft` depending on whether it's safe to ship immediately.
 
-Seth reviews + merges. Claude never self-merges into `main`.
+Seth reviews + merges via the GitHub UI's **"Rebase and merge"** button — never "Squash and merge" (the latter broke rule #2 on v1.5.5; details in [`docs/RELEASE.md § Merge method`](docs/RELEASE.md#merge-method--main-facing-prs-rebase-and-merge-only)). Claude never self-merges into `main`.
 
 ### 2. Never edit AI-instruction files without Seth's explicit ask
 
