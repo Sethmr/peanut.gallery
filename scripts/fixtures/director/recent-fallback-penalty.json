@@ -1,0 +1,17 @@
+{
+  "name": "recent-fallback-penalty",
+  "description": "v1.7 — validates RECENT_FALLBACK_PENALTY feedback loop on a NEUTRAL transcript where no persona has a strong pattern match. Troll normally wins neutral ticks via baseline (+2) + random tiebreak. Seeded with 3 recent fallbacks → -6 penalty → troll's score crashes to -4 and falls out of contention. Joker's baseline +1 wins. Proves the feedback loop: a persona who's been missing lately drops out of rotation on uncontested ticks. NOT a veto — strong content matches (Elon + trust-me style) would still surface troll because pattern scoring dwarfs the penalty. That's the balance invariant rule #2 in DESIGN-PRINCIPLES.md.",
+  "pack": "howard",
+  "input": {
+    "transcript": "Yeah. Anyway. Next topic please.",
+    "recentFallbackCounts": { "troll": 3 }
+  },
+  "assertions": {
+    "pickNot": ["troll"],
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true
+  }
+}

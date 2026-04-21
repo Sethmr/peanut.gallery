@@ -790,6 +790,13 @@ export async function POST(req: NextRequest) {
                   }
                 : null,
               producerFactCheckMode,
+              // v1.7: fallback feedback loop. Every fallback fire inside
+              // firePersona increments the engine's per-persona counter;
+              // every successful non-fallback fire decays by 1. Director
+              // subtracts RECENT_FALLBACK_PENALTY per point so fallback-
+              // happy personas fall out of rotation until they can speak
+              // to real content again.
+              recentFallbackCounts: personaEngine.getRecentFallbackCounts(),
             }
           );
 

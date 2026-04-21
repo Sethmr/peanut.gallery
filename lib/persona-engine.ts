@@ -211,6 +211,89 @@ export class PersonaEngine {
    * safety-net fallback from selecting the same string twice in a row.
    */
   private readonly lastFallbackIdx: Map<string, number> = new Map();
+
+  /**
+   * v1.7 — per-persona running count of recent fallback fires. Seth's rule:
+   * fallbacks must be observable AND self-correcting within a session.
+   *   - Incremented on every fallback fire (force-react upstream error,
+   *     force-react model pass, director-driven producer pass).
+   *   - Decayed by 1 on every successful non-fallback fire for that persona.
+   *   - Read by Director.decide via DecideOptions.recentFallbackCounts —
+   *     each point costs the persona RECENT_FALLBACK_PENALTY in rule-based
+   *     scoring, so a persona who just fallback'd is less likely to be
+   *     picked again immediately.
+   * The counter stays bounded because decay matches increment over time.
+   * A persona that stops finding anything drops out of rotation; when the
+   * transcript presents material they can actually speak to, the counter
+   * decays and they come back.
+   */
+  private readonly recentFallbacks: Map<string, number> = new Map();
+
+  /**
+   * Canonical per-fallback telemetry + counter-bookkeeping helper. Every
+   * fallback site in firePersona funnels through this so:
+   *   1. The `persona_fallback_fired` event fires exactly once per
+   *      fallback (unified schema regardless of which branch emitted it).
+   *   2. `lastFallbackIdx` advances so the next fallback picks a different
+   *      variant (fix for SET-20 — Baba stopped repeating).
+   *   3. `recentFallbacks` increments so the Director sees the hit and
+   *      penalizes this persona on the next tick.
+   */
+  private emitFallback(opts: {
+    persona: Persona;
+    reason:
+      | "force_react_upstream_error"
+      | "force_react_model_pass"
+      | "director_producer_pass";
+    transcriptTail?: string;
+    upstreamError?: string;
+  }): { text: string; idx: number } {
+    const { persona, reason, transcriptTail, upstreamError } = opts;
+    const picked = pickFallbackVariant(persona, this.lastFallbackIdx);
+    this.lastFallbackIdx.set(persona.id, picked.idx);
+    this.recentFallbacks.set(
+      persona.id,
+      (this.recentFallbacks.get(persona.id) ?? 0) + 1
+    );
+    logPipeline({
+      event: "persona_fallback_fired",
+      level: "warn",
+      personaId: persona.id,
+      data: {
+        reason,
+        personaName: persona.name,
+        fallback: picked.text,
+        variantIdx: picked.idx,
+        variantCount: (FORCE_REACT_FALLBACKS[persona.id] ?? []).length,
+        recentFallbackCount: this.recentFallbacks.get(persona.id) ?? 0,
+        transcriptTail: transcriptTail?.slice(-200) ?? null,
+        ...(upstreamError ? { upstreamError } : {}),
+      },
+    });
+    return picked;
+  }
+
+  /**
+   * Decay this persona's fallback counter by 1 (floored at 0). Called at
+   * the end of any successful non-fallback firePersona — the persona just
+   * proved they can produce real content, so their penalty should ease.
+   */
+  private decayFallback(personaId: string): void {
+    const cur = this.recentFallbacks.get(personaId) ?? 0;
+    if (cur > 0) this.recentFallbacks.set(personaId, cur - 1);
+  }
+
+  /**
+   * v1.7: read-only snapshot of the per-persona recent-fallback counters.
+   * The route threads this into Director.decide so the rule-based scorer
+   * can penalize personas who've been missing lately. Returns a plain
+   * object (not a Map) for cheap JSON serialization + logging.
+   */
+  getRecentFallbackCounts(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const [k, v] of this.recentFallbacks.entries()) out[k] = v;
+    return out;
+  }
   private get personas(): Persona[] {
     return this.pack.personas;
   }
@@ -734,12 +817,11 @@ export class PersonaEngine {
       // that case preserve what the viewer saw and let the done frame close
       // it cleanly rather than double-bubbling the fallback on top.
       if (isForceReact && !passDecided) {
-        const fallback = getForceReactFallback(persona, this.lastFallbackIdx);
-        logPipeline({
-          event: "force_react_fallback",
-          level: "warn",
-          personaId: persona.id,
-          data: { reason: "upstream_error", error: errMsg, fallback },
+        const { text: fallback } = this.emitFallback({
+          persona,
+          reason: "force_react_upstream_error",
+          transcriptTail: transcript,
+          upstreamError: errMsg,
         });
         onStream({ personaId: persona.id, text: fallback, done: false });
         onStream({ personaId: persona.id, text: "", done: true });
@@ -779,12 +861,10 @@ export class PersonaEngine {
       // director-driven fires (where the director hasn't committed to a
       // response yet); it's not fine for user-initiated taps.
       if (isForceReact) {
-        const fallback = getForceReactFallback(persona, this.lastFallbackIdx);
-        logPipeline({
-          event: "force_react_fallback",
-          level: "warn",
-          personaId: persona.id,
-          data: { reason: "model_returned_dash_pass_on_force_react", fallback },
+        const { text: fallback } = this.emitFallback({
+          persona,
+          reason: "force_react_model_pass",
+          transcriptTail: transcript,
         });
         onStream({ personaId: persona.id, text: fallback, done: false });
         onStream({ personaId: persona.id, text: "", done: true });
@@ -811,15 +891,10 @@ export class PersonaEngine {
       // animation). Only the producer has the "there's something to
       // fact-check but Haiku balked" failure mode worth rescuing.
       if (persona.id === "producer") {
-        const fallback = getForceReactFallback(persona, this.lastFallbackIdx);
-        logPipeline({
-          event: "producer_pass_safety_net",
-          level: "warn",
-          personaId: persona.id,
-          data: {
-            reason: "director_fire_producer_dash_pass",
-            fallback,
-          },
+        const { text: fallback } = this.emitFallback({
+          persona,
+          reason: "director_producer_pass",
+          transcriptTail: transcript,
         });
         onStream({ personaId: persona.id, text: fallback, done: false });
         onStream({ personaId: persona.id, text: "", done: true });
@@ -847,6 +922,11 @@ export class PersonaEngine {
 
     // Normal completion
     onStream({ personaId: persona.id, text: "", done: true });
+
+    // v1.7: persona produced real content — ease their recent-fallback
+    // penalty so the Director can bring them forward again. Paired with
+    // emitFallback's increment, the counter bounds itself within a session.
+    this.decayFallback(persona.id);
 
     const trimmed = fullResponse.trim();
     donePersona({ responseLength: trimmed.length, preview: trimmed.slice(0, 100) });
