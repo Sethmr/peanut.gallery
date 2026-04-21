@@ -28,6 +28,7 @@ import {
 } from "./personas";
 import { howardPack } from "./packs/howard";
 import type { Pack } from "./packs/types";
+import { SemanticCache, type Embedding } from "./semantic-cache";
 
 export interface PersonaResponse {
   personaId: string;
@@ -132,6 +133,16 @@ export class PersonaEngine {
   private previousResponses: Map<string, string[]> = new Map();
   private readonly MAX_PREVIOUS = 3;
 
+  /**
+   * Semantic anti-repetition cache (SET-8). Non-null only when
+   * ENABLE_SEMANTIC_ANTI_REPEAT=true and an OpenAI key is available.
+   * When set, firePersona buffers the LLM response before streaming,
+   * checks cosine similarity against the last K=5 stored embeddings,
+   * and re-rolls once if the similarity exceeds τ=0.82.
+   */
+  private semanticCache: SemanticCache | null = null;
+  private static readonly SEMANTIC_THRESHOLD = 0.82;
+
   // Unified, ordered conversation log: video transcript snapshots interleaved
   // with persona responses. Every persona sees a SMALL recent window of this
   // so they can self-check for duplication — but the TRANSCRIPT is the main
@@ -171,12 +182,31 @@ export class PersonaEngine {
      * for users who only want one key). Defaults to "brave".
      */
     searchEngine?: SearchEngine;
+    /**
+     * Optional. OpenAI API key for text-embedding-3-small. Required only when
+     * ENABLE_SEMANTIC_ANTI_REPEAT=true. Omitting it (or setting it to "")
+     * disables the semantic anti-repetition feature regardless of the flag.
+     */
+    openaiKey?: string;
   }) {
     this.anthropic = new Anthropic({ apiKey: config.anthropicKey });
     this.braveApiKey = config.braveSearchKey;
     this.xaiKey = config.xaiKey;
     this.searchEngine = config.searchEngine ?? "brave";
     this.pack = config.pack ?? howardPack;
+
+    // Semantic anti-repetition (SET-8): activate when flag + key are both present.
+    if (
+      process.env.ENABLE_SEMANTIC_ANTI_REPEAT === "true" &&
+      config.openaiKey
+    ) {
+      this.semanticCache = new SemanticCache(config.openaiKey);
+      logPipeline({
+        event: "semantic_cache_init",
+        level: "info",
+        data: { threshold: PersonaEngine.SEMANTIC_THRESHOLD },
+      });
+    }
 
     // Initialize response history for every persona in the active pack
     for (const p of this.pack.personas) {
@@ -479,6 +509,21 @@ export class PersonaEngine {
       isForceReact
     );
 
+    // ── SEMANTIC ANTI-REPETITION PATH (SET-8) ──
+    // When the semantic cache is active, buffer the full draft before streaming
+    // to the SSE client. This lets us check cosine similarity against recent
+    // responses and re-roll once if the draft is a paraphrase repeat.
+    if (this.semanticCache) {
+      await this._firePersonaBuffered(
+        persona,
+        context,
+        onStream,
+        isForceReact,
+        donePersona
+      );
+      return;
+    }
+
     let fullResponse = "";
     // PASS-DETECTION strategy: buffer the very first chunk. If the response
     // starts with a bare dash (pass signal), we drop the whole thing. Otherwise
@@ -769,6 +814,314 @@ export class PersonaEngine {
       // Be kind to the connection pool even on early termination.
       reader.releaseLock();
     }
+  }
+
+  // ──────────────────────────────────────────────────────
+  // SEMANTIC ANTI-REPETITION HELPERS (SET-8)
+  // ──────────────────────────────────────────────────────
+
+  /**
+   * Unified LLM delta generator. Yields raw text deltas from either the
+   * Claude Haiku or xAI Grok backend, depending on persona.model.
+   * Used by _collectDraft (buffered semantic path). The streaming path
+   * in firePersona keeps its own inline copy so the two paths stay
+   * independently auditable.
+   */
+  private async *_streamLLMDeltas(
+    persona: Persona,
+    context: string,
+    signal: AbortSignal
+  ): AsyncGenerator<string> {
+    const xaiModelId = (alias: Persona["model"]): string => {
+      switch (alias) {
+        case "xai-grok-4-fast":
+          return "grok-4-1-fast-non-reasoning";
+        default:
+          throw new Error(`No xAI model mapping for alias: ${alias}`);
+      }
+    };
+
+    if (persona.model === "claude-haiku") {
+      const stream = this.anthropic.messages.stream(
+        {
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 200,
+          messages: [{ role: "user", content: context }],
+        },
+        { signal }
+      );
+      for await (const event of stream) {
+        if (
+          event.type === "content_block_delta" &&
+          event.delta.type === "text_delta"
+        ) {
+          yield event.delta.text;
+        }
+      }
+    } else if (persona.model === "xai-grok-4-fast") {
+      for await (const delta of this.streamXai(
+        xaiModelId(persona.model),
+        [
+          { role: "system", content: persona.systemPrompt },
+          { role: "user", content: context },
+        ],
+        signal
+      )) {
+        yield delta;
+      }
+    } else {
+      const _exhaustive: never = persona.model;
+      throw new Error(`Unrouted persona model alias: ${String(_exhaustive)}`);
+    }
+  }
+
+  /**
+   * Run the LLM for a persona and collect the full response text.
+   * Applies the same pass-detection heuristic as the streaming path
+   * (response starting with "-" is a pass signal).
+   * Throws on upstream error — callers handle the throw.
+   */
+  private async _collectDraft(
+    persona: Persona,
+    context: string,
+    signal: AbortSignal
+  ): Promise<{ text: string; passed: boolean }> {
+    const PASS_BUFFER_CHARS = 12;
+    let fullText = "";
+    let passBuffer = "";
+    let passDecided = false;
+    let passed = false;
+
+    for await (const delta of this._streamLLMDeltas(persona, context, signal)) {
+      fullText += delta;
+      if (passed) continue;
+      if (passDecided) continue; // just accumulate the rest
+
+      passBuffer += delta;
+      if (
+        passBuffer.trim().length >= 2 ||
+        passBuffer.length >= PASS_BUFFER_CHARS
+      ) {
+        const early = passBuffer.trim();
+        if (/^-(\s|$)/.test(early) && early.length <= 3) {
+          passed = true;
+          continue;
+        }
+        passDecided = true;
+        passBuffer = "";
+      }
+    }
+
+    // Final pass decision for tiny responses
+    if (!passDecided && !passed) {
+      const finalEarly = passBuffer.trim();
+      if (/^-(\s|$)?$/.test(finalEarly) && finalEarly.length <= 2) {
+        passed = true;
+      }
+    }
+
+    return { text: fullText.trim(), passed };
+  }
+
+  /**
+   * Buffered persona fire with semantic anti-repetition (SET-8).
+   *
+   * Collects the full LLM draft, embeds it, checks cosine similarity
+   * against the per-persona ring buffer, and re-rolls once if the
+   * similarity exceeds SEMANTIC_THRESHOLD (0.82). After at most two
+   * LLM calls, emits the final response to the SSE client.
+   *
+   * Telemetry:
+   *   persona_reroll_ok        — re-roll succeeded (new response is dissimilar)
+   *   persona_reroll_exhausted — re-roll still too similar, or re-roll itself
+   *                              passed/errored; emitting anyway
+   *   semantic_embed_error     — embedding API failed; failing open (no check)
+   */
+  private async _firePersonaBuffered(
+    persona: Persona,
+    context: string,
+    onStream: StreamCallback,
+    isForceReact: boolean,
+    donePersona: (data?: Record<string, unknown>) => void
+  ): Promise<void> {
+    const STREAM_TIMEOUT_MS = 25_000;
+
+    // ── COLLECT FIRST DRAFT ──
+    let draft: { text: string; passed: boolean };
+    try {
+      draft = await this._collectDraft(
+        persona,
+        context,
+        AbortSignal.timeout(STREAM_TIMEOUT_MS)
+      );
+    } catch (streamErr) {
+      const errMsg =
+        streamErr instanceof Error ? streamErr.message : String(streamErr);
+      if (isForceReact) {
+        const fallback = getForceReactFallback(persona);
+        logPipeline({
+          event: "force_react_fallback",
+          level: "warn",
+          personaId: persona.id,
+          data: { reason: "upstream_error", error: errMsg, fallback },
+        });
+        onStream({ personaId: persona.id, text: fallback, done: false });
+        onStream({ personaId: persona.id, text: "", done: true });
+        this.storeResponse(persona.id, fallback);
+        this.conversationLog.push({
+          personaId: persona.id,
+          text: fallback,
+          timestamp: Date.now(),
+        });
+        this.trimLog();
+        donePersona({ responseLength: fallback.length, fallback: true, upstreamError: errMsg });
+        return;
+      }
+      throw streamErr;
+    }
+
+    // ── FORCE-REACT OVERRIDE OF PASS ──
+    if (draft.passed && isForceReact) {
+      const fallback = getForceReactFallback(persona);
+      logPipeline({
+        event: "force_react_fallback",
+        level: "warn",
+        personaId: persona.id,
+        data: { reason: "model_returned_dash_pass_on_force_react", fallback },
+      });
+      onStream({ personaId: persona.id, text: fallback, done: false });
+      onStream({ personaId: persona.id, text: "", done: true });
+      this.storeResponse(persona.id, fallback);
+      this.conversationLog.push({
+        personaId: persona.id,
+        text: fallback,
+        timestamp: Date.now(),
+      });
+      this.trimLog();
+      donePersona({ responseLength: fallback.length, fallback: true });
+      return;
+    }
+
+    // ── EXPLICIT PASS ──
+    if (draft.passed) {
+      logPipeline({
+        event: "persona_pass",
+        level: "info",
+        personaId: persona.id,
+        data: { reason: "explicit_dash_pass" },
+      });
+      onStream({ personaId: persona.id, text: "", done: true });
+      donePersona({ responseLength: 0, passed: true });
+      return;
+    }
+
+    if (!draft.text) {
+      onStream({ personaId: persona.id, text: "", done: true });
+      donePersona({ responseLength: 0, empty: true });
+      return;
+    }
+
+    // ── SEMANTIC SIMILARITY CHECK + OPTIONAL RE-ROLL ──
+    let finalText = draft.text;
+
+    try {
+      const embedding = await this.semanticCache!.embed(draft.text);
+      const maxSim = this.semanticCache!.maxSimilarity(persona.id, embedding);
+
+      if (maxSim > PersonaEngine.SEMANTIC_THRESHOLD) {
+        // Draft is a paraphrase repeat — re-roll once.
+        let rerollEmb: Embedding | null = null;
+        try {
+          const reroll = await this._collectDraft(
+            persona,
+            context,
+            AbortSignal.timeout(STREAM_TIMEOUT_MS)
+          );
+
+          if (!reroll.passed && reroll.text) {
+            rerollEmb = await this.semanticCache!.embed(reroll.text);
+            const rerollSim = this.semanticCache!.maxSimilarity(
+              persona.id,
+              rerollEmb
+            );
+
+            if (rerollSim > PersonaEngine.SEMANTIC_THRESHOLD) {
+              logPipeline({
+                event: "persona_reroll_exhausted",
+                level: "warn",
+                personaId: persona.id,
+                data: { originalSim: maxSim, rerollSim },
+              });
+            } else {
+              logPipeline({
+                event: "persona_reroll_ok",
+                level: "info",
+                personaId: persona.id,
+                data: { originalSim: maxSim, rerollSim },
+              });
+            }
+            // Use the re-rolled text regardless of whether it passed the threshold
+            // (if still similar, emit anyway per spec — "log exhausted and emit")
+            finalText = reroll.text;
+            this.semanticCache!.store(persona.id, rerollEmb);
+          } else {
+            // Re-roll passed ("-") or returned empty: emit original, store its embedding
+            logPipeline({
+              event: "persona_reroll_exhausted",
+              level: "warn",
+              personaId: persona.id,
+              data: {
+                originalSim: maxSim,
+                reason: reroll.passed ? "reroll_passed_with_dash" : "reroll_empty",
+              },
+            });
+            this.semanticCache!.store(persona.id, embedding);
+          }
+        } catch (rerollErr) {
+          // Re-roll LLM call failed: emit original anyway, store its embedding
+          logPipeline({
+            event: "persona_reroll_exhausted",
+            level: "warn",
+            personaId: persona.id,
+            data: {
+              originalSim: maxSim,
+              reason: "reroll_llm_error",
+              error:
+                rerollErr instanceof Error
+                  ? rerollErr.message
+                  : String(rerollErr),
+            },
+          });
+          this.semanticCache!.store(persona.id, embedding);
+        }
+      } else {
+        // Draft is sufficiently different: store and proceed
+        this.semanticCache!.store(persona.id, embedding);
+      }
+    } catch (embedErr) {
+      // Embedding API failure: fail open (skip semantic check, emit draft)
+      logPipeline({
+        event: "semantic_embed_error",
+        level: "warn",
+        personaId: persona.id,
+        data: {
+          error:
+            embedErr instanceof Error ? embedErr.message : String(embedErr),
+        },
+      });
+    }
+
+    // ── EMIT FINAL RESPONSE ──
+    onStream({ personaId: persona.id, text: finalText, done: false });
+    onStream({ personaId: persona.id, text: "", done: true });
+    this.storeResponse(persona.id, finalText);
+    this.conversationLog.push({
+      personaId: persona.id,
+      text: finalText,
+      timestamp: Date.now(),
+    });
+    this.trimLog();
+    donePersona({ responseLength: finalText.length, preview: finalText.slice(0, 100) });
   }
 
   private storeResponse(personaId: string, response: string): void {

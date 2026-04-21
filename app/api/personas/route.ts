@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
     xaiKey: xaiKey || "",
     searchEngine,
     pack: resolvedPack,
+    openaiKey: process.env.OPENAI_API_KEY || "",
   });
 
   const encoder = new TextEncoder();

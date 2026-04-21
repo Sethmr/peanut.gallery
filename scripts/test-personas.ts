@@ -112,3 +112,71 @@ run().catch((err) => {
   console.error(`\n❌ Error: ${err.message}`);
   process.exit(1);
 });
+
+// ─── SEMANTIC ANTI-REPETITION SHADOW TEST ────────────────────────────────────
+//
+// Usage:
+//   ENABLE_SEMANTIC_ANTI_REPEAT=true OPENAI_API_KEY=sk-... \
+//     npx tsx scripts/test-personas.ts --semantic-test
+//
+// Fires the Troll persona 4× against the same transcript. With a well-tuned
+// threshold (τ=0.82), consecutive nearly-identical takes should trigger
+// persona_reroll_ok / persona_reroll_exhausted log lines in
+// logs/pipeline-debug.jsonl. This shadow run validates the telemetry fires
+// without needing a live session.
+// ─────────────────────────────────────────────────────────────────────────────
+if (process.argv.includes("--semantic-test")) {
+  (async () => {
+    const openaiKey = process.env.OPENAI_API_KEY;
+    if (!openaiKey) {
+      console.error("❌ --semantic-test requires OPENAI_API_KEY");
+      process.exit(1);
+    }
+    if (process.env.ENABLE_SEMANTIC_ANTI_REPEAT !== "true") {
+      console.warn(
+        "⚠️  ENABLE_SEMANTIC_ANTI_REPEAT is not set to true — semantic check will be skipped.\n" +
+          "   Set it to observe reroll telemetry: ENABLE_SEMANTIC_ANTI_REPEAT=true"
+      );
+    }
+
+    console.log("\n🔬 Semantic anti-repetition shadow test");
+    console.log("─".repeat(60));
+    console.log("Firing Troll 4× against the same transcript.");
+    console.log(
+      "Watch logs/pipeline-debug.jsonl for persona_reroll_ok / persona_reroll_exhausted.\n"
+    );
+
+    const semanticEngine = new PersonaEngine({
+      anthropicKey: anthropicKey || "",
+      braveSearchKey: braveKey || "",
+      xaiKey: xaiKey || "",
+      searchEngine,
+      openaiKey,
+    });
+
+    const REPEAT_TRANSCRIPT = `
+Jason Calacanis: I'll say it again — AI wrappers are getting funded at insane valuations.
+The Series A market is completely broken. Zero path to profitability, 50x revenue multiples.
+It reminds me of 2021. This is absolute madness.
+`.trim();
+
+    for (let round = 1; round <= 4; round++) {
+      console.log(`\nRound ${round}/4:`);
+      let response = "";
+      await semanticEngine.fireSingle("troll", REPEAT_TRANSCRIPT, (r) => {
+        if (!r.done) response += r.text;
+        if (r.done && response.trim()) {
+          const trollPersona = personas.find((p) => p.id === "troll");
+          console.log(`  ${trollPersona?.emoji ?? "🧌"} Troll: ${response.trim()}`);
+        }
+      });
+    }
+
+    console.log(
+      "\n✅ Shadow run done. Check logs/pipeline-debug.jsonl for semantic telemetry.\n"
+    );
+  })().catch((err) => {
+    console.error(`\n❌ Semantic test error: ${err.message}`);
+    process.exit(1);
+  });
+}

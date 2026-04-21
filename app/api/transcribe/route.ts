@@ -284,6 +284,9 @@ export async function POST(req: NextRequest) {
     // valid Pack). Engine internally falls back to Howard if pack is unset,
     // so this is also the "self-documenting" seam.
     pack: resolvedPack,
+    // Semantic anti-repetition (SET-8). Only active when
+    // ENABLE_SEMANTIC_ANTI_REPEAT=true; key is ignored otherwise.
+    openaiKey: process.env.OPENAI_API_KEY || "",
   });
 
   const director = new Director();
