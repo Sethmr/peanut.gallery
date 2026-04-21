@@ -848,8 +848,17 @@ if (manageSubBtn) manageSubBtn.addEventListener("click", () => requestSubscripti
 if (recoverSubBtn) recoverSubBtn.addEventListener("click", () => requestSubscriptionManage("recover_key"));
 
 // Keep the "use with" visibility in sync with BYOK filling state.
-for (const input of [deepgramKeyInput, anthropicKeyInput, xaiKeyInput]) {
-  input?.addEventListener("input", () => refreshPlusUseWithVisibility());
+//
+// TDZ NOTE: the BYOK inputs (deepgramKeyInput / anthropicKeyInput /
+// xaiKeyInput) are declared via `const` several hundred lines below
+// this block (see "DOM refs" section). Referencing those bindings
+// directly here throws a ReferenceError from the temporal dead
+// zone, which halts the whole script — every click handler past
+// this point fails to attach. Fix: reach through the DOM by id so
+// we don't touch the `const` bindings. Same effect; no TDZ.
+for (const id of ["deepgramKey", "anthropicKey", "xaiKey"]) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener("input", () => refreshPlusUseWithVisibility());
 }
 
 /** Load backend-mode + subscription state from storage on init. */
