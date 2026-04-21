@@ -26,6 +26,25 @@ Your behavior inside the rubric is identical regardless of trigger: same authori
 
 ---
 
+## What happens after kickoff (daemon path)
+
+After kickoff-Claude exits 0 with commits on the feature branch, the daemon — **not** you — runs this sequence. Knowing the order matters because it shapes what you should (and shouldn't) do before exiting.
+
+1. **Rebase onto latest `origin/develop`.** The daemon runs `git fetch origin develop` then `git rebase origin/develop` inside the worktree. This ensures CI on the PR runs against a branch that's a strict ancestor-plus-delta of `develop` — otherwise an unrelated PR merging between branch-off and kickoff-finish could leave us auto-merging a stale green signal.
+   - **If rebase conflicts:** the daemon aborts the rebase (`git rebase --abort`), logs a structured `rebase_failed` event, leaves the worktree in place for Seth to inspect, and does **not** push or open a PR. Seth either resolves manually or resets the ticket.
+2. **Push the feature branch** with `--force-with-lease` (not `--force`). The lease means if anyone else has pushed to `claude/*` in the meantime, the push fails loudly rather than clobbering their work. In practice nobody else touches `claude/*` branches.
+3. **Open a PR** against `develop` via `gh pr create`.
+4. **Enable GitHub auto-merge** via `gh pr merge <N> --auto --squash --delete-branch`. With `--auto`, the PR self-merges on develop the moment required CI checks go green. `--delete-branch` cleans up the remote branch on merge.
+   - **Opt-out:** if the Linear issue carries the `needs-review` label (case-insensitive), the daemon skips the `gh pr merge --auto` step — the PR opens and waits for Seth's manual merge. Use this label for changes that need app-testing, visual QA, or any human-in-the-loop review before landing.
+
+What this means for you as kickoff-Claude:
+
+- **Do not rebase, push, or open the PR yourself.** The daemon handles all three.
+- **Don't try to influence auto-merge.** The daemon reads the Linear issue's labels directly — your commits don't control it. If Seth wants a manual-review fire, he sets `needs-review` on the Linear ticket before dragging it to Todo.
+- **If your commits genuinely need Seth's eyes** (e.g. a tricky UX change that only reveals its quality in-browser), append a note to `/tmp/pr-body.md` flagging it. Seth can still intercept a PR between open and auto-merge-completes by adding `needs-review` after the fact and removing the auto-merge bit, but the safer path is for Seth to pre-label.
+
+---
+
 ## Trigger semantics (legacy — webhook path)
 
 The webhook at [`app/api/linear-webhook/route.ts`](../app/api/linear-webhook/route.ts) keys the kickoff trigger on Linear's **state transitions**, not on label presence. Specifically:
@@ -35,6 +54,8 @@ The webhook at [`app/api/linear-webhook/route.ts`](../app/api/linear-webhook/rou
   - `action === "update"` AND `data.state.type === "unstarted"` AND `updatedFrom.stateId` exists (ticket moved to Todo from another state).
 - **Secondary (legacy) trigger — `claude:go` label.** Kept so users who staged the label in Backlog or Triage pre-research can still fire the pipeline without the state transition. `(unstarted_transition || has_claude_go_label)` is the OR gate.
 - **Opt-out — `claude:skip` label.** If present, the webhook short-circuits and never dispatches. Use this on tickets in the "Todo" column that you don't want Claude to pick up.
+- **Model elevation — `needs-opus` label.** Bumps kickoff-Claude from Sonnet 4.6 / 20 turns to Opus 4.7 / 40 turns. See "Model + turn budget" above.
+- **Auto-merge opt-out — `needs-review` label.** Daemon path only. The daemon normally enables GitHub auto-merge on the PR it opens so it self-merges on CI green; this label tells the daemon to open the PR **without** auto-merge so Seth can review manually. Use for changes that need app-testing. See "What happens after kickoff (daemon path)" above.
 
 **Why key on `state.type` (and not `state.name`):** Linear's state `.type` is a schema-fixed enum (`triage | backlog | unstarted | started | completed | canceled`); state `.name` is workspace-configurable. Keying on `.type` survives column renames.
 
