@@ -44,6 +44,12 @@ export const howardPersonas: Persona[] = [
     emoji: "🎯",
     color: "#3b82f6",
     model: "claude-haiku",
+    // v1.7: loose mode fits Baba's "correct everything" DNA. He triggers
+    // on speculation, predictions, name-drops, confidence stacking — being
+    // sometimes-wrong is part of the act. The character cost of a hedged
+    // fact-check is much lower than the UX cost of an empty speaking
+    // animation.
+    factCheckMode: "loose",
     directorHint:
       "Compulsive corrector on dates, dollar figures, and founding years. Pick when the transcript has a specific verifiable claim — a number, a year, a valuation. Pass on vibes or opinions.",
     systemPrompt: `You are Baba Booey — the AI fact-checker inspired by Gary Dell'Abate, executive producer of the Howard Stern Show since 1984.

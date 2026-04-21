@@ -1,0 +1,20 @@
+{
+  "name": "producer-soft-gate-dry-spell",
+  "description": "v1.7 — Director soft-gates producer when no verifiable claim is in the transcript (PRODUCER_NO_CLAIM_PENALTY). The penalty is NOT a veto: seeded with 8 cycles of silence for producer, the dry-spell boost (0.8 × 8 = 6.4, capped at 6) still makes producer competitive. Transcript is pure filler with no claim. Assertion: producer still fires on enough runs (mustFireRatio 0.6) because the dry-spell wins over the penalty — the soft-gate preserves character balance, it doesn't silence the slot.",
+  "pack": "howard",
+  "initialState": {
+    "cyclesSinceFire": { "producer": 8, "troll": 0, "soundfx": 0, "joker": 0 }
+  },
+  "input": {
+    "transcript": "Yeah so anyway. The meeting went on for a while. We talked about some stuff. It was fine."
+  },
+  "assertions": {
+    "mustFirePersona": "producer",
+    "mustFireRatio": 0.6,
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true
+  }
+}

@@ -24,6 +24,7 @@
  */
 
 import { logPipeline } from "./debug-logger";
+import { buildFactHint, type FactHint, type FactCheckMode } from "./claim-detector";
 
 // ──────────────────────────────────────────────────────
 // PERSONA CONTENT PATTERNS
@@ -161,6 +162,16 @@ const DRY_SPELL_CAP = 6; // max boost, so one persona doesn't dominate forever
 // in a while — the Troll should be the show's pressure valve.
 const TROLL_CASCADE_FLOOR = 0.75;
 
+// v1.7: when the claim-detector says "no verifiable claim in this tick's
+// transcript," the producer's rule-based score gets knocked down by this
+// amount. It's a soft penalty, not a veto — dry-spell boost + cascade
+// rolls + LLM routing can still bring the producer forward, which
+// preserves the character balance Seth wants. Tuned so a steady drumbeat
+// of non-factual transcript still lets the producer fire on dry-spell
+// tiebreakers (score ~ 2 after penalty) but loses most head-to-heads
+// against a real content-match on another slot.
+const PRODUCER_NO_CLAIM_PENALTY = 3;
+
 // ──────────────────────────────────────────────────────
 // TYPES
 // ──────────────────────────────────────────────────────
@@ -198,6 +209,18 @@ export interface TriggerDecision {
    * compute an agreement rate across ticks.
    */
   rulePrimary?: string;
+  /**
+   * v1.7: fact-check hint computed on this tick's transcript using the
+   * active pack's producer `factCheckMode`. Threaded through the route
+   * into the persona engine so the producer's fire starts from the
+   * exact sentence the Director spotted — no redundant re-extraction,
+   * and Baba's fact-check is guaranteed to have SOMETHING concrete to
+   * anchor to (no more empty speaking animations when Haiku passes with
+   * "-" because the local claim-extractor found nothing). When the hint
+   * says `hasClaim: false` the producer's score is penalized but not
+   * vetoed — dry-spell / cascade / LLM path still balance characters.
+   */
+  factHint?: FactHint;
 }
 
 /**
@@ -229,6 +252,13 @@ export interface DecideOptions {
     rationale: string;
     callbackUsed?: string | null;
   } | null;
+  /**
+   * v1.7: sensitivity mode for the claim-detector. Pulled from the active
+   * pack's producer persona (`persona.factCheckMode`). Defaults to
+   * `"strict"` when omitted — back-compat with pre-v1.7 call sites.
+   * Only the producer persona cares about this field; other slots ignore it.
+   */
+  producerFactCheckMode?: FactCheckMode;
 }
 
 // ──────────────────────────────────────────────────────
@@ -441,11 +471,33 @@ export class Director {
 
     const personaIds = Object.keys(PERSONA_PATTERNS);
 
+    // v1.7: compute the fact-check hint for this tick. The hint feeds two
+    // downstream consumers:
+    //   1. Score penalty on producer when hasClaim is false (below) — soft
+    //      gate, not a veto. Dry-spell / cascade / LLM routing can still
+    //      surface the producer when the Director pattern-matching is soft.
+    //   2. TriggerDecision.factHint — the route threads this to the persona
+    //      engine so the producer's search is pre-seeded with the Director's
+    //      sentence (no double-extraction, no drift between what the
+    //      Director saw and what Baba searches for).
+    const factMode: FactCheckMode = opts?.producerFactCheckMode ?? "strict";
+    const factHint = buildFactHint(recentTranscript, factMode);
+
     // Score each persona
     const scores = personaIds.map((id) => ({
       id,
       score: this.scoreForPersona(recentTranscript, id),
     }));
+
+    // v1.7: soft-gate producer on claim presence. Applied AFTER the base
+    // score so dry-spell boost + pattern hits can still lift the producer
+    // into contention even on a low-claim tick.
+    if (!factHint.hasClaim) {
+      const producerEntry = scores.find((s) => s.id === "producer");
+      if (producerEntry) {
+        producerEntry.score -= PRODUCER_NO_CLAIM_PENALTY;
+      }
+    }
 
     // Sort by score (highest first), with random tiebreaking
     scores.sort((a, b) => {
@@ -634,6 +686,7 @@ export class Director {
       cooldownsMs,
       source,
       rulePrimary,
+      factHint,
     };
   }
 }

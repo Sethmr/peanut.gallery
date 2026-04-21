@@ -57,6 +57,24 @@ export interface Persona {
    * from the role string alone.
    */
   directorHint?: string;
+  /**
+   * v1.7: Fact-check sensitivity mode. Only meaningful on the `producer`
+   * slot; other slots ignore it. Declared per-pack so different producers
+   * can have different personalities:
+   *
+   * - `"loose"` — Howard's Baba Booey default. Triggers on speculation,
+   *   predictions, "everyone knows" claims, name-drops, and soft
+   *   confidence cues. Character IS over-correction; wrong fact-checks
+   *   are fine as long as the speaking animation always lands with
+   *   content.
+   * - `"strict"` — TWiST's Molly Wood default. Veteran journalist: only
+   *   triggers on hard, sourceable claims (numbers, dates, attributions,
+   *   corporate actions). Stays quiet on soft content.
+   *
+   * Defaults to `"strict"` when omitted — back-compat for pre-v1.7 packs
+   * and non-producer personas (where the field has no effect).
+   */
+  factCheckMode?: "strict" | "loose";
 }
 
 export interface OtherPersonaResponse {

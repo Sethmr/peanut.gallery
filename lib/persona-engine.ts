@@ -73,21 +73,10 @@ function getForceReactFallback(persona: Persona): string {
   return FORCE_REACT_FALLBACKS[persona.id] ?? `[${persona.name} is still thinking.]`;
 }
 
-// Patterns that indicate a verifiable factual claim
-const CLAIM_PATTERNS = [
-  // Numbers, dates, statistics
-  /(?:founded|started|launched|created|began)\s+(?:in|around)\s+\d{4}/i,
-  /\$[\d.,]+\s*(?:billion|million|thousand|[BMK])/i,
-  /\d+[\d.,]*\s*(?:percent|%|billion|million|thousand|users|employees|customers)/i,
-  // Attributions and quotes
-  /(?:said|claimed|announced|reported|according to)\s/i,
-  // Comparisons and rankings
-  /(?:largest|biggest|first|fastest|most|only|world's|best)\s/i,
-  // Company/product facts
-  /(?:acquired|merged|IPO|went public|valuation|revenue|profit|raised)\s/i,
-  // Specific fact claims
-  /(?:is worth|was worth|valued at|market cap|founded by|CEO of|invented|created by)/i,
-];
+// Claim-detector patterns + scoring now live in lib/claim-detector.ts so the
+// Director and the persona engine agree on "is this text fact-checkable?"
+// See the claim-detector module for the regex set.
+import { extractTopClaims, type ScoredClaim, type FactHint } from "./claim-detector";
 
 /**
  * Which search backend to use for Producer fact-checking. User-selectable per
@@ -302,7 +291,17 @@ export class PersonaEngine {
     onStream: StreamCallback,
     isSilence = false,
     cascadeFrom?: { personaId: string; name: string; emoji: string; text: string },
-    isForceReact = false
+    isForceReact = false,
+    /**
+     * v1.7: Pre-extracted verifiable claims from the Director (factHint).
+     * When present and the persona is the producer, skips the local
+     * re-extraction and searches the Director's sentences directly. This
+     * guarantees Baba Booey is fact-checking the same claim the Director
+     * saw, not a different sentence the re-extractor happened to rank
+     * higher on a second pass. When absent, fetchSearchResults falls back
+     * to its local extraction (unchanged pre-v1.7 behavior).
+     */
+    preExtractedClaims?: ScoredClaim[]
   ): Promise<string> {
     const persona = this.personas.find((p) => p.id === personaId);
     if (!persona) {
@@ -367,7 +366,7 @@ export class PersonaEngine {
           data: { reason: "force_react", engine: this.searchEngine },
         });
       } else {
-        searchResults = await this.fetchSearchResults(transcript);
+        searchResults = await this.fetchSearchResults(transcript, preExtractedClaims);
       }
     }
 
@@ -719,6 +718,41 @@ export class PersonaEngine {
         return;
       }
 
+      // v1.7: producer safety net on director-driven fires. Seth's rule
+      // "I never want a failed animation": if the Director committed to
+      // the producer slot, the side panel is already showing Baba's
+      // speaking indicator. A bare "-" pass leaves the animation
+      // painting over nothing. Force-react has had this protection since
+      // v1.4; extending it to any director-driven producer fire closes
+      // the last path that could produce an empty bubble for the fact-
+      // checker. Other slots keep the pass-is-fine behaviour — the
+      // viewer can tell when the troll/joker/sfx stays silent (no
+      // animation). Only the producer has the "there's something to
+      // fact-check but Haiku balked" failure mode worth rescuing.
+      if (persona.id === "producer") {
+        const fallback = getForceReactFallback(persona);
+        logPipeline({
+          event: "producer_pass_safety_net",
+          level: "warn",
+          personaId: persona.id,
+          data: {
+            reason: "director_fire_producer_dash_pass",
+            fallback,
+          },
+        });
+        onStream({ personaId: persona.id, text: fallback, done: false });
+        onStream({ personaId: persona.id, text: "", done: true });
+        this.storeResponse(persona.id, fallback);
+        this.conversationLog.push({
+          personaId: persona.id,
+          text: fallback,
+          timestamp: Date.now(),
+        });
+        this.trimLog();
+        donePersona({ responseLength: fallback.length, fallback: true });
+        return;
+      }
+
       logPipeline({
         event: "persona_pass",
         level: "info",
@@ -914,7 +948,8 @@ export class PersonaEngine {
    * Returns formatted search results for the Producer to cross-reference.
    */
   private async fetchSearchResults(
-    transcript: string
+    transcript: string,
+    preExtracted?: ScoredClaim[]
   ): Promise<string | undefined> {
     // Route on the session's configured search engine. Both branches share
     // the same claim-extraction logic — they differ only in how the actual
@@ -935,56 +970,29 @@ export class PersonaEngine {
       // Focus on the most recent portion of the transcript
       const recentText = transcript.slice(-1500);
 
-      // Split into sentences
-      const sentences = recentText
-        .split(/(?<=[.!?])\s+/)
-        .map((s) => s.trim())
-        .filter((s) => s.length > 15);
+      // Claim extraction is shared with the Director now (lib/claim-detector.ts).
+      // If the caller handed us a pre-extracted top claim (via the Director's
+      // factHint), use that directly — saves a redundant scan AND guarantees
+      // the sentence the Director saw is the same one we search against.
+      // Fall back to local extraction when no hint is present (e.g. force-react,
+      // v2-path, older call sites).
+      const topClaims: ScoredClaim[] = preExtracted && preExtracted.length > 0
+        ? preExtracted.slice(0, 3)
+        : extractTopClaims(recentText, { limit: 3 });
 
-      if (sentences.length === 0) {
-        logPipeline({
-          event: "search_no_claims_detected",
-          level: "info",
-          data: { reason: "no_sentences", engine, transcriptLength: transcript.length },
-        });
-        return undefined;
-      }
-
-      // Score each sentence by how likely it is to contain a verifiable claim
-      const scoredClaims = sentences
-        .map((sentence) => {
-          let score = 0;
-          for (const pattern of CLAIM_PATTERNS) {
-            if (pattern.test(sentence)) score++;
-          }
-          // Bonus for sentences with specific numbers
-          const numberMatches = sentence.match(/\d+/g);
-          if (numberMatches) score += Math.min(numberMatches.length, 2);
-          // Bonus for proper nouns (capitalized words mid-sentence)
-          const properNouns = sentence.match(/\s[A-Z][a-z]+/g);
-          if (properNouns) score += Math.min(properNouns.length, 2);
-
-          return { sentence, score };
-        })
-        .filter((c) => c.score > 0)
-        .sort((a, b) => b.score - a.score);
-
-      if (scoredClaims.length === 0) {
+      if (topClaims.length === 0) {
         // This is a value-reducing branch: Baba fires without search context
         // because our claim-extraction heuristics flagged nothing. If this
-        // fires too often, the CLAIM_PATTERNS regex set probably needs a
-        // new rule (common in new domains — see how many TWiST episodes
-        // lean on startup-speak the old Howard patterns never caught).
+        // fires too often, CLAIM_PATTERNS in lib/claim-detector.ts probably
+        // needs a new rule (common in new domains — see how many TWiST
+        // episodes lean on startup-speak the old Howard patterns never caught).
         logPipeline({
           event: "search_no_claims_detected",
           level: "info",
-          data: { reason: "no_claims_scored", engine, sentenceCount: sentences.length },
+          data: { reason: "no_claims_scored", engine, transcriptLength: recentText.length },
         });
         return undefined;
       }
-
-      // Take top 2-3 claims and search in parallel
-      const topClaims = scoredClaims.slice(0, 3);
 
       const searchTasks = topClaims.map(async ({ sentence }) => {
         const query = this.buildSearchQuery(sentence);

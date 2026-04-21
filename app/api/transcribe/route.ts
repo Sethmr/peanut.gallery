@@ -766,6 +766,16 @@ export async function POST(req: NextRequest) {
             }
             llmElapsedMs = Date.now() - llmStart;
           }
+          // v1.7: read the active pack's producer sensitivity mode.
+          // Howard's Baba uses "loose" (triggers on speculation + confidence
+          // cues + name-drops); TWiST's Molly uses "strict" (hard claims
+          // only). Defaults to "strict" if the pack doesn't declare one.
+          const producerPersona = session.resolvedPack.personas.find(
+            (p) => p.id === "producer"
+          );
+          const producerFactCheckMode =
+            producerPersona?.factCheckMode === "loose" ? "loose" : "strict";
+
           const decision = director.decide(
             directorInput,
             isSilenceTick,
@@ -779,6 +789,7 @@ export async function POST(req: NextRequest) {
                     callbackUsed: llmPickV2.callbackUsed,
                   }
                 : null,
+              producerFactCheckMode,
             }
           );
 
@@ -1029,12 +1040,28 @@ export async function POST(req: NextRequest) {
                 })()
               : undefined;
 
+            // v1.7: hand the producer persona the Director's pre-extracted
+            // top claims so Baba's fact-check anchors on exactly the
+            // sentence the Director saw. The helper inside fireSingle
+            // re-scans only when this is undefined (non-producer personas
+            // ignore the arg). Guarantees the "animates then doesn't
+            // speak" bug can't be caused by claim-extractor drift between
+            // Director and persona engine.
+            const producerClaims =
+              personaId === "producer" &&
+              decision.factHint?.topClaims &&
+              decision.factHint.topClaims.length > 0
+                ? decision.factHint.topClaims
+                : undefined;
+
             const response = await personaEngine.fireSingle(
               personaId,
               transcript,
               streamCallback,
               isSilenceTick,
-              cascadeFrom
+              cascadeFrom,
+              /*isForceReact*/ false,
+              producerClaims
             );
 
             lastResponse = response;
