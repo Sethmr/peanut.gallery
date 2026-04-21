@@ -32,6 +32,7 @@ import { pickPersonaGroqV3 } from "@/lib/director-llm-v3-groq-v3prompt";
 import {
   pickPersonaLLMv2,
   applyStickyPenalty,
+  computeUnstableTailLen,
   type LlmRoutingPickV2,
 } from "@/lib/director-llm-v2";
 import { personas } from "@/lib/personas";
@@ -110,6 +111,15 @@ interface Session {
    * can both fire for the same session; we only want to record usage once.
    */
   charged: boolean;
+  /**
+   * v1.7 (SET-7): the directorInput string from the previous Director
+   * tick in this session. Used to compute how many chars of the current
+   * tick's input are "new" (unstable tail). `null` on the first tick —
+   * nothing stable yet, so the tail comparison returns current.length
+   * and the router handles the first-tick case like a silence tick
+   * cousin.
+   */
+  previousDirectorInput: string | null;
 }
 
 // Active sessions (keyed by session ID)
@@ -303,6 +313,11 @@ export async function POST(req: NextRequest) {
     startedAt: Date.now(),
     chargeableInstallId,
     charged: false,
+    // v1.7 (SET-7): empty on first tick — computeUnstableTailLen reports
+    // current.length back, which the prompt builder renders as the whole
+    // transcript marked unstable. That's intentional: the first tick has
+    // no stability anchor, so let the model be cautious.
+    previousDirectorInput: null,
   };
   sessions.set(sessionId, session);
 
@@ -574,6 +589,14 @@ export async function POST(req: NextRequest) {
           // only decides WHO leads this tick, not whether/how the cascade
           // rolls.
           const directorInput = recentTranscript || transcript.slice(-500);
+          // v1.7 (SET-7): how many chars of this tick's input are NEW since
+          // the previous tick. Threaded into pickPersonaLLMv2 + both v3
+          // shadow providers via `unstableTailLen`. Updated at end of
+          // this block so the next tick sees this tick's input as prior.
+          const unstableTailLen = computeUnstableTailLen(
+            directorInput,
+            session.previousDirectorInput ?? ""
+          );
           let llmPick: LlmRoutingPick | null = null;
           let llmPickV2: LlmRoutingPickV2 | null = null;
           let llmElapsedMs: number | null = null;
@@ -661,6 +684,7 @@ export async function POST(req: NextRequest) {
                   cooldownsMs: director.getCooldownsMs(),
                   packPersonas: session.resolvedPack.personas,
                   liveCallbacks: director.getLiveCallbacks(),
+                  unstableTailLen,
                   groqKey: groqKey!,
                   signal: AbortSignal.timeout(2000),
                   sessionId,
@@ -681,6 +705,7 @@ export async function POST(req: NextRequest) {
                   cooldownsMs: director.getCooldownsMs(),
                   packPersonas: session.resolvedPack.personas,
                   liveCallbacks: director.getLiveCallbacks(),
+                  unstableTailLen,
                   cerebrasKey: cerebrasKey!,
                   signal: AbortSignal.timeout(2000),
                   sessionId,
@@ -697,6 +722,7 @@ export async function POST(req: NextRequest) {
                 cooldownsMs: director.getCooldownsMs(),
                 packPersonas: session.resolvedPack.personas,
                 liveCallbacks: director.getLiveCallbacks(),
+                unstableTailLen,
                 anthropicKey: anthropicKey!,
                 signal: AbortSignal.timeout(LLM_BUDGET_MS),
                 sessionId,
@@ -756,6 +782,12 @@ export async function POST(req: NextRequest) {
             }
           );
 
+          // SET-7: stamp this tick's input as the "previous" for the next
+          // tick's unstable-tail computation. Done AFTER the decision lands
+          // so any in-flight shadow calls still see the old previous when
+          // they inspect session state (they don't, but safer this way).
+          session.previousDirectorInput = directorInput;
+
           // v1.5: canary telemetry. One structured event per tick when the
           // Smart Director is on — enough to roll up agreement rate, latency
           // distribution, and how often the LLM actually overrode the rules.
@@ -793,6 +825,12 @@ export async function POST(req: NextRequest) {
               confidence: llmPickV2?.confidence ?? null,
               callbackUsed: llmPickV2?.callbackUsed ?? null,
               silentPicked: decision.source === "silent-llm",
+              // SET-7: how many chars of this tick's input were NEW since
+              // the previous tick. Canary analyzer reads this to correlate
+              // tail size with SILENT pick rate (validate: bigger tail →
+              // higher silent rate when the tail dominates the signal).
+              unstableTailLen,
+              directorInputLen: directorInput.length,
             });
           }
 

@@ -12,7 +12,11 @@
  * router would be silently biased — these are the cheap tripwires.
  */
 
-import { applyStickyPenalty, type ConfidenceVectorV2 } from "../lib/director-llm-v2";
+import {
+  applyStickyPenalty,
+  computeUnstableTailLen,
+  type ConfidenceVectorV2,
+} from "../lib/director-llm-v2";
 
 let passed = 0;
 let failed = 0;
@@ -113,6 +117,65 @@ function vecSumsToOne(v: ConfidenceVectorV2): boolean {
     "most-recent speaker penalized harder than older one"
   );
 }
+
+// ─── SET-7: computeUnstableTailLen ───
+//
+// Finds the longest suffix of `previous` that's also a prefix of `current`,
+// then returns how many chars of `current` are past that overlap. This is
+// the sliding-window-friendly model: Deepgram's transcripts grow from the
+// tail, and the Director's slice(-500) clips the head, so straight prefix
+// matching wouldn't work across a window boundary.
+
+// Empty previous → everything in current is unstable (first tick case).
+assert(
+  computeUnstableTailLen("hello world", "") === "hello world".length,
+  "SET-7: empty previous returns full current length"
+);
+
+// Empty current → zero (nothing unstable when nothing exists).
+assert(
+  computeUnstableTailLen("", "anything") === 0,
+  "SET-7: empty current returns 0"
+);
+
+// Pure prefix growth (the common Deepgram case — current = previous + new).
+assert(
+  computeUnstableTailLen("hello world and more", "hello world") === " and more".length,
+  "SET-7: pure prefix growth returns suffix length"
+);
+
+// Fully stable — current === previous.
+assert(
+  computeUnstableTailLen("hello world", "hello world") === 0,
+  "SET-7: identical strings return 0 (fully stable)"
+);
+
+// Sliding window — prev got its head clipped, current keeps growing.
+// previous = "are you doing today"; current = "you doing today and more"
+// Longest suffix of prev that's prefix of current = "you doing today" (15 chars).
+// Unstable tail = " and more" (9 chars).
+{
+  const prev = "are you doing today";
+  const curr = "you doing today and more";
+  const expected = " and more".length;
+  assert(
+    computeUnstableTailLen(curr, prev) === expected,
+    `SET-7: sliding window case returns ${expected}`
+  );
+}
+
+// No overlap at all — transcripts fully diverged (rare, e.g. session reset).
+// Longest matching suffix-of-prev ∩ prefix-of-current = "" → full current is unstable.
+assert(
+  computeUnstableTailLen("completely new content", "nothing in common here") === "completely new content".length,
+  "SET-7: no overlap falls back to current.length"
+);
+
+// One-char overlap pathological case.
+assert(
+  computeUnstableTailLen("o world", "hello") === "o world".length - 1,
+  "SET-7: minimal suffix overlap handled"
+);
 
 console.log();
 console.log(`${passed}/${passed + failed} unit tests passed`);

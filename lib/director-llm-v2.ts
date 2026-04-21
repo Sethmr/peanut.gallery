@@ -122,6 +122,21 @@ export interface PickPersonaCtxV2 {
    * Up to 3 surfaced to the model; more are silently ignored.
    */
   liveCallbacks?: string[];
+  /**
+   * v1.7 (SET-7): number of characters at the tail of `recentTranscript`
+   * that are NEW since the previous Director tick. Flagged as
+   * "tentative" in the prompt so the router can downweight signals
+   * found only in the brand-new tail — the #1 TRP-misfire pattern is
+   * reacting to a half-formed claim the speaker is still finishing.
+   *
+   * The caller computes this via `computeUnstableTailLen(current,
+   * previous)` and passes the session's prior tick's recentTranscript.
+   * 0 means "everything is stable" (common on recorded streams where
+   * final chunks arrive atomically); the tail rule then adds no
+   * pressure. The router's behaviour is backward-compatible when the
+   * field is omitted.
+   */
+  unstableTailLen?: number;
   /** Anthropic API key. */
   anthropicKey: string;
   /** AbortSignal — caller races this against a 400ms timeout. */
@@ -301,6 +316,7 @@ Evaluate these signals in order:
    - Another participant directly addressed by name
    - Post-punchline moment (1–3 beats to breathe)
    - Content-free filler agreement ("Yeah, exactly.")
+   - The only potentially-reactable signal lives inside a "[[ UNSTABLE TAIL ]]" marker. That text has been in the transcript for exactly one tick — the speaker may finish it differently, or the ASR may revise it, or they may immediately self-correct. If removing the unstable tail leaves no signal worth reacting to, prefer SILENT and let the next tick confirm.
 
 3. CONFIDENCE
    Report HONEST specialty match across all 5 slots. Do NOT self-penalize recent speakers — an external sticky-agent penalty handles that deterministically after your response.
@@ -335,6 +351,38 @@ export interface RoutingPromptCtxV2 {
   cooldownsMs: Record<string, number>;
   packPersonas: Persona[];
   liveCallbacks?: string[];
+  /**
+   * v1.7 (SET-7): number of tail chars in `recentTranscript` that are
+   * new since the previous tick. Rendered visually in the prompt as a
+   * `[[ UNSTABLE TAIL ]]` marker so the router can treat those tokens as
+   * tentative. See PickPersonaCtxV2.unstableTailLen for context.
+   */
+  unstableTailLen?: number;
+}
+
+/**
+ * v1.7 (SET-7): compute how many characters of `current` are NEW since
+ * `previous`. The implementation finds the longest suffix of `previous`
+ * that's also a prefix of `current` — a sliding-window friendly model
+ * that handles Deepgram's growing final-text windows correctly even when
+ * the Director's slice(-500) clips the earlier history.
+ *
+ * Returns 0 when current is fully contained in previous (transcript went
+ * quiet); returns current.length when there's no overlap (first tick, or
+ * the ASR threw away its hypothesis). O((min(n,m))^2) worst-case char
+ * comparison, which for <=500-char windows is ~sub-millisecond.
+ */
+export function computeUnstableTailLen(current: string, previous: string): number {
+  if (!current) return 0;
+  if (!previous) return current.length;
+  const maxOverlap = Math.min(current.length, previous.length);
+  for (let k = maxOverlap; k > 0; k--) {
+    const suf = previous.slice(previous.length - k);
+    if (current.startsWith(suf)) {
+      return current.length - k;
+    }
+  }
+  return current.length;
 }
 
 function shuffled<T>(arr: readonly T[]): T[] {
@@ -349,8 +397,22 @@ function shuffled<T>(arr: readonly T[]): T[] {
 export function buildRoutingUserPromptV2(ctx: RoutingPromptCtxV2): string {
   const lines: string[] = [];
 
+  // v1.7 (SET-7): split the transcript into stable + unstable-tail
+  // visually. The router is told to treat the tail as tentative. Cap the
+  // visible tail at 200 chars — longer tails are almost always the
+  // speaker still forming a long sentence, and the marker noise past 200
+  // chars would start drowning out the stable content.
+  const sliced = ctx.recentTranscript.slice(-600);
+  const tailLen = Math.max(0, Math.min(ctx.unstableTailLen ?? 0, 200, sliced.length));
+  const stableEnd = sliced.length - tailLen;
   lines.push(`RECENT TRANSCRIPT (silence=${ctx.isSilence}):`);
-  lines.push(ctx.recentTranscript.slice(-600) || "(none — silence tick)");
+  if (!sliced) {
+    lines.push("(none — silence tick)");
+  } else if (tailLen === 0) {
+    lines.push(sliced);
+  } else {
+    lines.push(sliced.slice(0, stableEnd) + "[[ UNSTABLE TAIL: " + sliced.slice(stableEnd) + " ]]");
+  }
   lines.push("");
 
   if (ctx.recentFirings.length > 0) {

@@ -71,6 +71,12 @@ export interface PickPersonaCtxV3CerebrasV3 {
    * omit when the Director hasn't collected candidates yet.
    */
   liveCallbacks?: string[];
+  /**
+   * SET-7: number of tail chars in `recentTranscript` that are NEW since
+   * the previous tick. Prompt builder renders a `⟨ UNSTABLE TAIL … ⟩`
+   * marker around those chars so the router can treat them as tentative.
+   */
+  unstableTailLen?: number;
   /** Cerebras API key. Passed in so this file doesn't read env directly. */
   cerebrasKey: string;
   signal?: AbortSignal;
@@ -110,6 +116,7 @@ export async function pickPersonaCerebrasV3(
     cooldownsMs: ctx.cooldownsMs,
     packPersonas: ctx.packPersonas,
     liveCallbacks: ctx.liveCallbacks,
+    unstableTailLen: ctx.unstableTailLen,
   };
 
   try {

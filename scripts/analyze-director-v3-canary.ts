@@ -45,6 +45,11 @@ interface V3CompareData {
   } | null;
   callbackUsed: boolean | null;
   silentPicked: boolean;
+  // SET-7: tail-stability telemetry. unstableTailLen is how many chars
+  // of this tick's input were NEW since the previous tick; directorInputLen
+  // is the total length so the analyzer can compute the tail share.
+  unstableTailLen?: number;
+  directorInputLen?: number;
 }
 
 interface LogEntry {
@@ -426,6 +431,55 @@ if (rerollEvents.length > 0) {
       `  Inject→Clear rate: ${(clearRate * 100).toFixed(0)}%  (model finds a new angle after injection)`
     );
   }
+}
+
+// ── Unstable tail (SET-7) — does tail size correlate with SILENT rate? ──────
+//
+// Hypothesis: bigger unstable tail → higher silent rate when the tail
+// contains the only potentially-reactable signal. This analyzer segment
+// buckets ticks by tail-size quartile and reports silent-pick rate per
+// bucket. If SET-7 is working the buckets should show a monotone trend
+// from low → high silent rate as tail share grows.
+
+const ticksWithTail = rows.filter(
+  (r) =>
+    typeof r.d.unstableTailLen === "number" &&
+    typeof r.d.directorInputLen === "number" &&
+    r.d.directorInputLen > 0
+);
+
+if (ticksWithTail.length > 0) {
+  console.log("\n── Unstable Tail — SET-7 impact ─────────────────────\n");
+  // Bucket by tail share (unstableTailLen / directorInputLen).
+  const buckets = [
+    { label: "tail 0-25%    ", lo: 0, hi: 0.25, ticks: [] as typeof rows },
+    { label: "tail 25-50%   ", lo: 0.25, hi: 0.5, ticks: [] as typeof rows },
+    { label: "tail 50-75%   ", lo: 0.5, hi: 0.75, ticks: [] as typeof rows },
+    { label: "tail 75-100%  ", lo: 0.75, hi: 1.01, ticks: [] as typeof rows },
+  ];
+  for (const r of ticksWithTail) {
+    const share = (r.d.unstableTailLen ?? 0) / Math.max(1, r.d.directorInputLen ?? 1);
+    for (const b of buckets) {
+      if (share >= b.lo && share < b.hi) {
+        b.ticks.push(r);
+        break;
+      }
+    }
+  }
+  for (const b of buckets) {
+    const silent = b.ticks.filter((r) => r.d.silentPicked).length;
+    const rate = b.ticks.length === 0 ? 0 : silent / b.ticks.length;
+    const bar = "█".repeat(Math.round(rate * 20));
+    console.log(
+      `  ${b.label}  ${b.ticks.length.toString().padStart(4)} ticks  silent ${silent.toString().padStart(3)}  ${(rate * 100).toFixed(1).padStart(5)}%  ${bar}`
+    );
+  }
+  console.log(
+    `\n  Interpretation: rising silent % as tail share grows means SET-7 is`
+  );
+  console.log(
+    `  working (router defers when the only signal lives in the unstable tail).`
+  );
 }
 
 // ── Live-callback buffer population ──────────────────────────────────────────
