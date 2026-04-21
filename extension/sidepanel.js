@@ -1217,6 +1217,9 @@ function showFeedMenu(entryId, anchorEl) {
   if (!feedMenu || !anchorEl) return;
   currentMenuTargetId = entryId;
   refreshFeedMenuState();
+  // Focus the first menu item once the menu is visible so keyboard users
+  // can arrow-nav immediately. Deferred to the end of this function via
+  // requestAnimationFrame so layout has settled before the focus call.
   // Position: below the entry if there's room, above otherwise. Clamp
   // horizontally to the viewport. Fixed positioning means we measure
   // against getBoundingClientRect (viewport coords).
@@ -1233,6 +1236,10 @@ function showFeedMenu(entryId, anchorEl) {
   feedMenu.style.left = `${left}px`;
   feedMenu.classList.add("visible");
   feedMenu.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => {
+    const firstItem = feedMenu.querySelector(".feed-menu-item");
+    firstItem?.focus();
+  });
 }
 
 function hideFeedMenu() {
@@ -1286,8 +1293,25 @@ document.addEventListener("click", (e) => {
   hideFeedMenu();
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && feedMenu?.classList.contains("visible")) {
+  if (!feedMenu?.classList.contains("visible")) return;
+  if (e.key === "Escape") {
     hideFeedMenu();
+    return;
+  }
+  // Arrow-key navigation through menu items (a11y — keyboard-only users).
+  // Up/Down cycles focus; Home/End jump to edges; Enter/Space activate
+  // the focused item (handled natively by <button>).
+  if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Home" || e.key === "End") {
+    const items = Array.from(feedMenu.querySelectorAll(".feed-menu-item"));
+    if (items.length === 0) return;
+    const active = document.activeElement;
+    let idx = items.indexOf(active);
+    if (e.key === "ArrowDown") idx = idx < 0 ? 0 : (idx + 1) % items.length;
+    else if (e.key === "ArrowUp") idx = idx <= 0 ? items.length - 1 : idx - 1;
+    else if (e.key === "Home") idx = 0;
+    else if (e.key === "End") idx = items.length - 1;
+    items[idx].focus();
+    e.preventDefault();
   }
 });
 
@@ -3066,7 +3090,7 @@ const TUTORIAL_STEPS = [
   {
     targetSelector: "#settingsToggleTop",
     title: "Welcome to the gallery",
-    body: "Quick 30-second tour of your settings drawer. Six submenus, four things worth knowing.",
+    body: "Quick tour of what's tunable. Six submenus in the drawer plus one interaction right in the feed — six short stops.",
     onEnter: () => {
       // Don't auto-open yet — let the user see the gear being highlighted
       // first, then advance opens the drawer.
@@ -3085,7 +3109,7 @@ const TUTORIAL_STEPS = [
   {
     targetSelector: '.drawer-menu-item[data-section="backend"]',
     title: "Backend & keys",
-    body: "While we're in the early window, peanutgallery.live covers the providers. Paste your own keys here anytime to remove the rate limits.",
+    body: "While we're in the early window, peanutgallery.live covers the providers. Paste your own keys here anytime to remove the rate limits — self-hosters can also point at their own backend URL.",
     onEnter: () => {
       if (!settingsDrawer?.classList.contains("visible")) openSettingsDrawer();
       showDrawerMenu();
@@ -3094,10 +3118,34 @@ const TUTORIAL_STEPS = [
   {
     targetSelector: '.drawer-menu-item[data-section="audio"]',
     title: "Audio",
-    body: "Passthrough plays captured audio back through your speakers so you hear the video normally. Turn it off only if your recording software is already routing the tab. Replay this tour anytime from Appearance.",
+    body: "Passthrough plays captured tab audio back through your speakers so you hear the video normally. Turn it off only when your recording software is already routing the tab (OBS, Loopback, BlackHole).",
     onEnter: () => {
       if (!settingsDrawer?.classList.contains("visible")) openSettingsDrawer();
       showDrawerMenu();
+    },
+  },
+  {
+    targetSelector: '.drawer-menu-item[data-section="critics"]',
+    title: "Critics & Room volume",
+    body: "Mute any critic who's wearing you out, or dial Room volume (Quieter · Normal · Rowdy) to change how often they chain into each other. Quieter = primary only, pile-ons rare. Rowdy = expect the whole room to show up.",
+    onEnter: () => {
+      if (!settingsDrawer?.classList.contains("visible")) openSettingsDrawer();
+      showDrawerMenu();
+    },
+  },
+  {
+    // Final stop: the tap-a-response interaction in the feed. No specific
+    // element to spotlight — there may be no feed entries on a first run,
+    // so we skip the target and let the card speak on its own. Mentions
+    // the Export + Appearance submenus as follow-up reading so we don't
+    // need dedicated steps.
+    targetSelector: null,
+    title: "Tap a response",
+    body: "During a session, tap any critic's line to pin it, upvote/downvote it, or grab a shareable quote card. Export (full session .md) and Appearance (Paper/Night + replay this tour) round out the drawer.",
+    onEnter: () => {
+      // Close the drawer so the final card doesn't hide behind it and the
+      // user lands back on the empty state / feed when they tap Done.
+      if (settingsDrawer?.classList.contains("visible")) closeSettingsDrawer();
     },
   },
 ];
@@ -3125,6 +3173,10 @@ function renderTutorialStep(i) {
   // and the element exists in the flow (menu tiles get display:none'd when
   // a section is open; onEnter flips the drawer back to menu view first).
   requestAnimationFrame(() => {
+    // Steps may opt out of spotlighting by setting targetSelector: null
+    // (e.g. the final "tap a response" tip has no specific DOM target
+    // because the feed may be empty on a first-run session).
+    if (!step.targetSelector) return;
     const target = document.querySelector(step.targetSelector);
     if (target) {
       target.classList.add("tut-target");
