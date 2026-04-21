@@ -17,7 +17,19 @@
 //
 // To strip this later: grep for "[PG:sp phase]" and delete the logs. The
 // window.onerror handler can stay — it's zero-cost when nothing throws.
+// ─── LOAD-PHASE DIAG STATE (declared FIRST so error handlers below can
+// reference these without hitting TDZ when an error fires mid-load) ────
+var _diagClickCount = 0;
+var _diagLastMsg = "";
+var _diagStickyError = "";
+var _diagLastPhase = "";
+var _diagGearClicks = 0;
+var _diagStartClicks = 0;
+var _diagEl;
+var _diagLoadAt;
+
 console.log("[PG:sp phase] sidepanel.js evaluating");
+
 window.addEventListener("error", (event) => {
   console.error(
     "[PG:sp fatal]",
@@ -26,46 +38,57 @@ window.addEventListener("error", (event) => {
     event.filename + ":" + event.lineno + ":" + event.colno,
     event.error?.stack?.split("\n").slice(0, 3).join("\n"),
   );
-  // Also surface to the on-panel diag strip so we don't need DevTools open.
-  updateDiag("ERR: " + event.message.slice(0, 60));
+  _diagStickyError =
+    "ERR: " +
+    event.message.slice(0, 50) +
+    " @ " +
+    (event.filename || "?").split("/").pop() +
+    ":" +
+    event.lineno;
+  if (typeof updateDiag === "function") updateDiag();
 });
 window.addEventListener("unhandledrejection", (event) => {
+  const msg = event.reason?.message || String(event.reason);
   console.error(
     "[PG:sp fatal rejection]",
-    event.reason?.message || event.reason,
+    msg,
     event.reason?.stack?.split("\n").slice(0, 3).join("\n"),
   );
+  _diagStickyError = "REJ: " + msg.slice(0, 60);
+  if (typeof updateDiag === "function") updateDiag();
 });
 
 // ─── ON-PANEL DIAGNOSTIC STRIP ──────────────────────────────────────────
-// Writes a tiny black bar at the top of the panel showing:
-//   - Script load timestamp (proves sidepanel.js actually ran)
-//   - Click counter (proves clicks reach the document — i.e., no full-
-//     viewport overlay is intercepting)
-//   - Last error (proves any thrown error is surfaced without DevTools)
-// Strip once Seth confirms the panel is tappable again.
-const _diagEl = document.createElement("div");
+_diagEl = document.createElement("div");
 _diagEl.id = "pg-diag-strip";
 _diagEl.style.cssText =
   "position:fixed;top:0;left:0;right:0;z-index:99999;" +
   "background:#111;color:#ffd400;font:11px/1.4 ui-monospace,monospace;" +
   "padding:3px 8px;pointer-events:none;";
-const _diagLoadAt = new Date().toLocaleTimeString();
-let _diagClickCount = 0;
-let _diagLastMsg = "";
-// Per-handler fire counters so we can tell whether the actual button
-// click handler ran (vs. the raw document-click counter above, which
-// only tells us the click reached the viewport).
-let _diagGearClicks = 0;
-let _diagStartClicks = 0;
+_diagLoadAt = new Date().toLocaleTimeString();
 function updateDiag(msg) {
   if (msg !== undefined) _diagLastMsg = msg;
-  _diagEl.textContent =
+  const base =
     "[PG DIAG] loaded " +
     _diagLoadAt +
-    " · clicks-reached-doc " +
+    " · clicks " +
     _diagClickCount +
-    (_diagLastMsg ? " · " + _diagLastMsg : "");
+    " · phase:" +
+    (_diagLastPhase || "?");
+  const tail = _diagStickyError
+    ? " · " + _diagStickyError
+    : _diagLastMsg
+      ? " · " + _diagLastMsg
+      : "";
+  _diagEl.textContent = base + tail;
+}
+// updatePhase: every major load phase calls this INSTEAD of console.log
+// so the last-phase-reached is always visible on the diag strip. If
+// script halts mid-load, this reads as the last phase before silence.
+function updatePhase(name) {
+  _diagLastPhase = name;
+  console.log("[PG:sp phase] " + name);
+  updateDiag();
 }
 updateDiag();
 if (document.body) {
@@ -593,7 +616,7 @@ const firingTimeoutIds = Object.create(null);
 let capturedTabInfo = null; // { tabId, title, url, windowId }
 
 // ── DOM refs ──
-console.log("[PG:sp phase] DOM refs (top-level getElementById block)");
+updatePhase("DOM refs");
 const setupSection = document.getElementById("setupSection");
 const statusBar = document.getElementById("statusBar");
 const statusText = document.getElementById("statusText");
@@ -634,7 +657,7 @@ function hasRequiredUserKeys() {
 // feed menu — all of it). Fixed in PR #<n>; keep these declarations
 // ABOVE the block until/unless a refactor splits the block into its
 // own module.
-console.log("[PG:sp phase] subscription DOM refs");
+updatePhase("subscription DOM refs");
 const subscriptionKeyInput = document.getElementById("subscriptionKey");
 const subscriptionBlock = document.getElementById("subscriptionBlock");
 const subProgressFill = document.getElementById("subProgressFill");
@@ -648,7 +671,7 @@ const backendModeHint = document.getElementById("backendModeHint");
 const plusUseWith = document.getElementById("plusUseWith");
 const plusUseSegmented = document.getElementById("plusUseSegmented");
 
-console.log("[PG:sp phase] v1.9 backend-mode block");
+updatePhase("v1.9 backend-mode block");
 // ═══════════════════════════════════════════════════════════════════
 // v1.9 BACKEND-MODE + PEANUT GALLERY PLUS
 // ═══════════════════════════════════════════════════════════════════
@@ -986,7 +1009,7 @@ const filterPillEls = Array.from(
   document.querySelectorAll("#footer .pill[data-filter]")
 );
 
-console.log("[PG:sp phase] install-id + init block");
+updatePhase("install-id + init block");
 // ── Install ID ──
 // Stable per-installation UUID. Generated on first load, persisted in
 // chrome.storage.local, and sent to the hosted backend as X-Install-Id so
@@ -1026,21 +1049,21 @@ if (_diagTutorialOverlay) {
   _diagTutorialOverlay.classList.remove("visible");
   _diagTutorialOverlay.setAttribute("aria-hidden", "true");
 }
-console.log("[PG:sp phase] init: force-hid tutorial overlay as defensive measure");
+updatePhase("init: force-hid tutorial");
 
-console.log("[PG:sp phase] init: loadSettings()");
+updatePhase("init: loadSettings");
 loadSettings();
-console.log("[PG:sp phase] init: ensureInstallId()");
+updatePhase("init: ensureInstallId");
 ensureInstallId();
-console.log("[PG:sp phase] init: buildPersonaAvatars()");
+updatePhase("init: buildPersonaAvatars");
 buildPersonaAvatars();
-console.log("[PG:sp phase] init: renderPackChooser()");
+updatePhase("init: renderPackChooser");
 renderPackChooser();
-console.log("[PG:sp phase] init: checkStatus()");
+updatePhase("init: checkStatus");
 checkStatus();
-console.log("[PG:sp phase] init: detectCurrentTab()");
+updatePhase("init: detectCurrentTab");
 detectCurrentTab();
-console.log("[PG:sp phase] init complete — event listeners below this point should now be bound");
+updatePhase("init complete");
 
 // Detect the current tab and show its title
 function detectCurrentTab() {
@@ -2712,7 +2735,7 @@ async function ensureHostPermission(serverUrl) {
   return chrome.permissions.request({ origins: [origin] });
 }
 
-console.log("[PG:sp phase] attaching handler: startBtn (Start Listening)");
+updatePhase("attach:startBtn");
 startBtn.addEventListener("click", async () => {
   console.log("[PG:sp click] startBtn fired");
   updateDiag("start-click #" + (++_diagStartClicks));
@@ -3056,7 +3079,7 @@ drawerSectionBacks.forEach((btn) => {
 // just reachable before capture has started (the footer gear is only
 // visible during capture). openSettingsDrawer is declared below; function
 // declarations hoist so the forward reference is safe.
-console.log("[PG:sp phase] attaching handler: settingsToggleTop (masthead gear)");
+updatePhase("attach:settingsToggleTop");
 const settingsToggleTopBtn = document.getElementById("settingsToggleTop");
 if (settingsToggleTopBtn) {
   settingsToggleTopBtn.addEventListener("click", () => {
@@ -3069,7 +3092,7 @@ if (settingsToggleTopBtn) {
       updateDiag("ERR gear: " + String(err.message || err).slice(0, 40));
     }
   });
-  console.log("[PG:sp phase] settingsToggleTop handler ATTACHED");
+  updatePhase("attached:settingsToggleTop");
 } else {
   console.error("[PG:sp phase] settingsToggleTop element NOT FOUND");
   updateDiag("ERR: gear btn missing");
