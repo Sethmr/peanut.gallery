@@ -53,6 +53,11 @@ _diagEl.style.cssText =
 const _diagLoadAt = new Date().toLocaleTimeString();
 let _diagClickCount = 0;
 let _diagLastMsg = "";
+// Per-handler fire counters so we can tell whether the actual button
+// click handler ran (vs. the raw document-click counter above, which
+// only tells us the click reached the viewport).
+let _diagGearClicks = 0;
+let _diagStartClicks = 0;
 function updateDiag(msg) {
   if (msg !== undefined) _diagLastMsg = msg;
   _diagEl.textContent =
@@ -2689,7 +2694,10 @@ async function ensureHostPermission(serverUrl) {
   return chrome.permissions.request({ origins: [origin] });
 }
 
+console.log("[PG:sp phase] attaching handler: startBtn (Start Listening)");
 startBtn.addEventListener("click", async () => {
+  console.log("[PG:sp click] startBtn fired");
+  updateDiag("start-click #" + (++_diagStartClicks));
   saveSettings();
   // Make sure we have an install-id before we fire. Normally ensureInstallId
   // resolved long ago during panel init, but if the user was quick and storage
@@ -3030,9 +3038,23 @@ drawerSectionBacks.forEach((btn) => {
 // just reachable before capture has started (the footer gear is only
 // visible during capture). openSettingsDrawer is declared below; function
 // declarations hoist so the forward reference is safe.
+console.log("[PG:sp phase] attaching handler: settingsToggleTop (masthead gear)");
 const settingsToggleTopBtn = document.getElementById("settingsToggleTop");
 if (settingsToggleTopBtn) {
-  settingsToggleTopBtn.addEventListener("click", openSettingsDrawer);
+  settingsToggleTopBtn.addEventListener("click", () => {
+    console.log("[PG:sp click] settingsToggleTop fired");
+    updateDiag("gear-click #" + (++_diagGearClicks));
+    try {
+      openSettingsDrawer();
+    } catch (err) {
+      console.error("[PG:sp click error] openSettingsDrawer threw:", err);
+      updateDiag("ERR gear: " + String(err.message || err).slice(0, 40));
+    }
+  });
+  console.log("[PG:sp phase] settingsToggleTop handler ATTACHED");
+} else {
+  console.error("[PG:sp phase] settingsToggleTop element NOT FOUND");
+  updateDiag("ERR: gear btn missing");
 }
 
 // Free-tier banner deep-links into Backend & keys — when the trial nudges
