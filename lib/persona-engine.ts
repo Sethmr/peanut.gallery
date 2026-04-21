@@ -228,6 +228,17 @@ export class PersonaEngine {
    * decays and they come back.
    */
   private readonly recentFallbacks: Map<string, number> = new Map();
+  /**
+   * v1.7 — upper bound on `recentFallbacks` count so a persona stuck in a
+   * filler-only stretch doesn't accumulate a permanent -∞ penalty they can't
+   * decay out of. Cap at 3 → max penalty -6 in the Director. Plenty to
+   * suppress a persona when another can fire, but beatable by a strong
+   * content match. Chosen so "3 strikes and you rest" matches the Stern-
+   * show dynamic Seth wants: Baba can fallback a couple times without
+   * being sidelined forever, and decay restores him cleanly once a
+   * fact-checkable line lands.
+   */
+  private static readonly RECENT_FALLBACK_CAP = 3;
 
   /**
    * Canonical per-fallback telemetry + counter-bookkeeping helper. Every
@@ -253,7 +264,10 @@ export class PersonaEngine {
     this.lastFallbackIdx.set(persona.id, picked.idx);
     this.recentFallbacks.set(
       persona.id,
-      (this.recentFallbacks.get(persona.id) ?? 0) + 1
+      Math.min(
+        (this.recentFallbacks.get(persona.id) ?? 0) + 1,
+        PersonaEngine.RECENT_FALLBACK_CAP
+      )
     );
     logPipeline({
       event: "persona_fallback_fired",
