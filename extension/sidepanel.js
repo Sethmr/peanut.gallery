@@ -1684,6 +1684,9 @@ chrome.runtime.onMessage.addListener((message) => {
       if (data.status === "stopped") {
         showIdle();
       }
+      if (data.status === "silence_timeout") {
+        showError("Paused — no audio detected for 60 seconds. Press play to resume.", "idle");
+      }
       if (data.status === "personas_firing") {
         updatePersonaSpeaking(data.personaId);
       }
