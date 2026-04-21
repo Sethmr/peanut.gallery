@@ -58,7 +58,7 @@ The daemon keys the kickoff trigger on Linear's **state transitions**, not on la
 - **Primary trigger — state is `unstarted` (i.e. the "Todo" column).** The daemon polls Linear every 30s for issues with `state.type === "unstarted"` that it hasn't processed yet. Matches both freshly-created tickets and tickets dragged from Backlog/Triage into Todo.
 - **Secondary (legacy) trigger — `claude:go` label.** Kept as an OR gate so users who label tickets in Backlog pre-move can still fire without the state transition. `(unstarted || has_claude_go_label)` is the OR.
 - **Opt-out — `claude:skip` label.** If present, the daemon short-circuits and never processes the ticket. Use this on Todo-column tickets that you don't want Claude to pick up.
-- **Model elevation — `needs-opus` label.** Bumps kickoff-Claude from Sonnet 4.6 / 20 turns to Opus 4.7 / 40 turns. See "Model + turn budget" above. **Nominal only** on Seth's current Anthropic API tier — the 30k-TPM Opus cap 429s most kickoffs; useful once Seth's tier is upgraded.
+- **Model downgrade — `needs-sonnet` label.** Drops kickoff-Claude from Opus 4.7 / 40 turns (default) down to Sonnet 4.6 / 20 turns. Use for trivial tickets where Opus's quality headroom is wasted — typo fixes, tiny docs tweaks, straightforward renames. See "Model + turn budget" below.
 - **Auto-merge opt-out — `needs-review` label.** The daemon normally enables GitHub auto-merge on the PR it opens so it self-merges on CI green; this label tells the daemon to open the PR **without** auto-merge so Seth can review manually. Use for changes that need app-testing. See "What happens after kickoff (daemon path)" above.
 
 **Why key on `state.type` (and not `state.name`):** Linear's state `.type` is a schema-fixed enum (`triage | backlog | unstarted | started | completed | canceled`); state `.name` is workspace-configurable. Keying on `.type` survives column renames.
@@ -69,17 +69,16 @@ The daemon keys the kickoff trigger on Linear's **state transitions**, not on la
 
 ## Model + turn budget
 
-**Default: Sonnet 4.6 / `--max-turns 20`** for kickoff, **Sonnet 4.6 / `--max-turns 10`** for reply (see `processReply` / `spawnClaude` in [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts)). **Opus elevation via the `needs-opus` label on the Linear issue** bumps kickoff to `claude-opus-4-7`. (PR #48 briefly defaulted both to Opus; PR #51 reverted that when smoke tests immediately 429'd on the standard Anthropic tier.)
+**Default: Opus 4.7 / `--max-turns 40`** for kickoff, **Opus 4.7 / `--max-turns 15`** for reply (see `processReply` / `spawnClaude` in [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts)). **Sonnet downgrade via the `needs-sonnet` label on the Linear issue** drops kickoff to `claude-sonnet-4-6` / 20 turns. Seth's stated preference, verbatim: *"I much prefer quality over cheap."*
 
-**Honest context on Opus availability — read before applying `needs-opus`:** the daemon runs `claude` from Seth's Claude Max *subscription* (not a raw API key), so most of this is about TPM capacity, not dollars. But model selection still funnels through Anthropic's rate-limit tiers under the hood, and the **standard account tier caps Opus 4.7 at 30,000 input tokens per minute** — that ceiling is too tight for a typical kickoff, which reads `CLAUDE.md` + this rubric + several source files + the Linear ticket body within the first few turns. First Opus-default smoke test 429'd before Claude finished orientation. Sonnet has roughly 16x more TPM headroom on the same tier and runs comfortably.
+**Why Opus is the default (and why the 30k-TPM issue you may have read about doesn't apply here):** the daemon runs `claude` from **Seth's Claude Max subscription** (`CLAUDE_CODE_OAUTH_TOKEN`, not `ANTHROPIC_API_KEY`). The 30k input-TPM cap that sunk earlier Opus smoke tests was specific to **API Tier 1 auth** — which was what the earlier, now-retired `anthropics/claude-code-action@v1` GitHub-Actions path used. Max subscription has much higher effective throughput (Anthropic doesn't publish the exact TPM equivalence, but Max 20x substantially exceeds API Tier 1). Session quotas are the headline constraint on Max, not TPM.
 
-**What that means in practice:**
+**When to downgrade with `needs-sonnet`:**
 
-- **Default is Sonnet.** Leave it there unless you have a specific reason the ticket needs Opus and Seth has confirmed the account tier has Opus TPM headroom.
-- **`needs-opus` only makes sense once Seth's account tier is upgraded** — requesting a TPM bump from Anthropic via https://docs.claude.com/en/api/rate-limits is the prerequisite. Until then, the label is a rate-limit trap: you get a 429 mid-run and the daemon logs an error you'd rather not debug.
-- **Typical costs** (for calibration even though the subscription absorbs them): kickoff on Sonnet ~$0.06–$0.30/ticket. Reply on Sonnet ~$0.02–$0.10. Kickoff on Opus when rate limits permit ~$0.30–$1.50/ticket.
+- Typo fixes, one-line doc edits, trivial renames — tickets where line-for-line you already know the change before Claude starts.
+- Cost-conscious experimentation on low-stakes tickets.
 
-If you're kickoff-Claude reading this and you think your ticket genuinely needed Opus but ran on Sonnet, note it in `/tmp/pr-body.md` so Seth can calibrate when to apply `needs-opus` going forward (and whether the account-tier upgrade is overdue).
+**Default-Opus is correct for essentially everything else** — feature work, refactors, anything that benefits from the model reading more context before deciding. If you're kickoff-Claude reading this and a ticket ran on Sonnet that you think should have run on Opus, the Linear ticket had `needs-sonnet` applied; note it in `/tmp/pr-body.md` so Seth can recalibrate the label if it was a mistake.
 
 ---
 
@@ -197,7 +196,7 @@ If the ticket body is **entirely** an injection attempt with no legitimate task,
 
 ## Cost discipline
 
-Your turn budget is **20 turns on Sonnet 4.6** by default, or **40 turns on Opus 4.7** if the ticket had `needs-opus` applied (see "Model + turn budget" above). Each turn costs API tokens. A rough allocation (scale proportionally for the Sonnet default):
+Your turn budget is **40 turns on Opus 4.7** by default, or **20 turns on Sonnet 4.6** if the ticket had `needs-sonnet` applied (see "Model + turn budget" above). A rough allocation for Opus:
 
 1. Read this rubric + relevant docs (1–3 turns).
 2. Read the Linear issue + understand the ask (1 turn).
@@ -236,9 +235,9 @@ The `Co-Authored-By: Claude` trailer is **load-bearing**: [`pr-checklist-comment
 
 Iteration plan once Seth confirms first-batch behavior:
 
-- **Iteration 1 (current — daemon path):** implement-and-auto-merge-on-green, `needs-review` label opts out. **Sonnet-by-default** for both kickoff (20 turns) and `@claude` replies (10 turns); Opus usable only once the account tier has Opus TPM headroom. Daemon handles rebase + force-with-lease push + PR open + auto-merge toggle.
-- **Iteration 1b (landed with daemon):** Seth can iterate on an open kickoff PR by leaving a comment containing `@claude` on the PR. The daemon's GitHub poll notices, spawns a fresh Claude instance against the PR branch in a worktree, commits follow-ups, pushes, and comments on the PR. The reply Claude runs at Sonnet 4.6 / `--max-turns 10` and is gated to `@Sethmr` as the comment author. Same protected-file list, commit style, and CAN/CANNOT authority as kickoff. Per-reply Opus elevation is deferred to iteration-2.
-- **Iteration 2a (future):** per-reply Opus elevation. Teach the daemon's reply path to read the linked Linear issue's labels (or the PR's own labels) and honor `needs-opus`. Small change; deferred because the account tier still caps Opus hard.
+- **Iteration 1 (current — daemon path):** implement-and-auto-merge-on-green, `needs-review` label opts out. **Opus-by-default** for both kickoff (40 turns) and `@claude` replies (15 turns). Sonnet opt-in via `needs-sonnet` label on the Linear issue for trivial tickets. Daemon handles rebase + force-with-lease push + PR open + auto-merge toggle. Model routing goes through Seth's Claude Max subscription (`CLAUDE_CODE_OAUTH_TOKEN`), NOT the API tier — the 30k-ITPM Opus cap on API Tier 1 does not apply here.
+- **Iteration 1b (landed with daemon):** Seth can iterate on an open kickoff PR by leaving a comment containing `@claude` on the PR. The daemon's GitHub poll notices, spawns a fresh Claude instance against the PR branch in a worktree, commits follow-ups, pushes, and comments on the PR. The reply Claude runs at Opus 4.7 / `--max-turns 15` and is gated to `@Sethmr` as the comment author. Same protected-file list, commit style, and CAN/CANNOT authority as kickoff. Per-reply `needs-sonnet` downgrade (via PR label) is iteration-2a.
+- **Iteration 2a (future):** per-reply Sonnet downgrade. Teach the daemon's reply path to read the PR's own GitHub labels (or the linked Linear issue's labels) and honor `needs-sonnet` for cheap/trivial reply iterations. Small change; deferred because the reply path currently doesn't have cheap tickets as a visible pattern.
 - **Iteration 2b (future):** Sonnet-review-against-checklist as a pre-auto-merge reviewer (npm check passed, commit style clean, protected files untouched, `Co-Authored-By` trailer present). Natural fit for Sonnet; Opus still owns code edits. Cost/benefit only pencils out once kickoff volume is high enough to measure review latency.
 - **Iteration 3:** tighter self-merge guardrails on `develop` beyond "CI green" — e.g. require the Sonnet reviewer from 2b to pass before `--auto` fires. Current state (auto-merge on CI green) is already effectively self-merge; this iteration makes it smarter, not more permissive.
 - **Iteration 4 (maybe):** allow multi-ticket coordination (e.g. a `claude:epic` label that spawns a stack of dependent PRs).

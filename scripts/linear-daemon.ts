@@ -77,7 +77,7 @@ const BASE_BRANCH = "develop";
 const TMUX_KEEP_ALIVE_SECONDS = 300; // 5 min of post-exit tmux retention
 const MAX_TITLE_SLUG_LEN = 50;
 const MAX_DESCRIPTION_CHARS = 8000;
-const OPUS_LABEL = "needs-opus";
+const SONNET_LABEL = "needs-sonnet";
 const SKIP_LABEL = "claude:skip";
 const LEGACY_GO_LABEL = "claude:go";
 const REVIEW_LABEL = "needs-review";
@@ -740,8 +740,22 @@ function buildReplyPrompt(
 // ─── Kickoff processing ──────────────────────────────────────────────────
 
 function pickModel(labels: string[]): ClaudeModel {
+  // Default is Opus — Seth runs `claude` via his Max subscription OAuth token
+  // (CLAUDE_CODE_OAUTH_TOKEN), NOT the standard API tier, so the 30k-ITPM
+  // Opus cap that sunk earlier GitHub-Actions smoke tests doesn't apply here.
+  // Sonnet is opt-in via `needs-sonnet` for trivial tickets where quality
+  // headroom is wasted (typo fixes, tiny docs edits, etc). Seth's stated
+  // preference: "I much prefer quality over cheap."
   const lower = labels.map((l) => l.toLowerCase());
-  return lower.includes(OPUS_LABEL) ? "opus" : "sonnet";
+  return lower.includes(SONNET_LABEL) ? "sonnet" : "opus";
+}
+
+function kickoffMaxTurnsFor(model: ClaudeModel): number {
+  return model === "opus" ? 40 : 20;
+}
+
+function replyMaxTurnsFor(model: ClaudeModel): number {
+  return model === "opus" ? 15 : 10;
 }
 
 async function processIssue(issue: LinearIssue): Promise<void> {
@@ -805,6 +819,7 @@ async function processIssue(issue: LinearIssue): Promise<void> {
       worktree,
       tmuxSessionName: sessionName,
       logFile,
+      maxTurns: kickoffMaxTurnsFor(model),
     }));
   } catch (err) {
     await logEvent("error", "claude_spawn_failed", {
@@ -1032,13 +1047,17 @@ async function processReply(
   const prompt = buildReplyPrompt(pr, comment);
   let exitCode: number | null = null;
   try {
+    // Reply-Claude defaults to Opus too — Seth's quality-over-cost preference
+    // applies to iteration on PRs as well as kickoffs. `@claude` replies almost
+    // always involve code changes that benefit from Opus's headroom.
+    // (Per-reply `needs-sonnet` downgrade via PR label is iteration-2.)
     ({ exitCode } = await spawnClaude({
       prompt,
-      model: "sonnet",
+      model: "opus",
       worktree,
       tmuxSessionName: sessionName,
       logFile,
-      maxTurns: 10,
+      maxTurns: replyMaxTurnsFor("opus"),
     }));
   } catch (err) {
     await logEvent("error", "reply_claude_spawn_failed", {
