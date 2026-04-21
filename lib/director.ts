@@ -172,6 +172,17 @@ const TROLL_CASCADE_FLOOR = 0.75;
 // against a real content-match on another slot.
 const PRODUCER_NO_CLAIM_PENALTY = 3;
 
+// v1.7: per-point penalty applied to a persona's rule-based score for
+// every recent fallback on their tally. The PersonaEngine increments
+// `recentFallbacks[personaId]` on every fallback fire and decays by 1
+// on every successful non-fallback fire, so a persona who's been
+// missing lately drops out of contention until the transcript presents
+// something they CAN speak to. Pairs with the soft-gate invariant
+// (rule #2 in docs/DESIGN-PRINCIPLES.md): feedback signal, not a veto.
+// Tuned so 1 recent fallback ≈ PRODUCER_NO_CLAIM_PENALTY — roughly
+// "one failed tick suppresses producer as hard as 'no claim to check.'"
+const RECENT_FALLBACK_PENALTY = 2;
+
 // ──────────────────────────────────────────────────────
 // TYPES
 // ──────────────────────────────────────────────────────
@@ -259,6 +270,18 @@ export interface DecideOptions {
    * Only the producer persona cares about this field; other slots ignore it.
    */
   producerFactCheckMode?: FactCheckMode;
+  /**
+   * v1.7: per-persona count of recent fallback fires, threaded from
+   * `PersonaEngine.getRecentFallbackCounts()`. The Director subtracts
+   * `RECENT_FALLBACK_PENALTY * count` from each persona's rule-based
+   * score so a persona who's been hitting the safety-net lately drops
+   * out of rotation until they can speak to real content again.
+   * Self-correcting feedback loop: decays 1 per successful non-fallback
+   * fire (on the engine side), so sustained missing isn't permanent.
+   * Missing values (persona absent from the map) contribute zero — older
+   * call sites that don't pass this opt into the pre-v1.7 scoring.
+   */
+  recentFallbackCounts?: Record<string, number>;
 }
 
 // ──────────────────────────────────────────────────────
@@ -496,6 +519,21 @@ export class Director {
       const producerEntry = scores.find((s) => s.id === "producer");
       if (producerEntry) {
         producerEntry.score -= PRODUCER_NO_CLAIM_PENALTY;
+      }
+    }
+
+    // v1.7: recent-fallback penalty. Each point on a persona's recent
+    // fallback tally costs them RECENT_FALLBACK_PENALTY in the scorer.
+    // The PersonaEngine maintains the tally (incremented on every
+    // fallback fire, decayed on every successful non-fallback fire) and
+    // threads it through the route. Missing / empty map = no penalty
+    // applied, which matches pre-v1.7 behavior for callers that don't
+    // plumb fallback counts yet.
+    const fbCounts = opts?.recentFallbackCounts;
+    if (fbCounts) {
+      for (const entry of scores) {
+        const count = fbCounts[entry.id] ?? 0;
+        if (count > 0) entry.score -= count * RECENT_FALLBACK_PENALTY;
       }
     }
 

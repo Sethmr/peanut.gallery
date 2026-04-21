@@ -499,4 +499,105 @@ if (callbackAdds > 0 || pickRows.length > 0) {
   }
 }
 
+// ── Persona fallback health (SET-20 feedback loop) ─────────────────────────
+//
+// Every time a persona hits a fallback — force-react upstream error, force-
+// react model pass, or director-driven producer pass — the engine emits a
+// `persona_fallback_fired` event AND increments a per-persona counter that
+// the Director penalizes on subsequent ticks. This section answers:
+//
+//   1. Which persona is fallback'ing most? (fix: improve their prompt or
+//      tune the Director's pick rules so they get picked less)
+//   2. What reason category dominates? (fix: if "director_producer_pass" is
+//      high, the fact-check pipeline needs looser triggers; if "force_react
+//      _upstream_error" is high, the provider's flaky)
+//   3. What transcript conditions trigger it? (fix: expand CLAIM_PATTERNS
+//      or tighten persona system prompts against those conditions)
+
+interface FallbackData {
+  reason: string;
+  personaName: string;
+  fallback: string;
+  variantIdx: number;
+  variantCount: number;
+  recentFallbackCount: number;
+  transcriptTail: string | null;
+  upstreamError?: string;
+}
+
+const fallbackRows: Array<{ ts: string; sessionId: string | undefined; personaId: string; d: FallbackData }> = [];
+for (const line of lines) {
+  let entry: LogEntry;
+  try {
+    entry = JSON.parse(line) as LogEntry;
+  } catch {
+    continue;
+  }
+  if (entry.event !== "persona_fallback_fired") continue;
+  if (!entry.data) continue;
+  const personaId = (entry.data as Record<string, unknown>).personaId as string | undefined;
+  fallbackRows.push({
+    ts: entry.timestamp,
+    sessionId: entry.sessionId,
+    personaId: personaId ?? (entry as unknown as { personaId?: string }).personaId ?? "unknown",
+    d: entry.data as unknown as FallbackData,
+  });
+}
+
+if (fallbackRows.length > 0) {
+  console.log("\n── Persona Fallback Health — SET-20 feedback loop ───\n");
+  console.log(`  ${fallbackRows.length} persona_fallback_fired events\n`);
+
+  // Per-persona rate vs. total director decisions (if available).
+  const byPersona: Record<string, number> = {};
+  for (const r of fallbackRows) {
+    byPersona[r.personaId] = (byPersona[r.personaId] ?? 0) + 1;
+  }
+  console.log("  By persona:");
+  for (const [pid, count] of Object.entries(byPersona).sort((a, b) => b[1] - a[1])) {
+    const totalFires = rows.filter(
+      (r) => r.d.finalPrimary === pid || (Array.isArray(r.d.llmPrimary) && r.d.llmPrimary === pid)
+    ).length;
+    const rateStr = totalFires > 0 ? ` (${pct(count, totalFires)} of that persona's picks)` : "";
+    console.log(`    ${pid.padEnd(12)} ${count}${rateStr}`);
+  }
+
+  // By reason — which failure mode dominates.
+  const byReason: Record<string, number> = {};
+  for (const r of fallbackRows) {
+    byReason[r.d.reason] = (byReason[r.d.reason] ?? 0) + 1;
+  }
+  console.log("\n  By reason:");
+  for (const [reason, count] of Object.entries(byReason).sort((a, b) => b[1] - a[1])) {
+    console.log(`    ${reason.padEnd(32)} ${count}  (${pct(count, fallbackRows.length)})`);
+  }
+
+  // Variant-rotation health — if a single variantIdx dominates per persona,
+  // the pick-different-than-last logic may be misbehaving (low-count case
+  // or a persona with only one variant defined).
+  console.log("\n  Variant coverage per persona:");
+  const variantsByPersona: Record<string, Set<number>> = {};
+  const variantCountByPersona: Record<string, number> = {};
+  for (const r of fallbackRows) {
+    if (!variantsByPersona[r.personaId]) variantsByPersona[r.personaId] = new Set();
+    variantsByPersona[r.personaId].add(r.d.variantIdx);
+    variantCountByPersona[r.personaId] = r.d.variantCount;
+  }
+  for (const [pid, seen] of Object.entries(variantsByPersona)) {
+    const total = variantCountByPersona[pid] ?? 0;
+    console.log(
+      `    ${pid.padEnd(12)} used ${seen.size}/${total} variants — ${seen.size === total ? "healthy rotation" : seen.size < total / 2 && total > 2 ? "⚠️  skewed" : "ok"}`
+    );
+  }
+
+  // Transcript-tail sample of the top 5 most-recent fallbacks — human-read
+  // to find patterns the claim-detector or persona prompt should catch.
+  console.log("\n  Recent transcript tails (last 5):");
+  const recent = fallbackRows.slice(-5);
+  for (const r of recent) {
+    const tail = r.d.transcriptTail ? r.d.transcriptTail.slice(-120) : "(no tail)";
+    console.log(`    [${r.ts}] ${r.personaId} (${r.d.reason}): "${tail}"`);
+  }
+}
+
 console.log("══════════════════════════════════════════════════════\n");

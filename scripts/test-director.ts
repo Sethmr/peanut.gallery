@@ -78,6 +78,12 @@ interface DirectorFixture {
      * callback-aware behavior deterministically.
      */
     liveCallbacks?: string[];
+    /**
+     * v1.7: per-persona recent-fallback counts threaded into
+     * DecideOptions.recentFallbackCounts. Lets fixtures validate the
+     * RECENT_FALLBACK_PENALTY without instantiating a PersonaEngine.
+     */
+    recentFallbackCounts?: Record<string, number>;
   };
   assertions: {
     // pick constraints
@@ -217,6 +223,7 @@ function buildOpts(fixture: DirectorFixture):
         rationale: string;
         callbackUsed?: string | null;
       };
+      recentFallbackCounts?: Record<string, number>;
     }
   | undefined {
   const opts: {
@@ -226,9 +233,13 @@ function buildOpts(fixture: DirectorFixture):
       rationale: string;
       callbackUsed?: string | null;
     };
+    recentFallbackCounts?: Record<string, number>;
   } = {};
   if (fixture.input.llmPick) opts.llmPick = fixture.input.llmPick;
   if (fixture.input.llmPickV2) opts.llmPickV2 = fixture.input.llmPickV2;
+  if (fixture.input.recentFallbackCounts) {
+    opts.recentFallbackCounts = fixture.input.recentFallbackCounts;
+  }
   return Object.keys(opts).length > 0 ? opts : undefined;
 }
 
