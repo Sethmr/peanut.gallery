@@ -6,6 +6,35 @@
  * document via chrome.runtime.onMessage.
  */
 
+// ─── LOAD-PHASE DIAGNOSTICS (v1.9 hotfix, 2026-04-21) ────────────────────
+// The subscription scaffold introduced a TDZ that silently killed every
+// event listener on load (see PR #106). We now breadcrumb each major
+// phase of sidepanel.js with "[PG:sp phase] <name>" console logs. If the
+// script throws again in the future, the last phase logged tells us
+// within ~50 lines where it died — and the window.onerror handler
+// below surfaces anything that escapes a try/catch as a red console
+// line on page load.
+//
+// To strip this later: grep for "[PG:sp phase]" and delete the logs. The
+// window.onerror handler can stay — it's zero-cost when nothing throws.
+console.log("[PG:sp phase] sidepanel.js evaluating");
+window.addEventListener("error", (event) => {
+  console.error(
+    "[PG:sp fatal]",
+    event.message,
+    "at",
+    event.filename + ":" + event.lineno + ":" + event.colno,
+    event.error?.stack?.split("\n").slice(0, 3).join("\n"),
+  );
+});
+window.addEventListener("unhandledrejection", (event) => {
+  console.error(
+    "[PG:sp fatal rejection]",
+    event.reason?.message || event.reason,
+    event.reason?.stack?.split("\n").slice(0, 3).join("\n"),
+  );
+});
+
 // ── Persona pack definitions (must match lib/packs/* on the server) ──
 //
 // The extension is intentionally un-bundled, so pack metadata is duplicated
@@ -491,6 +520,7 @@ const firingTimeoutIds = Object.create(null);
 let capturedTabInfo = null; // { tabId, title, url, windowId }
 
 // ── DOM refs ──
+console.log("[PG:sp phase] DOM refs (top-level getElementById block)");
 const setupSection = document.getElementById("setupSection");
 const statusBar = document.getElementById("statusBar");
 const statusText = document.getElementById("statusText");
@@ -531,6 +561,7 @@ function hasRequiredUserKeys() {
 // feed menu — all of it). Fixed in PR #<n>; keep these declarations
 // ABOVE the block until/unless a refactor splits the block into its
 // own module.
+console.log("[PG:sp phase] subscription DOM refs");
 const subscriptionKeyInput = document.getElementById("subscriptionKey");
 const subscriptionBlock = document.getElementById("subscriptionBlock");
 const subProgressFill = document.getElementById("subProgressFill");
@@ -544,6 +575,7 @@ const backendModeHint = document.getElementById("backendModeHint");
 const plusUseWith = document.getElementById("plusUseWith");
 const plusUseSegmented = document.getElementById("plusUseSegmented");
 
+console.log("[PG:sp phase] v1.9 backend-mode block");
 // ═══════════════════════════════════════════════════════════════════
 // v1.9 BACKEND-MODE + PEANUT GALLERY PLUS
 // ═══════════════════════════════════════════════════════════════════
@@ -881,6 +913,7 @@ const filterPillEls = Array.from(
   document.querySelectorAll("#footer .pill[data-filter]")
 );
 
+console.log("[PG:sp phase] install-id + init block");
 // ── Install ID ──
 // Stable per-installation UUID. Generated on first load, persisted in
 // chrome.storage.local, and sent to the hosted backend as X-Install-Id so
@@ -908,12 +941,19 @@ async function ensureInstallId() {
 }
 
 // ── Init ──
+console.log("[PG:sp phase] init: loadSettings()");
 loadSettings();
+console.log("[PG:sp phase] init: ensureInstallId()");
 ensureInstallId();
+console.log("[PG:sp phase] init: buildPersonaAvatars()");
 buildPersonaAvatars();
+console.log("[PG:sp phase] init: renderPackChooser()");
 renderPackChooser();
+console.log("[PG:sp phase] init: checkStatus()");
 checkStatus();
+console.log("[PG:sp phase] init: detectCurrentTab()");
 detectCurrentTab();
+console.log("[PG:sp phase] init complete — event listeners below this point should now be bound");
 
 // Detect the current tab and show its title
 function detectCurrentTab() {
