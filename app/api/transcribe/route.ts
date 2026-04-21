@@ -528,7 +528,7 @@ export async function POST(req: NextRequest) {
           if (forcedPersona) {
             send("status", { status: "personas_firing", personaId: forcedPersona });
 
-            await personaEngine.fireSingle(
+            const forcedResponse = await personaEngine.fireSingle(
               forcedPersona,
               transcript,
               streamCallback,
@@ -536,6 +536,13 @@ export async function POST(req: NextRequest) {
               /*cascadeFrom*/ undefined,
               /*isForceReact*/ true
             );
+            // SET-12 (approach A): feed tail of emoji-tap responses into the
+            // live-callback ring buffer so v3 routing has real candidates.
+            // Skip trivial/pass responses (< 20 chars) — those are fallbacks,
+            // not memorable phrases worth heightening.
+            if (forcedResponse.trim().length >= 20) {
+              director.addLiveCallback(forcedResponse.trim().slice(-100));
+            }
 
             // NOTE: personas_complete + lock release happen in the outer
             // `finally` now — keeping them here would duplicate the emit
@@ -885,6 +892,13 @@ export async function POST(req: NextRequest) {
 
             lastResponse = response;
             lastPersonaId = personaId;
+            // SET-12 (approach A): feed tail of each cascade response into the
+            // live-callback ring buffer. Last 100 chars covers a punchline or
+            // memorable phrase without diluting the buffer with full monologues.
+            // Skip trivial responses (< 20 chars) — those are passes/fallbacks.
+            if (response.trim().length >= 20) {
+              director.addLiveCallback(response.trim().slice(-100));
+            }
           }
           } catch (err) {
             // Any throw from fireSingle (LLM 5xx, timeout, unmapped model
