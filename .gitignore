@@ -53,3 +53,14 @@ scratch-*.js
 # accidentally tracked release worktrees as gitlinks — this ignore prevents
 # recurrence.
 .claude/worktrees/
+
+# Persona-research raw audio and whisper model caches. Transcripts live
+# in docs/persona-research/transcripts/ and ARE committed; audio files
+# and whisper.cpp / openai-whisper models are ephemeral downloads that
+# shouldn't touch git. See docs/PERSONA-DATA-ACQUISITION-GUIDE.md.
+docs/persona-research/raw-audio/
+docs/persona-research/*.m4a
+docs/persona-research/*.mp3
+docs/persona-research/*.wav
+docs/persona-research/*.bin
+docs/persona-research/**/_vtt/
