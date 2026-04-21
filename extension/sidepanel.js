@@ -2840,6 +2840,15 @@ const traceListEl = document.getElementById("traceList");
 const traceClearBtn = document.getElementById("traceClear");
 const tracePackLabelEl = document.getElementById("tracePackLabel");
 const versionBadgeEl = document.getElementById("versionBadge");
+if (versionBadgeEl) {
+  try {
+    const { version } = chrome.runtime.getManifest();
+    if (version) versionBadgeEl.textContent = `v${version}`;
+  } catch {
+    // getManifest() only fails outside the extension context (tests, browser
+    // preview). Leave the badge empty in that case — better than a stale string.
+  }
+}
 
 // Refresh the pack label in the trace header. When a session is live,
 // shows the locked session pack (tinted accent); otherwise shows the
