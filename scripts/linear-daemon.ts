@@ -19,9 +19,14 @@
  *   5. On clean exit with new commits: rebase onto latest origin/develop,
  *      push with --force-with-lease, open a PR (kickoff) or post a reply
  *      comment (reply), and enable GitHub auto-merge unless the Linear
- *      issue carries the `needs-review` label. Linear's native GitHub
- *      integration moves the ticket to In Review on PR open / Done on
- *      merge — the daemon does NOT touch Linear's REST API for status.
+ *      issue carries the `needs-review` label.
+ *   6. After a successful PR open, explicitly transition the Linear
+ *      issue to "In Review" via GraphQL. (v1.7 — prior relied on
+ *      Linear's native GitHub integration, but that required per-PR
+ *      linkage which wasn't reliably happening. Daemon now owns the
+ *      transition so the board always reflects reality.) On PR merge
+ *      Linear's own "Done" transition handles the close — the daemon
+ *      doesn't need to.
  *
  * State is persisted atomically to `logs/daemon-state.json` so restarts
  * don't re-process already-handled items. Structured logs land in
@@ -326,6 +331,111 @@ async function linearGraphQL<T>(query: string, variables: Record<string, unknown
     throw new Error("Linear API returned no data");
   }
   return json.data;
+}
+
+/**
+ * In-process cache for workflow-state id lookups — avoids re-querying
+ * Linear for the same team → state name mapping every time we move a
+ * ticket. Keyed by `${teamKey}:${stateName}`. Cleared on daemon
+ * restart; Linear state ids are durable across workspaces anyway.
+ */
+const workflowStateIdCache = new Map<string, string>();
+
+/**
+ * Resolve a workflow-state UUID by team-key + state name. Linear's
+ * GraphQL filter accepts `team: {key: {eq: ...}}` and `name: {eq: ...}`
+ * so we can target exactly one state.
+ */
+async function getWorkflowStateId(
+  teamKey: string,
+  stateName: string,
+): Promise<string | null> {
+  const cacheKey = `${teamKey}:${stateName}`;
+  const cached = workflowStateIdCache.get(cacheKey);
+  if (cached) return cached;
+  const query = `
+    query StateByName($teamKey: String!, $stateName: String!) {
+      workflowStates(
+        filter: { team: { key: { eq: $teamKey } }, name: { eq: $stateName } }
+        first: 1
+      ) { nodes { id name } }
+    }
+  `;
+  const data = await linearGraphQL<{
+    workflowStates: { nodes: Array<{ id: string; name: string }> };
+  }>(query, { teamKey, stateName });
+  const id = data.workflowStates.nodes[0]?.id ?? null;
+  if (id) workflowStateIdCache.set(cacheKey, id);
+  return id;
+}
+
+/**
+ * Move a Linear issue to a named workflow state. Returns true on
+ * success, false on any failure — caller decides whether to log-warn
+ * or treat as fatal. We never throw: a Linear-side blip shouldn't
+ * kill a daemon run that already produced a good PR.
+ */
+async function transitionIssueToState(
+  issueId: string,
+  teamKey: string,
+  stateName: string,
+): Promise<boolean> {
+  const stateId = await getWorkflowStateId(teamKey, stateName);
+  if (!stateId) {
+    await logEvent("warn", "linear_state_not_found", {
+      teamKey,
+      stateName,
+      issueId,
+    });
+    return false;
+  }
+  try {
+    const mutation = `
+      mutation IssueUpdate($id: String!, $stateId: String!) {
+        issueUpdate(id: $id, input: { stateId: $stateId }) {
+          success
+          issue { identifier state { name } }
+        }
+      }
+    `;
+    const data = await linearGraphQL<{
+      issueUpdate: { success: boolean };
+    }>(mutation, { id: issueId, stateId });
+    return !!data.issueUpdate?.success;
+  } catch (err) {
+    await logEvent("warn", "linear_state_transition_failed", {
+      issueId,
+      stateName,
+      err: (err as Error).message,
+    });
+    return false;
+  }
+}
+
+/**
+ * Opinionated wrapper: move a Linear issue to "In Review" and emit
+ * structured telemetry for the transition attempt. Safe-by-design —
+ * never throws, logs success / failure / already-in-that-state.
+ *
+ * Called from the kickoff path (and replies, once that's wired) right
+ * after a PR opens. On merge, Linear's native workflow moves the
+ * ticket to Done — the daemon doesn't need to duplicate that hop.
+ */
+async function transitionIssueToInReview(issue: LinearIssue): Promise<void> {
+  const teamKey = issue.team?.key;
+  if (!teamKey) {
+    await logEvent("warn", "linear_transition_skipped", {
+      identifier: issue.identifier,
+      reason: "no team.key on issue",
+    });
+    return;
+  }
+  const ok = await transitionIssueToState(issue.id, teamKey, "In Review");
+  await logEvent(ok ? "info" : "warn", "linear_transitioned_to_in_review", {
+    identifier: issue.identifier,
+    teamKey,
+    success: ok,
+  });
 }
 
 /**
@@ -950,8 +1060,18 @@ async function processIssue(issue: LinearIssue): Promise<void> {
       autoMerge: false,
       note: "could not parse PR number from gh output; auto-merge skipped",
     });
+    // Still transition the Linear ticket — the PR IS open, just the
+    // number-parse failed. Board should reflect reality either way.
+    await transitionIssueToInReview(issue);
     return;
   }
+
+  // v1.7: always transition to "In Review" on PR open so the Linear
+  // board matches the reality that an agent has produced code. Done
+  // before the auto-merge enablement because (a) transition should
+  // land even if auto-merge setup fails, and (b) Linear shouldn't
+  // have to wait on CI to see the ticket moved.
+  await transitionIssueToInReview(issue);
 
   if (needsReview) {
     await logEvent("info", "kickoff_pr_opened", {
