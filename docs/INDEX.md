@@ -93,6 +93,7 @@ To avoid the duplication that prompted this audit, each topic has ONE canonical 
 | "What Jason wants" spec | [`CONTEXT.md` — What Jason Wants](CONTEXT.md#what-jason-wants-master-truth) |
 | Persona list + character research | `lib/packs/<pack>/personas.ts` (code) + [`CONTEXT.md` — The 4 Archetype Slots](CONTEXT.md#the-4-archetype-slots-swappable-via-persona-packs) (table). TWiST-specific voice notes: [`docs/packs/twist/RESEARCH.md`](packs/twist/RESEARCH.md). |
 | **Pack authoring + producer contract** | [`PACK-AUTHORING-GUIDE.md`](PACK-AUTHORING-GUIDE.md) — living doc. Archetype slots, `Persona` type fields, producer correction-tier system, `factCheckMode` dial, pack registration, refinement loop. |
+| **Persona voice-data collection** | [`PERSONA-REFINEMENT-PLAN.md`](PERSONA-REFINEMENT-PLAN.md) (strategy) + [`PERSONA-DATA-ACQUISITION-GUIDE.md`](PERSONA-DATA-ACQUISITION-GUIDE.md) (copy-paste operator guide, under $20 budget, public sources only). |
 | Architecture diagram | [`CONTEXT.md` — Architecture](CONTEXT.md#architecture) |
 | Chrome extension architecture | [`extension/README.md`](../extension/README.md) + [`CONTEXT.md` — Chrome Extension](CONTEXT.md#chrome-extension) |
 | Chrome extension permissions + gesture flow | [`SESSION-NOTES-2026-04-16.md §3`](SESSION-NOTES-2026-04-16.md) (immutable) |
