@@ -553,7 +553,34 @@
       align-items: center;
       flex-shrink: 0;
       overflow: hidden;
+      position: relative;
+      --transcript-pulse: transparent;
+      box-shadow: inset 0 0 0 2px var(--transcript-pulse);
+      transition: box-shadow 180ms ease-in, box-shadow 600ms ease-out;
     }
+    /* Transcript pulse — when a persona fires, the transcript bar
+       briefly glows in that persona's color so users see the link
+       between "what the video just said" and "which persona reacted."
+       The glow uses inset box-shadow instead of a border so it doesn't
+       shift the newsreel layout. `--transcript-pulse` is set inline via
+       JS to the persona's accent color; the class toggle runs the
+       transition. Lives ~1.2s total then fades back to transparent. */
+    .transcript-section.pulsing{
+      --transcript-pulse: var(--pulse-color, var(--stamp));
+    }
+    .transcript-section::after{
+      content: attr(data-pulse-label);
+      position: absolute;
+      top: 4px; right: 10px;
+      font-family: var(--slab-2); font-weight: 700;
+      font-size: 9px; letter-spacing: .18em; text-transform: uppercase;
+      color: var(--pulse-color, var(--stamp));
+      opacity: 0;
+      transition: opacity 180ms ease-in;
+      pointer-events: none;
+      text-shadow: 0 0 4px rgba(0,0,0,0.6);
+    }
+    .transcript-section.pulsing::after{opacity: 1}
 
     /* 10-bar waveform between the ON AIR label and the ticker text.
        Staggered animation-delays + a mix of paper/stamp/yellow bars
