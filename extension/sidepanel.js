@@ -2234,6 +2234,10 @@ function addFeedEntry(personaId, text) {
   if (!p) return;
   if (mutedPersonas.has(personaId)) return;
 
+  // Flash the transcript bar in this persona's color — visual link
+  // between "what the video just said" and "which persona reacted."
+  pulseTranscriptFor(p);
+
   const role = roleForSlot(personaId);
   const id = `${personaId}-${messageCount++}`;
   const now = Date.now();
@@ -2474,6 +2478,34 @@ chrome.runtime.onMessage.addListener((message) => {
       break;
   }
 });
+
+// ── Transcript pulse on persona fire ──
+// When a persona produces a visible response we briefly flash the
+// transcript bar in that persona's accent color + show a tiny persona
+// name caption in the top-right corner. Visual link between the line
+// the video just said and the persona reacting to it.
+//
+// Uses a single class + CSS custom properties so back-to-back fires
+// don't stack timeouts: each call clears the in-flight timer, re-sets
+// the class, and schedules a new teardown. A cascade round of 4
+// reactions over 8s produces 4 discrete pulses that read as one
+// "conversation" not a stuttering strobe.
+let _transcriptPulseTimer = null;
+function pulseTranscriptFor(persona) {
+  if (!transcriptSection || !persona) return;
+  const color = persona.color || "var(--stamp)";
+  const label = persona.name || "";
+  // Inline-style the CSS vars so each persona's color flows through
+  // the ::after caption + inset ring without a per-persona class.
+  transcriptSection.style.setProperty("--pulse-color", color);
+  transcriptSection.dataset.pulseLabel = label;
+  transcriptSection.classList.add("pulsing");
+  if (_transcriptPulseTimer) clearTimeout(_transcriptPulseTimer);
+  _transcriptPulseTimer = setTimeout(() => {
+    transcriptSection.classList.remove("pulsing");
+    _transcriptPulseTimer = null;
+  }, 1200);
+}
 
 function updateTranscript() {
   let html = "";
