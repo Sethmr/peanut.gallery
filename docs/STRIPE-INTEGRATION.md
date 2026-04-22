@@ -22,12 +22,16 @@ You already have a Stripe account. Make sure of two things:
 3. **Name:** `Peanut Gallery Plus`
 4. **Description:** `Hosted backend access — 16 hours of transcription per week, no API key juggling.`
 5. **Image:** optional. The masthead peanut is at `marketing/peanut-mark.png` if you want consistency.
-6. **More options → Tax behavior:** leave as `auto` for now. Stripe Tax (Step 5) handles the rest.
+6. **More options** (expand the dropdown):
+   - **Statement descriptor:** `PEANUT GALLERY` — what appears on the customer's bank statement. 22 chars max, all caps is convention. Critical for reducing chargebacks (people dispute charges they don't recognize).
+   - **Unit label:** leave blank. Used for counted goods (seats, licenses); we sell access, not units.
+   - **Metadata:** optional — `tier: plus` if you want internal analytics handles. Skip otherwise.
+   - **Marketing feature list:** optional — bullet list for Stripe's hosted Pricing Table widget (which we don't currently embed). Safe to skip.
 7. Under **Pricing:**
    - **Pricing model:** `Standard pricing` (the default).
    - **Price:** `8.00 USD`
    - **Billing period:** `Monthly`
-   - **Tax behavior:** `Inclusive` if you want $8 to be the all-in price; `Exclusive` if you want to add tax on top. Pick what feels right; you can change later.
+   - **Tax behavior:** `Inclusive` if you want $8 to be the all-in price; `Exclusive` if you want to add tax on top. Pick what feels right; you can change later. (Tax behavior is a per-PRICE setting — it lives in this Pricing section, not in More options above.)
 8. **Save product.**
 9. On the product detail page that loads, find the **Pricing** card → click into the price → **Copy** the price ID (starts with `price_`). Save it for Step 4 — this is your `STRIPE_PRICE_ID`.
 
