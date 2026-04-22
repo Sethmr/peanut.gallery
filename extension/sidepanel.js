@@ -495,6 +495,15 @@ let currentTheme = "paper";
 // Persisted under `pgFeedbackOptOut`.
 let feedbackOptOut = false;
 
+// ── Per-persona fire-count (this-session) ──
+// Count of *visible, non-empty* persona_done events per persona for
+// the active session. Shown as a small chip in the corner of each
+// persona mug so users can see cascade balance at a glance. The
+// persona with the highest count carries an accent ring
+// (`.persona-bubble.top-talker`). Resets when `buildPersonaAvatars`
+// rebuilds (pack swap) or a new session starts.
+const personaFireCounts = new Map();
+
 // Footer filter state. Each role flag toggles visibility of its feed-entry
 // class. Rendered into the gallery via data attribute — the CSS does the
 // hiding so we don't have to churn individual entries on every flip.
@@ -1383,6 +1392,7 @@ function showIdle() {
   // position until the first new update.
   updateTranscript();
   updatePersonaSpeaking(null);
+  resetPersonaFireCounts();
 }
 
 /**
@@ -2079,6 +2089,7 @@ function buildPersonaAvatars() {
         <div class="ring"></div>
         ${faceHTML}
         <span class="persona-glyph-overlay" id="stack-${p.id}">${personaGlyphHTML(p, "1.1em", null, true)}</span>
+        <span class="persona-fire-count" id="fire-count-${p.id}" aria-label="fire count this session" data-count="0" hidden>0</span>
       </div>
       <span class="persona-name">${escapeHtml(p.name)}</span>
       <span class="persona-role">${escapeHtml(roleTag)}</span>
@@ -2097,6 +2108,66 @@ function buildPersonaAvatars() {
   // Sync the title attribute with the current interactive state — a fresh
   // build picks up whatever showCapturing/showIdle last set on the row.
   syncAvatarTitles();
+  // Fresh row of bubbles = fresh counts. Repaints the chips with the
+  // current session values (empty on a rebuild-during-session would
+  // hide them all, which is the intent).
+  repaintPersonaFireCounts();
+}
+
+/**
+ * Bump a persona's fire-count by one and repaint the row. Called from
+ * the `persona_done` SSE handler on every non-empty response. Muted
+ * personas are intentionally not counted — a mute means the user opted
+ * out of that voice, so displaying a growing count would be confusing
+ * UX. (Matches the same `if (mutedPersonas.has(pid))` early-return that
+ * already gates the feed entry.)
+ */
+function incrementPersonaFireCount(personaId) {
+  const next = (personaFireCounts.get(personaId) ?? 0) + 1;
+  personaFireCounts.set(personaId, next);
+  repaintPersonaFireCounts();
+}
+
+/** Zero every persona's count. Called at session start. */
+function resetPersonaFireCounts() {
+  personaFireCounts.clear();
+  repaintPersonaFireCounts();
+}
+
+/**
+ * Paint every persona mug's chip from the current `personaFireCounts`
+ * state. Pure read-and-reflect — no DOM walking beyond each bubble's
+ * own chip. Also recomputes which persona has the top count and adds
+ * a `.top-talker` class to that bubble so CSS can surface it as an
+ * accent ring. Ties → nobody is top; the UI intentionally avoids
+ * flicker when two personas are neck-and-neck.
+ */
+function repaintPersonaFireCounts() {
+  // Figure out who's on top (strict max; ties produce no winner).
+  let topCount = 0;
+  let topId = null;
+  let tied = false;
+  for (const [id, count] of personaFireCounts) {
+    if (count > topCount) {
+      topCount = count;
+      topId = id;
+      tied = false;
+    } else if (count === topCount && count > 0) {
+      tied = true;
+    }
+  }
+  for (const p of PERSONAS) {
+    const bubble = document.getElementById(`bubble-${p.id}`);
+    const chip = document.getElementById(`fire-count-${p.id}`);
+    if (!bubble || !chip) continue;
+    const count = personaFireCounts.get(p.id) ?? 0;
+    chip.textContent = String(count);
+    chip.dataset.count = String(count);
+    chip.hidden = count === 0;
+    const isTop =
+      !tied && topId === p.id && topCount > 0 && !mutedPersonas.has(p.id);
+    bubble.classList.toggle("top-talker", isTop);
+  }
 }
 
 /**
@@ -2450,6 +2521,7 @@ chrome.runtime.onMessage.addListener((message) => {
       // in case a race let chunks through.
       if (mutedPersonas.has(pid)) break;
       if (finalText.trim()) {
+        incrementPersonaFireCount(pid);
         addFeedEntry(pid, finalText.trim());
         // If the user is waiting on a React-button click, count non-empty
         // responses and restore the button as soon as we've got at least

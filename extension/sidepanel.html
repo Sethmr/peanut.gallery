@@ -456,6 +456,42 @@
     }
     .persona-glyph-overlay:has(.persona-icon-stack.firing){opacity: 1}
 
+    /* Per-persona fire-count chip (this-session counter). Shows once
+       a persona has fired at least once; hidden otherwise. Positioned
+       as a corner badge on the mug so it reads as metadata without
+       drawing from the avatar's identity. */
+    .persona-fire-count{
+      position: absolute; z-index: 3;
+      top: -4px; right: -4px;
+      min-width: 18px; height: 18px;
+      padding: 0 5px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 10px;
+      background: var(--paper);
+      color: var(--ink);
+      border: 1.5px solid var(--ink);
+      font-family: var(--slab-2); font-weight: 700;
+      font-size: 10px; letter-spacing: .02em;
+      line-height: 1;
+      pointer-events: none;
+    }
+    .persona-fire-count[hidden]{display: none}
+    body[data-theme="night"] .persona-fire-count{
+      background: var(--paper-3);
+      color: var(--ink);
+      border-color: var(--ink);
+    }
+    /* Top-talker accent — the persona with the strict max fire count
+       gets a thin red-stamp outline on the chip to flag "this one has
+       been running the room." Tie → no winner; everyone stays neutral. */
+    .persona-bubble.top-talker .persona-fire-count{
+      border-color: var(--stamp);
+      color: var(--stamp);
+    }
+    .persona-bubble.top-talker .persona-avatar > .ring{
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--stamp) 35%, transparent);
+    }
+
     /* Persona icon stack — glyph + spinner for tap-to-fire crossfade */
     .persona-icon-stack{
       position: relative; display: inline-flex;
