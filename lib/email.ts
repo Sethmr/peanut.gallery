@@ -70,7 +70,15 @@ import {
 
 // ── CONFIG (env-driven) ──────────────────────────────────────────────────
 
-const EMAIL_API_KEY = process.env.EMAIL_API_KEY || "";
+// Provider-agnostic name wins; fall through to the provider's own
+// conventional env var name (RESEND_API_KEY, POSTMARK_SERVER_TOKEN)
+// so operators who set the native Resend / Postmark variable don't
+// have to duplicate it as EMAIL_API_KEY just to satisfy this layer.
+const EMAIL_API_KEY =
+  process.env.EMAIL_API_KEY ||
+  process.env.RESEND_API_KEY ||
+  process.env.POSTMARK_SERVER_TOKEN ||
+  "";
 const EMAIL_FROM =
   process.env.EMAIL_FROM || "subscriptions@peanutgallery.live";
 const EMAIL_REPLY_TO =
