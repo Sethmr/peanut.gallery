@@ -158,12 +158,21 @@ See the route files for the exact wire contracts.
 - Webhook-idempotency key handling (Stripe retries; don't issue duplicate keys on re-delivery)
 - Dead-letter log: if email send fails on key issuance, persist the key + retry the email — never lose a paid customer's key
 
-### Phase 4 — Email infrastructure (Linear ticket SET-27)
+### Phase 4 — Email infrastructure (Linear ticket SET-27, shipped 2026-04-21)
 
-- Transactional email via Resend (default) or Postmark (fallback). Pick one at ticket time.
-- Templates: "Welcome to Peanut Gallery Plus · here's your key" / "Your Peanut Gallery Plus license key" (recovery) / "Manage your Peanut Gallery Plus subscription" (magic link to Stripe portal)
-- All transactional; marketing email never sent from this service.
-- `DISABLE_FEEDBACK_LOGGING`-shaped opt-out: `DISABLE_EMAIL_SEND=true` short-circuits email for self-hosters who want to run Plus internally without SMTP.
+- **Provider choice: Resend** (default) with Postmark fallback (`EMAIL_PROVIDER=postmark`). Resend won on DX (clean HTTP API, no SDK needed) + free tier (3k/mo covers early subscriber stage); Postmark stays drop-in for IP-reputation insurance. Both providers speak HTTP+JSON in nearly the same shape; the abstraction in [`lib/email.ts`](../lib/email.ts) is a single switch on `EMAIL_PROVIDER`, no provider-specific dependencies.
+- **Templates** in [`lib/email-templates.ts`](../lib/email-templates.ts) — four pure functions returning `{subject, html, text}`:
+  - `renderWelcomeEmail` — `Welcome to Peanut Gallery Plus — here's your license key`. Sent from the Phase-3 webhook on `checkout.session.completed`. Includes the key + paste instructions + support email.
+  - `renderRecoveryEmail` — `Your Peanut Gallery Plus license key`. Sent from `/api/subscription/manage` action `recover_key`.
+  - `renderCancellationEmail` — `Your Peanut Gallery Plus subscription is cancelled`. Sent from the Phase-3 webhook on `customer.subscription.deleted`.
+  - `renderMagicLinkEmail` — `Manage / Cancel / Update billing your Peanut Gallery Plus subscription` (intent picks the subject + intro). Carries a Stripe Customer Portal URL.
+- **Transport** in [`lib/email.ts`](../lib/email.ts) — public API: `sendWelcomeEmail`, `sendRecoveryEmail`, `sendCancellationEmail`, `sendMagicLinkEmail`. Each returns `EmailSendResult { ok, id, error, skipped }`. Logs `subscription_email_sent` / `subscription_email_failed` / `subscription_email_skipped` events with masked email addresses (`al***@example.com`) — never logs the full address.
+- **Failure posture (load-bearing).** Send failures NEVER throw and NEVER cause a non-2xx upstream response. Stripe webhook posture: persist the issued key BEFORE attempting the welcome send so a delivery failure doesn't lose the key; on send failure log loud + still return 200 so Stripe doesn't retry-and-dupe. Manage posture: return `{ ok: true, sent: false, message }` on failure so the user-facing UI doesn't 500 — the user gets a polite "we logged your request" message and the failure shows up in the pipeline log for follow-up.
+- **Privacy: no enumeration leak.** `recover_key` and the magic-link actions return the same response shape whether or not the email is on file (the message says "if an active subscription exists for that email, we've sent the link"). Stops casual subscriber-list mining via the manage API.
+- **Self-host opt-out.** `DISABLE_EMAIL_SEND=true` short-circuits all sends with a `subscription_email_skipped` log line + `{ ok: true, skipped: true }` return — operators running Plus internally without SMTP plumbing can hand-deliver keys by reading the log events.
+- **Domain verification.** SPF / DKIM / DMARC records on the sending domain are a one-time DNS setup tracked in `docs/GITHUB-MANUAL-STEPS.md` (operator task). Not gated by code — the provider rejects unverified senders directly.
+- **Env wiring.** `EMAIL_API_KEY`, `EMAIL_FROM` (default `subscriptions@peanutgallery.live`), `EMAIL_REPLY_TO` (default `support@peanutgallery.live`), `EMAIL_PROVIDER` (default `resend`), `DISABLE_EMAIL_SEND` (default off), `STRIPE_PORTAL_URL` (optional; consumed by `manage` action `cancel`/`billing`). All documented in [`.env.example`](../.env.example).
+- **All transactional; marketing email never sent from this service.**
 
 ---
 

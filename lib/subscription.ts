@@ -269,6 +269,33 @@ function baseStatus(
 }
 
 /**
+ * Reverse-lookup: find the active license key tied to an email address.
+ * Returns null when no match. Used by `/api/subscription/manage` for the
+ * `recover_key` flow — user pastes their signup email, we mail back the
+ * key on file.
+ *
+ * Phase 1: scans the env-loaded whitelist linearly (whitelist size is
+ * tiny — measured in tens, not thousands). Phase 2 swaps for an indexed
+ * lookup against the SQLite store; the public signature here doesn't
+ * change so callers stay portable.
+ *
+ * Email match is case-insensitive on the local + domain parts —
+ * users routinely paste with different casing than they used at
+ * signup, and email addresses are not case-sensitive in practice for
+ * any major provider.
+ */
+export function findActiveKeyByEmail(email: string): string | null {
+  if (!ENABLED) return null;
+  const needle = (email || "").trim().toLowerCase();
+  if (!needle) return null;
+  const store = getStore();
+  for (const [key, record] of store.whitelist) {
+    if (record.email.trim().toLowerCase() === needle) return key;
+  }
+  return null;
+}
+
+/**
  * Response body shape for the 402 returned when a subscription key has
  * hit the weekly cap. Same spirit as `quotaDeniedBody` in the free-tier
  * limiter — machine-readable code + human-readable message.

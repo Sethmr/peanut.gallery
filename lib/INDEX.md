@@ -16,6 +16,9 @@ Everything the Next.js API routes import. Parent: [`../INDEX.md`](../INDEX.md). 
 | [`transcription.ts`](transcription.ts) | `TranscriptionManager` — Deepgram WebSocket client. Owns silence detection (18s threshold), timing constants, `setPaceMultiplier(mult)` for the response-rate dial. |
 | [`debug-logger.ts`](debug-logger.ts) | `logPipeline` JSONL writer at `logs/pipeline-debug.jsonl`. Every downstream file logs through this. New v1.4 events: `search_skip`, `search_no_claims_detected`, `search_timeout`, `search_upstream_error`, `search_empty_result`, `search_complete`, `search_pipeline_error`, `force_react_fallback`. |
 | [`free-tier-limiter.ts`](free-tier-limiter.ts) | In-memory per-install quota (15 min / 24h rolling window, env-overridable). Returns 402 `TRIAL_EXHAUSTED`. Inert until operator sets `ENABLE_FREE_TIER_LIMIT=true`. |
+| [`subscription.ts`](subscription.ts) | Subscription key validation + weekly-hours metering + reverse-lookup by email (`findActiveKeyByEmail`). In-memory + env-whitelist for Phase 1. Inert until `ENABLE_SUBSCRIPTION=true`. |
+| [`email.ts`](email.ts) | Transactional email transport for Peanut Gallery Plus (Phase 4 / SET-27). Resend (default) + Postmark fallback over raw `fetch`, `EMAIL_API_KEY` / `EMAIL_FROM` / `EMAIL_REPLY_TO` / `EMAIL_PROVIDER` env-driven. Public API: `sendWelcomeEmail`, `sendRecoveryEmail`, `sendCancellationEmail`, `sendMagicLinkEmail`. Send failures log loud + return `{ok:false}` — never throw, never swallow the original operation. `DISABLE_EMAIL_SEND=true` is the self-host opt-out. |
+| [`email-templates.ts`](email-templates.ts) | Pure functions returning `{subject, html, text}` for each Plus transactional email. HTML escapes all interpolated values; no remote assets (inline styles only — survives client-side image blocking + avoids tracking-pixel optics). |
 
 ## Subdirectories
 
