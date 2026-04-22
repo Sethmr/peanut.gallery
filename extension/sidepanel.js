@@ -836,6 +836,32 @@ function stopFreeTierTimer() {
   }
 }
 
+// ── Elapsed-timer (paid BYOK + Plus) ──
+// Simple count-up readout in the status-time slot. Reuses
+// `freeTierIntervalId` + `freeTierStartMs` storage (there's only ever
+// one timer running; sharing avoids a second variable + a second
+// stopFooTimer helper). Does NOT touch the episode-card progress bar
+// or flip to a cap-reached state — paid users have no cap to visualize.
+// Stopped via the same stopFreeTierTimer() on session end / Stop tap.
+function startElapsedTimer() {
+  stopFreeTierTimer();
+  freeTierCapped = false;
+  freeTierStartMs = Date.now();
+  statusBar.classList.remove("capped");
+  statusTime.textContent = "00:00:00";
+  if (episodeCard) {
+    // Paid mode intentionally hides the progress fill — the card
+    // doesn't need a "budget used" visual. If a previous free-tier
+    // session left `.with-progress` on, clear it.
+    episodeCard.classList.remove("with-progress", "capped");
+  }
+  if (episodeCardProgressFill) episodeCardProgressFill.style.width = "0%";
+  freeTierIntervalId = setInterval(() => {
+    const elapsed = (Date.now() - freeTierStartMs) / 1000;
+    statusTime.textContent = formatHMS(elapsed);
+  }, 1000);
+}
+
 function flipToCapReached() {
   freeTierCapped = true;
   statusBar.classList.add("capped");
@@ -1223,11 +1249,17 @@ function showCapturing() {
   const freeTier = !hasRequiredUserKeys();
   statusBar.classList.toggle("with-timer", freeTier);
   if (freeTier) {
+    // Free-tier: count up toward the 15-minute cap + flip to "CAP REACHED"
+    // when we hit it. The countdown IS the primary budget signal.
     statusTag.textContent = "LISTENING";
     statusDetail.textContent = capturedTabInfo?.title || "—";
     startFreeTierTimer();
   } else {
-    stopFreeTierTimer();
+    // Paid (BYOK or Plus): simple count-up elapsed-timer readout in the
+    // status-time slot. No cap, no "paused" flip. Users asked for
+    // session-length visibility; the elapsed clock gives it without
+    // bolting on a second UI surface.
+    startElapsedTimer();
   }
   controlsRow.style.display = "block";
   // Must be `grid`, not `block` — the CSS lays the strip out as a 3-col
