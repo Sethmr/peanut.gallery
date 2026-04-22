@@ -485,6 +485,16 @@ let mutedPersonas = new Set();
 // body.dataset.theme on load + on button click, persisted under `theme`.
 let currentTheme = "paper";
 
+// ── v1.7 PROMISE: user-facing feedback opt-out ──
+// Default OFF (opt-in to share feedback). The Privacy Policy promised a
+// user-facing toggle for this; the only other opt-outs were self-host
+// (DISABLE_FEEDBACK_LOGGING=true on the backend) or not interacting with
+// feed-entry menu. When true, sendFeedback() short-circuits and no
+// /api/feedback POST leaves the browser. Local UI state (vote icons,
+// pin highlight, quote-card render) works identically regardless.
+// Persisted under `pgFeedbackOptOut`.
+let feedbackOptOut = false;
+
 // Footer filter state. Each role flag toggles visibility of its feed-entry
 // class. Rendered into the gallery via data attribute — the CSS does the
 // hiding so we don't have to churn individual entries on every flip.
@@ -904,6 +914,8 @@ const drawerCloseBtn = document.getElementById("drawerCloseBtn");
 const drawerBackBtn = document.getElementById("drawerBackBtn");
 const mutesContainer = document.getElementById("mutesContainer");
 const themePaperBtn = document.getElementById("themePaperBtn");
+// Drawer → Privacy section (v1.7 Privacy-Policy-promise opt-out).
+const feedbackOptOutToggle = document.getElementById("feedbackOptOutToggle");
 const themeNightBtn = document.getElementById("themeNightBtn");
 const exportCopyBtn = document.getElementById("exportCopyBtn");
 const exportDownloadBtn = document.getElementById("exportDownloadBtn");
@@ -989,6 +1001,7 @@ function loadSettings() {
       "packId",
       "theme",
       "mutedPersonas",
+      "pgFeedbackOptOut",
     ],
     (data) => {
       if (data.serverUrl) serverUrlInput.value = data.serverUrl;
@@ -1073,6 +1086,19 @@ function loadSettings() {
       // call before the DOM refs are resolved; the helper no-ops if the
       // elements are missing (e.g. drawer not yet attached).
       syncThemeButtons();
+
+      // Privacy → feedback opt-out. Default OFF (i.e. data sharing ON) to
+      // match the Privacy Policy's stated default; user explicitly flips
+      // to opt out. We read the saved value as an exact boolean `true` so
+      // any corruption collapses back to the documented default.
+      feedbackOptOut = data.pgFeedbackOptOut === true;
+      if (feedbackOptOutToggle) {
+        // Checkbox semantics match the label "Share feedback with the
+        // project": checked = share (default on), unchecked = opt out.
+        // Our state variable inverts that (`feedbackOptOut=true` means
+        // *don't* share), so reflect the inverse in the checkbox.
+        feedbackOptOutToggle.checked = !feedbackOptOut;
+      }
 
       // Keys section stays collapsed by default — the backend handles demo
       // access, so first-time users never need to open the panel.
@@ -1645,6 +1671,12 @@ function persistVotes() {
  * pin | unpin | quote_card. Anything else is rejected with 400.
  */
 function sendFeedback(action, entryId) {
+  // User-facing opt-out. When the "Share feedback with the project" toggle
+  // in Settings → Privacy is off, every /api/feedback POST is skipped at
+  // the client. Local UI state (vote icons, pin highlight) is unaffected —
+  // that's a client-side feature. This delivers the Privacy-Policy
+  // promise of a user-facing opt-out without touching server-side logic.
+  if (feedbackOptOut) return;
   const serverUrl = normalizeServerUrl(serverUrlInput?.value);
   if (!serverUrl) return; // extension not configured yet
   const entry = feedEntries.find((e) => e.id === entryId);
@@ -3325,6 +3357,22 @@ function syncThemeButtons() {
 }
 if (themePaperBtn) themePaperBtn.addEventListener("click", () => applyTheme("paper"));
 if (themeNightBtn) themeNightBtn.addEventListener("click", () => applyTheme("night"));
+
+// Drawer → Privacy → Share-feedback toggle. Checkbox semantics match the
+// label ("Share feedback with the project"): checked = share. State
+// variable `feedbackOptOut` is the INVERSE (true = opt out) because the
+// feedback poster's early-return reads naturally as "if (feedbackOptOut)
+// return". Persist the opt-out flag; the backend never sees whether this
+// toggle is on — sendFeedback() short-circuits client-side when opted out,
+// so the network never fires in the first place.
+if (feedbackOptOutToggle) {
+  feedbackOptOutToggle.addEventListener("change", () => {
+    feedbackOptOut = !feedbackOptOutToggle.checked;
+    chrome.storage.local
+      .set({ pgFeedbackOptOut: feedbackOptOut })
+      .catch(() => {});
+  });
+}
 
 // ── Session export (Copy + Download as Markdown) ──
 //
