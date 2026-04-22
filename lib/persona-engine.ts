@@ -150,7 +150,12 @@ function getForceReactFallback(
 // Claim-detector patterns + scoring now live in lib/claim-detector.ts so the
 // Director and the persona engine agree on "is this text fact-checkable?"
 // See the claim-detector module for the regex set.
-import { extractTopClaims, type ScoredClaim, type FactHint } from "./claim-detector";
+import {
+  extractTopClaims,
+  normalizeSpokenNumbers,
+  type ScoredClaim,
+  type FactHint,
+} from "./claim-detector";
 
 /**
  * Which search backend to use for Producer fact-checking. User-selectable per
@@ -535,6 +540,13 @@ export class PersonaEngine {
     // prop; if tap frequency is high we may want to revisit (e.g. serve a
     // cached recent-fact lookup on tap instead of skipping entirely).
     let searchResults: string | undefined;
+    // v1.7.1: explicit evidence-availability signal threaded into the
+    // producer prompt so the model calibrates its correction tier against
+    // "did search actually return anything?" instead of inferring from the
+    // presence/absence of the results section alone. `"skipped"` covers
+    // non-producer personas AND the force-react path (where search is
+    // intentionally bypassed for latency reasons).
+    let searchStatus: "with_results" | "empty" | "skipped" | undefined;
     if (persona.id === "producer" && !isSilence) {
       if (isForceReact) {
         logPipeline({
@@ -543,8 +555,10 @@ export class PersonaEngine {
           personaId: persona.id,
           data: { reason: "force_react", engine: this.searchEngine },
         });
+        searchStatus = "skipped";
       } else {
         searchResults = await this.fetchSearchResults(transcript, preExtractedClaims);
+        searchStatus = searchResults ? "with_results" : "empty";
       }
     }
 
@@ -559,7 +573,8 @@ export class PersonaEngine {
         otherPersonas,
         isSilence,
         conversationLog,
-        isForceReact
+        isForceReact,
+        searchStatus
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -634,6 +649,20 @@ export class PersonaEngine {
         const searchResults =
           persona.id === "producer" ? await searchPromise : undefined;
 
+        // v1.7.1: evidence-availability signal. In fireAll we're either in
+        // a 🔥 burst (force-react, search is skipped up top via `isSilence`
+        // or the caller, and the producer fires memory-only) or a
+        // per-persona force-react. Either way the producer prompt needs an
+        // honest signal about whether bullets exist.
+        const searchStatus: "with_results" | "empty" | "skipped" | undefined =
+          persona.id !== "producer"
+            ? undefined
+            : isSilence
+              ? "skipped"
+              : searchResults
+                ? "with_results"
+                : "empty";
+
         const otherPersonas = otherPersonaMap.get(persona.id) || [];
 
         await this.firePersona(
@@ -644,7 +673,8 @@ export class PersonaEngine {
           otherPersonas,
           isSilence,
           logView,
-          isForceReact
+          isForceReact,
+          searchStatus
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -670,7 +700,8 @@ export class PersonaEngine {
     otherPersonas: OtherPersonaResponse[] = [],
     isSilence = false,
     conversationLog: ConversationEntry[] = [],
-    isForceReact = false
+    isForceReact = false,
+    searchStatus?: "with_results" | "empty" | "skipped"
   ): Promise<void> {
     const donePersona = logTimed("persona_fire", "info", {
       personaId: persona.id,
@@ -716,7 +747,8 @@ export class PersonaEngine {
       isSilence,
       conversationLog,
       isForceReact,
-      lastRepeatText
+      lastRepeatText,
+      searchStatus
     );
 
     let fullResponse = "";
@@ -1233,11 +1265,23 @@ export class PersonaEngine {
 
   /**
    * Build a focused search query from a claim sentence.
-   * Strips filler words and focuses on the verifiable core.
+   *
+   * 2026-04-21: expanded the claim-shape library. Pre-hardening we
+   * only had two structured rules (founded-year + valuation) and
+   * everything else fell through to a raw "first 120 chars of the
+   * sentence" query — which searches poorly on Brave and under-primes
+   * xAI Live Search. The new rules cover the most common podcast
+   * claim-shapes: funding rounds (Series X), acquisitions ($X for $Y),
+   * spoken-numeric claims (normalized to digits first), and explicit
+   * attributions (quote a source → search the source's reporting).
+   * Shapes are tried in most-specific → most-generic order so a
+   * claim that matches "acquired" AND "raised" falls out on the
+   * acquired rule, which is the more informative query.
    */
   private buildSearchQuery(sentence: string): string {
-    // Remove common filler phrases
-    let query = sentence
+    // Normalize spoken-form numbers BEFORE the filler scrub so rules
+    // that look for "\d+" fire on "three billion" the same as "$3B".
+    let query = normalizeSpokenNumbers(sentence)
       .replace(
         /^(I think|I believe|you know|like|so|well|basically|honestly|look|I mean)\s*/gi,
         ""
@@ -1245,8 +1289,35 @@ export class PersonaEngine {
       .replace(/\s+(right|you know|like|basically)\s*/gi, " ")
       .trim();
 
-    // If the claim mentions a company/person + a fact, build a targeted query
-    // e.g., "Uber was founded in 2007" → "Uber founding year"
+    // Acquisition: "Adobe acquired Figma for $20 billion" → targeted.
+    // Tried before "raised" because acquisitions often also trigger
+    // raise-ish verbs in the same sentence, and the acquired-for
+    // shape is the more informative search.
+    const acquiredMatch = query.match(
+      /([A-Z]\w+(?:\s+[A-Z]\w+)?)\s+(?:acquired|bought|purchased)\s+([A-Z]\w+(?:\s+[A-Z]\w+)?)\s+(?:for\s+)?(\$?\d[\d.,]*\s*(?:billion|million|thousand|B|M|K)?)?/i
+    );
+    if (acquiredMatch) {
+      const [, acquirer, target, amount] = acquiredMatch;
+      return [acquirer, "acquired", target, amount]
+        .filter(Boolean)
+        .join(" ")
+        .slice(0, 120);
+    }
+
+    // Funding round: "Stripe raised a Series C at $100B" → anchored
+    // on company + round letter + amount. Searches beat a raw quote.
+    const fundingMatch = query.match(
+      /([A-Z]\w+(?:\s+[A-Z]\w+)?)\s+(?:raised|closed|announced|secured)\s+(?:a\s+|an\s+)?(Series\s+[A-F]|seed round|seed|pre[\s-]?seed|bridge|angel\s+round)?[\s\S]{0,40}?(\$?\d[\d.,]*\s*(?:billion|million|thousand|B|M|K)?)/i
+    );
+    if (fundingMatch) {
+      const [, company, round, amount] = fundingMatch;
+      return [company, round ?? "funding round", amount]
+        .filter(Boolean)
+        .join(" ")
+        .slice(0, 120);
+    }
+
+    // Founded year: "Uber was founded in 2007" → "Uber founded year 2007"
     const foundedMatch = query.match(
       /(\w+)\s+(?:was|were)\s+(?:founded|started|created|launched)\s+(?:in\s+)?(\d{4})/i
     );
@@ -1254,7 +1325,7 @@ export class PersonaEngine {
       return `${foundedMatch[1]} founded year ${foundedMatch[2]}`;
     }
 
-    // e.g., "Tesla is worth 800 billion" → "Tesla market cap valuation"
+    // Valuation: "Tesla is worth $800 billion" → market-cap lookup
     const valuationMatch = query.match(
       /(\w+)\s+(?:is|was|are)\s+(?:worth|valued at)\s+(.+)/i
     );
@@ -1262,8 +1333,26 @@ export class PersonaEngine {
       return `${valuationMatch[1]} valuation market cap ${valuationMatch[2]}`;
     }
 
-    // e.g., "They raised 50 million" → keep as-is but trim
-    // Default: use the first 120 chars of the claim
+    // Direct quote: "X said Y" → quote the source so reporting surfaces.
+    // Cheap way to pull the actual attribution into the query.
+    const attributedMatch = query.match(
+      /([A-Z]\w+(?:\s+[A-Z]\w+)?)\s+(?:said|announced|claimed|stated|told\s+\w+)\s+(?:that\s+)?(.{10,100})/i
+    );
+    if (attributedMatch) {
+      const [, who, what] = attributedMatch;
+      return `${who} ${what.replace(/\.$/, "")}`.slice(0, 120);
+    }
+
+    // Role/title: "Sam Altman is CEO of OpenAI" → canonical lookup
+    const titleMatch = query.match(
+      /([A-Z]\w+(?:\s+[A-Z]\w+)?)\s+(?:is|was)\s+(?:the\s+)?(CEO|CTO|founder|president|chairman)\s+of\s+([A-Z]\w+)/i
+    );
+    if (titleMatch) {
+      const [, person, role, company] = titleMatch;
+      return `${company} ${role} ${person}`;
+    }
+
+    // Default: use the first 120 chars of the (normalized) claim
     return query.slice(0, 120);
   }
 

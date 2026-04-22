@@ -54,22 +54,64 @@ export type FactCheckMode = "strict" | "loose";
  * Hard-claim patterns. Requires either explicit numerics, named entities,
  * or direct attributions. Matches roughly the pre-v1.7 behavior of the
  * persona engine's fact-check pipeline.
+ *
+ * 2026-04-21 hardening (LiveFC / AVeriTeC-inspired): two changes aimed at
+ * live-podcast ASR reality.
+ *  1. Spoken numbers now match. On a live-ASR feed "three billion" is
+ *     the norm and `\$[\d]+` never fires on it, leaving Baba silent on
+ *     the exact claims he was built to catch. Added a word-number rule
+ *     that only fires when the spoken number is followed by a real unit
+ *     (dollars / billion / percent / users / years) so we don't catch
+ *     casual numeric language like "three times" or "few dozen people".
+ *  2. Attribution verbs now require structure (`said that X`, `told me`,
+ *     `according to X`). The raw "said" regex was the single biggest
+ *     false-positive source in the Director fixture suite — every
+ *     dialogue tag in a podcast ("and he said, like…") was passing the
+ *     gate with nothing to check. Structural anchors drop that noise
+ *     without losing quote-style claims.
+ *  3. Funding-round claims ("Series B at $400M", "seed round") are
+ *     first-class — they're the most common startup-podcast claim and
+ *     they often hide inside sentences that don't clear any other rule.
  */
 export const CLAIM_PATTERNS_STRICT: readonly RegExp[] = [
   // Founding years, launch dates
   /(?:founded|started|launched|created|began|debuted|shipped|released)\s+(?:in|around)\s+\d{4}/i,
-  // Money amounts with magnitude
+  // Money amounts with magnitude — dollar-prefixed (written form)
   /\$[\d.,]+\s*(?:billion|million|thousand|[BMK])/i,
-  // Percentages, totals, user counts
+  // Spoken-form numeric claims that never clear the `$` filter — "three
+  // billion dollars", "forty-seven million users", "two hundred thousand
+  // subscribers". Word-number token(s) followed by a real unit. The
+  // trailing-unit requirement keeps casual phrasing ("three times",
+  // "couple years", "few hundred") out of the match unless the unit
+  // actually makes it a claim ("couple hundred million users" does).
+  /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|trillion)(?:[\s-](?:one|two|three|four|five|six|seven|eight|nine|hundred|thousand|million|billion|trillion))*\s+(?:dollars?|billion|million|thousand|percent|users?|employees?|customers?|subscribers?|downloads?|people|companies|startups?)\b/i,
+  // Percentages, totals, user counts (digit form)
   /\d+[\d.,]*\s*(?:percent|%|billion|million|thousand|users|employees|customers|subscribers|downloads)/i,
-  // Attributions + quotes (verifiable because the source can be checked)
-  /(?:said|claimed|announced|reported|according to|stated|told|wrote|posted|tweeted)\s/i,
+  // Direct quote marks → a specific attributed statement. Robust to
+  // straight OR curly quotes; min inner length filters out stray "hi".
+  /["“][^"”]{6,}["”]/,
+  // Structured attributions — require a complement ("that", "to X",
+  // "reporters"), an attribution preposition ("according to"), or a
+  // proper-noun neighbour. Drops bare-"said" false positives.
+  /\b(?:said|claimed|announced|stated|told|wrote|posted|tweeted)\s+(?:that|on|to|in|the|reporters|us|me|him|her|them|press|an?\s)/i,
+  // NOTE: deliberately not using the /i flag — we want "according to" in
+  // either case but the trailing class MUST stay upper-case-or-digit
+  // (the source name). With /i, [A-Z] degrades to [A-Za-z] and every
+  // "according to anyone" falsely matches.
+  /\b[Aa]ccording to\s+[A-Z\d]/,
+  /\b(?:[Pp]er|[Aa]s reported by|[Ss]ources told|[Cc]onfirmed (?:to|by))\s+[A-Z]/,
   // Comparisons and rankings
   /(?:largest|biggest|first|fastest|most|only|world's|best|worst|top|leading|smallest|oldest|newest)\s/i,
-  // Corporate-action facts
-  /(?:acquired|merged|IPO|went public|valuation|revenue|profit|raised|funded|closed|invested|exited|dissolved)\s/i,
+  // Corporate-action facts — require a complement (the thing that was
+  // acted on), so "we merged into this" doesn't trip.
+  /(?:acquired|merged with|went public|IPO(?:'d)?|raised|funded|invested|exited|dissolved)\s+[A-Za-z0-9$]/i,
+  /\b(?:valuation of|revenue of|profit of|ARR of|MRR of|market cap of|burn rate of)\s+[\$\w]/i,
+  // Funding-round claims — Series A-F or seed/pre-seed/bridge, anchored
+  // to a neighboring keyword so random "series" in conversation doesn't
+  // match ("series of unfortunate events").
+  /\b(?:Series\s+[A-F]|seed round|pre[\s-]?seed|bridge round|angel round|crossover round)\b/i,
   // Specific fact claims (entity + role)
-  /(?:is worth|was worth|valued at|market cap|founded by|CEO of|invented|created by|owned by|backed by|led by)/i,
+  /(?:is worth|was worth|valued at|market cap|founded by|CEO of|CTO of|founder of|invented|created by|owned by|backed by|led by)/i,
 ] as const;
 
 /**
@@ -77,6 +119,12 @@ export const CLAIM_PATTERNS_STRICT: readonly RegExp[] = [
  * `factCheckMode === "loose"`. These catch speculation, predictions,
  * opinion-as-fact, hand-wavy quantification, and name-drops — cues the
  * "Baba corrects everything" archetype loves to push back on.
+ *
+ * 2026-04-21: added a handful of cues that Baba's loose mode was
+ * missing in practice — tech-history rhymes ("back in the dot-com
+ * days"), sponsor/ad numeric claims ("saves you X hours"), and
+ * personal-history tells ("my first company") that are often
+ * mis-remembered on a live show.
  */
 export const CLAIM_PATTERNS_LOOSE_EXTRA: readonly RegExp[] = [
   // Predictions + future states (fact-checkable in context)
@@ -86,7 +134,7 @@ export const CLAIM_PATTERNS_LOOSE_EXTRA: readonly RegExp[] = [
   // Confidence cues (often attach to wrong claims)
   /\b(?:definitely|without a doubt|of course|obviously|clearly|undeniably|without question|100%|hundred percent)\b/i,
   // Historical references (date is checkable)
-  /\b(?:last (?:week|month|year|quarter)|yesterday|a (?:few|couple) (?:years|months|weeks) ago|decades? ago|back in\s+\d{4})\b/i,
+  /\b(?:last (?:week|month|year|quarter)|yesterday|a (?:few|couple) (?:years|months|weeks) ago|decades? ago|back in\s+\d{4}|back in the (?:dot[\s-]?com|bubble|(?:80|90|70|00|10|20)s))\b/i,
   // Generic statistic cues without explicit %
   /\b(?:half of|most of|one in (?:two|three|four|five|ten)|majority of|minority of|nearly all|almost all|virtually all|a fraction of)\b/i,
   // "Everyone knows" style opinion-as-fact
@@ -99,6 +147,12 @@ export const CLAIM_PATTERNS_LOOSE_EXTRA: readonly RegExp[] = [
   /\b(?:won the|winner of|nominated for|received the|awarded|named)\s+(?:[A-Z]|the\s+[A-Z])/i,
   // Generic quantification without units
   /\b(?:over|more than|less than|fewer than|upwards of|approximately|roughly|around)\s+\d/i,
+  // Sponsor/ad-style numeric promises — "saves you 10 hours a week",
+  // "cuts your costs by 40%". Different shape than a normal claim,
+  // often misheard or inflated in live reads.
+  /\b(?:saves? you|cuts?|reduces?|boosts?|grows?|increases?|doubles?|triples?)\s+(?:your|their|our)?\s*\w*\s*(?:by\s+)?\d+/i,
+  // Personal-history tells ("my first company", "when I was at Google")
+  /\b(?:my first|my last|back when I|when I was at|I used to work|I was employee|I co[\s-]?founded|I invested in)\s+[A-Z\w]/,
   // Name + title / position (Elon, Zuck, Sam Altman — triggers "is that still true?" check)
   /\b(?:CEO|CTO|founder|president|chairman|former|ex-)\s+(?:of\s+)?[A-Z]/,
 ] as const;
@@ -143,27 +197,100 @@ export interface ExtractOptions {
 /**
  * Split text into sentences using simple punctuation-boundary lookahead.
  * Not a full NLP sentence splitter — good enough for the Director budget.
+ *
+ * On live-ASR transcripts the puncutation is unreliable (Whisper drops
+ * periods mid-stream, Deepgram emits long comma-glued runs). Fall-back
+ * behaviour: if the naive split yields ≤1 segment but the input is
+ * long, chunk on commas/semicolons too. This prevents a 400-char
+ * comma-joined run from being treated as a single un-scorable sentence.
  */
 export function splitSentences(text: string, minLength = 15): string[] {
   if (!text) return [];
-  return text
+  const primary = text
     .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= minLength);
+  if (primary.length >= 2 || text.length < 180) return primary;
+  // Fallback: comma/semicolon chunking for punctuation-poor ASR output.
+  // We still apply the length filter so "uh, yeah," doesn't survive.
+  return text
+    .split(/[,;]\s+/)
     .map((s) => s.trim())
     .filter((s) => s.length >= minLength);
 }
 
 /**
+ * Normalize spoken-form numbers + currency words into a compact form
+ * that's friendlier to both the claim-detector's digit-aware patterns
+ * and downstream search queries. Pure preprocessing — no semantic
+ * change. "three billion dollars" → "3 billion dollars"; "forty two
+ * million" → "42 million". Conservative on scope: only handles the
+ * common spoken magnitudes a podcast actually uses. Anything we miss
+ * still flows through unchanged, so this is additive-safe.
+ */
+const _ONES: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
+  eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13,
+  fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
+  eighteen: 18, nineteen: 19,
+};
+const _TENS: Record<string, number> = {
+  twenty: 20, thirty: 30, forty: 40, fifty: 50,
+  sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+};
+
+export function normalizeSpokenNumbers(text: string): string {
+  if (!text) return text;
+  // Collapse "twenty-four" / "forty two" before magnitude substitution.
+  const joined = text.replace(
+    /\b(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)[\s-](one|two|three|four|five|six|seven|eight|nine)\b/gi,
+    (_, t: string, o: string) =>
+      String(_TENS[t.toLowerCase()] + _ONES[o.toLowerCase()])
+  );
+  // "three hundred" / "two hundred million" — convert the leading one/
+  // ten token to a digit so patterns like `\d+\s+million` fire.
+  return joined.replace(
+    /\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\s+(hundred|thousand|million|billion|trillion|percent|dollars?|users?)\b/gi,
+    (_, n: string, unit: string) => {
+      const k = n.toLowerCase();
+      const v = _ONES[k] ?? _TENS[k];
+      return v !== undefined ? `${v} ${unit}` : `${n} ${unit}`;
+    }
+  );
+}
+
+/**
+ * Cheap proper-noun heuristic. Counts capitalized multi-letter tokens
+ * that are NOT at an absolute sentence start. Catches names after
+ * commas, dashes, quote marks, etc. — the pre-hardening version (`\s[A-Z]`)
+ * only matched names after a plain space, which missed "said, 'Sam Altman
+ * is…'" and "—Musk posted…". Two-letter words are rejected to cut down on
+ * spurious matches on casual-sentence-middle capitalizations
+ * ("Hi" / "OK" at a clause start).
+ */
+function countProperNouns(sentence: string): number {
+  if (sentence.length === 0) return 0;
+  const firstSpace = sentence.indexOf(" ");
+  const body = firstSpace === -1 ? "" : sentence.slice(firstSpace);
+  const matches = body.match(/[^A-Za-z0-9][A-Z][a-z]{2,}/g);
+  return matches ? matches.length : 0;
+}
+
+/**
  * Score a single sentence against a chosen mode's pattern set.
  *
- * - `strict` — +1 per matched pattern ONLY. No bonuses. Sentence must
- *   contain at least one hard-claim pattern to qualify. Keeps strict
- *   genuinely strict; a stray proper noun + digit (e.g. "I think Tesla
- *   by 2030") no longer inflates the score past the gate.
+ * - `strict` — +1 per matched pattern. No per-sentence bonuses beyond
+ *   the compound-claim tie-breaker (a sentence with 3+ distinct
+ *   pattern hits gets +1, so AVeriTeC-style dense claims ("Facebook
+ *   was founded in 2004 and raised at a $500M valuation") rank above
+ *   single-signal ones). Keeps strict genuinely strict; a stray
+ *   proper noun + digit (e.g. "I think Tesla by 2030") no longer
+ *   inflates the score past the gate.
  * - `loose` — +1 per matched pattern + up to +2 for numeric density +
- *   up to +2 for proper-noun density. Any cue in the sentence
- *   contributes. Even sentences with no pattern hits but multiple
- *   numbers or proper nouns (e.g. a bare "Elon, Twitter, 2022") still
- *   score.
+ *   up to +2 for proper-noun density + compound-claim bonus. Any cue
+ *   in the sentence contributes. Even sentences with no pattern hits
+ *   but multiple numbers or proper nouns (e.g. "Elon, Twitter, 2022")
+ *   still score.
  */
 export function scoreClaim(sentence: string, mode: FactCheckMode = "strict"): number {
   let patternScore = 0;
@@ -171,19 +298,23 @@ export function scoreClaim(sentence: string, mode: FactCheckMode = "strict"): nu
     if (pattern.test(sentence)) patternScore++;
   }
 
-  // In strict mode, no bonuses — only pattern hits count. This prevents
-  // "I think Tesla will 2x by 2026" from scoring on the proper-noun +
-  // number bonuses alone.
+  // Compound-claim bonus — a sentence that trips 3+ distinct patterns is
+  // almost always denser than a 1-pattern hit, and the AVeriTeC
+  // evaluation repeatedly shows dense claims are both more checkable
+  // and more likely to contain a specific error. +1 flat bonus applied
+  // in both modes so the top-ranked claim fed to search is more
+  // likely to be the juicy one.
+  if (patternScore >= 3) patternScore += 1;
+
+  // In strict mode, no additional bonuses — only pattern hits count.
+  // This prevents "I think Tesla will 2x by 2026" from scoring on the
+  // proper-noun + number bonuses alone.
   if (mode === "strict") return patternScore;
 
   let score = patternScore;
   const numberMatches = sentence.match(/\d+/g);
   if (numberMatches) score += Math.min(numberMatches.length, 2);
-  // Proper nouns: capitalized word NOT at sentence start. Leading-space
-  // match gives a cheap "mid-sentence capital" heuristic without needing
-  // POS tagging.
-  const properNouns = sentence.match(/\s[A-Z][a-z]+/g);
-  if (properNouns) score += Math.min(properNouns.length, 2);
+  score += Math.min(countProperNouns(sentence), 2);
   return score;
 }
 
@@ -209,7 +340,12 @@ export function extractTopClaims(
 
   const scored: ScoredClaim[] = [];
   for (const sentence of sentences) {
-    const score = scoreClaim(sentence, mode);
+    // Score against the spoken-number-normalized form so "three billion
+    // dollars" trips the digit-aware patterns the same way "$3 billion"
+    // would. The ORIGINAL sentence is still what we store + hand to
+    // search — the normalization is purely a scoring aid so we don't
+    // silently rewrite what the producer sees.
+    const score = scoreClaim(normalizeSpokenNumbers(sentence), mode);
     if (score >= minScore) {
       scored.push({ sentence, score });
     }
@@ -231,7 +367,9 @@ export function hasVerifiableClaim(
   const minLen = mode === "loose" ? 8 : 15;
   const sentences = splitSentences(text, minLen);
   for (const sentence of sentences) {
-    if (scoreClaim(sentence, mode) >= minScore) return true;
+    if (scoreClaim(normalizeSpokenNumbers(sentence), mode) >= minScore) {
+      return true;
+    }
   }
   return false;
 }
