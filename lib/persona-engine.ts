@@ -151,12 +151,6 @@ function getForceReactFallback(
 // Director and the persona engine agree on "is this text fact-checkable?"
 // See the claim-detector module for the regex set.
 import { extractTopClaims, type ScoredClaim, type FactHint } from "./claim-detector";
-import {
-  aggregateEvidenceStrength,
-  buildEvidencePreamble,
-  classifyEvidence,
-  type EvidenceStrength,
-} from "./evidence-classifier";
 
 /**
  * Which search backend to use for Producer fact-checking. User-selectable per
@@ -1187,54 +1181,21 @@ export class PersonaEngine {
       // Combine all successful search results + count outcomes so we can
       // see the hit rate per engine at the aggregate level. Individual
       // failure reasons are logged inside searchBrave/searchXai.
-      //
-      // Every successful result is ALSO classified into an
-      // EvidenceStrength label (see lib/evidence-classifier.ts). Per-claim
-      // labels are emitted inline so the producer can tier-gate its
-      // response; an overall-session label is prepended to the block so
-      // the producer has the summary at a glance. This closes the
-      // "confidently-wrong [FACT CHECK]" pathology documented in
-      // DESIGN-PRINCIPLES.md — the prompt's EVIDENCE → TIER rule now has
-      // real input to gate on.
-      const perClaim: Array<{ blockLines: string[]; strength: EvidenceStrength }> = [];
+      const allResults: string[] = [];
       let succeeded = 0;
       let emptyOrFailed = 0;
       results.forEach((result, i) => {
         if (result.status === "fulfilled" && result.value) {
-          const classified = classifyEvidence(result.value);
-          perClaim.push({
-            strength: classified.strength,
-            blockLines: [
-              `--- CLAIM: "${topClaims[i].sentence.slice(0, 100)}..." ---`,
-              `EVIDENCE: ${classified.strength} (${classified.bulletCount} hit${classified.bulletCount === 1 ? "" : "s"}, ${classified.urlCount} cite${classified.urlCount === 1 ? "" : "s"})`,
-              result.value,
-              "",
-            ],
-          });
+          allResults.push(
+            `--- CLAIM: "${topClaims[i].sentence.slice(0, 100)}..." ---`
+          );
+          allResults.push(result.value);
+          allResults.push("");
           succeeded++;
         } else {
-          // Surface the missing-evidence case to the producer explicitly
-          // rather than dropping it silently. The tier-mapping rule in
-          // the prompt treats MISSING as "pass or hedge hard" so the
-          // producer sees the empty result and reacts appropriately.
-          perClaim.push({
-            strength: "MISSING",
-            blockLines: [
-              `--- CLAIM: "${topClaims[i].sentence.slice(0, 100)}..." ---`,
-              `EVIDENCE: MISSING (no usable hits)`,
-              "",
-            ],
-          });
           emptyOrFailed++;
         }
       });
-
-      const overall = aggregateEvidenceStrength(perClaim.map((c) => c.strength));
-      const preamble = buildEvidencePreamble(overall);
-      const allLines = [preamble, ""];
-      for (const claim of perClaim) {
-        allLines.push(...claim.blockLines);
-      }
 
       logPipeline({
         event: "search_complete",
@@ -1248,24 +1209,10 @@ export class PersonaEngine {
           // fires without citation context even though we had claims to
           // check, which usually means the upstream is degraded.
           degraded: succeeded === 0,
-          // Overall evidence strength + per-claim distribution — lets us
-          // dashboard "how often does the producer actually have STRONG
-          // citations to anchor on?" over time.
-          overallEvidence: overall,
-          strengthCounts: perClaim.reduce<Record<EvidenceStrength, number>>(
-            (acc, c) => {
-              acc[c.strength] = (acc[c.strength] ?? 0) + 1;
-              return acc;
-            },
-            { STRONG: 0, PARTIAL: 0, WEAK: 0, MISSING: 0 }
-          ),
         },
       });
 
-      // Emit the enriched block whenever we had any claim to process,
-      // even if every upstream failed — the MISSING labels are
-      // load-bearing signal for the producer's tier choice.
-      return topClaims.length > 0 ? allLines.join("\n") : undefined;
+      return allResults.length > 0 ? allResults.join("\n") : undefined;
     } catch (err) {
       // The outer try/catch used to swallow everything silently — meaning a
       // regex bug or an unexpected throw inside claim extraction would
