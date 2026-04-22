@@ -1586,6 +1586,7 @@ if (feedMenu) {
     else if (action === "downvote") toggleVote(entryId, "down");
     else if (action === "pin") togglePin(entryId);
     else if (action === "quote-card") exportQuoteCard(entryId);
+    else if (action === "regenerate") regenerateEntry(entryId);
     hideFeedMenu();
   });
 }
@@ -2933,6 +2934,33 @@ function resetFireButton() {
   fireBtn.removeAttribute("aria-busy");
   forceReactActive = false;
   forceReactReceived = 0;
+}
+
+/**
+ * Feed-entry menu → "Regenerate this take".
+ *
+ * Re-fires the SAME persona slot that produced this entry, using the
+ * existing `fire_persona` PATCH action that avatar-taps already use. No
+ * new backend code — the re-fire goes through the Director's tap path,
+ * which bypasses the cascade scorer and commits to producing visible
+ * output (same as a manual avatar tap).
+ *
+ * The new response is APPENDED to the feed as a normal persona entry,
+ * not a replacement in place — that's consistent with every other
+ * cascade tick and avoids a flickery in-place rewrite UX. Users who
+ * want the old take out of the way can downvote or skip it with the
+ * already-shipping menu; the regenerate action is about getting a
+ * better next one, not rewriting history.
+ *
+ * No-op when no active session, no sessionId, or the persona slot
+ * isn't recognized (e.g. stale entryId from a previous session).
+ */
+function regenerateEntry(entryId) {
+  if (!sessionId) return;
+  const entry = feedEntries.find((e) => e.id === entryId);
+  if (!entry) return;
+  // Route through the same tap-fire path avatar clicks use.
+  firePersona(entry.personaId);
 }
 
 function firePersona(personaId) {
