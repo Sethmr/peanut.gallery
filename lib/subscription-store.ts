@@ -113,6 +113,15 @@ export interface SubscriptionStore {
   getActiveSubscription(licenseKey: string): SubscriptionRecord | null;
   /** Returns the most recent subscription row for this email (any status). */
   getSubscriptionByEmail(email: string): SubscriptionRecord | null;
+  /**
+   * Returns the row matching a Stripe subscription ID, any status.
+   * Used by the webhook handler to reconcile subscription.updated and
+   * subscription.deleted events back to the license key we issued.
+   * Null if no row is linked to this Stripe ID.
+   */
+  getSubscriptionByStripeSubId(
+    stripeSubId: string
+  ): SubscriptionRecord | null;
   /** Insert a new subscription. Throws if `licenseKey` already exists. */
   insertSubscription(row: SubscriptionRecord): void;
   /** Update status / cancelledAt for an existing subscription. */
@@ -183,6 +192,15 @@ export class MemorySubscriptionStore implements SubscriptionStore {
 
   getSubscriptionByEmail(email: string): SubscriptionRecord | null {
     return this.byEmail.get(email.toLowerCase()) ?? null;
+  }
+
+  getSubscriptionByStripeSubId(
+    stripeSubId: string
+  ): SubscriptionRecord | null {
+    for (const row of this.subscriptions.values()) {
+      if (row.stripeSubId === stripeSubId) return row;
+    }
+    return null;
   }
 
   insertSubscription(row: SubscriptionRecord): void {
@@ -353,6 +371,15 @@ export class SqliteSubscriptionStore implements SubscriptionStore {
            LIMIT 1`
       )
       .get(email);
+    return row ? rowToRecord(row) : null;
+  }
+
+  getSubscriptionByStripeSubId(
+    stripeSubId: string
+  ): SubscriptionRecord | null {
+    const row = this.db
+      .prepare(`SELECT * FROM subscriptions WHERE stripe_sub_id = ?`)
+      .get(stripeSubId);
     return row ? rowToRecord(row) : null;
   }
 
