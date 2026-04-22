@@ -49,6 +49,7 @@
  */
 
 import { logPipeline } from "../../../../lib/debug-logger";
+import { emailForLog, isValidEmail } from "../../../../lib/http-validation";
 import { isSubscriptionEnabled } from "../../../../lib/subscription";
 
 export const runtime = "nodejs";
@@ -262,19 +263,6 @@ export async function POST(req: Request) {
       502
     );
   }
-}
-
-function isValidEmail(s: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) && s.length <= 254;
-}
-
-function emailForLog(email: string): string {
-  const at = email.indexOf("@");
-  if (at <= 0) return "***";
-  const local = email.slice(0, at);
-  const domain = email.slice(at);
-  const head = local.slice(0, Math.min(2, local.length));
-  return `${head}***${domain}`;
 }
 
 function jsonResponse(body: unknown, status: number) {

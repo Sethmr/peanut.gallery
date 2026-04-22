@@ -41,6 +41,7 @@ import {
   sendMagicLinkEmail,
   sendRecoveryEmail,
 } from "../../../../lib/email";
+import { emailForLog, isValidEmail } from "../../../../lib/http-validation";
 import {
   findActiveKeyByEmail,
   isSubscriptionEnabled,
@@ -106,7 +107,7 @@ export async function POST(req: Request) {
   logPipeline({
     event: "subscription_manage_request",
     level: "info",
-    data: { email, action, ...emailConfigSnapshot() },
+    data: { email: emailForLog(email), action, ...emailConfigSnapshot() },
   });
 
   if (action === "recover_key") {
@@ -133,7 +134,7 @@ async function handleRecoverKey(email: string): Promise<Response> {
     logPipeline({
       event: "subscription_recover_key_no_match",
       level: "info",
-      data: { email },
+      data: { email: emailForLog(email) },
     });
     return jsonResponse(
       {
@@ -186,7 +187,7 @@ async function handleMagicLink(
     logPipeline({
       event: "subscription_magic_link_no_match",
       level: "info",
-      data: { email, intent },
+      data: { email: emailForLog(email), intent },
     });
     return jsonResponse(
       {
@@ -205,7 +206,7 @@ async function handleMagicLink(
     logPipeline({
       event: "subscription_magic_link_unconfigured",
       level: "warn",
-      data: { email, intent, reason: "STRIPE_PORTAL_URL_MISSING" },
+      data: { email: emailForLog(email), intent, reason: "STRIPE_PORTAL_URL_MISSING" },
     });
     return jsonResponse(
       {
@@ -254,11 +255,6 @@ function emailConfigSnapshot() {
     emailConfigured: cfg.configured,
     emailDisabled: cfg.disabled,
   };
-}
-
-/** Minimal email-shape validator. Not RFC-complete; catches the 95% case. */
-function isValidEmail(s: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) && s.length <= 254;
 }
 
 function jsonResponse(body: unknown, status: number) {
