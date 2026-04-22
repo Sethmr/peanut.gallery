@@ -18,10 +18,11 @@
     "test:claim-detector": "tsx scripts/test-claim-detector.ts",
     "test:highlight-picker": "tsx scripts/test-highlight-picker.ts",
     "test:subscription-store": "tsx scripts/test-subscription-store.ts",
+    "test:stripe-webhook": "tsx scripts/test-stripe-webhook.ts",
     "subscription:issue": "tsx scripts/subscription-issue.ts",
     "daemon:dev": "tsx scripts/linear-daemon.ts",
     "analyze:director-v3": "tsx scripts/analyze-director-v3-canary.ts",
-    "check": "npm run typecheck && npm run check:extension && npm run test:director && npm run test:director-v2 && npm run test:semantic-cache && npm run test:claim-detector && npm run test:highlight-picker && npm run test:subscription-store",
+    "check": "npm run typecheck && npm run check:extension && npm run test:director && npm run test:director-v2 && npm run test:semantic-cache && npm run test:claim-detector && npm run test:highlight-picker && npm run test:subscription-store && npm run test:stripe-webhook",
     "prepare": "husky"
   },
   "dependencies": {

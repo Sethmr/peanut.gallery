@@ -153,13 +153,21 @@ See the route files for the exact wire contracts.
 - **Tests** — `npm run test:subscription-store` exercises 252 assertions across the key generator, both store implementations (parity-tested), and the Phase 1 env-whitelist back-compat. Wired into the pre-commit `npm run check` gate so every PR runs them.
 - **Decoupling preserved.** Director, persona-engine, claim-detector, transcription, and fact-check search are untouched by this change. The subscription layer is pure identity + metering; the pipeline never imports anything from it beyond the four existing public functions in `lib/subscription.ts` (`isSubscriptionEnabled`, `getSubscriptionStatus`, `recordSubscriptionUsage`, `subscriptionDeniedBody`).
 
-### Phase 3 — Stripe integration (Linear ticket SET-26)
+### Phase 3 — Stripe integration (Linear ticket SET-26, shipped 2026-04-22)
 
-- `STRIPE_ENABLED=true` flag gates the real path
-- Checkout session creation (real) → webhook signature verification → on `checkout.session.completed`: issue key via Phase-2 generator + email to user
-- Cancel via Stripe Customer Portal (hosted, no UI work on our side)
-- Webhook-idempotency key handling (Stripe retries; don't issue duplicate keys on re-delivery)
-- Dead-letter log: if email send fails on key issuance, persist the key + retry the email — never lose a paid customer's key
+- **`STRIPE_ENABLED=true` flag** + `STRIPE_SECRET_KEY` + `STRIPE_PRICE_ID` + `STRIPE_WEBHOOK_SECRET` in env → `app/api/subscription/checkout/route.ts` creates a real [Stripe Checkout Session](https://docs.stripe.com/api/checkout/sessions) via `POST /v1/checkout/sessions`. The Phase 1 stub ("coming-soon" URL) is preserved as the fallback when `STRIPE_ENABLED` is off, so self-hosters that haven't configured Stripe see no behavior change.
+- **US-only enforced across four layers**: (1) client `confirm()` in the Extension, (2) server-side `country !== "US"` → HTTP 451 in the checkout route, (3) `shipping_address_collection.allowed_countries: ['US']` in the Checkout Session itself (Stripe-hosted form refuses non-US addresses), (4) webhook-time re-verification of `customer_details.address.country` — non-US here triggers immediate cancellation + no license key (`subscription_webhook_non_us_refund` log event).
+- **Webhook signature verification** via `lib/stripe-webhook.ts` — manual HMAC-SHA256 verifier (no `stripe` npm dep). 5-minute timestamp skew tolerance; constant-time comparison via `crypto.timingSafeEqual`; supports multiple `v1` signatures during key rotation. Every event handler runs AFTER the verifier passes; signature rejection is logged at warn level with a machine-readable reason code.
+- **Event handlers** in `app/api/subscription/webhook/route.ts`:
+  - `checkout.session.completed` → verify country → generate key via `reserveUniqueLicenseKey` → `createSubscription` → `sendWelcomeEmail` (from SET-27's `lib/email.ts`).
+  - `customer.subscription.updated` → reconcile status via `mapStripeStatus` (active / past_due / canceled → active / paused / revoked).
+  - `customer.subscription.deleted` → `revokeSubscription` on the linked license key.
+  - Other events (invoices, etc.) logged at debug + 200 so Stripe doesn't retry.
+- **Idempotency** via `stripe_sub_id` correlation — if the webhook sees the same `subscription` ID twice (Stripe retries on 5xx), we look up the existing license key via `getSubscriptionByStripeSubId` and skip re-issuance. Welcome email is re-sent on idempotent hits (user might have lost it).
+- **Email delivery never orphans a key** — license key is persisted BEFORE the welcome email send. If the send fails, the key is still in the DB and the user can recover it via `/api/subscription/manage` → `recover_key`. `subscription_welcome_email_failed` logs at warn level for manual follow-up.
+- **Cancel via Stripe Customer Portal** — the `/api/subscription/manage` route (shipped in SET-27) returns the portal URL to the user; Stripe's hosted UI handles cancellation; we receive the `customer.subscription.deleted` webhook and revoke.
+- **Tests** — `npm run test:stripe-webhook` exercises 21 assertions covering the signature verifier across happy path, every rejection reason code, tolerance behavior, and multi-signature key rotation. Wired into `npm run check`.
+- **Decoupling preserved.** Director, persona-engine, claim-detector, transcription, and fact-check search are untouched by this change.
 
 ### Phase 4 — Email infrastructure (Linear ticket SET-27, shipped 2026-04-21)
 
