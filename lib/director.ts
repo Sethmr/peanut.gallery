@@ -172,6 +172,35 @@ const TROLL_CASCADE_FLOOR = 0.75;
 // against a real content-match on another slot.
 const PRODUCER_NO_CLAIM_PENALTY = 3;
 
+// v1.7.1 — CLAIM-DENSITY BOOST (producer only).
+//
+// Pre-1.7.1 the producer's factHint input was binary: has-claim → 0 swing,
+// no-claim → -3 penalty. That collapses "dense AVeriTeC-style sentence with
+// 5 pattern hits" and "single-pattern hit on 'largest X'" into the same
+// bonus (zero). The claim-detector's new compound-claim bonus means
+// `factHint.topScore` is now a useful density signal — 5+ is a
+// multi-pattern sentence almost always on the producer's beat (funding
+// round + amount + year + attribution in one clause), 1 is a single hit.
+//
+// We add a small proportional boost for scores ≥ 2, capped at +2, so
+// dense claims break ties in the producer's favour without letting them
+// dominate. Cap is deliberate: dry-spell boost maxes at +6 and baseline
+// troll/joker baselines are already 2/1, so +2 can't push producer out
+// of rotation on a neutral tick — it just means a genuinely juicy
+// fact-check claim gets a fair shot against troll's content matches.
+//
+// Why bother at all: the research (AVeriTeC / LiveFC) is consistent that
+// dense claims are both more checkable AND more likely to contain a
+// specific error — the exact signal you want a rule-based scorer to
+// surface. This feeds the signal the claim-detector already computes
+// into the Director without introducing new heuristics.
+const PRODUCER_CLAIM_DENSITY_CAP = 2;
+// Score points per factHint.topScore step above 1. Topscore 2 → +0.5,
+// topscore 3 → +1, topscore 5 (dense) → +2 (cap). Tuned so the boost is
+// meaningful enough to break a tie against troll but never enough to
+// sideline another persona who has their own pattern match.
+const PRODUCER_CLAIM_DENSITY_SCALE = 0.5;
+
 // v1.7: per-point penalty applied to a persona's rule-based score for
 // every recent fallback on their tally. The PersonaEngine increments
 // `recentFallbacks[personaId]` on every fallback fire and decays by 1
@@ -543,6 +572,21 @@ export class Director {
       const producerEntry = scores.find((s) => s.id === "producer");
       if (producerEntry) {
         producerEntry.score -= PRODUCER_NO_CLAIM_PENALTY;
+      }
+    } else if (factHint.topScore >= 2) {
+      // v1.7.1 — claim-density boost. The claim-detector's topScore is
+      // a graded density signal now (compound-claim bonus + spoken-number
+      // matching + structural attribution all stack). Give the producer
+      // a proportional, capped positive bump so a genuinely dense
+      // fact-check claim wins ties against troll / joker content matches.
+      // Cap keeps character balance intact — see constant comments.
+      const producerEntry = scores.find((s) => s.id === "producer");
+      if (producerEntry) {
+        const bump = Math.min(
+          (factHint.topScore - 1) * PRODUCER_CLAIM_DENSITY_SCALE,
+          PRODUCER_CLAIM_DENSITY_CAP
+        );
+        producerEntry.score += bump;
       }
     }
 
