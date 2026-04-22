@@ -1,0 +1,17 @@
+{
+  "name": "producer-claim-density-boost",
+  "description": "v1.7.1 — claim-density boost. A dense fact-check claim (multiple compound-claim patterns + funding round + spoken number + attribution) should push producer ahead of troll even though the transcript also carries classic troll hype cues. Pre-v1.7.1 the producer's claim input was binary (has-claim → 0 boost); with the density boost a topScore-4+ claim gets a proportional bump that tips close ties. Fixture is a realistic TWiST-style sentence: Adobe acquired Figma for twenty billion dollars in 2022 according to Bloomberg — that's four distinct strict patterns in one clause.",
+  "pack": "howard",
+  "input": {
+    "transcript": "Adobe acquired Figma for twenty billion dollars in 2022 according to Bloomberg, which makes it the largest design-tools acquisition ever."
+  },
+  "assertions": {
+    "pickIn": ["producer"],
+    "pickInRatio": 0.85,
+    "chainMaxLength": 4,
+    "chainMinLength": 1,
+    "delaysFirstZero": true,
+    "delaysMonotonic": true,
+    "returnShapeComplete": true
+  }
+}

@@ -130,7 +130,27 @@ export function buildPersonaContext(
    * only when ENABLE_SEMANTIC_ANTI_REPEAT=true and the prior embed check hit.
    * Cleared from the repeat slot on the next fire once the new draft passes.
    */
-  lastRepeatText?: string
+  lastRepeatText?: string,
+  /**
+   * Producer-only: the status of the fact-check search for this fire. Passed
+   * in from PersonaEngine so the model can calibrate its correction tier
+   * against evidence availability instead of guessing from the presence-or-
+   * absence of a SEARCH RESULTS section alone.
+   *
+   * - `"with_results"` — search returned usable bullets; evidence path open.
+   * - `"empty"` — we HAD a claim to check but the search returned nothing
+   *   usable (upstream empty / rate-limited / timed out). Bias [HEADS UP]
+   *   hard; [FACT CHECK] is not earned without evidence.
+   * - `"skipped"` — no search was attempted (force-react path, no extracted
+   *   claim, disabled engine). Producer should treat this as "speak from
+   *   memory, hedge when uncertain."
+   *
+   * Mirrors the AVeriTeC 4-class verdict bias: with empty evidence the
+   * safe answer is "not enough evidence," realized here as the [HEADS UP]
+   * tier. Keeps the speaking-animation contract intact while preventing
+   * confidently-wrong [FACT CHECK] tags when the search pipeline degrades.
+   */
+  searchStatus?: "with_results" | "empty" | "skipped"
 ): string {
   let context = "";
 
@@ -215,6 +235,24 @@ export function buildPersonaContext(
   if (searchResults && persona.id === "producer") {
     context += `--- SEARCH RESULTS (use for fact-checking) ---\n${searchResults}\n\n`;
     context += `If you already fact-checked this claim in your recent lines, either add a NEW angle or pass with "-".\n\n`;
+  }
+
+  // ── EVIDENCE-AVAILABILITY GATE (producer only) ──
+  // Explicit signal — more reliable than letting the model infer evidence
+  // state from the presence / absence of the SEARCH RESULTS block. The
+  // AVeriTeC evaluation family shows overconfident verdicts are the primary
+  // failure mode when evidence is thin; the fix is to bias the tier
+  // selection toward abstention-style tiers ([HEADS UP]) instead of
+  // attempting a [FACT CHECK] from memory alone. Force-react path suspends
+  // this (tap must always speak in voice); everyone else reads it.
+  if (persona.id === "producer" && !isForceReact) {
+    if (searchStatus === "with_results") {
+      context += `--- EVIDENCE: GREEN ---\nSearch returned usable results. [FACT CHECK] is earned IF a specific number/date/name in the search contradicts the claim. If the search confirms the claim, [CONTEXT] adds the angle they missed. If the search is adjacent but doesn't settle the claim, use [HEADS UP]. Anchor every number or date to the search — no memory-only corrections on this fire.\n\n`;
+    } else if (searchStatus === "empty") {
+      context += `--- EVIDENCE: THIN ---\nA claim was extracted but search returned nothing usable (empty or upstream degraded). DO NOT emit [FACT CHECK] — there's nothing to anchor it to. Use [HEADS UP] with a specific "I'd want to verify…" hedge aimed at whatever entity/number/date lives in the tail. Your character's whole value prop in this tier is "calibrated uncertainty," not confident correction. "I'd double-check that" beats "actually it's 2019" on a claim you can't source.\n\n`;
+    } else if (searchStatus === "skipped") {
+      context += `--- EVIDENCE: NONE (memory only) ---\nNo search was run this tick. Speak from what your character would plausibly know — but tag it accurately. If you're genuinely sure (founding year of Google, public CEO name), [FACT CHECK] is okay; if you're fuzzy, [HEADS UP] is the right tier. Never invent specific numbers, dates, or funding rounds; hedge instead.\n\n`;
+    }
   }
 
   // ── ACROSS-TURN ANTI-REPEAT INJECTION (SET-15) ──
