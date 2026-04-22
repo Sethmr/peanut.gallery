@@ -17,13 +17,16 @@
     "test:semantic-cache": "tsx scripts/test-semantic-cache.ts",
     "test:claim-detector": "tsx scripts/test-claim-detector.ts",
     "test:highlight-picker": "tsx scripts/test-highlight-picker.ts",
+    "test:subscription-store": "tsx scripts/test-subscription-store.ts",
+    "subscription:issue": "tsx scripts/subscription-issue.ts",
     "daemon:dev": "tsx scripts/linear-daemon.ts",
     "analyze:director-v3": "tsx scripts/analyze-director-v3-canary.ts",
-    "check": "npm run typecheck && npm run check:extension && npm run test:director && npm run test:director-v2 && npm run test:semantic-cache && npm run test:claim-detector && npm run test:highlight-picker",
+    "check": "npm run typecheck && npm run check:extension && npm run test:director && npm run test:director-v2 && npm run test:semantic-cache && npm run test:claim-detector && npm run test:highlight-picker && npm run test:subscription-store",
     "prepare": "husky"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
+    "better-sqlite3": "^12.9.0",
     "bufferutil": "^4.1.0",
     "dotenv": "^17.4.2",
     "groq-sdk": "^1.1.2",
@@ -35,6 +38,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.19.17",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

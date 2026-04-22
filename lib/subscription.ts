@@ -14,10 +14,32 @@
  *   3. "Record N more ms against this key's weekly ledger" (called on
  *      session end — same pattern as `free-tier-limiter`)
  *
- * The module is deliberately boring: validator against an env-var allow-
- * list today; swap to a DB-backed implementation later without changing
- * the API. Everything is in-memory, Phase-1. Durability comes with
- * Stripe integration (Phase 2+).
+ * PUBLIC API IS STABLE
+ * ────────────────────
+ * The four exports — {@link isSubscriptionEnabled},
+ * {@link getSubscriptionStatus}, {@link recordSubscriptionUsage}, and
+ * {@link subscriptionDeniedBody} — have not changed shape since Phase 1.
+ * Phase 2 (SET-25) rewires this module to delegate to the pluggable
+ * {@link lib/subscription-store.SubscriptionStore SubscriptionStore}
+ * singleton rather than its own process-local maps, but the callers
+ * in `/api/transcribe`, `/api/subscription/status`, and
+ * `/api/subscription/checkout` see the exact same behavior.
+ *
+ * STORAGE MODE SELECTION
+ * ──────────────────────
+ * See `lib/subscription-store.ts`. In short: `SUBSCRIPTION_DB_PATH`
+ * promotes the module to the durable SQLite path; if it's unset,
+ * the in-memory env-whitelist fallback preserves Phase 1 behavior
+ * exactly.
+ *
+ * INTEGRATION WITH OTHER SYSTEMS
+ * ──────────────────────────────
+ * This module is intentionally decoupled from the pipeline path —
+ * Director, persona engine, claim-detector, transcription,
+ * fact-check search. It only deals with subscription identity +
+ * usage metering. The pipeline never imports anything from here
+ * except through the four public functions above (checked at review
+ * time).
  *
  * DESIGN NOTES
  * ────────────
@@ -41,14 +63,14 @@
  *    will still show the option (it's a client-visible radio), but
  *    attempting to use it against a server where the flag is off
  *    returns a 503. Keeps self-hosters' code paths clean.
- * 5. **Phase 1 storage is in-memory + env whitelist.** Validator reads
- *    `SUBSCRIPTION_KEYS_WHITELIST` as a comma-separated list of
- *    `key=email` pairs for the ad-hoc test phase. Usage counters
- *    survive process lifetime only. Phase 2 (post-Stripe) swaps to
- *    persistent storage; the public API here doesn't change.
  */
 
 import { logPipeline } from "./debug-logger";
+import { isValidLicenseKey } from "./subscription-keys";
+import {
+  getSubscriptionStore,
+  type SubscriptionRecord,
+} from "./subscription-store";
 
 // ── CONFIG (env-driven) ──────────────────────────────────────────────────
 
@@ -65,53 +87,6 @@ const WEEKLY_CAP_HOURS = Math.max(
 
 const WEEKLY_CAP_MS = WEEKLY_CAP_HOURS * 60 * 60 * 1000;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-/**
- * Phase-1 validator store. Env format:
- *   SUBSCRIPTION_KEYS_WHITELIST=pg-test-abcd-1234=alice@example.com,pg-test-efgh-5678=bob@example.com
- * Keys that don't appear here are rejected. Phase 2 (post-Stripe)
- * swaps this parser for a proper store read.
- */
-function loadWhitelist(): Map<string, { email: string }> {
-  const raw = process.env.SUBSCRIPTION_KEYS_WHITELIST || "";
-  const map = new Map<string, { email: string }>();
-  for (const entry of raw.split(",")) {
-    const [key, email] = entry.split("=");
-    const k = (key || "").trim();
-    const e = (email || "").trim();
-    if (k && e) map.set(k, { email: e });
-  }
-  return map;
-}
-
-// ── STATE (per process) ──────────────────────────────────────────────────
-
-interface UsageEntry {
-  usageMs: number;
-  weekStart: number; // epoch ms — rolls on first use past weekStart + WEEK_MS
-}
-
-declare global {
-  // eslint-disable-next-line no-var
-  var __pg_subscription_store:
-    | {
-        usage: Map<string, UsageEntry>;
-        whitelist: Map<string, { email: string }>;
-        whitelistLoadedAt: number;
-      }
-    | undefined;
-}
-
-function getStore() {
-  if (!globalThis.__pg_subscription_store) {
-    globalThis.__pg_subscription_store = {
-      usage: new Map(),
-      whitelist: loadWhitelist(),
-      whitelistLoadedAt: Date.now(),
-    };
-  }
-  return globalThis.__pg_subscription_store;
-}
 
 // ── PUBLIC API ───────────────────────────────────────────────────────────
 
@@ -152,33 +127,46 @@ export function getSubscriptionStatus(
   key: string | null | undefined
 ): SubscriptionStatus {
   if (!ENABLED) {
-    return baseStatus(key || "", "DISABLED", null);
+    return baseStatus("DISABLED", null);
   }
   if (!key) {
-    return baseStatus("", "INVALID_KEY", null);
+    return baseStatus("INVALID_KEY", null);
   }
-  const store = getStore();
-  const record = store.whitelist.get(key);
+
+  const store = getSubscriptionStore();
+
+  // Phase 1 env-whitelist keys were plain strings (no checksum). We
+  // still honor those, so format-checking is ADVISORY, not a gate.
+  // A malformed key falls through to the store lookup; if the store
+  // has it on its whitelist it's valid. This preserves Phase 1
+  // deployments that hand out keys like `pg-test-0001-0001`.
+  const record = store.getActiveSubscription(key);
   if (!record) {
     logPipeline({
       event: "subscription_key_rejected",
       level: "info",
-      data: { reason: "INVALID_KEY", keyPrefix: key.slice(0, 8) },
+      data: {
+        reason: "INVALID_KEY",
+        keyPrefix: key.slice(0, 8),
+        passedFormat: isValidLicenseKey(key),
+      },
     });
-    return baseStatus(key, "INVALID_KEY", null);
+    return baseStatus("INVALID_KEY", null);
   }
-  const entry = touchUsage(key);
-  const remainingMs = Math.max(0, WEEKLY_CAP_MS - entry.usageMs);
+
+  const usage = store.touchUsage(key);
+  const remainingMs = Math.max(0, WEEKLY_CAP_MS - usage.usageMs);
   const status: SubscriptionStatus = {
     valid: remainingMs > 0,
     error: remainingMs > 0 ? null : "CAP_REACHED",
     capMs: WEEKLY_CAP_MS,
-    usedMs: entry.usageMs,
+    usedMs: usage.usageMs,
     remainingMs,
-    resetAt: entry.weekStart + WEEK_MS,
+    resetAt: usage.weekStart + WEEK_MS,
     weeklyCapHours: WEEKLY_CAP_HOURS,
     email: record.email,
   };
+
   if (!status.valid) {
     logPipeline({
       event: "subscription_cap_reached",
@@ -186,7 +174,7 @@ export function getSubscriptionStatus(
       data: {
         keyPrefix: key.slice(0, 8),
         email: record.email,
-        usedMs: entry.usageMs,
+        usedMs: usage.usageMs,
         capMs: WEEKLY_CAP_MS,
         resetAt: status.resetAt,
       },
@@ -208,51 +196,29 @@ export function recordSubscriptionUsage(
 ): void {
   if (!ENABLED || !key) return;
   if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) return;
-  const store = getStore();
-  if (!store.whitelist.has(key)) return;
-  const entry = touchUsage(key);
+  const store = getSubscriptionStore();
+  const record = store.getActiveSubscription(key);
+  if (!record) return;
   const safeElapsed = Math.min(elapsedMs, WEEK_MS);
-  const beforeMs = entry.usageMs;
-  entry.usageMs = Math.min(entry.usageMs + safeElapsed, WEEKLY_CAP_MS + WEEK_MS);
+  const before = store.touchUsage(key);
+  store.addUsage(key, safeElapsed);
+  const after = store.touchUsage(key);
   logPipeline({
     event: "subscription_usage_recorded",
     level: "debug",
     data: {
       keyPrefix: key.slice(0, 8),
       elapsedMs: safeElapsed,
-      beforeMs,
-      afterMs: entry.usageMs,
-      remainingMs: Math.max(0, WEEKLY_CAP_MS - entry.usageMs),
+      beforeMs: before.usageMs,
+      afterMs: after.usageMs,
+      remainingMs: Math.max(0, WEEKLY_CAP_MS - after.usageMs),
     },
   });
 }
 
 // ── HELPERS ──────────────────────────────────────────────────────────────
 
-function touchUsage(key: string): UsageEntry {
-  const t = Date.now();
-  const store = getStore();
-  const existing = store.usage.get(key);
-  if (!existing) {
-    const fresh: UsageEntry = { usageMs: 0, weekStart: t };
-    store.usage.set(key, fresh);
-    return fresh;
-  }
-  if (t - existing.weekStart >= WEEK_MS) {
-    const priorUsageMs = existing.usageMs;
-    existing.usageMs = 0;
-    existing.weekStart = t;
-    logPipeline({
-      event: "subscription_week_rolled",
-      level: "info",
-      data: { keyPrefix: key.slice(0, 8), priorUsageMs, newWeekStart: t },
-    });
-  }
-  return existing;
-}
-
 function baseStatus(
-  _key: string,
   error: NonNullable<SubscriptionStatus["error"]> | "DISABLED",
   email: string | null
 ): SubscriptionStatus {
@@ -266,33 +232,6 @@ function baseStatus(
     weeklyCapHours: WEEKLY_CAP_HOURS,
     email,
   };
-}
-
-/**
- * Reverse-lookup: find the active license key tied to an email address.
- * Returns null when no match. Used by `/api/subscription/manage` for the
- * `recover_key` flow — user pastes their signup email, we mail back the
- * key on file.
- *
- * Phase 1: scans the env-loaded whitelist linearly (whitelist size is
- * tiny — measured in tens, not thousands). Phase 2 swaps for an indexed
- * lookup against the SQLite store; the public signature here doesn't
- * change so callers stay portable.
- *
- * Email match is case-insensitive on the local + domain parts —
- * users routinely paste with different casing than they used at
- * signup, and email addresses are not case-sensitive in practice for
- * any major provider.
- */
-export function findActiveKeyByEmail(email: string): string | null {
-  if (!ENABLED) return null;
-  const needle = (email || "").trim().toLowerCase();
-  if (!needle) return null;
-  const store = getStore();
-  for (const [key, record] of store.whitelist) {
-    if (record.email.trim().toLowerCase() === needle) return key;
-  }
-  return null;
 }
 
 /**
@@ -340,4 +279,51 @@ export function subscriptionDeniedBody(status: SubscriptionStatus): {
     retryAfterMs,
     resetAt: status.resetAt,
   };
+}
+
+// ─────────────────────────────────────────────────────────────
+// PHASE 2+ API (used by webhook + admin CLI; see SET-26, SET-25)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Look up the most recent subscription record for an email address.
+ * Used by `/api/subscription/manage` for recover-key and cancel flows.
+ */
+export function findSubscriptionByEmail(
+  email: string
+): SubscriptionRecord | null {
+  if (!ENABLED) return null;
+  return getSubscriptionStore().getSubscriptionByEmail(email);
+}
+
+/**
+ * Back-compat alias for the SET-27 email-flow code that expected a
+ * `findActiveKeyByEmail(email): string | null` signature. Returns
+ * the license key string if an active subscription exists for this
+ * email; null if the email is unknown or the subscription has been
+ * revoked / cancelled. The newer {@link findSubscriptionByEmail}
+ * returns the full record.
+ */
+export function findActiveKeyByEmail(email: string): string | null {
+  const rec = findSubscriptionByEmail(email);
+  if (!rec) return null;
+  if (rec.status !== "active") return null;
+  return rec.licenseKey;
+}
+
+/**
+ * Mark a subscription revoked. Called by the Stripe webhook on
+ * `customer.subscription.deleted` and by the admin CLI.
+ */
+export function revokeSubscription(licenseKey: string): void {
+  if (!ENABLED) return;
+  getSubscriptionStore().updateSubscriptionStatus(licenseKey, {
+    status: "revoked",
+    cancelledAt: Date.now(),
+  });
+  logPipeline({
+    event: "subscription_revoked",
+    level: "info",
+    data: { keyPrefix: licenseKey.slice(0, 8) },
+  });
 }

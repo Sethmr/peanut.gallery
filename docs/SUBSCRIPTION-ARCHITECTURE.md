@@ -143,12 +143,15 @@ See the route files for the exact wire contracts.
 - Feature-flagged on backend: `ENABLE_SUBSCRIPTION=true` activates the gate
 - Test path: operator adds `SUBSCRIPTION_KEYS_WHITELIST=pg-test-0000-0001=me@example.com` → pastes key in extension → traffic flows
 
-### Phase 2 — Persistent identity (Linear ticket SET-25)
+### Phase 2 — Persistent identity (Linear ticket SET-25, shipped 2026-04-22)
 
-- SQLite store (or Turso, or Neon Postgres — decide at ticket time based on Railway constraints)
-- License-key generator (cryptographically-random 12 hex chars, `pg-` prefix, Luhn-like checksum on the last char for typo detection)
-- Admin script: `npm run subscription:issue -- --email alice@example.com` → creates a row + prints the key
-- Migrate the env-whitelist stub to read from the store
+- **SQLite via `better-sqlite3`** (synchronous, prebuilt binaries, zero native-compile cost on Railway). Turso + Neon were weighed and dropped — a single file-backed SQLite on the Railway volume covers the pre-GA subscriber scale (<1k rows) with no additional provider, no additional hosting fee, and no network RTT on the hot path (`/api/transcribe` subscription gate). If scale forces a swap, the `SubscriptionStore` interface in [`lib/subscription-store.ts`](../lib/subscription-store.ts) is the single seam.
+- **Pluggable store with memory fallback.** `SUBSCRIPTION_DB_PATH` opts the runtime into SQLite; unset keeps Phase 1 behavior (in-memory `SUBSCRIPTION_KEYS_WHITELIST`) byte-for-byte unchanged. Self-hosters see zero regression.
+- **License-key generator** — 11 hex chars of `crypto.randomBytes(6)` + a mod-16 Luhn-style checksum char, formatted as `pg-xxxx-xxxx-xxxx`. 44 bits of entropy = ~1.8 × 10¹³ unique keys. Checksum catches single-char typos + adjacent-digit transpositions on hand-entered keys; the validator is exported + used at every route boundary that accepts a key.
+- **Admin CLI** — `npm run subscription:issue -- --email alice@example.com` writes a fresh key to the store and prints it; `--dry-run` exercises the generator without writing. Phase 3 Stripe webhook uses the same `createSubscription()` primitive.
+- **Encryption at rest.** Two paths: if the `better-sqlite3` binary has SQLCipher built-in, setting `SUBSCRIPTION_DB_KEY` turns on `PRAGMA key`. Default npm binary is vanilla; in that case the module logs `subscription_db_disk_encryption_only` and relies on Railway's disk-level encryption (counsel-approved for the scale we're at).
+- **Tests** — `npm run test:subscription-store` exercises 252 assertions across the key generator, both store implementations (parity-tested), and the Phase 1 env-whitelist back-compat. Wired into the pre-commit `npm run check` gate so every PR runs them.
+- **Decoupling preserved.** Director, persona-engine, claim-detector, transcription, and fact-check search are untouched by this change. The subscription layer is pure identity + metering; the pipeline never imports anything from it beyond the four existing public functions in `lib/subscription.ts` (`isSubscriptionEnabled`, `getSubscriptionStatus`, `recordSubscriptionUsage`, `subscriptionDeniedBody`).
 
 ### Phase 3 — Stripe integration (Linear ticket SET-26)
 
