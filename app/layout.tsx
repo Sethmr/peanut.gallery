@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import CookieBanner from "@/components/CookieBanner";
 
 const siteUrl = "https://peanutgallery.live";
 const siteName = "Peanut Gallery";
@@ -92,14 +93,34 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-3R9CK4LRGF" />
+        {/* Google Analytics is gated by the cookie banner; it only loads after an affirmative click. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-3R9CK4LRGF');
+              (function(){
+                try {
+                  var stored = localStorage.getItem('pg-analytics-consent');
+                  if (stored === 'granted') { window.__pgLoadAnalytics && window.__pgLoadAnalytics(); }
+                } catch(e) {}
+                window.__pgLoadAnalytics = function(){
+                  if (window.__pgAnalyticsLoaded) return;
+                  window.__pgAnalyticsLoaded = true;
+                  var s = document.createElement('script');
+                  s.async = true;
+                  s.src = 'https://www.googletagmanager.com/gtag/js?id=G-3R9CK4LRGF';
+                  document.head.appendChild(s);
+                  window.dataLayer = window.dataLayer || [];
+                  window.gtag = function(){ dataLayer.push(arguments); };
+                  gtag('js', new Date());
+                  gtag('config', 'G-3R9CK4LRGF', { anonymize_ip: true });
+                };
+                // If consent already granted, fire now.
+                try {
+                  if (localStorage.getItem('pg-analytics-consent') === 'granted') {
+                    window.__pgLoadAnalytics();
+                  }
+                } catch(e) {}
+              })();
             `,
           }}
         />
@@ -345,6 +366,7 @@ export default function RootLayout({
           }}
         />
         {children}
+        <CookieBanner />
       </body>
     </html>
   );

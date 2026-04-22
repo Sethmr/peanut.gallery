@@ -672,6 +672,20 @@ async function refreshSubscriptionStatus() {
 }
 
 async function openSubscriptionCheckout() {
+  // US-only gate (Terms §1.3). Peanut Gallery Plus is offered only to
+  // U.S. users. The extension collects an affirmative confirmation
+  // before hitting the checkout endpoint; the server rejects non-US
+  // requests with HTTP 451 regardless, and Stripe's billing-address
+  // filter enforces at the payment layer. This confirm() is the
+  // user-visible piece of the three layers.
+  const usOnlyConfirmed = window.confirm(
+    "Peanut Gallery Plus is available only to users in the United States. " +
+      "By continuing, you confirm your billing address is in the U.S.\n\n" +
+      "Outside the US? Click Cancel and use My-Keys Mode or self-host — " +
+      "see docs/SELF-HOST-FOR-INTERNATIONAL-USERS.md on GitHub."
+  );
+  if (!usOnlyConfirmed) return;
+
   const email = window.prompt(
     "Email for your subscription (we'll send your license key here):"
   );
@@ -682,9 +696,17 @@ async function openSubscriptionCheckout() {
     const res = await fetch(`${url}/api/subscription/checkout`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.trim() }),
+      body: JSON.stringify({ email: email.trim(), country: "US" }),
     });
     const data = await res.json();
+    if (res.status === 451 || data.code === "US_ONLY") {
+      showError(
+        data.error ||
+          "Peanut Gallery Plus is offered only to users in the United States.",
+        null
+      );
+      return;
+    }
     if (data.checkoutUrl) {
       window.open(data.checkoutUrl, "_blank", "noopener");
     } else {
