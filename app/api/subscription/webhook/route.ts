@@ -13,12 +13,24 @@
  *   2. Switch on `event.type`:
  *        `checkout.session.completed`   → generate license key, persist
  *                                         {key, email, stripeSubId,
- *                                         createdAt}, email key to user
+ *                                         createdAt}, then call
+ *                                         `sendWelcomeEmail({email,
+ *                                         licenseKey})` from `lib/email`.
+ *                                         Persistence MUST happen before
+ *                                         the email send so a failed
+ *                                         delivery doesn't lose the key
+ *                                         (Phase 4 contract).
  *        `customer.subscription.updated` → reconcile status in store
  *        `customer.subscription.deleted` → mark key revoked; the
  *                                         validator starts returning
- *                                         INVALID_KEY on the next call
- *   3. Return 200 on success (Stripe retries on non-2xx).
+ *                                         INVALID_KEY on the next call;
+ *                                         then call
+ *                                         `sendCancellationEmail({email})`
+ *                                         from `lib/email`.
+ *   3. Return 200 on success (Stripe retries on non-2xx). Email send
+ *      failures must NOT cause a non-2xx — Stripe would re-deliver
+ *      and we'd dupe-issue the key. Log loud, swallow the error,
+ *      return 200. See `lib/email.ts` § SAFETY POSTURE.
  *
  * Why a stub endpoint exists already: Stripe requires a reachable
  * webhook URL during dashboard setup. Seth can register

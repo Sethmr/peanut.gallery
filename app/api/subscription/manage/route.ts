@@ -1,20 +1,31 @@
 /**
  * Subscription management — `POST /api/subscription/manage`
  *
- * **Phase 1 stub.** Accepts the user's signup email, logs an intent
- * event, and returns a placeholder success response. The real
- * implementation (Phase 3 in SUBSCRIPTION-ARCHITECTURE.md) sends a
- * magic link to the email for any of the following flows:
+ * Three actions, all email-driven:
  *
- *   - "I lost my key" — mails the key associated with this email.
- *   - "Cancel my subscription" — mails a Stripe customer-portal link.
- *   - "Update my billing details" — same, different portal view.
+ *   - `recover_key` — user lost their license key. We look up the
+ *      active key on file for their email and re-send it. If no
+ *      subscription matches, we still respond 200 with the same
+ *      shape (no enumeration leak about which emails are in our
+ *      store) but `sent: false` and a message that says so.
  *
- * Phase 1 rationale: Seth will set up Stripe; SMTP integration
- * (Resend / Postmark / SES) ships alongside. Until then, this
- * endpoint is a no-op placeholder so the extension can render the
- * "Manage subscription" button without 404-ing, and so the server-
- * side log captures the intent for follow-up contact.
+ *   - `cancel` — emails a Stripe Customer Portal magic link so the
+ *      user can cancel via Stripe's hosted UI. The link itself is
+ *      created Phase-3-side once Stripe is wired; until then,
+ *      we fall back to mailing a contact-us message so the request
+ *      isn't silently dropped.
+ *
+ *   - `billing` — same magic-link mechanism as `cancel`, different
+ *      intent so the email copy is shaped differently.
+ *
+ * EMAIL FAILURE POSTURE
+ * ─────────────────────
+ * Per `docs/SUBSCRIPTION-ARCHITECTURE.md § Phase 4` the rule is:
+ * **send failures surface in logs but never swallow the original
+ * operation.** Concretely: if the upstream Resend / Postmark call
+ * fails, we still return 200 with `sent: false` so the user-facing
+ * UI doesn't 500, and the failure shows up as a structured
+ * `subscription_email_failed` log line. No exception bubbles up.
  *
  * Wire contract:
  *   POST /api/subscription/manage
@@ -25,7 +36,15 @@
  */
 
 import { logPipeline } from "../../../../lib/debug-logger";
-import { isSubscriptionEnabled } from "../../../../lib/subscription";
+import {
+  getEmailConfig,
+  sendMagicLinkEmail,
+  sendRecoveryEmail,
+} from "../../../../lib/email";
+import {
+  findActiveKeyByEmail,
+  isSubscriptionEnabled,
+} from "../../../../lib/subscription";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +57,12 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Headers": "Content-Type",
   "Access-Control-Max-Age": "86400",
 };
+
+// Stripe Customer Portal config-portal URL (per-account, signed by
+// the Phase-3 webhook → here just consumed). Optional; when unset,
+// the cancel / billing actions fall back to a "we'll reach out
+// manually" message instead of 500-ing.
+const STRIPE_PORTAL_URL = process.env.STRIPE_PORTAL_URL || "";
 
 export async function OPTIONS() {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -78,23 +103,157 @@ export async function POST(req: Request) {
     );
   }
 
-  // Phase 1: log the intent. Phase 3 swaps this for a real email send
-  // via SMTP (Resend / Postmark / SES) with a signed magic link.
   logPipeline({
     event: "subscription_manage_request",
     level: "info",
-    data: { email, action, phase: "stub" },
+    data: { email, action, ...emailConfigSnapshot() },
   });
+
+  if (action === "recover_key") {
+    return handleRecoverKey(email);
+  }
+  if (action === "cancel" || action === "billing") {
+    return handleMagicLink(email, action);
+  }
+  // Defensive — VALID_ACTIONS gate should have caught this.
+  return jsonResponse(
+    { error: "Unknown action", code: "INVALID_ACTION" },
+    400
+  );
+}
+
+async function handleRecoverKey(email: string): Promise<Response> {
+  const licenseKey = findActiveKeyByEmail(email);
+
+  // Privacy: no enumeration leak. If the email isn't on file, the
+  // user-visible response is the same shape as the success case
+  // ("got it, check your inbox") — they just don't actually receive
+  // anything. Stops casual signup-list mining via the manage API.
+  if (!licenseKey) {
+    logPipeline({
+      event: "subscription_recover_key_no_match",
+      level: "info",
+      data: { email },
+    });
+    return jsonResponse(
+      {
+        ok: true,
+        sent: false,
+        message:
+          "If an active subscription is on file for that email, we've sent the license key. Check your inbox (and spam folder) — if nothing arrives in a few minutes, double-check the address you used at signup.",
+      },
+      200
+    );
+  }
+
+  const result = await sendRecoveryEmail({ email, licenseKey });
+  if (!result.ok) {
+    // Email send failed — log loudly but don't 500. The user's request
+    // is real; we just can't deliver right now. They get a polite
+    // message and Seth gets a log line to follow up on.
+    return jsonResponse(
+      {
+        ok: true,
+        sent: false,
+        message:
+          "Got it. Email delivery is having a hiccup right now — we've logged your request and will get the key to you shortly. If it doesn't arrive within an hour, reach out to support@peanutgallery.live.",
+      },
+      200
+    );
+  }
 
   return jsonResponse(
     {
       ok: true,
-      sent: false, // false in stub; true once SMTP is wired
-      message:
-        "Got it. Magic-link email delivery isn't wired up yet in this build — we've logged your request and will reach out manually at the email above while we finish plumbing SMTP.",
+      sent: !result.skipped,
+      message: result.skipped
+        ? "Got it. Email is disabled on this backend; the operator has been notified to deliver your key manually."
+        : "Sent. Check your inbox (and spam folder) for a message from Peanut Gallery with your license key.",
     },
     200
   );
+}
+
+async function handleMagicLink(
+  email: string,
+  intent: "cancel" | "billing"
+): Promise<Response> {
+  // Verify the email belongs to an active subscription before mailing
+  // a portal link — same enumeration-protection pattern as recover_key
+  // (don't reveal which addresses are subscribers).
+  const licenseKey = findActiveKeyByEmail(email);
+  if (!licenseKey) {
+    logPipeline({
+      event: "subscription_magic_link_no_match",
+      level: "info",
+      data: { email, intent },
+    });
+    return jsonResponse(
+      {
+        ok: true,
+        sent: false,
+        message:
+          "If an active subscription is on file for that email, we've sent a management link. If nothing arrives in a few minutes, the email may not be tied to an active subscription.",
+      },
+      200
+    );
+  }
+
+  if (!STRIPE_PORTAL_URL) {
+    // Stripe portal isn't wired yet — Phase 3 territory. Log the
+    // intent so Seth can hand-process while infra catches up.
+    logPipeline({
+      event: "subscription_magic_link_unconfigured",
+      level: "warn",
+      data: { email, intent, reason: "STRIPE_PORTAL_URL_MISSING" },
+    });
+    return jsonResponse(
+      {
+        ok: true,
+        sent: false,
+        message:
+          "Got it. We've logged your request and will reach out manually at the email above while we finish wiring the self-serve flow.",
+      },
+      200
+    );
+  }
+
+  const result = await sendMagicLinkEmail({
+    email,
+    portalUrl: STRIPE_PORTAL_URL,
+    intent,
+  });
+  if (!result.ok) {
+    return jsonResponse(
+      {
+        ok: true,
+        sent: false,
+        message:
+          "Got it. Email delivery is having a hiccup right now — we've logged your request and will follow up. If you don't hear back within an hour, reach out to support@peanutgallery.live.",
+      },
+      200
+    );
+  }
+
+  return jsonResponse(
+    {
+      ok: true,
+      sent: !result.skipped,
+      message: result.skipped
+        ? "Got it. Email is disabled on this backend; the operator has been notified to deliver your management link manually."
+        : "Sent. Check your inbox for a secure link to the Stripe Customer Portal.",
+    },
+    200
+  );
+}
+
+function emailConfigSnapshot() {
+  const cfg = getEmailConfig();
+  return {
+    emailProvider: cfg.provider,
+    emailConfigured: cfg.configured,
+    emailDisabled: cfg.disabled,
+  };
 }
 
 /** Minimal email-shape validator. Not RFC-complete; catches the 95% case. */
