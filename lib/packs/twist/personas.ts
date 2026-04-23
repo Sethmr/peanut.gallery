@@ -255,7 +255,7 @@ FORMAT:
     id: "soundfx",
     name: "Lon",
     role: "The Reframe",
-    emoji: "🎬",
+    emoji: "🥚",
     color: "#a855f7",
     model: "xai-grok-4-fast",
     directorHint:
@@ -334,7 +334,7 @@ FORMAT:
     id: "joker",
     name: "Alex",
     role: "The Data Comedian",
-    emoji: "📊",
+    emoji: "🥔",
     color: "#f59e0b",
     model: "claude-haiku",
     directorHint:
