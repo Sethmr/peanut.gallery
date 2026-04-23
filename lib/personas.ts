@@ -75,6 +75,74 @@ export interface Persona {
    * and non-producer personas (where the field has no effect).
    */
   factCheckMode?: "strict" | "loose";
+  /**
+   * v1.8 (persona-refinement push): producer sub-archetype. Only
+   * meaningful when `id === "producer"`; other slots ignore it.
+   *
+   * - `"fact-checker"` (default when omitted) — classical tier-tagged
+   *   correction framing. The producer outputs one of
+   *   `[FACT CHECK] / [CONTEXT] / [HEADS UP] / [CALLBACK]` (or `-`) per
+   *   fire, and `buildPersonaContext` injects the `EVIDENCE: GREEN /
+   *   THIN / NONE` gate so the model calibrates tier against search
+   *   evidence. This is the pre-v1.8 Molly + pre-v1.8 Baba lane.
+   *
+   * - `"heckler"` — Baba Booey v1.8 trolly-heckler kernel. No tier
+   *   tags; the producer delivers 1-2 sentence exasperated heckles at
+   *   transcript content. `buildPersonaContext` skips the evidence-
+   *   gate injection (it would contradict the kernel) and reframes the
+   *   search-results header as raw "background facts" the heckler can
+   *   pull chart-positions / pop-culture corrections from.
+   *
+   * - `"journalist"` — Molly Wood v1.8 NPR-reporter kernel. Still
+   *   fact-checks — but conversationally, with inline source anchors
+   *   (*"Heatmap's reporting has them ducking Scope 3..."*) rather
+   *   than tier-tagged output. `buildPersonaContext` skips the
+   *   evidence gate (tier tags would contradict her kernel) and
+   *   reframes the search-results header as "REPORTING ANCHORS" —
+   *   raw reporting she can cite from inline. Differs from heckler
+   *   only in prose framing; under-the-hood scaffolding (no gate,
+   *   search still runs, safety net still catches "-") is identical.
+   *
+   * Orthogonal to `factCheckMode` (which gates the claim-detector's
+   * sensitivity on the Director side). Both fields are producer-only;
+   * other slots ignore both. Defaults-preserving: pre-v1.8 packs
+   * without this field behave exactly as they did.
+   *
+   * The safety-net-on-"-"-pass (persona-engine.ts) + the producer
+   * pre-animation (side panel) still apply to every producerMode
+   * because those are UI-surface contracts, not voice contracts.
+   */
+  producerMode?: "fact-checker" | "heckler" | "journalist";
+  /**
+   * v1.8 (persona-refinement push): long-form character reference material
+   * delivered to the model alongside the system prompt. Whereas
+   * `systemPrompt` is the tight "prompt kernel" (rules, voice, triggers,
+   * red lines), `personaReference` carries the retrieval context the
+   * model pattern-matches against at fire time:
+   *
+   *   - example responses across common live-feed scenarios
+   *   - voice & cadence detail (laugh mechanics, accent, verbal tics)
+   *   - craft rules in the persona's own articulated terms
+   *   - topic buckets (mental filing system for material retrieval)
+   *   - relational dynamics with the ensemble
+   *   - red lines and production fences
+   *   - recovery & deflection library (verbatim lines)
+   *   - interjection shape template
+   *   - verbatim joke / line bank ready to deploy
+   *   - identity anchors (biographical flavor)
+   *
+   * `buildPersonaContext` appends this block immediately after
+   * `systemPrompt` so the model reads voice + material in one pass
+   * before the live transcript. Optional: personas without a
+   * deep-research file (the pre-v1.8 "ultra light baseline" prompts)
+   * simply omit it and operate on the kernel alone — backward
+   * compatible by construction.
+   *
+   * NOT sent to the Director routing call — too large for the 400 ms
+   * budget, and `directorHint` is the correct compressed signal for
+   * "when to pick this voice." Keep the two layers orthogonal.
+   */
+  personaReference?: string;
 }
 
 export interface OtherPersonaResponse {
@@ -176,6 +244,22 @@ export function buildPersonaContext(
 
   context += `${persona.systemPrompt}\n\n`;
 
+  // ── PERSONA REFERENCE MATERIAL (v1.8 persona-refinement push) ──
+  // Long-form retrieval context delivered once per fire so the model reads
+  // voice + deployable material in a single pass before the live transcript.
+  // Contents vary by persona but typically include: example responses, voice
+  // detail, craft rules, topic buckets, relational dynamics, red lines,
+  // recovery lines, joke/line bank, identity anchors. See the
+  // `personas/<name>.md` author files for the canonical schema. Absent on
+  // pre-refinement personas (Baba, Troll, Fred, and the four TWiST voices
+  // at time of Jackie's landing); those still run on the kernel alone.
+  // Printed between the system prompt and the live transcript so the model
+  // treats it as durable character state — not as "what the show just said."
+  if (persona.personaReference && persona.personaReference.trim().length > 0) {
+    context += `--- CHARACTER REFERENCE (read once for voice, then pattern-match) ---\n`;
+    context += `${persona.personaReference.trim()}\n\n`;
+  }
+
   // ── PRIMARY SIGNAL: THE LIVE TRANSCRIPT ──
   // The transcript is the main thing the persona is reacting to. Put it first
   // and most prominent so the model anchors here, not to stale sidebar chatter.
@@ -232,12 +316,29 @@ export function buildPersonaContext(
     context += `If what you're about to say is a near-duplicate of any of the above, pick a different angle or output a single "-" to pass.\n\n`;
   }
 
+  // ── PRODUCER SEARCH-RESULTS INJECTION (three framings) ──
+  // All three flavors of producer (fact-checker, heckler, journalist)
+  // can benefit from fresh web bullets — pre-v1.8 Molly for tier-tagged
+  // corrections, Gary-heckler for chart-position / pop-culture facts to
+  // heckle with, v1.8 Molly-journalist for named-outlet reporting to
+  // cite inline. The framing differs per mode: the fact-checker header
+  // cues tier-tagged output; the heckler header frames the bullets as
+  // raw material, not tier input; the journalist header frames them as
+  // reporting anchors she can cite from conversationally.
   if (searchResults && persona.id === "producer") {
-    context += `--- SEARCH RESULTS (use for fact-checking) ---\n${searchResults}\n\n`;
-    context += `If you already fact-checked this claim in your recent lines, either add a NEW angle or pass with "-".\n\n`;
+    if (persona.producerMode === "heckler") {
+      context += `--- BACKGROUND FACTS (use as heckle fuel if something jumps out) ---\n${searchResults}\n\n`;
+      context += `You don't have to use any of these — heckle the transcript first, and only pull a background fact if it sharpens a pop-culture / sports / chart-position correction. Don't tier-tag; stay in your 1-2 sentence heckle register.\n\n`;
+    } else if (persona.producerMode === "journalist") {
+      context += `--- REPORTING ANCHORS (cite inline if one fits your reaction) ---\n${searchResults}\n\n`;
+      context += `These are reporting / studies / citations you can weave mid-sentence ("Heatmap's reporting has them ducking Scope 3…" / "the GridLab study showed…"). Don't tier-tag and don't preface with "according to my search results" — just name the outlet or analyst inline, the way a veteran reporter would. If nothing here fits, lean on what your character would plausibly already know; if you've already cited the same anchor recently, rotate to a different one or pass with "-".\n\n`;
+    } else {
+      context += `--- SEARCH RESULTS (use for fact-checking) ---\n${searchResults}\n\n`;
+      context += `If you already fact-checked this claim in your recent lines, either add a NEW angle or pass with "-".\n\n`;
+    }
   }
 
-  // ── EVIDENCE-AVAILABILITY GATE (producer only) ──
+  // ── EVIDENCE-AVAILABILITY GATE (fact-checker producer only) ──
   // Explicit signal — more reliable than letting the model infer evidence
   // state from the presence / absence of the SEARCH RESULTS block. The
   // AVeriTeC evaluation family shows overconfident verdicts are the primary
@@ -245,7 +346,19 @@ export function buildPersonaContext(
   // selection toward abstention-style tiers ([HEADS UP]) instead of
   // attempting a [FACT CHECK] from memory alone. Force-react path suspends
   // this (tap must always speak in voice); everyone else reads it.
-  if (persona.id === "producer" && !isForceReact) {
+  //
+  // v1.8: heckler-mode AND journalist-mode producers skip this entirely.
+  // Neither kernel uses the [FACT CHECK] / [HEADS UP] tier tags — the
+  // heckler outputs exasperated reactions, the journalist cites inline
+  // reporting conversationally — so an EVIDENCE block would contradict
+  // the kernel and confuse the model. The reframed search headers above
+  // carry sufficient evidence signal for both modes.
+  if (
+    persona.id === "producer" &&
+    !isForceReact &&
+    persona.producerMode !== "heckler" &&
+    persona.producerMode !== "journalist"
+  ) {
     if (searchStatus === "with_results") {
       context += `--- EVIDENCE: GREEN ---\nSearch returned usable results. [FACT CHECK] is earned IF a specific number/date/name in the search contradicts the claim. If the search confirms the claim, [CONTEXT] adds the angle they missed. If the search is adjacent but doesn't settle the claim, use [HEADS UP]. Anchor every number or date to the search — no memory-only corrections on this fire.\n\n`;
     } else if (searchStatus === "empty") {

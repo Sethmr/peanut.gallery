@@ -27,7 +27,7 @@ export const twistPack: Pack = {
     name: "This Week in Startups",
     description: "Molly Wood, Jason Calacanis, Lon Harris, Alex Wilhelm — the TWiST lineup.",
     universe: "TWiST",
-    updatedAt: "2026-04-17",
+    updatedAt: "2026-04-23",
   },
   personas: twistPersonas,
 };

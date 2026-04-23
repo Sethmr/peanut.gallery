@@ -15,7 +15,7 @@ export const howardPack: Pack = {
     name: "Howard Stern Show",
     description: "Baba Booey, The Troll, Fred, Jackie — the original lineup.",
     universe: "Stern Show",
-    updatedAt: "2026-04-17",
+    updatedAt: "2026-04-23",
   },
   personas: howardPersonas,
 };
