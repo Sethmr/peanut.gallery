@@ -1439,38 +1439,24 @@ export class PersonaEngine {
   }
 
   /**
-   * Execute a single fact-check query using xAI's Grok Live Search.
-   *
-   * Unlike Brave — which returns raw SERP entries — xAI's search returns a
-   * synthesized answer with inline citations in one call. We force
-   * `search_parameters.mode = "on"` so Grok ALWAYS consults the web for this
-   * call (otherwise Grok's "auto" heuristic sometimes answers from training
-   * data alone, which is exactly what we're trying to avoid for fact checks).
-   *
-   * We use the non-reasoning variant here — fact-checking is fetch-and-cite,
-   * not multi-step reasoning, and the non-reasoning model is cheaper and
-   * faster. If we ever need chained reasoning on a claim, swap to the
-   * reasoning variant on this one call without touching the persona models.
+   * Execute a single fact-check query using xAI's Live Search via the
+   * Responses API. Chat Completions + `search_parameters` was deprecated
+   * by xAI in 2026-Q2 and now returns 410 Gone; the new path is
+   * `/v1/responses` with `tools: [{ type: "web_search" }]`.
    */
   private async searchXai(query: string): Promise<string | undefined> {
     if (!this.xaiKey) return undefined;
     const XAI_TIMEOUT_MS = 8000;
     try {
-      // 8-second hard timeout. xAI Live Search is a search + synthesis
-      // round-trip, so it's inherently slower than Brave — we give it a
-      // little more headroom but still well under the client's 15s safety
-      // timeout. Without this, a stalled upstream would block the
-      // producer's fireSingle forever (see the Baba silent-spin bug that
-      // shipped in v1.4 when this function was first introduced).
-      const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      const response = await fetch("https://api.x.ai/v1/responses", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.xaiKey}`,
         },
         body: JSON.stringify({
-          model: "grok-4-1-fast-non-reasoning",
-          messages: [
+          model: "grok-4.20-reasoning",
+          input: [
             {
               role: "system",
               content:
@@ -1478,14 +1464,8 @@ export class PersonaEngine {
             },
             { role: "user", content: `Fact-check this claim: ${query}` },
           ],
-          max_tokens: 300,
-          stream: false,
-          search_parameters: {
-            mode: "on",
-            sources: [{ type: "web" }],
-            max_search_results: 5,
-            return_citations: true,
-          },
+          tools: [{ type: "web_search" }],
+          max_output_tokens: 300,
         }),
         signal: AbortSignal.timeout(XAI_TIMEOUT_MS),
       });
@@ -1504,13 +1484,25 @@ export class PersonaEngine {
       }
 
       const data = await response.json();
-      const answer: string | undefined =
-        data?.choices?.[0]?.message?.content?.trim();
+      // Responses API: output[*].content[*].text where type === "output_text".
+      // Walk the output array and concatenate all output_text chunks (there's
+      // normally one, but the spec allows multiple).
+      const output: unknown = data?.output;
+      let answer = "";
+      if (Array.isArray(output)) {
+        for (const msg of output) {
+          const content = (msg as { content?: unknown })?.content;
+          if (!Array.isArray(content)) continue;
+          for (const part of content) {
+            const p = part as { type?: string; text?: string };
+            if (p?.type === "output_text" && typeof p.text === "string") {
+              answer += p.text;
+            }
+          }
+        }
+      }
+      answer = answer.trim();
       if (!answer) {
-        // xAI returned 200 with no synthesized answer — the call cost money
-        // and time but gave the Producer nothing to cite. Log so we can
-        // spot patterns (e.g. specific claim shapes that consistently
-        // produce empty synths) and tune the prompt or fall back to Brave.
         logPipeline({
           event: "search_empty_result",
           level: "info",
@@ -1519,14 +1511,9 @@ export class PersonaEngine {
         return undefined;
       }
 
-      // xAI may attach citations either as top-level `citations` or on the
-      // message itself — we accept either and append unique URLs so the
-      // Producer can quote them if the bullet text alone isn't clear.
       const citations: string[] = Array.isArray(data?.citations)
         ? data.citations
-        : Array.isArray(data?.choices?.[0]?.message?.citations)
-          ? data.choices[0].message.citations
-          : [];
+        : [];
       const uniqueCites = Array.from(
         new Set(citations.filter((c) => typeof c === "string"))
       ).slice(0, 3);
