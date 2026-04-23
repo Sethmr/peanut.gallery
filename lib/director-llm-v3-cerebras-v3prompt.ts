@@ -131,7 +131,11 @@ export async function pickPersonaCerebrasV3(
       },
       body: JSON.stringify({
         model: CEREBRAS_MODEL,
-        max_tokens: 300,
+        // 300 was too tight once Llama 3.1 8B started echoing the full
+        // json_schema envelope (~250 tokens of schema text) before
+        // emitting the real pick. 600 leaves room for both the echo AND
+        // the answer so JSON.parse doesn't choke on a truncated tail.
+        max_tokens: 600,
         response_format: {
           type: "json_schema",
           json_schema: {
@@ -171,12 +175,18 @@ export async function pickPersonaCerebrasV3(
     try {
       parsed = JSON.parse(text);
     } catch (err) {
+      // Truncated schema-echo failures are a known Llama 3.1 8B quirk on
+      // the Cerebras shadow path — loud "warn" noise buries real problems
+      // in the logs. Detect the echo shape and demote to debug; anything
+      // else still surfaces as warn so genuine parse regressions are loud.
+      const isSchemaEcho =
+        text.startsWith('{"type"') && text.includes('"properties"');
       logPipeline({
         event: "llm_director_v3_parse_fail",
-        level: "warn",
+        level: isSchemaEcho ? "debug" : "warn",
         sessionId: ctx.sessionId,
         data: {
-          reason: "json_parse_error",
+          reason: isSchemaEcho ? "schema_echo_truncated" : "json_parse_error",
           provider: "cerebras",
           promptVersion: "v3",
           elapsedMs: Date.now() - started,

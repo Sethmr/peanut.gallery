@@ -195,17 +195,30 @@ export async function POST(req: NextRequest) {
   // key is absent (fail-open, not fail-hard).
   const headerOpenAi = req.headers.get("X-OpenAI-Key");
 
-  const deepgramKey = headerDeepgram || process.env.DEEPGRAM_API_KEY;
-  const anthropicKey = headerAnthropic || process.env.ANTHROPIC_API_KEY;
-  const braveKey = headerBrave || process.env.BRAVE_SEARCH_API_KEY;
-  const xaiKey = headerXai || process.env.XAI_API_KEY;
-  const openAiKey = headerOpenAi || process.env.OPENAI_API_KEY;
+  // Strip everything that isn't ASCII-printable + trim whitespace. Railway
+  // / Vercel env-var UIs occasionally slip invisible U+2028 LINE SEPARATOR
+  // or stray whitespace into a pasted value, and anything non-latin-1 in
+  // an Authorization header blows up with "Cannot convert argument to a
+  // ByteString" from undici the first time the key gets used. The persona
+  // path catches that as persona_error and the whole tick fails. Normalize
+  // once at the boundary so no downstream caller has to care.
+  const sanitizeKey = (v: string | null | undefined): string | undefined => {
+    if (!v) return undefined;
+    const cleaned = v.replace(/[^\x20-\x7E]/g, "").trim();
+    return cleaned.length > 0 ? cleaned : undefined;
+  };
+
+  const deepgramKey = sanitizeKey(headerDeepgram) ?? sanitizeKey(process.env.DEEPGRAM_API_KEY);
+  const anthropicKey = sanitizeKey(headerAnthropic) ?? sanitizeKey(process.env.ANTHROPIC_API_KEY);
+  const braveKey = sanitizeKey(headerBrave) ?? sanitizeKey(process.env.BRAVE_SEARCH_API_KEY);
+  const xaiKey = sanitizeKey(headerXai) ?? sanitizeKey(process.env.XAI_API_KEY);
+  const openAiKey = sanitizeKey(headerOpenAi) ?? sanitizeKey(process.env.OPENAI_API_KEY);
   // Shadow-provider keys for Smart Director v3 (SET-6). Never used for
   // user-facing persona calls — only for the parallel shadow LLM call that
   // logs agreement rate vs Haiku. Groq is deferred until Developer tier
   // reopens (SET-11); Cerebras is the working fast-provider path today.
-  const groqKey = headerGroq || process.env.GROQ_API_KEY;
-  const cerebrasKey = headerCerebras || process.env.CEREBRAS_API_KEY;
+  const groqKey = sanitizeKey(headerGroq) ?? sanitizeKey(process.env.GROQ_API_KEY);
+  const cerebrasKey = sanitizeKey(headerCerebras) ?? sanitizeKey(process.env.CEREBRAS_API_KEY);
 
   // Search-engine selection. Client sends "brave" or "xai" via X-Search-Engine;
   // anything else (missing, typo, old client) falls through to Brave — that

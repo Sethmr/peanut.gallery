@@ -2152,24 +2152,24 @@
     <button class="error-dismiss" id="errorDismiss" type="button" aria-label="Dismiss error"><span aria-hidden="true">&times;</span></button>
   </div>
 
+  <!-- 15-min free trial banner. Visible whenever Demo mode is active in
+       the segmented control — deliberately lives OUTSIDE #setupSection so
+       it persists after Start Listening hides the setup UI. Seth's note:
+       the meter reminds the user they'll need a real solution before it
+       runs out; hiding it mid-session hides the pitch. -->
+  <div id="freeBanner" class="free-banner" role="status" hidden>
+    <div class="lede"><span id="freeBannerTime">15:00</span><small id="freeBannerTimeLabel">LEFT</small></div>
+    <div class="copy" id="freeBannerCopy">
+      <strong id="freeBannerHeadline">Fifteen free minutes to try it out.</strong>
+      <span id="freeBannerBody">No signup, no card. Tap <em>Start Listening</em> on any tab with audio. When the meter runs out, open
+      <button id="freeBannerSettingsLink" class="inline-settings-link" type="button">Settings</button>
+      to paste your own keys, subscribe to Plus, or
+      <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>.</span>
+    </div>
+  </div>
+
   <!-- ── SETUP (shown when not capturing) ── -->
   <div id="setupSection" class="setup">
-
-    <!-- 15-min free trial banner. Visible whenever Demo mode is active in
-         the segmented control. Lede shows live remaining time; counts down
-         while a session runs and persists across sessions. Hidden in any
-         non-demo mode. The Demo segmented option is removed entirely once
-         the trial is fully consumed (see setBackendMode in sidepanel.js). -->
-    <div id="freeBanner" class="free-banner" role="status" hidden>
-      <div class="lede"><span id="freeBannerTime">15:00</span><small id="freeBannerTimeLabel">LEFT</small></div>
-      <div class="copy" id="freeBannerCopy">
-        <strong id="freeBannerHeadline">Fifteen free minutes to try it out.</strong>
-        <span id="freeBannerBody">No signup, no card. Tap <em>Start Listening</em> on any tab with audio. When the meter runs out, open
-        <button id="freeBannerSettingsLink" class="inline-settings-link" type="button">Settings</button>
-        to paste your own keys, subscribe to Plus, or
-        <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>.</span>
-      </div>
-    </div>
 
     <!-- Detected tab -->
     <div id="detectedTab">
