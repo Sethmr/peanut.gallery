@@ -65,7 +65,7 @@ Chrome extension + Next.js backend that captures a YouTube tab's audio, transcri
 | Self-host flow | [`docs/SELF-HOST-INSTALL.md`](docs/SELF-HOST-INSTALL.md) |
 | Alternative-backend contract | [`docs/BUILD-YOUR-OWN-BACKEND.md`](docs/BUILD-YOUR-OWN-BACKEND.md) |
 | Key rotation / ops | [`docs/OPS.md`](docs/OPS.md) |
-| Most recent session handoff | [`docs/SESSION-NOTES-2026-04-21-overnight-push.md`](docs/SESSION-NOTES-2026-04-21-overnight-push.md) |
+| Most recent session handoff | [`docs/SESSION-NOTES-2026-04-23-persona-v18-push.md`](docs/SESSION-NOTES-2026-04-23-persona-v18-push.md) |
 | Director state (modules, flags, telemetry, PR lineage) | [`docs/STATE-OF-DIRECTOR-2026-04-21.md`](docs/STATE-OF-DIRECTOR-2026-04-21.md) |
 | Design principles (durable Seth-directives) | [`docs/DESIGN-PRINCIPLES.md`](docs/DESIGN-PRINCIPLES.md) |
 | Persona refinement plan (100+ transcript study) | [`docs/PERSONA-REFINEMENT-PLAN.md`](docs/PERSONA-REFINEMENT-PLAN.md) |
