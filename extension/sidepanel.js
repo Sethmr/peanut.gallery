@@ -710,7 +710,7 @@ async function refreshSubscriptionStatus() {
  * Listeners are bound on every call and torn down on resolve so handlers
  * don't accumulate across opens.
  */
-function openPromptModal({ stamp = "Dispatch", title, body, placeholder = "", initialValue = "", confirmLabel = "Confirm", inputType = "text" } = {}) {
+function openPromptModal({ stamp = "Dispatch", title, body, placeholder = "", initialValue = "", confirmLabel = "Confirm", cancelLabel = "Cancel", inputType = "text", hideInput = false } = {}) {
   return new Promise((resolve) => {
     const modal = document.getElementById("promptModal");
     const stampEl = document.getElementById("promptStamp");
@@ -727,10 +727,17 @@ function openPromptModal({ stamp = "Dispatch", title, body, placeholder = "", in
     if (stampEl) stampEl.textContent = stamp;
     if (titleEl) titleEl.textContent = title || "";
     if (bodyEl) bodyEl.textContent = body || "";
-    input.type = inputType;
-    input.placeholder = placeholder;
-    input.value = initialValue;
+    // Info-only mode: hide the input entirely and treat Confirm as a
+    // plain "OK / do-the-thing" button that resolves `true`. Used for
+    // already-subscribed confirmations where we don't need new input.
+    input.hidden = !!hideInput;
+    if (!hideInput) {
+      input.type = inputType;
+      input.placeholder = placeholder;
+      input.value = initialValue;
+    }
     confirmBtn.textContent = confirmLabel;
+    cancelBtn.textContent = cancelLabel;
 
     function cleanup() {
       modal.classList.remove("visible");
@@ -743,6 +750,7 @@ function openPromptModal({ stamp = "Dispatch", title, body, placeholder = "", in
     }
     function onCancel() { cleanup(); resolve(null); }
     function onConfirm() {
+      if (hideInput) { cleanup(); resolve(true); return; }
       const v = input.value.trim();
       cleanup();
       resolve(v || null);
@@ -757,12 +765,12 @@ function openPromptModal({ stamp = "Dispatch", title, body, placeholder = "", in
     cancelBtn.addEventListener("click", onCancel);
     confirmBtn.addEventListener("click", onConfirm);
     backdrop.addEventListener("click", onCancel);
-    input.addEventListener("keydown", onKey);
+    if (!hideInput) input.addEventListener("keydown", onKey);
     document.addEventListener("keydown", onEscape);
 
     modal.classList.add("visible");
     modal.setAttribute("aria-hidden", "false");
-    setTimeout(() => input.focus(), 0);
+    setTimeout(() => (hideInput ? confirmBtn : input).focus(), 0);
   });
 }
 
@@ -790,30 +798,46 @@ async function openSubscriptionCheckout() {
       return;
     }
     // The backend refused the checkout because this email already has
-    // an active Plus subscription. Surface a friendly message + a CTA
-    // that triggers the resend-key flow directly, reusing the email
-    // the user just typed (no need to re-prompt).
+    // an active Plus subscription. Surface a modal (the error banner
+    // sits on the main panel and is invisible while the user is in
+    // the settings drawer). The modal offers a one-click "resend key"
+    // that reuses the email the user just typed.
     if (res.status === 409 && data.code === "ALREADY_SUBSCRIBED") {
-      showError(
-        "You already have an active Peanut Gallery Plus subscription. If you've lost your license key, we can email it to you.",
-        null,
-        {
-          label: "Email me my key",
-          onClick: async () => {
-            try {
-              const r = await fetch(`${url}/api/subscription/manage`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, action: "recover_key" }),
-              });
-              const d = await r.json();
-              showError(d.message || "Request logged.", null);
-            } catch {
-              showError("Couldn't reach the backend. Try again later.", null);
-            }
-          },
-        }
-      );
+      const confirmed = await openPromptModal({
+        stamp: "Already subscribed",
+        title: "You already have Plus",
+        body:
+          "This email is already on an active Peanut Gallery Plus subscription. Want us to email your license key again?",
+        hideInput: true,
+        confirmLabel: "Email me my key",
+        cancelLabel: "Close",
+      });
+      if (!confirmed) return;
+      try {
+        const r = await fetch(`${url}/api/subscription/manage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, action: "recover_key" }),
+        });
+        const d = await r.json();
+        await openPromptModal({
+          stamp: "Dispatch",
+          title: "Check your inbox",
+          body: d.message || "We'll email your license key shortly.",
+          hideInput: true,
+          confirmLabel: "OK",
+          cancelLabel: "Close",
+        });
+      } catch {
+        await openPromptModal({
+          stamp: "Error",
+          title: "Couldn't reach the backend",
+          body: "Please try again in a moment.",
+          hideInput: true,
+          confirmLabel: "OK",
+          cancelLabel: "Close",
+        });
+      }
       return;
     }
     showError(data.error || "Couldn't start checkout. Try again later.", null);
