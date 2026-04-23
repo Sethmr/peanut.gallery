@@ -715,6 +715,11 @@
       color: var(--ink);
       display: flex; gap: 10px; align-items: flex-start;
     }
+    /* `display: flex` above overrides the UA `[hidden] { display: none }`
+       rule (same specificity, author beats UA) — so the banner used to leak
+       onto non-demo tabs with its baked-in "15:00" markup until JS caught
+       up. Re-assert display:none when hidden, at higher specificity. */
+    .free-banner[hidden]{ display: none; }
     .free-banner .lede{
       font-family: var(--slab); font-size: 22px; line-height: .95;
       color: var(--green); text-transform: uppercase; letter-spacing: -.005em;
