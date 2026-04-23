@@ -4033,7 +4033,7 @@ const TUTORIAL_STEPS = [
   {
     targetSelector: '.drawer-menu-item[data-section="backend"]',
     title: "Backend & keys",
-    body: "While we're in the early window, peanutgallery.live covers the providers. Paste your own keys here anytime to remove the rate limits — self-hosters can also point at their own backend URL.",
+    body: "Four ways to use Peanut Gallery — pick one here. Demo is a one-off 15-min free trial. Peanut Gallery Plus is $8/mo for 16 h/week on the hosted backend. My keys (BYOK) is free forever with your own Deepgram / Anthropic / xAI keys. Self-host points at your own backend URL.",
     onEnter: () => {
       if (!settingsDrawer?.classList.contains("visible")) openSettingsDrawer();
       showDrawerMenu();

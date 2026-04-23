@@ -2,9 +2,9 @@
 
 > Version-staged plan. Confirm scope with Seth before starting any item — this is a menu, not a queue, and release boundaries are load-bearing (each one tees up the next).
 
-**Last updated:** 2026-04-21 (v1.6.0 "The Canary" release PR [#91](https://github.com/Sethmr/peanut.gallery/pull/91) open; canary awaiting Railway env-var flip + ~48 h of hosted sessions)
-**Active release:** v1.6.0 "The Canary" — Smart Director v3 flag-gated canary (primary + Cerebras/Groq shadow) + fact-check gate + fallback telemetry + peanut avatar stage 1 + 60 s silence auto-stop
-**Design principle:** one load-bearing change per release. If a release title needs an "and," split it. (v1.5.0 was the exception — Smart Director v2 + the Broadsheet rebrand shipped in the same window because both needed the CWS review cadence. v1.6.0 runs wider too because it bundles the v3 canary with shipped-alongside work that was already on develop.)
+**Last updated:** 2026-04-22 (v1.8.0 "The Press Pass" live on Railway/`develop`; CWS release deferred until v2.0 per Seth's plan)
+**Active release:** v1.8.0 "The Press Pass" — Peanut Gallery Plus subscription end-to-end (SQLite identity, Stripe live mode, Resend email, dedupe gate, four-mode access picker) + absorbs v1.6.0 canary + v1.7.0 legal hard-save
+**Design principle:** one load-bearing change per release. If a release title needs an "and," split it. v1.5.0 and v1.6.0 were exceptions for CWS-cadence reasons; v1.8.0 is an exception because main is frozen until v2.0, so v1.6–v1.8 accumulate on `develop` and all bump the manifest in one CWS zip when main reopens.
 
 ---
 
@@ -22,39 +22,40 @@
 | v1.5.4 | "The Sweep" | 2026-04-20 | Janitorial pass — SEO refresh + legacy `/watch` deletion + a11y polish + ops logging + orphan-dep removal |
 | v1.5.5 | Dev-infra | 2026-04-20 | Linear ticket → Claude Code kickoff pipeline; framework + dev-dep refresh; release-model rewrite |
 | v1.5.6 | Dev-infra | 2026-04-20 | Local Linear daemon on Seth's Mac (replaces GH-Actions kickoff; uses Claude Max subscription) |
-| **v1.6.0** | **"The Canary"** | **2026-04-21 (release PR open)** | **Smart Director v3 flag-gated canary** (Haiku `tool_use` with 5-slot + SILENT, Cerebras Llama 3.1 8B + Groq shadow providers, sticky penalty, unstable-tail heuristic, live-callback ring buffer, across-turn semantic anti-repeat) + fact-check gate with per-pack sensitivity modes + fallback telemetry + self-correcting penalty loop + peanut avatar stage 1 (Phong lighting, unclipped bottoms, non-freezing SMIL bob) + empty-state companions + director debug panel polish + session-recall groundwork + 60 s silence auto-stop |
+| v1.6.0 | "The Canary" | 2026-04-21 | Smart Director v3 flag-gated canary (Haiku `tool_use` with 5-slot + SILENT, Cerebras Llama 3.1 8B + Groq shadow providers, sticky penalty, unstable-tail heuristic, live-callback ring buffer, across-turn semantic anti-repeat) + fact-check gate with per-pack sensitivity modes + fallback telemetry + peanut avatar stage 1 + 60 s silence auto-stop. `release/v1.6.0` branch preserved; absorbed into v1.8.0 manifest bump. |
+| v1.7.0 | "The Fine Print" | 2026-04-21 | Legal hard-save: rewritten ToS/Privacy drafts, US-only gate on Plus, cookie-consent banner, email-alias plumbing. Tagged + branched; held back from main pending lawyer review. |
+| **v1.8.0** | **"The Press Pass"** | **2026-04-22** | **Peanut Gallery Plus live end-to-end.** Phase 2 SQLite persistent identity (SET-25), Phase 3 Stripe checkout + webhook (SET-26), Phase 4 Resend transactional email (SET-27), dedupe gate with one-click recover-key modal, four-mode access picker (Demo / Plus / My keys / Self-host), 15-minute one-off free banner. Plus feed-UI polish (quote cards, pinned strip, Regenerate, fire-count chips, session timer, transcript pulse) + fact-check hardening + privacy feedback opt-out. Live on Railway from `develop`; main frozen until v2.0. |
 
 Details on any of these live in the corresponding `docs/V<x>-PLAN.md`, `docs/STATE-OF-*` doc, or the [`CHANGELOG.md`](../CHANGELOG.md) entry.
 
 ---
 
-## In flight — v1.6.0 "The Canary" → Railway flags → analyze telemetry
+## In flight — Smart Director v3 canary telemetry
 
-**Status (2026-04-21):** release PR [#91](https://github.com/Sethmr/peanut.gallery/pull/91) open and ready-to-merge via "Rebase and merge." All v3 paths are **flag-gated** — shipping with flags off is safe (rule-based Director keeps routing).
-
-**Seth's directive:** merge, then flip the Railway flags on the hosted backend so we collect real telemetry. See [`docs/CEREBRAS-INTEGRATION.md`](CEREBRAS-INTEGRATION.md) for the full operator walkthrough.
+**Status (2026-04-22):** v1.6.0 canary code is live on Railway (part of the `develop` = production posture). All v3 paths stay flag-gated. The 48-h agreement-rate read is still the gate between here and a "v1.9 Smart Director GA" release that retires the rule-based scorer.
 
 **What's left to complete the canary:**
 
-1. **Seth merges release/v1.6.0 → main** via the GitHub UI's **"Rebase and merge"** button (per [`RELEASE.md § Merge method`](RELEASE.md#merge-method--main-facing-prs-rebase-and-merge-only)). Tag `v1.6.0` on `main` after merge.
-2. **Flip Railway env vars:**
+1. **Flip Railway env vars** (if not already set):
    ```bash
    railway variables set ENABLE_SMART_DIRECTOR_V2=true
    railway variables set ENABLE_SMART_DIRECTOR_V3_CEREBRAS=true
    railway variables set CEREBRAS_API_KEY=csk-...
    railway up
    ```
-3. **Collect ≥ 48 h of hosted sessions.** The fast-provider shadow is read-only — it never ships to users. Cost expectation per [`CEREBRAS-INTEGRATION.md`](CEREBRAS-INTEGRATION.md#cost-expectations): ~$2 for a 48 h canary.
-4. **Run the analyzer:**
+2. **Collect ≥ 48 h of hosted sessions.** The fast-provider shadow is read-only — it never ships to users. Cost expectation per [`CEREBRAS-INTEGRATION.md`](CEREBRAS-INTEGRATION.md#cost-expectations): ~$2 for a 48 h canary.
+3. **Run the analyzer:**
    ```bash
    npm run analyze:director-v3
    ```
    Key bands: agreement rate Haiku↔Cerebras ≥ 85 %, p95 Cerebras latency 3–5× faster than Haiku, timeout rate < 2 %.
-5. **Kill switch if something goes wrong:** `railway variables delete ENABLE_SMART_DIRECTOR_V3_CEREBRAS && railway up`. Zero state to clean up — shadow never touched user-facing traffic.
+4. **Kill switch if something goes wrong:** `railway variables delete ENABLE_SMART_DIRECTOR_V3_CEREBRAS && railway up`. Zero state to clean up — shadow never touched user-facing traffic.
 
 **Decision point after 48 h:**
-- If bands hit → v1.7 GA plan is live (LLM router becomes primary; rule-based scorer retires to safety-net only).
+- If bands hit → v1.9 "Smart Director GA" is live (LLM router becomes primary; rule-based scorer retires to safety-net only).
 - If bands miss → iterate the v3 prompt in `lib/director-llm-v2.ts` and re-canary. Don't retire the rule-based path until v3 is provably better, not just plausibly so.
+
+**Note on v1.7 naming:** an earlier version of this roadmap reserved v1.7.x for "Smart Director GA." v1.7.0 got claimed by the legal hard-save branch ("The Fine Print") before the GA work was ready. The Smart Director GA slot has moved to v1.9.x; v1.8.0 "The Press Pass" fills the 1.8 slot with Plus.
 
 ---
 
@@ -67,12 +68,13 @@ The releases below are the explicit sequence on the way to the v2.0 launch ("The
 | Release | Theme | Status |
 |---|---|---|
 | v1.5.0 – v1.5.6 | Broadsheet + Cast + Sweep + dev-infra | ✅ Shipped (see table above) |
-| **v1.6.0 "The Canary"** | Smart Director v3 canary (flag-gated) + fact-check gate + fallback telemetry + avatar stage 1 + 60 s silence auto-stop | ✅ Release PR open; awaiting merge + Railway flag flip |
-| **v1.7.x "Smart Director GA"** | LLM router becomes primary once v1.6 canary clears bands; rule-based scorer retires to thin safety-net only. Per-pack `directorHint` calibration from canary telemetry. Kill-switch flag stays. | Blocked on v1.6 canary data |
-| v1.8.x "Persona refinement sprint" | Re-run system prompts against 100+ transcripts per pack; tune anything canary telemetry says is under-firing. See [`PERSONA-REFINEMENT-PLAN.md`](PERSONA-REFINEMENT-PLAN.md). | Blocked on v1.7 canary |
-| **v1.9.x "Peanut Gallery Plus"** | **Required for v2.0.** Subscription = accessibility tier for non-technical users. $8/mo · 16 h/week cap. BYOK always remains free alongside. NOT a profit center; goal is to drive price down over time. One-off 15-minute demo replaces the old rolling-daily free tier. Phase 1 scaffold shipped; Phases 2–4 (persistent ID, Stripe, email) via SET tickets. | Phase 1 scaffold shipped (see [Peanut Gallery Plus](#v19x-peanut-gallery-plus--subscription-for-non-techs) below) |
-| v1.10.x "Avatar stage 2" | Bobbleheads / 2.5D parallax / Lottie / MP4 fallback — whichever reads best in a 2-day spike per Seth's Day-1 eval | Planned |
-| v2.0.0 "The Gallery" | Session recall + shareable snippet (local, PNG-to-clipboard), full audit, CWS listing + marketing-site refresh, launch day | Horizon |
+| v1.6.0 "The Canary" | Smart Director v3 flag-gated canary + fact-check gate + avatar stage 1 + 60 s silence auto-stop | ✅ Shipped to develop/Railway 2026-04-21; `release/v1.6.0` preserved |
+| v1.7.0 "The Fine Print" | Legal rewrite hard-save (ToS/Privacy drafts, US-only gate, cookie consent, email aliases) | ✅ Tagged + branched 2026-04-21; awaiting lawyer review before main merge |
+| **v1.8.0 "The Press Pass"** | **Peanut Gallery Plus live end-to-end — SQLite identity (SET-25), Stripe checkout (SET-26), Resend email (SET-27), dedupe gate, four-mode access picker, one-off 15-min free trial + feed-UI polish + fact-check hardening** | ✅ Shipped to develop/Railway 2026-04-22 |
+| **v1.9.x "Smart Director GA"** | LLM router becomes primary once v1.6 canary clears bands; rule-based scorer retires to thin safety-net only. Per-pack `directorHint` calibration from canary telemetry. Kill-switch flag stays. (Renamed from the old v1.7.x slot — 1.7 was claimed by "The Fine Print.") | Blocked on v1.6 canary data |
+| v1.10.x "Persona refinement sprint" | Re-run system prompts against 100+ transcripts per pack; tune anything canary telemetry says is under-firing. See [`PERSONA-REFINEMENT-PLAN.md`](PERSONA-REFINEMENT-PLAN.md). | Blocked on v1.9 canary |
+| v1.11.x "Avatar stage 2" | Bobbleheads / 2.5D parallax / Lottie / MP4 fallback — whichever reads best in a 2-day spike per Seth's Day-1 eval | Planned |
+| v2.0.0 "The Gallery" | Session recall + shareable snippet (local, PNG-to-clipboard), full audit, CWS listing + marketing-site refresh, launch day (main reopens; v1.6→v1.8 accumulated bumps roll into one CWS zip) | Horizon |
 | v2.x.x | Continuous Director + persona improvements while we wait for user-driven v3 direction | Post-launch |
 | v3.0.0 | **User-driven** — direction defined by what v2.0 users ask for, not by us | TBD |
 
@@ -132,29 +134,27 @@ Canonical planning doc: [`PERSONA-REFINEMENT-PLAN.md`](PERSONA-REFINEMENT-PLAN.m
 
 ---
 
-### v1.9.x "Peanut Gallery Plus" — subscription for non-techs
+### ~~v1.9.x "Peanut Gallery Plus"~~ — shipped in v1.8.0 "The Press Pass"
 
-**Updated 2026-04-21 per Seth: this tier is REQUIRED for v2.0, not optional.** The purpose of the subscription is accessibility for non-technical users. Without Plus, the product is effectively gated behind "paste your Deepgram key" for anyone who wants to use it beyond the 15-minute demo. Seth's direction: "This is too important to avoid."
+**Retired slot (2026-04-22).** Plus shipped end-to-end in v1.8.0, one version earlier than planned. All four phases landed:
 
-**Canonical architecture:** [`SUBSCRIPTION-ARCHITECTURE.md`](SUBSCRIPTION-ARCHITECTURE.md). Legal drafts at [`legal/TERMS-OF-SERVICE.md`](legal/TERMS-OF-SERVICE.md) + [`legal/PRIVACY-POLICY.md`](legal/PRIVACY-POLICY.md).
+- **Phase 1 — scaffold (2026-04-21).** `lib/subscription.ts` + `/api/subscription/{status,manage,checkout,webhook}` routes + extension UI + one-off 15-minute free tier. Feature-flagged behind `ENABLE_SUBSCRIPTION=true`.
+- **Phase 2 — persistent identity (SET-25, PR [#123](https://github.com/Sethmr/peanut.gallery/pull/123), 2026-04-22).** SQLite store via `better-sqlite3`, Luhn-checksum key generator, admin CLI (`npm run subscription:issue`).
+- **Phase 3 — Stripe integration (SET-26, PR [#124](https://github.com/Sethmr/peanut.gallery/pull/124), 2026-04-22).** Real Stripe Checkout + manual HMAC webhook verification + all 5 event handlers. Live-mode wired + real-$8 smoke test 2026-04-22.
+- **Phase 4 — email infrastructure (SET-27, PR [#119](https://github.com/Sethmr/peanut.gallery/pull/119), 2026-04-22).** Resend by default, Postmark drop-in fallback. Welcome / recovery / cancellation / magic-link templates.
 
-**Decisions (Seth, 2026-04-21):**
+**Post-ship follow-ups landed this session (2026-04-22):**
+- Dedupe gate blocks duplicate checkouts with `409 ALREADY_SUBSCRIBED` + one-click recover-key modal.
+- Four-mode access picker (Demo / Plus / My keys / Self-host) replaces the old three-way.
+- Start Listening gates key-presence on mode, not URL.
+- Dockerfile runs as root so SQLite can write to Railway's `/data` volume.
 
-1. **Price:** $8 / month — starting point, tune later based on economics.
-2. **Weekly cap:** 16 hours — tune later.
-3. **Identity:** license key (`pg-xxxx-xxxx-xxxx`), emailed at signup. Email owns the key — recovery + cancel happen via email-verified magic link to the Stripe portal.
-4. **Free tier:** 15 minutes, **one-off lifetime**, not daily. Exhaust → must bring keys or subscribe.
-5. **Three modes in the UI:** Demo / My keys / Plus. When Plus is active AND BYOK is filled in, a sub-toggle picks which keys the session uses (subscription hours only tick when hosted keys are used).
-6. **Not a profit center.** Explicit intent: accessibility lever. Over time, drive price down (cheaper APIs, better caching, v1.7 GA → Cerebras router) so the same subscription covers more. Anyone who wants can always BYOK for free.
-7. **No account system creep.** No login state, no sessions, no OAuth — the license key IS the identity. Email handles identity verification at security-perimeter events (signup, recovery, cancel) only.
-8. **Future speculation (NOT committed):** if the product gets traction, consider normalizing BYOK into a single managed key that Peanut Gallery issues + rotates. Off the table until traction.
+**Decisions (Seth, 2026-04-21, still load-bearing):** $8/month · 16 h/week · license-key identity · 15-minute one-off free · not a profit center · no account system. See [`SUBSCRIPTION-ARCHITECTURE.md`](SUBSCRIPTION-ARCHITECTURE.md) for the canonical architecture.
 
-**Phases:**
-
-- **Phase 1 — scaffold (shipped 2026-04-21).** `lib/subscription.ts` + `/api/subscription/{status,manage,checkout,webhook}` routes + extension UI + one-off free tier. Feature-flagged behind `ENABLE_SUBSCRIPTION=true`; inert by default.
-- **Phase 2 — persistent identity (SET-25).** SQLite store, real license-key generator, admin CLI to issue keys.
-- **Phase 3 — Stripe integration (SET-26).** Real checkout + webhook signature verification + automatic key issuance on payment.
-- **Phase 4 — Email infrastructure (SET-27).** Resend / Postmark integration; welcome email, recovery email, cancellation email.
+**Still open (not blocking):**
+- DNS: `api.peanutgallery.live` CNAME at Railway (Namecheap). Once DNS resolves, the Stripe live webhook URL flips from the `*.up.railway.app` direct URL back to the subdomain.
+- `/plus` Next.js route (marketing landing — currently 404 on the backend; static `/plus` exists on the GitHub Pages site but is orphaned).
+- Live-mode subscription Customer Portal URL (`STRIPE_PORTAL_URL` env var).
 
 **Anti-goals (explicit):**
 

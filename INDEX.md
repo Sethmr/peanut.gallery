@@ -2,17 +2,13 @@
 
 Machine-readable map of this repo. If you are an AI resuming work here, read this first.
 
-**Current manifest version:** `v1.6.0` ("The Canary") — the last published `extension/manifest.json` value. The `v1.6.0` tag also marks the "in flight" canary release for Smart Director v3 flag-gated rollout (PR [#91](https://github.com/Sethmr/peanut.gallery/pull/91)) — not yet Chrome-Web-Store distributed as of 2026-04-22.
+**Current manifest version:** `v1.8.0` ("The Press Pass") — the Plus subscription pipeline end-to-end (persistent SQLite identity, Stripe checkout + webhook, Resend transactional email, dedupe gate, one-click recover-key on 409) plus v1.6/v1.7 work bundled in. Live on Railway from `develop` since 2026-04-22; not yet Chrome-Web-Store distributed.
 
 **v1.7.0 "The Fine Print"** — hard-save branch + tag on origin (`release/v1.7.0`, tag `v1.7.0`). Ships the rewritten ToS/Privacy drafts, US-only gate on Plus, cookie-consent banner, and email-alias plumbing. **Not released to CWS; not merged to main.** See [`docs/legal/`](docs/legal/).
 
-**On develop since v1.6.0** (post-`bdf3852`, all merged via `(#NNN)` squash commits):
+**v1.6.0 "The Canary"** — Smart Director v3 flag-gated canary on `release/v1.6.0` (PR [#91](https://github.com/Sethmr/peanut.gallery/pull/91)). Lives on develop; absorbed into v1.8.0's manifest bump. Cerebras shadow telemetry still accumulates on Railway.
 
-- **[#123] SET-25** Plus Phase 2 — persistent subscription identity (SQLite + key generator + admin CLI).
-- **[#124] SET-26** Plus Phase 3 — real Stripe checkout + webhook signature verification + event handlers (checkout.session.completed / subscription.updated / subscription.deleted) + US-only defense-in-depth.
-- **[#120] factcheck harden** — claim-detector spoken-number normalization + structured attribution + funding-round + compound-claim bonus; evidence-gated producer tiers (GREEN / THIN / NONE) + QUICK SELF-CHECK (CoVe) block; Director claim-density boost (+0.5 → +2.0, capped). Supersedes the reverted PR [#125].
-
-**Shipped Chrome-Web-Store line (stable):** v1.5.3 "The Cast" (2026-04-20) was the last tag with a wide CWS rollout. v1.5.4/5/6 are dev-infra point releases; v1.6.0 is the flag-gated canary awaiting Railway telemetry + a CWS re-upload.
+**Shipped Chrome-Web-Store line (stable):** v1.5.3 "The Cast" (2026-04-20) remains the last wide CWS rollout. v1.6 / v1.7 / v1.8 all live on develop + Railway but not in the CWS zip; per Seth's plan, main is frozen until v2.0.
 
 **Canonical context for work:** [`docs/CONTEXT.md`](docs/CONTEXT.md) — stack, personas, pipeline, cost. If CONTEXT.md disagrees with this INDEX, trust CONTEXT.md.
 
