@@ -1076,14 +1076,17 @@ function refreshFreeTierBanner({ liveSessionElapsedMs = 0 } = {}) {
   const exhausted = freeTierExhausted();
   const inDemoMode = backendMode === "demo";
 
-  // Hide the banner entirely if the user isn't in demo mode, or if
-  // the trial is fully consumed (the segmented option will be removed
-  // separately by refreshDemoOptionVisibility).
-  if (!inDemoMode || exhausted) {
+  // Hide the banner entirely only when the user is in a non-demo mode.
+  // When demo is selected AND the trial is exhausted, we still render the
+  // card — just flip it to the red "exhausted" variant so the user sees
+  // the trial-ended pitch instead of the meter disappearing on them.
+  if (!inDemoMode) {
     banner.hidden = true;
+    banner.classList.remove("exhausted");
     return;
   }
   banner.hidden = false;
+  banner.classList.toggle("exhausted", exhausted);
 
   // Compute remaining display: lifetime quota minus stored used minus
   // any in-flight session time (snapshot taken at session start).
@@ -1110,7 +1113,11 @@ function refreshFreeTierBanner({ liveSessionElapsedMs = 0 } = {}) {
 
   const sessionRunning = liveSessionElapsedMs > 0;
   const fullyFresh = freeTierUsedMs === 0 && !sessionRunning;
-  if (sessionRunning) {
+  if (exhausted) {
+    if (timeEl) timeEl.textContent = "0:00";
+    if (labelEl) labelEl.textContent = "OVER";
+    if (headlineEl) headlineEl.textContent = "Trial ended. Pick a path below.";
+  } else if (sessionRunning) {
     if (labelEl) labelEl.textContent = "LEFT";
     if (headlineEl) headlineEl.textContent = "Trial running.";
   } else if (fullyFresh) {
@@ -1134,14 +1141,13 @@ function refreshFreeTierBanner({ liveSessionElapsedMs = 0 } = {}) {
  */
 function refreshDemoOptionVisibility() {
   if (!backendModeSegmented) return;
-  const exhausted = freeTierExhausted();
+  // Demo tab stays visible even after the trial is exhausted: the red
+  // "trial over" banner lives there, and it's the reminder the user
+  // needs to pick a path. Removing the tab would hide the pitch.
   const demoBtn = backendModeSegmented.querySelector(
     '.segmented-option[data-value="demo"]'
   );
-  if (demoBtn) demoBtn.hidden = exhausted;
-  if (exhausted && backendMode === "demo") {
-    setBackendMode("byok");
-  }
+  if (demoBtn) demoBtn.hidden = false;
 }
 
 // ── Elapsed-timer (paid BYOK + Plus) ──

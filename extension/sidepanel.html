@@ -738,6 +738,14 @@
       color: var(--stamp); text-decoration: underline;
       text-underline-offset: 2px; white-space: nowrap;
     }
+    /* Exhausted variant: trial is fully consumed. Green → red so the
+       ended state looks different from the running one at a glance.
+       Same text shape, just recoloured + a new headline from JS. */
+    .free-banner.exhausted{
+      border-color: var(--stamp);
+      background: color-mix(in srgb, var(--stamp) 12%, var(--paper));
+    }
+    .free-banner.exhausted .lede{ color: var(--stamp); }
 
     /* Field groups */
     .key-row{display: flex; flex-direction: column; gap: 5px}
