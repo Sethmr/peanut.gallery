@@ -187,6 +187,13 @@ export async function pickPersonaCerebrasV3(
       return null;
     }
 
+    // Llama 3.1 8B occasionally wraps its answer in a JSON-Schema envelope:
+    //   {"type":"object","properties":{<real payload>},"required":[...]}
+    // Unwrap once when `properties.personaId` is a concrete string (not a
+    // nested schema object), so shadow telemetry captures a usable pick
+    // instead of discarding the whole call.
+    parsed = unwrapSchemaEnvelope(parsed);
+
     const pick = validatePickV2(parsed);
     if (!pick) {
       logPipeline({
@@ -243,3 +250,25 @@ export async function pickPersonaCerebrasV3(
 }
 
 export { VALID_ARCHETYPE_IDS_V2 as VALID_ARCHETYPE_IDS_V3 };
+
+/**
+ * Unwrap `{"type":"object","properties":{<payload>}}` into `<payload>` when
+ * `properties.personaId` is already a concrete string rather than a nested
+ * schema. Otherwise returns the input unchanged.
+ */
+function unwrapSchemaEnvelope(parsed: unknown): unknown {
+  if (!parsed || typeof parsed !== "object") return parsed;
+  const envelope = parsed as {
+    type?: unknown;
+    properties?: unknown;
+    personaId?: unknown;
+  };
+  if (envelope.personaId !== undefined) return parsed;
+  if (envelope.type !== "object") return parsed;
+  if (!envelope.properties || typeof envelope.properties !== "object") {
+    return parsed;
+  }
+  const inner = envelope.properties as { personaId?: unknown };
+  if (typeof inner.personaId !== "string") return parsed;
+  return envelope.properties;
+}
