@@ -211,13 +211,15 @@ const PEANUT_MOUTHS = {
 const BODY_PATHS = {
   peanut:
     "M32 4C22 4 18 10 18 19c0 5 3 8 6 10-4 2-10 6-10 16 0 9 8 15 18 15s18-6 18-15c0-10-6-14-10-16 3-2 6-5 6-10 0-9-4-15-14-15Z",
-  // Classic asymmetric ovoid — narrower at the crown, broader at the base.
+  // Classic egg proportions (~2:3 width-to-height): broad round base, softly
+  // tapered crown. Earlier draft was too tall/skinny and read as almond.
   egg:
-    "M32 5C23 5 17 18 17 32c0 17 7 27 15 27s15-10 15-27C47 18 41 5 32 5Z",
-  // Lumpy oblong — two knobs on the left, one bulge on the right, a soft
-  // dip at the bottom. Reads unmistakably as a potato without being busy.
+    "M32 8C21 8 15 20 15 33c0 14 7 23 17 23s17-9 17-23C49 20 43 8 32 8Z",
+  // Lumpy oblong — slight asymmetry reads as potato, but not so narrow
+  // that it loses the spud silhouette. Trimmed a hair off the width vs.
+  // the first draft so the body sits clear of the dark tabloid backdrop.
   potato:
-    "M20 13c-5 3-7 9-5 15-3 5-3 12 1 17 4 6 11 10 19 9 8-1 14-7 14-15 1-7-2-13-8-17-5-4-11-6-16-6-2 0-4 0-5 0Z",
+    "M32 7C24 7 19 11 18 19 15 23 15 31 17 36 15 44 20 55 30 56 41 57 47 50 46 40 50 34 48 23 44 16 40 9 36 7 32 7Z",
 };
 
 function buildPeanutSVG({
@@ -466,14 +468,17 @@ function personaMascotHTML(personaId, packId) {
     return buildPeanutSVG({
       ns, face: "smirk",
       bodyShape: "potato",
-      bodyStroke: "#5A3A18",
+      bodyStroke: "#6B4A22",
       showShellGrooves: false,
+      // Brightened vs. the first draft so the russet skin reads against
+      // the dark tabloid backdrop — the previous near-black 100% stop
+      // made Alex disappear into the page.
       bodyStops: `
-        <stop offset="0%"   stop-color="#E8C88A"/>
-        <stop offset="35%"  stop-color="#C99A5C"/>
-        <stop offset="70%"  stop-color="#8B6A3E"/>
-        <stop offset="93%"  stop-color="#6B4722"/>
-        <stop offset="100%" stop-color="#3E2A14"/>`,
+        <stop offset="0%"   stop-color="#F4D69A"/>
+        <stop offset="35%"  stop-color="#DCAD6C"/>
+        <stop offset="70%"  stop-color="#A97C46"/>
+        <stop offset="93%"  stop-color="#8B6532"/>
+        <stop offset="100%" stop-color="#6A4820"/>`,
       prop: `
         <!-- Skin eyes (potato freckles) scattered on the body to texture
              the russet — positioned away from face + prop so they don't
