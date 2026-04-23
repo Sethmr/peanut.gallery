@@ -64,8 +64,15 @@ export const dynamic = "force-dynamic";
 // Stripe webhooks are server-to-server from Stripe's own IPs. No
 // CORS preflight; we don't set Access-Control headers.
 
-const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
+// Env values may be copy-pasted with trailing newlines or wrapping quotes
+// (especially via Railway's web UI). Trim to be safe — the verifier is strict
+// about byte equality and a single \n would silently reject every event.
+const WEBHOOK_SECRET = (process.env.STRIPE_WEBHOOK_SECRET || "")
+  .trim()
+  .replace(/^['"]|['"]$/g, "");
+const STRIPE_SECRET_KEY = (process.env.STRIPE_SECRET_KEY || "")
+  .trim()
+  .replace(/^['"]|['"]$/g, "");
 
 export async function POST(req: Request) {
   const rawBody = await req.text();
@@ -77,6 +84,9 @@ export async function POST(req: Request) {
     WEBHOOK_SECRET
   );
   if (!verification.ok) {
+    // On signature failures, log non-sensitive fingerprints so ops can
+    // distinguish "wrong secret in env" from "Stripe bug" at a glance
+    // without exposing the secret or the signature bytes themselves.
     logPipeline({
       event: "subscription_webhook_signature_rejected",
       level: "warn",
@@ -84,6 +94,9 @@ export async function POST(req: Request) {
         reason: verification.reason,
         hasHeader: !!signature,
         bodyLen: rawBody.length,
+        secretLen: WEBHOOK_SECRET.length,
+        secretPrefix: WEBHOOK_SECRET.slice(0, 6), // "whsec_" prefix only
+        sigPrefix: signature?.slice(0, 8) ?? null, // "t=173..." only
       },
     });
     return new Response(
