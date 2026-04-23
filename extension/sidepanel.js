@@ -551,9 +551,20 @@ const episodeCardProgressFill = document.getElementById("episodeCardProgressFill
 // CAP REACHED when it hits FREE_TIER_MAX_SECONDS or when the backend
 // emits TRIAL_EXHAUSTED / INSTALL_ID_REQUIRED (per lib/free-tier-limiter.ts).
 const FREE_TIER_MAX_SECONDS = 15 * 60; // 15:00 cap, matches server limiter
+const FREE_TIER_QUOTA_MS = FREE_TIER_MAX_SECONDS * 1000;
 let freeTierIntervalId = null;
 let freeTierStartMs = 0;
 let freeTierCapped = false;
+
+// Lifetime cumulative usage of the 15-minute trial across sessions.
+// Persisted as `pgFreeTierUsedMs` in chrome.storage.local. Server-side
+// is the source of truth (lib/free-tier-limiter.ts) — this client cache
+// is what powers the live banner countdown + the "remove Demo option
+// when used up" UX. If the user clears storage, the server still rejects.
+let freeTierUsedMs = 0;
+// Snapshotted on session start so we can compute the running total for
+// the banner mid-session without re-reading storage on every tick.
+let freeTierUsedAtStartMs = 0;
 
 function hasRequiredUserKeys() {
   const dg = (deepgramKeyInput?.value || "").trim();
@@ -583,31 +594,28 @@ const manageSubBtn = document.getElementById("manageSubBtn");
 const recoverSubBtn = document.getElementById("recoverSubBtn");
 const backendModeSegmented = document.getElementById("backendModeSegmented");
 const backendModeHint = document.getElementById("backendModeHint");
-const plusUseWith = document.getElementById("plusUseWith");
-const plusUseSegmented = document.getElementById("plusUseSegmented");
 
 // ═══════════════════════════════════════════════════════════════════
 // v1.9 BACKEND-MODE + PEANUT GALLERY PLUS
 // ═══════════════════════════════════════════════════════════════════
 //
-// Three backend modes the user can pick between:
+// Four backend modes the user can pick between:
 //   "demo"          — hosted demo keys, one-off 15-minute trial.
-//   "byok"          — bring your own API keys (Deepgram + Anthropic + xAI).
-//                     No Peanut Gallery consumption; user pays providers.
-//   "plus"          — Peanut Gallery Plus subscription. User pastes a
-//                     license key; backend uses its own keys and meters
-//                     the user's weekly hours.
-//
-// When mode is "plus" AND the user also has BYOK keys filled in, a
-// secondary "Use with" segmented control appears. Picking "my keys"
-// there uses the BYOK keys for the session (saving subscription
-// hours); picking "subscription" consumes subscription hours.
+//   "byok"          — hosted backend, bring your own provider API keys.
+//                     No Peanut Gallery billing; user pays providers.
+//   "plus"          — hosted backend with a Peanut Gallery Plus license
+//                     key; backend uses its own keys and meters the
+//                     user's weekly hours.
+//   "selfhost"      — point at a custom backend URL. Demo + Plus only
+//                     run against our hosted server, so they're hidden
+//                     in this mode and the server URL field appears.
 
-let backendMode = "demo"; // "demo" | "byok" | "plus"
-let plusUseMode = "subscription"; // "subscription" | "byok" (only relevant when backendMode === "plus")
+let backendMode = "demo"; // "demo" | "byok" | "plus" | "selfhost"
+
+const HOSTED_BACKEND_URL = "https://api.peanutgallery.live";
 
 function setBackendMode(mode, { persist = true } = {}) {
-  if (mode !== "demo" && mode !== "byok" && mode !== "plus") mode = "demo";
+  if (mode !== "demo" && mode !== "byok" && mode !== "plus" && mode !== "selfhost") mode = "demo";
   backendMode = mode;
   // Update segmented visual state + aria.
   for (const btn of backendModeSegmented?.querySelectorAll(".segmented-option") || []) {
@@ -615,8 +623,26 @@ function setBackendMode(mode, { persist = true } = {}) {
     btn.classList.toggle("is-active", active);
     btn.setAttribute("aria-checked", active ? "true" : "false");
   }
-  // Show/hide subscription block.
+  // Show/hide subscription block + self-host block.
   if (subscriptionBlock) subscriptionBlock.hidden = mode !== "plus";
+  const selfHostBlock = document.getElementById("selfHostBlock");
+  if (selfHostBlock) selfHostBlock.hidden = mode !== "selfhost";
+  // Hide BYOK provider keys (Deepgram / Anthropic / xAI / search / Brave)
+  // when Plus is active — the subscription key above is the only credential
+  // needed when our hosted backend is running the AI calls.
+  const byokKeysBlock = document.getElementById("byokKeysBlock");
+  if (byokKeysBlock) byokKeysBlock.hidden = mode === "plus";
+  // Force the server URL to the hosted default in any non-selfhost mode.
+  // In selfhost mode we restore the user's last custom URL (or default).
+  if (serverUrlInput) {
+    if (mode === "selfhost") {
+      chrome.storage.local.get(["pgSelfHostUrl"], (data) => {
+        if (data?.pgSelfHostUrl) serverUrlInput.value = data.pgSelfHostUrl;
+      });
+    } else {
+      serverUrlInput.value = HOSTED_BACKEND_URL;
+    }
+  }
   // Update explanatory hint.
   if (backendModeHint) {
     backendModeHint.innerHTML =
@@ -624,33 +650,18 @@ function setBackendMode(mode, { persist = true } = {}) {
         ? "<strong>Demo:</strong> free 15-minute trial on our keys, one-off. After that: paste your own or subscribe."
         : mode === "byok"
           ? "<strong>My keys:</strong> you pay your own providers directly. No Peanut Gallery billing. Recommended if you use the product daily."
-          : "<strong>Plus:</strong> subscribe and we run the API calls. 16 hours a week; not a profit center — the goal is accessibility. Your keys below are still honored if you fill them in.";
+          : mode === "plus"
+            ? "<strong>Plus:</strong> subscribe and we run the API calls. 16 hours a week; not a profit center — the goal is accessibility."
+            : "<strong>Self-host:</strong> point at your own backend. Demo and Plus only run on our hosted server.";
   }
-  refreshPlusUseWithVisibility();
   if (persist) chrome.storage.local.set({ pgBackendMode: mode }).catch(() => {});
   // If flipping into Plus and a key is already on hand, poll status.
   if (mode === "plus" && subscriptionKeyInput?.value.trim()) {
     refreshSubscriptionStatus();
   }
-}
-
-function setPlusUseMode(mode) {
-  if (mode !== "subscription" && mode !== "byok") mode = "subscription";
-  plusUseMode = mode;
-  for (const btn of plusUseSegmented?.querySelectorAll(".segmented-option") || []) {
-    const active = btn.dataset.value === mode;
-    btn.classList.toggle("is-active", active);
-    btn.setAttribute("aria-checked", active ? "true" : "false");
-  }
-  chrome.storage.local.set({ pgPlusUseMode: mode }).catch(() => {});
-}
-
-function refreshPlusUseWithVisibility() {
-  if (!plusUseWith) return;
-  const inPlus = backendMode === "plus";
-  const hasByok = hasRequiredUserKeys();
-  const hasSubKey = !!subscriptionKeyInput?.value.trim();
-  plusUseWith.hidden = !(inPlus && hasByok && hasSubKey);
+  // Show the front-page free-trial banner whenever Demo is active (and
+  // the trial isn't exhausted). Hidden in any other mode.
+  refreshFreeTierBanner();
 }
 
 async function refreshSubscriptionStatus() {
@@ -683,47 +694,156 @@ async function refreshSubscriptionStatus() {
         ? `${capH} h used — resets ${resetDay}`
         : "Key not recognized";
     if (subscriptionProgress) subscriptionProgress.hidden = false;
-    refreshPlusUseWithVisibility();
   } catch {
     // Offline / backend down — leave the bar hidden, no error toast.
     if (subscriptionProgress) subscriptionProgress.hidden = true;
   }
 }
 
+/**
+ * Branded replacement for window.prompt(). Opens the modal in
+ * sidepanel.html, focuses the input, returns a Promise<string|null>.
+ *
+ * Resolves with the trimmed value on Confirm/Enter; resolves with null
+ * on Cancel/Escape/backdrop click. Empty submissions count as null.
+ *
+ * Listeners are bound on every call and torn down on resolve so handlers
+ * don't accumulate across opens.
+ */
+function openPromptModal({ stamp = "Dispatch", title, body, placeholder = "", initialValue = "", confirmLabel = "Confirm", inputType = "text" } = {}) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("promptModal");
+    const stampEl = document.getElementById("promptStamp");
+    const titleEl = document.getElementById("promptTitle");
+    const bodyEl = document.getElementById("promptBody");
+    const input = document.getElementById("promptInput");
+    const cancelBtn = document.getElementById("promptCancel");
+    const confirmBtn = document.getElementById("promptConfirm");
+    const backdrop = document.getElementById("promptBackdrop");
+    if (!modal || !input || !cancelBtn || !confirmBtn || !backdrop) {
+      resolve(null);
+      return;
+    }
+    if (stampEl) stampEl.textContent = stamp;
+    if (titleEl) titleEl.textContent = title || "";
+    if (bodyEl) bodyEl.textContent = body || "";
+    input.type = inputType;
+    input.placeholder = placeholder;
+    input.value = initialValue;
+    confirmBtn.textContent = confirmLabel;
+
+    function cleanup() {
+      modal.classList.remove("visible");
+      modal.setAttribute("aria-hidden", "true");
+      cancelBtn.removeEventListener("click", onCancel);
+      confirmBtn.removeEventListener("click", onConfirm);
+      backdrop.removeEventListener("click", onCancel);
+      input.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onEscape);
+    }
+    function onCancel() { cleanup(); resolve(null); }
+    function onConfirm() {
+      const v = input.value.trim();
+      cleanup();
+      resolve(v || null);
+    }
+    function onKey(e) {
+      if (e.key === "Enter") { e.preventDefault(); onConfirm(); }
+    }
+    function onEscape(e) {
+      if (e.key === "Escape") { e.preventDefault(); onCancel(); }
+    }
+
+    cancelBtn.addEventListener("click", onCancel);
+    confirmBtn.addEventListener("click", onConfirm);
+    backdrop.addEventListener("click", onCancel);
+    input.addEventListener("keydown", onKey);
+    document.addEventListener("keydown", onEscape);
+
+    modal.classList.add("visible");
+    modal.setAttribute("aria-hidden", "false");
+    setTimeout(() => input.focus(), 0);
+  });
+}
+
 async function openSubscriptionCheckout() {
-  const email = window.prompt(
-    "Email for your subscription (we'll send your license key here):"
-  );
-  if (!email || !email.trim()) return;
+  const email = await openPromptModal({
+    stamp: "Subscribe",
+    title: "Peanut Gallery Plus",
+    body: "We'll send your license key to this address. $8/month, cancel anytime.",
+    placeholder: "you@example.com",
+    inputType: "email",
+    confirmLabel: "Continue to Stripe",
+  });
+  if (!email) return;
   const url = normalizeServerUrl(serverUrlInput?.value);
   if (!url) return;
   try {
     const res = await fetch(`${url}/api/subscription/checkout`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.trim() }),
+      body: JSON.stringify({ email }),
     });
     const data = await res.json();
     if (data.checkoutUrl) {
       window.open(data.checkoutUrl, "_blank", "noopener");
-    } else {
-      showError(data.error || "Couldn't start checkout. Try again later.", null);
+      return;
     }
+    // The backend refused the checkout because this email already has
+    // an active Plus subscription. Surface a friendly message + a CTA
+    // that triggers the resend-key flow directly, reusing the email
+    // the user just typed (no need to re-prompt).
+    if (res.status === 409 && data.code === "ALREADY_SUBSCRIBED") {
+      showError(
+        "You already have an active Peanut Gallery Plus subscription. If you've lost your license key, we can email it to you.",
+        null,
+        {
+          label: "Email me my key",
+          onClick: async () => {
+            try {
+              const r = await fetch(`${url}/api/subscription/manage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, action: "recover_key" }),
+              });
+              const d = await r.json();
+              showError(d.message || "Request logged.", null);
+            } catch {
+              showError("Couldn't reach the backend. Try again later.", null);
+            }
+          },
+        }
+      );
+      return;
+    }
+    showError(data.error || "Couldn't start checkout. Try again later.", null);
   } catch {
     showError("Couldn't reach the backend to start checkout.", null);
   }
 }
 
 async function requestSubscriptionManage(action) {
-  const email = window.prompt("Email on file for your subscription:");
-  if (!email || !email.trim()) return;
+  const stamp = action === "recover_key" ? "Recover key" : action === "cancel" ? "Cancel" : "Manage";
+  const title = action === "recover_key" ? "Email me my key" : action === "cancel" ? "Cancel subscription" : "Manage subscription";
+  const body = action === "recover_key"
+    ? "Enter the email you signed up with. If we find an active subscription, we'll resend your license key."
+    : "Enter the email on your subscription. We'll email you a Stripe portal link to update or cancel.";
+  const email = await openPromptModal({
+    stamp,
+    title,
+    body,
+    placeholder: "you@example.com",
+    inputType: "email",
+    confirmLabel: "Send email",
+  });
+  if (!email) return;
   const url = normalizeServerUrl(serverUrlInput?.value);
   if (!url) return;
   try {
     const res = await fetch(`${url}/api/subscription/manage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.trim(), action }),
+      body: JSON.stringify({ email, action }),
     });
     const data = await res.json();
     showError(data.message || "Request logged.", null);
@@ -740,18 +860,10 @@ if (backendModeSegmented) {
     setBackendMode(btn.dataset.value);
   });
 }
-if (plusUseSegmented) {
-  plusUseSegmented.addEventListener("click", (e) => {
-    const btn = e.target.closest(".segmented-option");
-    if (!btn) return;
-    setPlusUseMode(btn.dataset.value);
-  });
-}
 if (subscriptionKeyInput) {
   let statusDebounce = null;
   subscriptionKeyInput.addEventListener("input", () => {
     chrome.storage.local.set({ pgSubscriptionKey: subscriptionKeyInput.value.trim() }).catch(() => {});
-    refreshPlusUseWithVisibility();
     // Debounce status poll — don't hit the endpoint on every keystroke.
     clearTimeout(statusDebounce);
     statusDebounce = setTimeout(() => refreshSubscriptionStatus(), 500);
@@ -761,30 +873,54 @@ if (buySubBtn) buySubBtn.addEventListener("click", () => openSubscriptionCheckou
 if (manageSubBtn) manageSubBtn.addEventListener("click", () => requestSubscriptionManage("cancel"));
 if (recoverSubBtn) recoverSubBtn.addEventListener("click", () => requestSubscriptionManage("recover_key"));
 
-// Keep the "use with" visibility in sync with BYOK filling state.
+// Persist the self-host URL only when the user is actively in selfhost mode.
+// In any other mode the input is force-set to HOSTED_BACKEND_URL by
+// setBackendMode and editing it has no effect.
 //
-// TDZ NOTE: the BYOK inputs (deepgramKeyInput / anthropicKeyInput /
-// xaiKeyInput) are declared via `const` several hundred lines below
-// this block (see "DOM refs" section). Referencing those bindings
-// directly here throws a ReferenceError from the temporal dead
-// zone, which halts the whole script — every click handler past
-// this point fails to attach. Fix: reach through the DOM by id so
-// we don't touch the `const` bindings. Same effect; no TDZ.
-for (const id of ["deepgramKey", "anthropicKey", "xaiKey"]) {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener("input", () => refreshPlusUseWithVisibility());
+// TDZ NOTE: serverUrlInput is declared via `const` ~300 lines below this
+// block. Reach through document.getElementById to avoid the temporal-dead-zone
+// crash that broke every click handler in #106 / #112.
+{
+  const el = document.getElementById("serverUrl");
+  if (el) {
+    el.addEventListener("input", () => {
+      if (backendMode !== "selfhost") return;
+      chrome.storage.local.set({ pgSelfHostUrl: el.value.trim() }).catch(() => {});
+    });
+  }
 }
 
 /** Load backend-mode + subscription state from storage on init. */
 function rehydrateBackendMode() {
   chrome.storage.local.get(
-    ["pgBackendMode", "pgSubscriptionKey", "pgPlusUseMode"],
+    [
+      "pgBackendMode",
+      "pgSubscriptionKey",
+      "pgSelfHostUrl",
+      "pgFreeTierUsedMs",
+    ],
     (data) => {
       if (data?.pgSubscriptionKey && subscriptionKeyInput) {
         subscriptionKeyInput.value = data.pgSubscriptionKey;
       }
-      if (data?.pgPlusUseMode) setPlusUseMode(data.pgPlusUseMode);
+      // Migration: a previously-stored custom serverUrl (from before the
+      // self-host mode existed) seeds pgSelfHostUrl on first load so users
+      // who self-hosted under the old UI don't lose their URL.
+      if (!data?.pgSelfHostUrl && serverUrlInput?.value && serverUrlInput.value !== HOSTED_BACKEND_URL) {
+        chrome.storage.local.set({ pgSelfHostUrl: serverUrlInput.value }).catch(() => {});
+      }
+      // Hydrate the lifetime free-trial usage counter (default 0). Clamped
+      // to [0, FREE_TIER_QUOTA_MS] so a corrupt value can't expose a
+      // negative remaining or grant more than 15 minutes back.
+      const rawUsed = Number(data?.pgFreeTierUsedMs);
+      freeTierUsedMs = Number.isFinite(rawUsed)
+        ? Math.max(0, Math.min(FREE_TIER_QUOTA_MS, rawUsed))
+        : 0;
       if (data?.pgBackendMode) setBackendMode(data.pgBackendMode, { persist: false });
+      // Even if no stored mode (so setBackendMode wasn't called), make sure
+      // the segmented control reflects the trial state on first paint.
+      refreshDemoOptionVisibility();
+      refreshFreeTierBanner();
       // Kick a status poll if we're in Plus with a key.
       if (backendMode === "plus" && subscriptionKeyInput?.value.trim()) {
         refreshSubscriptionStatus();
@@ -793,14 +929,11 @@ function rehydrateBackendMode() {
   );
 }
 
-/** The effective session mode used by start-capture. `backendMode` says
- *  what the user picked; this function resolves the actual "path" for
- *  the request — collapsing the "plus + use with my keys" case into
- *  effective BYOK so the backend doesn't see a subscription key it
- *  shouldn't meter against. */
+/** The effective session mode used by start-capture. Self-host collapses
+ *  to "byok" because the request leaves our infra entirely — the user's
+ *  backend interprets headers however it likes. */
 function effectiveBackendMode() {
-  if (backendMode !== "plus") return backendMode;
-  return plusUseMode === "byok" ? "byok" : "plus";
+  return backendMode === "selfhost" ? "byok" : backendMode;
 }
 
 function formatHMS(totalSec) {
@@ -816,6 +949,16 @@ function startFreeTierTimer() {
   stopFreeTierTimer();
   freeTierCapped = false;
   freeTierStartMs = Date.now();
+  // Snapshot lifetime usage at session start so the banner can show
+  // total-remaining (lifetime - used - this-session-elapsed).
+  freeTierUsedAtStartMs = freeTierUsedMs;
+  // The cap for THIS session is whatever's left in the lifetime budget,
+  // not the full 15 min. A user with 3 min already consumed only gets
+  // a 12-min session before flipping to cap-reached.
+  const sessionRemainingSec = Math.max(
+    0,
+    (FREE_TIER_QUOTA_MS - freeTierUsedAtStartMs) / 1000
+  );
   statusBar.classList.remove("capped");
   statusTime.textContent = "00:00:00";
   if (episodeCard) {
@@ -825,16 +968,20 @@ function startFreeTierTimer() {
   if (episodeCardProgressFill) episodeCardProgressFill.style.width = "0%";
   freeTierIntervalId = setInterval(() => {
     const elapsed = (Date.now() - freeTierStartMs) / 1000;
-    if (!freeTierCapped && elapsed >= FREE_TIER_MAX_SECONDS) {
+    if (!freeTierCapped && elapsed >= sessionRemainingSec) {
       flipToCapReached();
       return;
     }
-    statusTime.textContent = formatHMS(Math.min(elapsed, FREE_TIER_MAX_SECONDS));
-    // Progress bar on the episode card tracks the same elapsed/cap ratio.
+    statusTime.textContent = formatHMS(Math.min(elapsed, sessionRemainingSec));
+    // Progress bar on the episode card tracks elapsed-vs-quota across
+    // the lifetime budget, not just this session.
     if (episodeCardProgressFill) {
-      const pct = Math.min(100, (elapsed / FREE_TIER_MAX_SECONDS) * 100);
+      const totalUsedMs = freeTierUsedAtStartMs + elapsed * 1000;
+      const pct = Math.min(100, (totalUsedMs / FREE_TIER_QUOTA_MS) * 100);
       episodeCardProgressFill.style.width = pct + "%";
     }
+    // Live-update the front-page free banner with remaining time.
+    refreshFreeTierBanner({ liveSessionElapsedMs: elapsed * 1000 });
   }, 1000);
 }
 
@@ -842,6 +989,115 @@ function stopFreeTierTimer() {
   if (freeTierIntervalId != null) {
     clearInterval(freeTierIntervalId);
     freeTierIntervalId = null;
+  }
+  // If a demo session was actively running, persist the elapsed delta
+  // into the lifetime counter. Idempotent if no session was running
+  // (freeTierStartMs == 0). Caps the increment at remaining quota so
+  // we never overshoot.
+  if (freeTierStartMs > 0) {
+    const elapsedMs = Date.now() - freeTierStartMs;
+    const cap = Math.max(0, FREE_TIER_QUOTA_MS - freeTierUsedAtStartMs);
+    const delta = Math.max(0, Math.min(elapsedMs, cap));
+    if (delta > 0) {
+      freeTierUsedMs = Math.min(FREE_TIER_QUOTA_MS, freeTierUsedMs + delta);
+      chrome.storage.local
+        .set({ pgFreeTierUsedMs: freeTierUsedMs })
+        .catch(() => {});
+    }
+    freeTierStartMs = 0;
+  }
+  refreshFreeTierBanner();
+  refreshDemoOptionVisibility();
+}
+
+/** Lifetime ms still available on the free trial. */
+function freeTierRemainingMs() {
+  return Math.max(0, FREE_TIER_QUOTA_MS - freeTierUsedMs);
+}
+function freeTierExhausted() {
+  return freeTierRemainingMs() <= 0;
+}
+
+/**
+ * Update the front-page banner: visibility, remaining-time lede,
+ * headline copy. Visible only when backendMode === "demo" AND the
+ * lifetime quota isn't exhausted.
+ *
+ * Pass `{ liveSessionElapsedMs }` from inside the per-second tick to
+ * subtract the in-flight session from the displayed remaining.
+ */
+function refreshFreeTierBanner({ liveSessionElapsedMs = 0 } = {}) {
+  const banner = document.getElementById("freeBanner");
+  if (!banner) return;
+
+  const exhausted = freeTierExhausted();
+  const inDemoMode = backendMode === "demo";
+
+  // Hide the banner entirely if the user isn't in demo mode, or if
+  // the trial is fully consumed (the segmented option will be removed
+  // separately by refreshDemoOptionVisibility).
+  if (!inDemoMode || exhausted) {
+    banner.hidden = true;
+    return;
+  }
+  banner.hidden = false;
+
+  // Compute remaining display: lifetime quota minus stored used minus
+  // any in-flight session time (snapshot taken at session start).
+  let remainingMs;
+  if (liveSessionElapsedMs > 0) {
+    remainingMs = Math.max(
+      0,
+      FREE_TIER_QUOTA_MS - freeTierUsedAtStartMs - liveSessionElapsedMs
+    );
+  } else {
+    remainingMs = freeTierRemainingMs();
+  }
+
+  // Format as M:SS — the slab lede only fits a few characters.
+  const totalSec = Math.max(0, Math.ceil(remainingMs / 1000));
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  const timeStr = `${m}:${String(s).padStart(2, "0")}`;
+
+  const timeEl = document.getElementById("freeBannerTime");
+  const labelEl = document.getElementById("freeBannerTimeLabel");
+  const headlineEl = document.getElementById("freeBannerHeadline");
+  if (timeEl) timeEl.textContent = timeStr;
+
+  const sessionRunning = liveSessionElapsedMs > 0;
+  const fullyFresh = freeTierUsedMs === 0 && !sessionRunning;
+  if (sessionRunning) {
+    if (labelEl) labelEl.textContent = "LEFT";
+    if (headlineEl) headlineEl.textContent = "Trial running.";
+  } else if (fullyFresh) {
+    if (labelEl) labelEl.textContent = "FREE";
+    if (headlineEl) headlineEl.textContent = "Fifteen free minutes to try it out.";
+  } else {
+    if (labelEl) labelEl.textContent = "LEFT";
+    const usedSec = Math.round(freeTierUsedMs / 1000);
+    const usedMin = Math.floor(usedSec / 60);
+    const usedSecRem = usedSec % 60;
+    const usedStr = `${usedMin}:${String(usedSecRem).padStart(2, "0")}`;
+    if (headlineEl) headlineEl.textContent = `Trial: ${usedStr} of 15:00 used.`;
+  }
+}
+
+/**
+ * Show or hide the Demo option in the backend-mode segmented control
+ * based on whether the lifetime trial is exhausted. If we're currently
+ * in demo mode and the trial just ran out, kick over to "byok" so the
+ * user is never stuck in a mode that's been removed from the UI.
+ */
+function refreshDemoOptionVisibility() {
+  if (!backendModeSegmented) return;
+  const exhausted = freeTierExhausted();
+  const demoBtn = backendModeSegmented.querySelector(
+    '.segmented-option[data-value="demo"]'
+  );
+  if (demoBtn) demoBtn.hidden = exhausted;
+  if (exhausted && backendMode === "demo") {
+    setBackendMode("byok");
   }
 }
 
@@ -2019,9 +2275,28 @@ if (emptyStateCta) {
  * leaves off. Call sites pass `variant` when they know the failure category;
  * bare calls with no variant leave the empty state untouched (safe default).
  */
-function showError(msg, variant) {
+function showError(msg, variant, action) {
   errorText.textContent = msg;
   errorBanner.classList.add("visible");
+  // Optional CTA — shown inline before the dismiss button. Pass
+  // `{label, onClick}`; we (re)wire on every call so handlers don't
+  // accumulate across errors. Hidden when no action passed.
+  const actionBtn = document.getElementById("errorAction");
+  if (actionBtn) {
+    const fresh = actionBtn.cloneNode(false);
+    actionBtn.parentNode.replaceChild(fresh, actionBtn);
+    if (action && action.label && typeof action.onClick === "function") {
+      fresh.textContent = action.label;
+      fresh.hidden = false;
+      fresh.addEventListener("click", () => {
+        errorBanner.classList.remove("visible");
+        action.onClick();
+      });
+    } else {
+      fresh.hidden = true;
+      fresh.textContent = "";
+    }
+  }
   setTimeout(() => errorBanner.classList.remove("visible"), 10000);
   if (variant && EMPTY_STATE_VARIANTS[variant]) {
     setEmptyStateVariant(variant);
@@ -2818,9 +3093,30 @@ startBtn.addEventListener("click", async () => {
   // configured during the rollout window) we skip the check — the server has
   // demo keys in its env vars and will use them whenever the extension sends
   // no key headers.
-  const isHostedBackend =
-    /(^|\/\/)(api\.|www\.)?peanutgallery\.live(\/|$)/i.test(serverUrl);
-  if (!isHostedBackend) {
+  // Plus mode requires a license key. The user might have selected Plus but
+  // never completed checkout — surface an error with a CTA to open the
+  // settings drawer (don't auto-navigate; the error needs to stay visible).
+  if (backendMode === "plus" && !subscriptionKeyInput?.value.trim()) {
+    showError(
+      "Plus mode needs a subscription key. Subscribe to get one, or switch to Demo / My keys.",
+      "needs-keys",
+      {
+        label: "Open settings",
+        onClick: () => {
+          openSettingsDrawer();
+          showDrawerSection("backend");
+        },
+      }
+    );
+    return;
+  }
+
+  // Gate key-presence on the *selected mode*, not the URL. A user in
+  // "byok" mode pointed at the default hosted URL must still supply
+  // keys — otherwise the hosted server silently uses its demo keys and
+  // the user thinks they're on their own quota. Only "demo" mode
+  // intentionally runs without user keys; "plus" is already gated above.
+  if (backendMode === "byok" || backendMode === "selfhost") {
     const missing = [];
     if (!deepgramKeyInput.value.trim()) missing.push("Deepgram");
     if (!anthropicKeyInput.value.trim()) missing.push("Anthropic");
@@ -2833,10 +3129,17 @@ startBtn.addEventListener("click", async () => {
       missing.push("Brave Search");
     }
     if (missing.length > 0) {
-      // Open settings → Backend & keys so the user can fill them in
-      openSettingsDrawer();
-      showDrawerSection("backend");
-      showError(`Self-hosting requires your own API key${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Free keys are linked in Settings.`, "needs-keys");
+      showError(
+        `This mode needs your own API key${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Free keys are linked in Settings, or switch to Demo.`,
+        "needs-keys",
+        {
+          label: "Open settings",
+          onClick: () => {
+            openSettingsDrawer();
+            showDrawerSection("backend");
+          },
+        }
+      );
       return;
     }
   }
@@ -3199,6 +3502,12 @@ outputDeviceSelect.addEventListener("change", () => {
 // the complexity. The hint text in the HTML tells users "takes effect
 // on your next Start Listening".
 if (responseRateSelect) {
+  // Slider fires `input` continuously (every drag step) and `change` once on
+  // release. Sync aria-valuenow live for screen readers; persist on release
+  // so we don't pummel chrome.storage on every pointer move.
+  responseRateSelect.addEventListener("input", () => {
+    responseRateSelect.setAttribute("aria-valuenow", responseRateSelect.value);
+  });
   responseRateSelect.addEventListener("change", saveSettings);
 }
 

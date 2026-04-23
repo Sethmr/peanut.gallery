@@ -51,6 +51,7 @@
 import { logPipeline } from "../../../../lib/debug-logger";
 import { emailForLog, isValidEmail } from "../../../../lib/http-validation";
 import { isSubscriptionEnabled } from "../../../../lib/subscription";
+import { getSubscriptionStore } from "../../../../lib/subscription-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -118,6 +119,48 @@ export async function POST(req: Request) {
       },
       451
     );
+  }
+
+  // Dedupe gate: refuse a second checkout for an email that already has
+  // an active Plus subscription. Without this, a confused user who clicks
+  // Upgrade twice gets two Stripe customers, two subscriptions, two $8/mo
+  // charges, and two valid license keys — none of which the billing flow
+  // or the webhook handler dedupes on their own. Revoked/cancelled rows
+  // do NOT block: a former subscriber can resubscribe cleanly.
+  try {
+    const existing = getSubscriptionStore().getSubscriptionByEmail(email);
+    if (existing && existing.status === "active") {
+      logPipeline({
+        event: "subscription_checkout_already_subscribed",
+        level: "info",
+        data: {
+          email: emailForLog(email),
+          existingKeyPrefix: existing.licenseKey.slice(0, 8),
+        },
+      });
+      return jsonResponse(
+        {
+          error:
+            "This email already has an active Peanut Gallery Plus subscription. If you've lost your license key, use the \"Resend my key\" option in the extension.",
+          code: "ALREADY_SUBSCRIBED",
+        },
+        409
+      );
+    }
+  } catch (err) {
+    // Store read failed (SQLite init problem, etc.). Don't block the
+    // checkout on a storage-layer hiccup — the webhook's idempotency on
+    // stripe_sub_id still catches replayed deliveries, and a genuinely
+    // duplicated subscription caused by a transient store outage is
+    // recoverable via support. Log and continue.
+    logPipeline({
+      event: "subscription_checkout_dedupe_check_failed",
+      level: "warn",
+      data: {
+        email: emailForLog(email),
+        message: err instanceof Error ? err.message : String(err),
+      },
+    });
   }
 
   if (!STRIPE_ENABLED) {

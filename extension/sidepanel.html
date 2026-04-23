@@ -129,6 +129,14 @@
       font-family: var(--slab-2); font-size: 12px; font-weight: 700;
       padding: 0 6px; line-height: 1.2;
     }
+    .error-action{
+      background: var(--paper); border: 1px solid var(--paper);
+      color: var(--stamp); cursor: pointer;
+      font-family: var(--slab-2); font-size: 11px; font-weight: 700;
+      letter-spacing: .06em; text-transform: uppercase;
+      padding: 3px 8px; line-height: 1.2;
+    }
+    .error-action:hover{ background: color-mix(in srgb, var(--paper) 88%, var(--stamp)); }
 
     /* ── STATUS STRIP (shown when capturing) ──
        Two-line grid: (dot + label | time) above (state tag + detail).
@@ -1541,18 +1549,19 @@
       font-size: 11px; color: var(--ink-2);
     }
     .segmented{
-      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
       margin-top: 6px;
       border: 2px solid var(--ink);
     }
     .segmented-option{
       background: transparent; color: var(--ink);
       font-family: var(--serif); font-size: 13px;
-      padding: 8px 6px;
+      padding: 8px 4px;
       border: 0;
       border-right: 1px solid var(--ink);
       cursor: pointer;
       transition: background 0.12s;
+      white-space: nowrap;
     }
     .segmented-option:last-child{border-right: 0}
     .segmented-option:hover{
@@ -1566,13 +1575,11 @@
 
     /* ── SUBSCRIPTION BLOCK (v1.9 Peanut Gallery Plus) ──
        Shown inside the Backend & keys drawer only when backend mode
-       is "plus". Subscription key input + weekly progress bar +
-       subscribe/manage buttons + optional "use with" sub-toggle. */
+       is "plus". Inline form fields — no panel treatment — so the
+       segmented control above feels like a mode pick, not a disclosure
+       that opened a sub-section. */
     .subscription-block{
-      padding: 10px;
-      margin: 10px 0 14px;
-      border: 2px solid var(--ink);
-      background: color-mix(in srgb, var(--stamp) 6%, var(--paper));
+      margin-top: 10px;
     }
     .subscription-progress{
       margin: 8px 0 6px;
@@ -1608,6 +1615,94 @@
       color: var(--ink-2);
       margin-top: 8px;
     }
+
+    /* ── RESPONSE-RATE SLIDER ──
+       Broadsheet-styled native range input. Track painted via background
+       gradients (paper stock + 9 evenly-spaced tick marks); thumb is a
+       red square (--stamp). Scale labels below align to 1 / slow / 5 /
+       fast / 10. Replaces the prior <select> dropdown. */
+    .rate-slider-wrap{
+      display: flex; flex-direction: column; gap: 6px;
+      margin-top: 4px;
+    }
+    .rate-slider{
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 22px;
+      background: transparent;
+      cursor: pointer;
+      outline: 0;
+      padding: 0; margin: 0;
+    }
+    /* Track — paper-2 base with 9 internal tick marks, ink rule on top + bottom */
+    .rate-slider::-webkit-slider-runnable-track{
+      height: 22px;
+      background:
+        /* tick marks: 9 vertical lines at 10%, 20%, ... 90% (positions 2-9 in a 1-10 range) */
+        linear-gradient(to right,
+          var(--ink-3) 0, var(--ink-3) 1px, transparent 1px, transparent calc(100%/9 * 1)
+        ) repeat-x,
+        var(--paper-2);
+      background-size: calc(100%/9) 12px, 100% 100%;
+      background-position: 0 5px, 0 0;
+      background-repeat: repeat-x, no-repeat;
+      border-top: 2px solid var(--ink);
+      border-bottom: 2px solid var(--ink);
+      border-left: 2px solid var(--ink);
+      border-right: 2px solid var(--ink);
+      box-sizing: border-box;
+    }
+    .rate-slider::-moz-range-track{
+      height: 22px;
+      background:
+        linear-gradient(to right,
+          var(--ink-3) 0, var(--ink-3) 1px, transparent 1px, transparent calc(100%/9 * 1)
+        ) repeat-x,
+        var(--paper-2);
+      background-size: calc(100%/9) 12px, 100% 100%;
+      background-position: 0 5px, 0 0;
+      background-repeat: repeat-x, no-repeat;
+      border: 2px solid var(--ink);
+      box-sizing: border-box;
+    }
+    /* Thumb — red square, no border-radius */
+    .rate-slider::-webkit-slider-thumb{
+      -webkit-appearance: none; appearance: none;
+      width: 16px; height: 16px;
+      background: var(--stamp);
+      border: 2px solid var(--ink);
+      cursor: pointer;
+      margin-top: 1px; /* center on the 22px track */
+    }
+    .rate-slider::-moz-range-thumb{
+      width: 16px; height: 16px;
+      background: var(--stamp);
+      border: 2px solid var(--ink);
+      border-radius: 0;
+      cursor: pointer;
+    }
+    .rate-slider:focus-visible::-webkit-slider-thumb{
+      outline: 2px solid var(--ink);
+      outline-offset: 2px;
+    }
+    .rate-slider:focus-visible::-moz-range-thumb{
+      outline: 2px solid var(--ink);
+      outline-offset: 2px;
+    }
+    /* Scale labels under the track */
+    .rate-scale{
+      display: grid;
+      grid-template-columns: 1fr 2fr 2fr 2fr 1fr;
+      font-family: var(--slab-2);
+      font-size: 11px;
+      color: var(--ink-3);
+      letter-spacing: 0.05em;
+      margin-top: 2px;
+    }
+    .rate-scale span:nth-child(1){ text-align: left }
+    .rate-scale span:nth-child(2){ text-align: center }
+    .rate-scale span:nth-child(3){ text-align: center; color: var(--ink); font-weight: 600 }
+    .rate-scale span:nth-child(4){ text-align: center }
+    .rate-scale span:nth-child(5){ text-align: right }
     .plus-use-with{
       margin-top: 12px;
       padding-top: 10px;
@@ -1776,6 +1871,88 @@
       display: flex; flex-direction: column; gap: 6px;
       margin-top: 4px;
     }
+
+    /* ── PROMPT MODAL ──
+       Newspaper "dispatch slip" — paper card on a dimmed backdrop.
+       Replaces window.prompt() for email collection (subscription
+       checkout, recover key) so the dialog matches the broadsheet
+       palette instead of Chrome's native chrome. */
+    .prompt-overlay{
+      position: fixed; inset: 0;
+      display: none; z-index: 50;
+    }
+    .prompt-overlay.visible{display: block}
+    .prompt-overlay-backdrop{
+      position: absolute; inset: 0;
+      background: color-mix(in srgb, var(--ink) 55%, transparent);
+    }
+    .prompt-card{
+      position: absolute; left: 16px; right: 16px;
+      top: 50%; transform: translateY(-50%);
+      background: var(--paper);
+      border: 2px solid var(--ink);
+      box-shadow: 4px 4px 0 var(--ink);
+      padding: 14px 16px 16px;
+      font-family: var(--serif); color: var(--ink);
+    }
+    .prompt-card-slug{
+      display: flex; align-items: center; gap: 8px;
+      padding-bottom: 6px; margin-bottom: 8px;
+      border-bottom: 1px solid var(--ink-3);
+    }
+    .prompt-card-stamp{
+      display: inline-block;
+      background: var(--stamp); color: var(--paper);
+      font-family: var(--slab-2); font-size: 9px;
+      font-weight: 700; letter-spacing: .18em;
+      text-transform: uppercase;
+      padding: 3px 6px; line-height: 1;
+    }
+    .prompt-card-title{
+      font-family: var(--slab); font-size: 18px;
+      line-height: 1.1; color: var(--ink);
+      margin: 0 0 6px; text-transform: uppercase;
+      letter-spacing: -.005em;
+    }
+    .prompt-card-body{
+      font-family: var(--serif); font-size: 12.5px;
+      line-height: 1.45; color: var(--ink-2);
+      margin: 0 0 10px;
+    }
+    .prompt-card-input{
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border: 2px solid var(--ink);
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--mono); font-size: 13px;
+      margin-bottom: 12px;
+    }
+    .prompt-card-input:focus{
+      outline: 0;
+      box-shadow: 2px 2px 0 var(--stamp);
+    }
+    .prompt-card-actions{
+      display: flex; gap: 6px; align-items: center;
+    }
+    .prompt-card-actions .spacer{flex: 1}
+    .prompt-card-actions .cancel{
+      background: transparent; border: 0;
+      font-family: var(--slab-2); font-size: 10px;
+      font-weight: 700; letter-spacing: .15em;
+      text-transform: uppercase; color: var(--ink-3);
+      padding: 8px 6px; cursor: pointer;
+    }
+    .prompt-card-actions .cancel:hover{color: var(--ink)}
+    .prompt-card-actions .confirm{
+      background: var(--ink); color: var(--paper);
+      border: 0; padding: 8px 14px;
+      font-family: var(--slab-2); font-size: 11px;
+      font-weight: 700; letter-spacing: .15em;
+      text-transform: uppercase; cursor: pointer;
+    }
+    .prompt-card-actions .confirm:hover{background: var(--stamp)}
 
     /* ── DEBUG TRACE PANEL (unchanged functionally) ── */
     #directorTrace{
@@ -1971,23 +2148,26 @@
   <!-- ── ERROR BANNER ── -->
   <div id="errorBanner" class="error-banner">
     <span id="errorText"></span>
+    <button class="error-action" id="errorAction" type="button" hidden></button>
     <button class="error-dismiss" id="errorDismiss" type="button" aria-label="Dismiss error"><span aria-hidden="true">&times;</span></button>
   </div>
 
   <!-- ── SETUP (shown when not capturing) ── -->
   <div id="setupSection" class="setup">
 
-    <!-- 15-min free banner. One-off lifetime trial per install (v1.7+).
-         When the meter runs out, user chooses: paste their own keys
-         (free forever) or subscribe to Plus ($8/mo, 16 h/week). -->
-    <div class="free-banner" role="status">
-      <div class="lede">15<br>MIN<small>FREE</small></div>
-      <div class="copy">
-        <strong>Fifteen free minutes to try it out.</strong>
-        No signup, no card. Tap <em>Start Listening</em> on any tab with audio. When the meter runs out, open
+    <!-- 15-min free trial banner. Visible whenever Demo mode is active in
+         the segmented control. Lede shows live remaining time; counts down
+         while a session runs and persists across sessions. Hidden in any
+         non-demo mode. The Demo segmented option is removed entirely once
+         the trial is fully consumed (see setBackendMode in sidepanel.js). -->
+    <div id="freeBanner" class="free-banner" role="status" hidden>
+      <div class="lede"><span id="freeBannerTime">15:00</span><small id="freeBannerTimeLabel">LEFT</small></div>
+      <div class="copy" id="freeBannerCopy">
+        <strong id="freeBannerHeadline">Fifteen free minutes to try it out.</strong>
+        <span id="freeBannerBody">No signup, no card. Tap <em>Start Listening</em> on any tab with audio. When the meter runs out, open
         <button id="freeBannerSettingsLink" class="inline-settings-link" type="button">Settings</button>
         to paste your own keys, subscribe to Plus, or
-        <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>.
+        <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>.</span>
       </div>
     </div>
 
@@ -2181,20 +2361,16 @@
             <label for="responseRate">Response rate</label>
             <span class="key-tag">cadence</span>
           </div>
-          <select id="responseRate">
-            <option value="1">1 — Laid back · ~56k tok/hr</option>
-            <option value="2">2 — Slow · ~70k tok/hr</option>
-            <option value="3">3 — Measured · ~87k tok/hr</option>
-            <option value="4">4 — Relaxed · ~107k tok/hr</option>
-            <option value="5" selected>5 — Default · ~134k tok/hr</option>
-            <option value="6">6 — Lively · ~168k tok/hr</option>
-            <option value="7">7 — Chatty · ~210k tok/hr</option>
-            <option value="8">8 — Punchy · ~258k tok/hr</option>
-            <option value="9">9 — Rapid · ~324k tok/hr</option>
-            <option value="10">10 — Nonstop · ~403k tok/hr</option>
-          </select>
+          <div class="rate-slider-wrap">
+            <input type="range" id="responseRate" class="rate-slider"
+                   min="1" max="10" step="1" value="5"
+                   aria-valuemin="1" aria-valuemax="10" aria-valuenow="5" />
+            <div class="rate-scale" aria-hidden="true">
+              <span>1</span><span>slow</span><span>5</span><span>fast</span><span>10</span>
+            </div>
+          </div>
           <p class="field-hint">
-            How often the critics chime in. 1 = occasional quips, 10 = nonstop. Takes effect on your next <em>Start Listening</em>.
+            How often the critics chime in. 1 = occasional quips, 10 = nonstop. Defaults to 5. Takes effect on your next <em>Start Listening</em>.
           </p>
         </div>
       </section>
@@ -2211,25 +2387,29 @@
              subscription against Peanut Gallery's hosted keys. Full
              walkthrough in docs/SUBSCRIPTION-ARCHITECTURE.md. -->
         <div class="drawer-subsection-head" style="margin-top:0; padding-top:0; border-top:0">
-          <span class="drawer-subsection-title">How do you want to reach the keys?</span>
+          <span class="drawer-subsection-title">Access mode &mdash; pick one</span>
         </div>
         <div class="segmented" id="backendModeSegmented" role="radiogroup" aria-label="Backend mode">
           <button type="button" class="segmented-option is-active" data-value="demo" role="radio" aria-checked="true">Demo</button>
           <button type="button" class="segmented-option" data-value="byok" role="radio" aria-checked="false">My keys</button>
           <button type="button" class="segmented-option" data-value="plus" role="radio" aria-checked="false">Plus</button>
+          <button type="button" class="segmented-option" data-value="selfhost" role="radio" aria-checked="false">Self-host</button>
         </div>
         <p class="field-hint" id="backendModeHint">
           <strong>Demo:</strong> free 15-minute trial on our keys, one-off. After that: paste your own or subscribe.
         </p>
 
-        <div class="key-row">
+        <!-- v1.9 SELF-HOST block. Only visible when backend mode is "selfhost".
+             Demo, My keys, and Plus all run against our hosted backend at
+             api.peanutgallery.live; only self-hosters need to specify a URL. -->
+        <div class="key-row" id="selfHostBlock" hidden>
           <div class="key-label-row">
             <label for="serverUrl">Backend server</label>
-            <span class="key-tag">hosted</span>
+            <span class="key-tag">custom</span>
           </div>
-          <input type="text" id="serverUrl" placeholder="https://api.peanutgallery.live" value="https://api.peanutgallery.live" />
+          <input type="text" id="serverUrl" placeholder="https://your-backend.example.com" value="https://api.peanutgallery.live" />
           <p class="field-hint">
-            Where audio is transcribed and reactions are generated. Point at your own URL — see the
+            Where audio is transcribed and reactions are generated. See the
             <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/SELF-HOST-INSTALL.md" target="_blank" rel="noopener noreferrer">install guide&nbsp;&#8599;</a>
             or the
             <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">build-your-own spec&nbsp;&#8599;</a>.
@@ -2262,91 +2442,83 @@
           <p class="field-hint subscription-intent">
             Peanut Gallery Plus is an accessibility tier, not a profit center &mdash; it exists so non-technical users can reach the product without juggling API keys. Your data doesn't train anything; cancel anytime from Manage.
           </p>
+        </div>
 
-          <div class="plus-use-with" id="plusUseWith" hidden>
-            <div class="drawer-subsection-head">
-              <span class="drawer-subsection-title">Use this session with</span>
+        <!-- BYOK keys block. Hidden in Plus mode (the subscription key
+             above is the only credential needed when the hosted backend
+             runs the AI calls). Visible in Demo / My keys / Self-host. -->
+        <div id="byokKeysBlock">
+          <p class="keys-intro">
+            <strong>Your own keys are temporarily optional.</strong>
+            While we're in the early window, peanutgallery.live covers the providers so you can try it without signing up. That shared access is rate-limited and will be retired. Every provider below takes ~90 seconds to sign up for. Or
+            <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>.
+          </p>
+
+          <div class="key-row">
+            <div class="key-label-row">
+              <label for="deepgramKey">Deepgram</label>
+              <span class="key-tag required">required</span>
+              <span class="key-tag">transcription</span>
             </div>
-            <div class="segmented" id="plusUseSegmented" role="radiogroup" aria-label="Use with">
-              <button type="button" class="segmented-option is-active" data-value="subscription" role="radio" aria-checked="true">Subscription</button>
-              <button type="button" class="segmented-option" data-value="byok" role="radio" aria-checked="false">My keys</button>
-            </div>
+            <input type="text" id="deepgramKey" class="key-input" placeholder="dg_..." />
             <p class="field-hint">
-              You have both a subscription key and your own keys configured. Pick which set burns on this session. Subscription hours only count when you're using our hosted keys.
+              Turns tab audio into real-time text. Free tier: $200 credit.
+              <a href="https://console.deepgram.com/signup" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
             </p>
           </div>
-        </div>
 
-        <p class="keys-intro">
-          <strong>Your own keys are temporarily optional.</strong>
-          While we're in the early window, peanutgallery.live covers the providers so you can try it without signing up. That shared access is rate-limited and will be retired. Every provider below takes ~90 seconds to sign up for. Or
-          <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>.
-        </p>
-
-        <div class="key-row">
-          <div class="key-label-row">
-            <label for="deepgramKey">Deepgram</label>
-            <span class="key-tag required">required</span>
-            <span class="key-tag">transcription</span>
+          <div class="key-row">
+            <div class="key-label-row">
+              <label for="anthropicKey">Anthropic</label>
+              <span class="key-tag required">required</span>
+              <span class="key-tag">fact + comedy</span>
+            </div>
+            <input type="text" id="anthropicKey" class="key-input" placeholder="sk-ant-..." />
+            <p class="field-hint">
+              Powers the Fact and Bit slots on Claude Haiku.
+              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Get a key &#8599;</a>
+            </p>
           </div>
-          <input type="text" id="deepgramKey" class="key-input" placeholder="dg_..." />
-          <p class="field-hint">
-            Turns tab audio into real-time text. Free tier: $200 credit.
-            <a href="https://console.deepgram.com/signup" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
-          </p>
-        </div>
 
-        <div class="key-row">
-          <div class="key-label-row">
-            <label for="anthropicKey">Anthropic</label>
-            <span class="key-tag required">required</span>
-            <span class="key-tag">fact + comedy</span>
+          <div class="key-row">
+            <div class="key-label-row">
+              <label for="xaiKey">xAI</label>
+              <span class="key-tag required">required</span>
+              <span class="key-tag">dunk + cue</span>
+            </div>
+            <input type="text" id="xaiKey" class="key-input" placeholder="xai-..." />
+            <p class="field-hint">
+              Powers the Dunk and Cue slots on Grok 4.1 Fast — sub-200ms reflex voices.
+              <a href="https://console.x.ai/" target="_blank" rel="noopener noreferrer">Get a key &#8599;</a>
+            </p>
           </div>
-          <input type="text" id="anthropicKey" class="key-input" placeholder="sk-ant-..." />
-          <p class="field-hint">
-            Powers the Fact and Bit slots on Claude Haiku.
-            <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Get a key &#8599;</a>
-          </p>
-        </div>
 
-        <div class="key-row">
-          <div class="key-label-row">
-            <label for="xaiKey">xAI</label>
-            <span class="key-tag required">required</span>
-            <span class="key-tag">dunk + cue</span>
+          <div class="key-row">
+            <div class="key-label-row">
+              <label for="searchEngine">Search engine</label>
+              <span class="key-tag">fact-check</span>
+            </div>
+            <select id="searchEngine">
+              <option value="brave" selected>Brave Search</option>
+              <option value="xai">xAI Live Search (uses your xAI key)</option>
+            </select>
+            <p class="field-hint">
+              How the Fact-Checker verifies claims. <strong>Brave</strong> uses the classic Brave API — requires its own key below. <strong>xAI</strong> uses Grok Live Search — no extra key.
+            </p>
           </div>
-          <input type="text" id="xaiKey" class="key-input" placeholder="xai-..." />
-          <p class="field-hint">
-            Powers the Dunk and Cue slots on Grok 4.1 Fast — sub-200ms reflex voices.
-            <a href="https://console.x.ai/" target="_blank" rel="noopener noreferrer">Get a key &#8599;</a>
-          </p>
-        </div>
 
-        <div class="key-row">
-          <div class="key-label-row">
-            <label for="searchEngine">Search engine</label>
-            <span class="key-tag">fact-check</span>
+          <div class="key-row">
+            <div class="key-label-row">
+              <label for="braveKey">Brave Search</label>
+              <span class="key-tag optional">Brave mode only</span>
+              <span class="key-tag">live facts</span>
+            </div>
+            <input type="text" id="braveKey" class="key-input" placeholder="BSA..." />
+            <p class="field-hint">
+              Only needed when the selector above is set to Brave. Free tier: 2,000 queries/month.
+              <a href="https://api-dashboard.search.brave.com/app/keys" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
+            </p>
           </div>
-          <select id="searchEngine">
-            <option value="brave" selected>Brave Search</option>
-            <option value="xai">xAI Live Search (uses your xAI key)</option>
-          </select>
-          <p class="field-hint">
-            How the Fact-Checker verifies claims. <strong>Brave</strong> uses the classic Brave API — requires its own key below. <strong>xAI</strong> uses Grok Live Search — no extra key.
-          </p>
-        </div>
-
-        <div class="key-row">
-          <div class="key-label-row">
-            <label for="braveKey">Brave Search</label>
-            <span class="key-tag optional">Brave mode only</span>
-            <span class="key-tag">live facts</span>
-          </div>
-          <input type="text" id="braveKey" class="key-input" placeholder="BSA..." />
-          <p class="field-hint">
-            Only needed when the selector above is set to Brave. Free tier: 2,000 queries/month.
-            <a href="https://api-dashboard.search.brave.com/app/keys" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
-          </p>
         </div>
       </section>
 
@@ -2508,6 +2680,27 @@
         <button class="skip" id="tutorialSkipBtn" type="button">Skip</button>
         <div class="spacer"></div>
         <button class="next" id="tutorialNextBtn" type="button">Next &rsaquo;</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── PROMPT MODAL ──
+       Branded replacement for window.prompt(). Single text input + cancel/confirm.
+       openPromptModal() in sidepanel.js fills title/body/placeholder per call-site
+       and resolves a Promise<string|null>. -->
+  <aside id="promptModal" class="prompt-overlay" aria-hidden="true" role="dialog" aria-labelledby="promptTitle" aria-describedby="promptBody">
+    <div class="prompt-overlay-backdrop" id="promptBackdrop"></div>
+    <div class="prompt-card">
+      <div class="prompt-card-slug">
+        <span class="prompt-card-stamp" id="promptStamp">Dispatch</span>
+      </div>
+      <h3 class="prompt-card-title" id="promptTitle">Title</h3>
+      <p class="prompt-card-body" id="promptBody">Body</p>
+      <input type="text" id="promptInput" class="prompt-card-input" autocomplete="off" />
+      <div class="prompt-card-actions">
+        <button class="cancel" id="promptCancel" type="button">Cancel</button>
+        <div class="spacer"></div>
+        <button class="confirm" id="promptConfirm" type="button">Confirm</button>
       </div>
     </div>
   </aside>
