@@ -204,6 +204,22 @@ const PEANUT_MOUTHS = {
   open:  `<ellipse cx="32" cy="24.2" rx="2.2" ry="1.6" fill="#1E1208"/>`,
 };
 
+// Canonical body shapes. The peanut is the default; egg and potato are used
+// by the TWiST Lon / Alex mascots so their bobbling body reads as the running
+// gag from the show (see lib/packs/twist/personas.ts). Coordinates assume the
+// 64×64 viewBox and the scale(1.10) wrapper in buildPeanutSVG.
+const BODY_PATHS = {
+  peanut:
+    "M32 4C22 4 18 10 18 19c0 5 3 8 6 10-4 2-10 6-10 16 0 9 8 15 18 15s18-6 18-15c0-10-6-14-10-16 3-2 6-5 6-10 0-9-4-15-14-15Z",
+  // Classic asymmetric ovoid — narrower at the crown, broader at the base.
+  egg:
+    "M32 5C23 5 17 18 17 32c0 17 7 27 15 27s15-10 15-27C47 18 41 5 32 5Z",
+  // Lumpy oblong — two knobs on the left, one bulge on the right, a soft
+  // dip at the bottom. Reads unmistakably as a potato without being busy.
+  potato:
+    "M20 13c-5 3-7 9-5 15-3 5-3 12 1 17 4 6 11 10 19 9 8-1 14-7 14-15 1-7-2-13-8-17-5-4-11-6-16-6-2 0-4 0-5 0Z",
+};
+
 function buildPeanutSVG({
   ns,
   extraDefs = "",
@@ -211,7 +227,9 @@ function buildPeanutSVG({
   prop = "",
   bodyStops = null,
   bodyStroke = "#8B5E2F",
+  bodyShape = "peanut",
   eyesLight = false,
+  showShellGrooves = true,
 }) {
   // The peanut body sits in a 64×64 viewBox with natural padding around it,
   // which reads as a floating blob at 42px. Wrapping everything in a scale
@@ -301,8 +319,8 @@ function buildPeanutSVG({
            with the CSS bob), and with the full round bottom now visible the
            mascot reads as a floating bobblehead without help. Re-add as a
            separate un-transformed <ellipse> only if the "floating" reads wrong. -->
-      <path d="M32 4C22 4 18 10 18 19c0 5 3 8 6 10-4 2-10 6-10 16 0 9 8 15 18 15s18-6 18-15c0-10-6-14-10-16 3-2 6-5 6-10 0-9-4-15-14-15Z" fill="url(#mbody-${ns})" stroke="${bodyStroke}" stroke-width="1.4" stroke-linejoin="round" filter="url(#peanutDepth-${ns})"/>
-      <path d="M21 14c3 1 6 1 8 0M35 14c3 1 5 1 8 0" fill="none" stroke="${bodyStroke}" stroke-width=".8" stroke-linecap="round" opacity=".5"/>
+      <path d="${BODY_PATHS[bodyShape] || BODY_PATHS.peanut}" fill="url(#mbody-${ns})" stroke="${bodyStroke}" stroke-width="1.4" stroke-linejoin="round" filter="url(#peanutDepth-${ns})"/>
+      ${showShellGrooves ? `<path d="M21 14c3 1 6 1 8 0M35 14c3 1 5 1 8 0" fill="none" stroke="${bodyStroke}" stroke-width=".8" stroke-linecap="round" opacity=".5"/>` : ""}
       <ellipse cx="25" cy="11" rx="5.5" ry="3" fill="#FFF5DF" opacity=".55"/>
       ${eyes}
       ${PEANUT_MOUTHS[face] || PEANUT_MOUTHS.smile}
@@ -412,9 +430,20 @@ function personaMascotHTML(personaId, packId) {
     });
   }
   if (pack === "twist" && personaId === "soundfx") {
-    // Lon — black-and-white clapperboard with a purple "scene" tag.
+    // Lon 🥚 — egg body (running gag from the show). Clapperboard prop
+    // survives. Cream-on-white gradient with a cool bounce at the base;
+    // no shell grooves (eggs are smooth).
     return buildPeanutSVG({
       ns, face: "flat",
+      bodyShape: "egg",
+      bodyStroke: "#9E8456",
+      showShellGrooves: false,
+      bodyStops: `
+        <stop offset="0%"   stop-color="#FFFDF5"/>
+        <stop offset="35%"  stop-color="#FFF2D8"/>
+        <stop offset="70%"  stop-color="#EBD5A6"/>
+        <stop offset="93%"  stop-color="#D4B87E"/>
+        <stop offset="100%" stop-color="#8FA7BE"/>`,
       prop: `
         <path d="M19 42q-2 3 1 6M45 42q2 3 -1 6" fill="none" stroke="#8B5E2F" stroke-width="2.6" stroke-linecap="round"/>
         <rect x="19" y="42" width="26" height="14" rx=".8" fill="#2A2A2A" stroke="#000" stroke-width="1"/>
@@ -431,11 +460,30 @@ function personaMascotHTML(personaId, packId) {
     });
   }
   if (pack === "twist" && personaId === "joker") {
-    // Alex — three-slice pie chart, amber as the dominant segment.
+    // Alex 🥔 — potato body (running gag from the show). Pie-chart prop
+    // survives. Earthy russet gradient + scattered skin "eyes"
+    // (the potato kind, not the face kind) as prop overlay for texture.
     return buildPeanutSVG({
       ns, face: "smirk",
+      bodyShape: "potato",
+      bodyStroke: "#5A3A18",
+      showShellGrooves: false,
+      bodyStops: `
+        <stop offset="0%"   stop-color="#E8C88A"/>
+        <stop offset="35%"  stop-color="#C99A5C"/>
+        <stop offset="70%"  stop-color="#8B6A3E"/>
+        <stop offset="93%"  stop-color="#6B4722"/>
+        <stop offset="100%" stop-color="#3E2A14"/>`,
       prop: `
-        <path d="M19 39q-2 3 1 7M45 39q2 3 -1 7" fill="none" stroke="#8B5E2F" stroke-width="2.6" stroke-linecap="round"/>
+        <!-- Skin eyes (potato freckles) scattered on the body to texture
+             the russet — positioned away from face + prop so they don't
+             clutter the silhouette. -->
+        <ellipse cx="22" cy="24" rx=".9" ry="1.1" fill="#3E2A14" opacity=".55"/>
+        <ellipse cx="44" cy="17" rx=".7" ry="1.0" fill="#3E2A14" opacity=".5"/>
+        <ellipse cx="48" cy="30" rx="1.1" ry="1.3" fill="#3E2A14" opacity=".5"/>
+        <ellipse cx="17" cy="36" rx=".8" ry="1.0" fill="#3E2A14" opacity=".55"/>
+        <!-- Stem knob + leaf cue (pie chart) -->
+        <path d="M19 39q-2 3 1 7M45 39q2 3 -1 7" fill="none" stroke="#5A3A18" stroke-width="2.6" stroke-linecap="round"/>
         <circle cx="32" cy="45" r="10" fill="#F6F0E2" stroke="#3E2A14" stroke-width="1.2"/>
         <path d="M32 45L32 35A10 10 0 0 1 40.7 50Z" fill="#f59e0b"/>
         <path d="M32 45L40.7 50A10 10 0 0 1 24 49Z" fill="#ef4444"/>
