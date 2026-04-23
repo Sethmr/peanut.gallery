@@ -631,11 +631,13 @@ function setBackendMode(mode, { persist = true } = {}) {
   // staging, etc.). Kept wired to the same serverUrlInput so existing
   // request code doesn't need to branch.
   updateSelfHostBlockVisibility(mode);
-  // Hide BYOK provider keys (Deepgram / Anthropic / xAI / Brave) when Plus
-  // or Demo is active — subscription key is the only credential needed in
-  // Plus, and Demo runs against our hosted demo keys (user pastes nothing).
+  // Show BYOK provider keys (Deepgram / Anthropic / xAI / Brave) ONLY in
+  // "My keys" and Self-host modes. Demo runs on our hosted keys and Plus
+  // runs on the subscription — neither should surface user-key fields.
+  // HTML defaults the block to hidden so it doesn't flash on first paint
+  // before this runs.
   const byokKeysBlock = document.getElementById("byokKeysBlock");
-  if (byokKeysBlock) byokKeysBlock.hidden = mode === "plus" || mode === "demo";
+  if (byokKeysBlock) byokKeysBlock.hidden = !(mode === "byok" || mode === "selfhost");
   // Force the server URL to the hosted default in any non-selfhost mode.
   // In selfhost mode we restore the user's last custom URL, or clear the
   // field so they enter their own — no hosted URL pre-fill in selfhost.
@@ -3222,12 +3224,19 @@ startBtn.addEventListener("click", async () => {
         tabTitle: tabInfo.title || "",
         youtubeUrl: tabInfo.url || "",
         installId: installId || "",
-        apiKeys: {
-          deepgram: deepgramKeyInput.value.trim(),
-          anthropic: anthropicKeyInput.value.trim(),
-          xai: xaiKeyInput ? xaiKeyInput.value.trim() : "",
-          brave: braveKeyInput.value.trim(),
-        },
+        // Only forward user-entered provider keys in "My keys" / Self-host.
+        // Demo and Plus run on the server's Railway keys — sending any
+        // X-*-Key header would cause the backend to prefer the user value
+        // and bypass the hosted credential. Stored values in the inputs
+        // (from a prior BYOK session) must NOT leak through those modes.
+        apiKeys: effectiveBackendMode() === "byok"
+          ? {
+              deepgram: deepgramKeyInput.value.trim(),
+              anthropic: anthropicKeyInput.value.trim(),
+              xai: xaiKeyInput ? xaiKeyInput.value.trim() : "",
+              brave: braveKeyInput.value.trim(),
+            }
+          : { deepgram: "", anthropic: "", xai: "", brave: "" },
         // Which search backend Producer fact-checks through. Forwarded to
         // /api/transcribe as the X-Search-Engine header. Missing/unknown
         // values fall back to "brave" server-side for backward-compat.
