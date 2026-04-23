@@ -8,4 +8,5 @@ node_modules
 docs/
 logs/
 scripts/
+!scripts/subscription-admin.ts
 .DS_Store
