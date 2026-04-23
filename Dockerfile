@@ -39,17 +39,18 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# Don't run as root
-RUN addgroup --system --gid 1001 nodejs \
-  && adduser --system --uid 1001 nextjs
-
 # Copy built app (public may be empty — ensure dir exists)
 RUN mkdir -p ./public
 COPY --from=builder /app/public/ ./public/
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
-USER nextjs
+# Running as root in-container. Railway's persistent volumes mount as
+# root:root; a non-root USER can't write SQLite to /data without a
+# gosu/su-exec privilege-drop dance in the entrypoint. Container
+# isolation is the real security boundary here, not the in-container
+# UID, so this is the pragmatic trade-off that unblocks subscription
+# persistence. (See lib/subscription-store.ts + docs/SUBSCRIPTION-ARCHITECTURE.md.)
 
 EXPOSE 3000
 
