@@ -2523,7 +2523,41 @@ function syncAvatarTitles() {
   }
 }
 
+// Per-persona earcon cache. Keyed by `${packId}-${personaId}` to match
+// the filenames produced by scripts/synth-persona-cues.ts. HTMLAudioElement
+// is cheap to rebuild on each play, but keeping one around per cue avoids
+// re-decoding the WAV every fire — and crucially lets us re-trigger
+// back-to-back by setting currentTime = 0 instead of allocating.
+const personaCueCache = {};
+let lastSpeakingId = null;
+function playPersonaCue(personaId) {
+  if (!personaId) return;
+  const key = `${currentPackId}-${personaId}`;
+  let audio = personaCueCache[key];
+  if (!audio) {
+    try {
+      audio = new Audio(chrome.runtime.getURL(`sounds/personas/${key}.wav`));
+      // The WAVs are already RMS-normalized at synth time (-29 dBFS) to
+      // sit under content audio. Volume is a user-side safety knob only.
+      audio.volume = 1.0;
+      audio.preload = "auto";
+      personaCueCache[key] = audio;
+    } catch {
+      return;
+    }
+  }
+  try {
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  } catch {}
+}
+
 function updatePersonaSpeaking(activeId) {
+  // Earcon only on transition into a new speaker (null→id, or id→other-id).
+  // id→id (redundant update) and id→null (stop) don't fire. Prevents double
+  // hits when the render loop repaints the same speaker mid-utterance.
+  if (activeId && activeId !== lastSpeakingId) playPersonaCue(activeId);
+  lastSpeakingId = activeId;
   for (const p of PERSONAS) {
     // Toggle on the bubble — v1.4 tabloid CSS targets
     // `.persona-bubble.speaking .persona-avatar .ring` for the red-ring
