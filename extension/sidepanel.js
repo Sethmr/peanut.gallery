@@ -1178,17 +1178,21 @@ function startElapsedTimer() {
 
 function flipToCapReached() {
   freeTierCapped = true;
-  statusBar.classList.add("capped");
-  statusBar.classList.remove("live", "active");
-  statusText.textContent = "Cap reached";
-  statusTime.textContent = formatHMS(FREE_TIER_MAX_SECONDS);
-  statusTag.textContent = "PAUSED";
-  statusDetail.textContent = "Daily free minutes exhausted · resets at midnight";
-  // Episode-card progress bar flips to the cap treatment: yellow fill, full
-  // width. Matches the status strip's dot-goes-yellow signal.
-  if (episodeCard) episodeCard.classList.add("capped");
-  if (episodeCardProgressFill) episodeCardProgressFill.style.width = "100%";
+  // Stop the timer FIRST so stopFreeTierTimer can persist the final
+  // elapsed delta into pgFreeTierUsedMs. Calling it before showIdle
+  // keeps freeTierStartMs non-zero for the persist branch.
   stopFreeTierTimer();
+  // Tear the live session down — the trial hit its lifetime cap, so
+  // there's nothing left to listen with. The red "Trial ended" card
+  // on the demo tab is the next step; leaving the capture running
+  // would just burn CPU with no upstream budget.
+  if (capturing) {
+    chrome.runtime.sendMessage({ type: "STOP_CAPTURE" }).catch(() => {});
+    showIdle();
+  }
+  // Repaint the demo card in its exhausted red state on the now-idle
+  // setup screen so the user sees WHY listening stopped.
+  refreshFreeTierBanner();
 }
 
 function syncStatusDetail() {
@@ -1665,6 +1669,10 @@ function showIdle() {
   if (episodeCardProgressFill) episodeCardProgressFill.style.width = "0%";
   stopFreeTierTimer();
   freeTierCapped = false;
+  // Repaint the free-trial banner on idle so the post-session state
+  // reflects the persisted pgFreeTierUsedMs (and flips to the red
+  // "exhausted" variant if this session consumed the last of it).
+  refreshFreeTierBanner();
   controlsRow.style.display = "none";
   transcriptSection.style.display = "none";
   gallery.style.display = "none";
