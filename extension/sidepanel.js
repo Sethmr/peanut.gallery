@@ -625,19 +625,24 @@ function setBackendMode(mode, { persist = true } = {}) {
   }
   // Show/hide subscription block + self-host block.
   if (subscriptionBlock) subscriptionBlock.hidden = mode !== "plus";
-  const selfHostBlock = document.getElementById("selfHostBlock");
-  if (selfHostBlock) selfHostBlock.hidden = mode !== "selfhost";
-  // Hide BYOK provider keys (Deepgram / Anthropic / xAI / search / Brave)
-  // when Plus is active — the subscription key above is the only credential
-  // needed when our hosted backend is running the AI calls.
+  // Server URL field is ALWAYS shown in selfhost mode. In Demo / My keys /
+  // Plus it's hidden unless the debug panel is open — then it becomes a
+  // power-user override for pointing at a non-default backend (localhost,
+  // staging, etc.). Kept wired to the same serverUrlInput so existing
+  // request code doesn't need to branch.
+  updateSelfHostBlockVisibility(mode);
+  // Hide BYOK provider keys (Deepgram / Anthropic / xAI / Brave) when Plus
+  // or Demo is active — subscription key is the only credential needed in
+  // Plus, and Demo runs against our hosted demo keys (user pastes nothing).
   const byokKeysBlock = document.getElementById("byokKeysBlock");
-  if (byokKeysBlock) byokKeysBlock.hidden = mode === "plus";
+  if (byokKeysBlock) byokKeysBlock.hidden = mode === "plus" || mode === "demo";
   // Force the server URL to the hosted default in any non-selfhost mode.
-  // In selfhost mode we restore the user's last custom URL (or default).
+  // In selfhost mode we restore the user's last custom URL, or clear the
+  // field so they enter their own — no hosted URL pre-fill in selfhost.
   if (serverUrlInput) {
     if (mode === "selfhost") {
       chrome.storage.local.get(["pgSelfHostUrl"], (data) => {
-        if (data?.pgSelfHostUrl) serverUrlInput.value = data.pgSelfHostUrl;
+        serverUrlInput.value = data?.pgSelfHostUrl || "";
       });
     } else {
       serverUrlInput.value = HOSTED_BACKEND_URL;
@@ -662,6 +667,18 @@ function setBackendMode(mode, { persist = true } = {}) {
   // Show the front-page free-trial banner whenever Demo is active (and
   // the trial isn't exhausted). Hidden in any other mode.
   refreshFreeTierBanner();
+}
+
+// Resolve selfHostBlock visibility from (mode, debugPanelOpen). Called from
+// setBackendMode on every mode flip, and from setDebugPanelOpen when the
+// debug toggle flips. Falls back to the current backendMode when caller
+// doesn't pass one. Reads debugPanelOpen off `window` to stay safe if this
+// fires before the later top-level `let debugPanelOpen` initializer runs.
+function updateSelfHostBlockVisibility(mode = backendMode) {
+  const selfHostBlock = document.getElementById("selfHostBlock");
+  if (!selfHostBlock) return;
+  const debugOn = !!globalThis.__pgDebugPanelOpen;
+  selfHostBlock.hidden = mode !== "selfhost" && !debugOn;
 }
 
 async function refreshSubscriptionStatus() {
@@ -2388,11 +2405,11 @@ function buildPersonaAvatars() {
         <div class="ring"></div>
         ${faceHTML}
         <span class="persona-glyph-overlay" id="stack-${p.id}">${personaGlyphHTML(p, "1.1em", null, true)}</span>
-        <span class="persona-fire-count" id="fire-count-${p.id}" aria-label="fire count this session" data-count="0" hidden>0</span>
       </div>
       <span class="persona-name">${escapeHtml(p.name)}</span>
       <span class="persona-role">${escapeHtml(roleTag)}</span>
       <span class="persona-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      <span class="persona-fire-count" id="fire-count-${p.id}" aria-label="fire count this session" data-count="0" hidden>0</span>
     `;
     el.addEventListener("click", () => {
       // Muted personas get a quick un-mute hint instead of firing. Tapping
@@ -4392,6 +4409,13 @@ function renderDirectorTrace() {
 
 function setDebugPanelOpen(open, persist = true) {
   debugPanelOpen = !!open;
+  // Mirror to globalThis so updateSelfHostBlockVisibility() — which may
+  // run before this module-level `let` is initialized via an earlier
+  // setBackendMode() during init — can read the current state safely.
+  globalThis.__pgDebugPanelOpen = debugPanelOpen;
+  // Reveal/hide the server URL override field on non-selfhost modes in
+  // sync with debug-panel state (always visible in selfhost regardless).
+  updateSelfHostBlockVisibility();
   if (!traceSection) return;
   traceSection.classList.toggle("hidden", !debugPanelOpen);
   traceSection.setAttribute("aria-hidden", debugPanelOpen ? "false" : "true");

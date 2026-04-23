@@ -1,8 +1,9 @@
 /**
  * Peanut Gallery — Smart Director v3 prompt (Cerebras Llama 3.1 8B) — SET-13
  *
- * v3-prompt shadow companion. Replaces the v2 free-text JSON prompt from
- * `director-llm-v3-cerebras.ts` with the full v3 routing brain: 5-slot
+ * v3-prompt shadow companion. Superseded the v2 free-text JSON prompt
+ * module (`director-llm-v3-cerebras.ts`, removed 2026-04-22) with the
+ * full v3 routing brain: 5-slot
  * SILENT as a positive pick, verbalized confidence distribution across all
  * five slots, randomised persona order to kill position bias, and live
  * callback candidates. Structured output enforced via
@@ -26,9 +27,11 @@
  *
  * ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT=true
  *
- * Keep the v2-prompt flag (ENABLE_SMART_DIRECTOR_V3_CEREBRAS) active in
- * parallel for ~1 week so the agreement-rate comparison is meaningful.
- * Both can be on at once — the route fires independent promises.
+ * This is the only Cerebras shadow path. The v2-prompt variant and its
+ * `ENABLE_SMART_DIRECTOR_V3_CEREBRAS` flag were retired 2026-04-22 after
+ * Llama 8B was observed echoing `{"type":"object"}` instead of picking
+ * a persona under `response_format: json_object` — json_schema's enum
+ * constraint closes that failure mode.
  *
  * ──────────────────────────────────────────────────────
  * DESIGN CONTRACT

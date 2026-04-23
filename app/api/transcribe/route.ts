@@ -25,8 +25,6 @@ import { PersonaEngine } from "@/lib/persona-engine";
 import { resolvePack } from "@/lib/packs";
 import { Director } from "@/lib/director";
 import { pickPersonaLLM, type LlmRoutingPick } from "@/lib/director-llm";
-import { pickPersonaGroq } from "@/lib/director-llm-v3-groq";
-import { pickPersonaCerebras } from "@/lib/director-llm-v3-cerebras";
 import { pickPersonaCerebrasV3 } from "@/lib/director-llm-v3-cerebras-v3prompt";
 import { pickPersonaGroqV3 } from "@/lib/director-llm-v3-groq-v3prompt";
 import {
@@ -354,13 +352,9 @@ export async function POST(req: NextRequest) {
     requestedPackId: typeof packId === "string" ? packId : null,
     packId: resolvedPack.meta.id,
     // Shadow flag state, for filtering director_v3_shadow_compare events.
-    // SET-6: v2-prompt shadows (4-slot, json_object).
-    groqShadowEnabled:
-      process.env.ENABLE_SMART_DIRECTOR_V3_GROQ === "true" && !!groqKey,
-    cerebrasShadowEnabled:
-      process.env.ENABLE_SMART_DIRECTOR_V3_CEREBRAS === "true" &&
-      !!cerebrasKey,
-    // SET-13: v3-prompt shadows (5-slot + confidence, json_schema).
+    // SET-13: v3-prompt shadows (5-slot + confidence, json_schema). The
+    // v2-prompt cohort (SET-6) was retired on 2026-04-22 along with the
+    // deprecated director-llm-v3-{cerebras,groq}.ts modules.
     groqShadowV3Enabled:
       process.env.ENABLE_SMART_DIRECTOR_V3_GROQ_V3PROMPT === "true" &&
       !!groqKey,
@@ -679,65 +673,29 @@ export async function POST(req: NextRequest) {
           const smartV2On =
             process.env.ENABLE_SMART_DIRECTOR_V2 === "true" && !!anthropicKey;
 
-          // ── Smart Director v3 fast-provider shadows (SET-6) ──
-          // Fire in parallel with whichever Haiku call (v2 or v3) runs below.
-          // Deliberately NOT awaited before routing — the shadow pick is
-          // logged but never fed to director.decide(). A 2 s timeout bounds
-          // tail latency on the async log path; sub-200 ms TTFT on both
-          // providers means the shadow usually resolves before the cascade
-          // finishes.
+          // ── Smart Director v3 fast-provider shadows (SET-13) ──
+          // Fire in parallel with the Haiku primary. Deliberately NOT awaited
+          // before routing — the shadow pick is logged but never fed to
+          // director.decide(). A 2 s timeout bounds tail latency on the async
+          // log path; sub-200 ms TTFT on both providers means the shadow
+          // usually resolves before the cascade finishes.
           //
-          // Two shadow providers are wired, independently flag-gated:
-          //   - Cerebras (ENABLE_SMART_DIRECTOR_V3_CEREBRAS): working today.
-          //     Llama 3.1 8B, ~100–440 ms TTFT, paid self-serve.
-          //   - Groq     (ENABLE_SMART_DIRECTOR_V3_GROQ): deferred, tracked
-          //     in Linear SET-11 until Developer tier reopens. Same model as
-          //     Cerebras so the eventual switch is a 1-env-flip.
+          // Two shadow providers are wired, independently flag-gated, both
+          // using the v3 prompt (5-slot + confidence) with json_schema-
+          // enforced structured output:
+          //   - Cerebras (ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT):
+          //     working today. Llama 3.1 8B, ~100–440 ms TTFT, paid self-serve.
+          //   - Groq     (ENABLE_SMART_DIRECTOR_V3_GROQ_V3PROMPT): deferred,
+          //     tracked in Linear SET-11 until Developer tier reopens. Same
+          //     model as Cerebras so the eventual switch is a 1-env-flip.
           // Both flags can be on at once for a head-to-head comparison.
-          const groqShadowOn =
-            process.env.ENABLE_SMART_DIRECTOR_V3_GROQ === "true" &&
-            (smartOn || smartV2On) &&
-            !!groqKey;
-          const groqShadowStart = groqShadowOn ? Date.now() : null;
-          const groqShadowPromise: Promise<LlmRoutingPick | null> =
-            groqShadowOn
-              ? pickPersonaGroq({
-                  recentTranscript: directorInput,
-                  isSilence: isSilenceTick,
-                  recentFirings: director.getRecentFirings(),
-                  cooldownsMs: director.getCooldownsMs(),
-                  packPersonas: session.resolvedPack.personas,
-                  groqKey: groqKey!,
-                  signal: AbortSignal.timeout(2000),
-                  sessionId,
-                }).catch(() => null)
-              : Promise.resolve(null);
-
-          const cerebrasShadowOn =
-            process.env.ENABLE_SMART_DIRECTOR_V3_CEREBRAS === "true" &&
-            (smartOn || smartV2On) &&
-            !!cerebrasKey;
-          const cerebrasShadowStart = cerebrasShadowOn ? Date.now() : null;
-          const cerebrasShadowPromise: Promise<LlmRoutingPick | null> =
-            cerebrasShadowOn
-              ? pickPersonaCerebras({
-                  recentTranscript: directorInput,
-                  isSilence: isSilenceTick,
-                  recentFirings: director.getRecentFirings(),
-                  cooldownsMs: director.getCooldownsMs(),
-                  packPersonas: session.resolvedPack.personas,
-                  cerebrasKey: cerebrasKey!,
-                  signal: AbortSignal.timeout(2000),
-                  sessionId,
-                }).catch(() => null)
-              : Promise.resolve(null);
-
-          // SET-13: v3-prompt shadow providers (5-slot + confidence + json_schema).
-          // These run in parallel with the v2-prompt shadows above, independently
-          // flag-gated so Seth can run both at once for an A/B comparison over
-          // ~500 ticks. Results land in the same `director_v3_shadow_compare`
-          // event with a `promptVersion: "v3"` field so the two cohorts are
-          // filterable in pipeline-debug.jsonl.
+          //
+          // Historical note: the v2-prompt cohort (SET-6 / json_object) was
+          // retired 2026-04-22 along with the deprecated director-llm-v3-
+          // {cerebras,groq}.ts modules — the v2 prompt's "describe the JSON
+          // shape" style let Llama 8B echo `{"type":"object"}` instead of
+          // actually picking a persona. Json_schema enum constraints closed
+          // that class of parse failures.
           const groqShadowV3On =
             process.env.ENABLE_SMART_DIRECTOR_V3_GROQ_V3PROMPT === "true" &&
             (smartOn || smartV2On) &&
@@ -924,7 +882,7 @@ export async function POST(req: NextRequest) {
             });
           }
 
-          // SET-6: Smart Director fast-provider shadow compare.
+          // SET-13: Smart Director fast-provider shadow compare.
           // Fired non-blocking — we don't await the shadow promises before
           // the cascade so fast-provider latency never adds to the routing
           // critical path. The .then() handler logs after each provider
@@ -933,7 +891,12 @@ export async function POST(req: NextRequest) {
           // same event. Each provider emits its own event — keeps the
           // log schema flat when only one is on, avoids confusing "fast is
           // null" ambiguity when both are on.
-          if (groqShadowOn || cerebrasShadowOn || groqShadowV3On || cerebrasShadowV3On) {
+          //
+          // Post-2026-04-22: only v3-prompt shadows remain. Event schema
+          // preserves the `promptVersion` field on `fast` (always "v3" now)
+          // so historical log rows from the retired v2-prompt cohort remain
+          // queryable against the same shape.
+          if (groqShadowV3On || cerebrasShadowV3On) {
             const capturedHaikuPick = smartV2On
               ? llmPickV2?.personaId ?? null
               : llmPick?.personaId ?? null;
@@ -943,18 +906,12 @@ export async function POST(req: NextRequest) {
             const capturedHaikuElapsedMs = llmElapsedMs;
             const capturedHaikuVersion = smartV2On ? "v3" : "v2";
 
-            // Accepts both v2 (LlmRoutingPick) and v3 (LlmRoutingPickV2) shadow
-            // picks. The v3-only fields (confidence, callbackUsed) are emitted
-            // as null on v2-prompt shadows so the event schema is uniform and
-            // the two cohorts are distinguishable via promptVersion.
             const emitShadowCompare = (
               provider: "groq" | "cerebras",
               model: string,
-              shadowPick: LlmRoutingPickV2 | LlmRoutingPick | null,
-              elapsedMs: number | null,
-              promptVersion: "v2" | "v3" = "v2"
+              shadowPick: LlmRoutingPickV2 | null,
+              elapsedMs: number | null
             ) => {
-              const isV3Pick = shadowPick !== null && "confidence" in shadowPick;
               log.info("director_v3_shadow_compare", {
                 haiku: {
                   version: capturedHaikuVersion,
@@ -965,13 +922,12 @@ export async function POST(req: NextRequest) {
                 fast: {
                   pick: shadowPick?.personaId ?? null,
                   rationale: shadowPick?.rationale ?? null,
-                  // v3-only fields — null on v2-prompt cohort
-                  confidence: isV3Pick ? (shadowPick as LlmRoutingPickV2).confidence : null,
-                  callbackUsed: isV3Pick ? (shadowPick as LlmRoutingPickV2).callbackUsed : null,
+                  confidence: shadowPick?.confidence ?? null,
+                  callbackUsed: shadowPick?.callbackUsed ?? null,
                   elapsedMs,
                   model,
                   provider,
-                  promptVersion,
+                  promptVersion: "v3" as const,
                 },
                 agreed:
                   shadowPick?.personaId !== null &&
@@ -980,39 +936,6 @@ export async function POST(req: NextRequest) {
               });
             };
 
-            if (groqShadowOn) {
-              groqShadowPromise.then((groqPick) => {
-                const elapsedMs =
-                  groqShadowStart !== null
-                    ? Date.now() - groqShadowStart
-                    : null;
-                emitShadowCompare(
-                  "groq",
-                  "llama-3.1-8b-instant",
-                  groqPick,
-                  elapsedMs,
-                  "v2"
-                );
-              });
-            }
-
-            if (cerebrasShadowOn) {
-              cerebrasShadowPromise.then((cerebrasPick) => {
-                const elapsedMs =
-                  cerebrasShadowStart !== null
-                    ? Date.now() - cerebrasShadowStart
-                    : null;
-                emitShadowCompare(
-                  "cerebras",
-                  "llama3.1-8b",
-                  cerebrasPick,
-                  elapsedMs,
-                  "v2"
-                );
-              });
-            }
-
-            // SET-13: v3-prompt shadow compare events.
             if (groqShadowV3On) {
               groqShadowV3Promise.then((groqV3Pick) => {
                 const elapsedMs =
@@ -1023,8 +946,7 @@ export async function POST(req: NextRequest) {
                   "groq",
                   "llama-3.1-8b-instant",
                   groqV3Pick,
-                  elapsedMs,
-                  "v3"
+                  elapsedMs
                 );
               });
             }
@@ -1039,8 +961,7 @@ export async function POST(req: NextRequest) {
                   "cerebras",
                   "llama3.1-8b",
                   cerebrasV3Pick,
-                  elapsedMs,
-                  "v3"
+                  elapsedMs
                 );
               });
             }

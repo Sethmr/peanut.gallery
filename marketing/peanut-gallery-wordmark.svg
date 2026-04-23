@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid meet" width="100%" height="100%" style="display:block">
+  <!-- Paper background — broadsheet stock -->
+  <rect width="800" height="200" fill="#f1ead8"/>
+
+  <!-- Outer ink rule (newspaper masthead frame) -->
+  <rect x="8" y="8" width="784" height="184" fill="none" stroke="#111111" stroke-width="3"/>
+  <rect x="18" y="18" width="764" height="164" fill="none" stroke="#111111" stroke-width="1"/>
+
+  <!-- Top kicker rule -->
+  <line x1="40" y1="50" x2="760" y2="50" stroke="#111111" stroke-width="1"/>
+
+  <!-- Date / volume kicker (slab caps, small) -->
+  <text x="40" y="42" font-family="'Rockwell','Courier New',monospace"
+        font-size="14" font-weight="700" fill="#111111"
+        letter-spacing="3">EST. MMXXVI &#183; VOL. I</text>
+
+  <!-- Stamp red postmark on the right -->
+  <g transform="translate(720,42)">
+    <circle r="18" fill="none" stroke="#c8261d" stroke-width="2"/>
+    <text x="0" y="5" font-family="'Rockwell','Courier New',monospace"
+          font-size="12" font-weight="700" fill="#c8261d"
+          text-anchor="middle" letter-spacing="1">PG</text>
+  </g>
+
+  <!-- Wordmark — bold slab, true newspaper masthead -->
+  <text x="400" y="135" font-family="'Bodoni 72','Didot','Georgia',serif"
+        font-size="78" font-weight="700" fill="#111111"
+        text-anchor="middle" letter-spacing="2">PEANUT GALLERY</text>
+
+  <!-- Sub-deck rule + tagline -->
+  <line x1="40" y1="158" x2="760" y2="158" stroke="#111111" stroke-width="1"/>
+  <text x="400" y="178" font-family="'Rockwell','Courier New',monospace"
+        font-size="13" font-weight="700" fill="#c8261d"
+        text-anchor="middle" letter-spacing="6">A LIVE COMMENTARY DAILY</text>
+</svg>

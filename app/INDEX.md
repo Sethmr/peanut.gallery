@@ -37,7 +37,7 @@ Note: `/watch` (the legacy hosted reference web app) was retired alongside `comp
 
 **Optional (search):** `BRAVE_SEARCH_API_KEY` — only used when `SEARCH_ENGINE=brave` (default). When `SEARCH_ENGINE=xai`, the xAI Live Search path uses `XAI_API_KEY`.
 
-**Gating flags:** `ENABLE_FREE_TIER_LIMIT`, `ENABLE_SUBSCRIPTION`, `STRIPE_ENABLED`, `ENABLE_SMART_DIRECTOR` (v2), `ENABLE_SMART_DIRECTOR_V2` (v3), `ENABLE_SMART_DIRECTOR_V3_CEREBRAS`, `ENABLE_SMART_DIRECTOR_V3_GROQ`, `ENABLE_SMART_DIRECTOR_V3_{CEREBRAS,GROQ}_V3PROMPT`, `ENABLE_SEMANTIC_ANTI_REPEAT`. All off by default.
+**Gating flags:** `ENABLE_FREE_TIER_LIMIT`, `ENABLE_SUBSCRIPTION`, `STRIPE_ENABLED`, `ENABLE_SMART_DIRECTOR` (v2), `ENABLE_SMART_DIRECTOR_V2` (v3), `ENABLE_SMART_DIRECTOR_V3_{CEREBRAS,GROQ}_V3PROMPT` (shadow routers), `ENABLE_SEMANTIC_ANTI_REPEAT`. All off by default. (The earlier v2-prompt shadow flags `ENABLE_SMART_DIRECTOR_V3_CEREBRAS` and `ENABLE_SMART_DIRECTOR_V3_GROQ` were retired 2026-04-22 along with their deprecated modules.)
 
 **Subscription (SET-25/26/27):** `SUBSCRIPTION_DB_PATH` (Phase 2 SQLite file), `SUBSCRIPTION_DB_KEY` (optional SQLCipher), `SUBSCRIPTION_KEYS_WHITELIST` (Phase 1 fallback). `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PORTAL_URL`. `EMAIL_PROVIDER`, `EMAIL_API_KEY`, `EMAIL_FROM`, `EMAIL_REPLY_TO`, `DISABLE_EMAIL_SEND`. Full env-surface: [`../.env.example`](../.env.example).
 

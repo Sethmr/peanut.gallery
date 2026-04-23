@@ -45,6 +45,17 @@ COPY --from=builder /app/public/ ./public/
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
+# Ship the admin subscription CLI so `railway ssh` → `tsx scripts/...`
+# works without having to rebuild arbitrary node-inline pipelines for
+# every ops cleanup. subscription-admin.ts is standalone (only imports
+# better-sqlite3 which is a runtime dep); subscription-issue.ts needs
+# lib/ too and is used more rarely, so we ship only the standalone one.
+COPY --from=builder /app/scripts/subscription-admin.ts ./scripts/subscription-admin.ts
+
+# tsx for running .ts admin scripts on the container. ~5MB and avoids
+# the `npm i -g tsx` dance on every railway ssh session.
+RUN npm install -g tsx
+
 # Running as root in-container. Railway's persistent volumes mount as
 # root:root; a non-root USER can't write SQLite to /data without a
 # gosu/su-exec privilege-drop dance in the entrypoint. Container

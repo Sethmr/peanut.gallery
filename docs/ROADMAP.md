@@ -39,7 +39,7 @@ Details on any of these live in the corresponding `docs/V<x>-PLAN.md`, `docs/STA
 1. **Flip Railway env vars** (if not already set):
    ```bash
    railway variables set ENABLE_SMART_DIRECTOR_V2=true
-   railway variables set ENABLE_SMART_DIRECTOR_V3_CEREBRAS=true
+   railway variables set ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT=true
    railway variables set CEREBRAS_API_KEY=csk-...
    railway up
    ```
@@ -49,7 +49,7 @@ Details on any of these live in the corresponding `docs/V<x>-PLAN.md`, `docs/STA
    npm run analyze:director-v3
    ```
    Key bands: agreement rate Haiku↔Cerebras ≥ 85 %, p95 Cerebras latency 3–5× faster than Haiku, timeout rate < 2 %.
-4. **Kill switch if something goes wrong:** `railway variables delete ENABLE_SMART_DIRECTOR_V3_CEREBRAS && railway up`. Zero state to clean up — shadow never touched user-facing traffic.
+4. **Kill switch if something goes wrong:** `railway variables delete ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT && railway up`. Zero state to clean up — shadow never touched user-facing traffic.
 
 **Decision point after 48 h:**
 - If bands hit → v1.9 "Smart Director GA" is live (LLM router becomes primary; rule-based scorer retires to safety-net only).
@@ -114,7 +114,7 @@ The Director is the moat. v1.6.0 ships the LLM router as a flag-gated canary wit
 9. **Cost note.** Smart Director adds ~$0.15/episode on Haiku (~$0.03 on Cerebras if that's the primary by this release). Document in `CONTEXT.md` cost table; surface in the side-panel debug footer.
 10. **Tag `v1.7.0`.** Release notes lead with: "the rule-based director is gone. Long live the smart one."
 
-**Touches:** `lib/director.ts` (large reduction), `lib/director-llm-v2.ts` (no longer optional), `lib/director-llm-v3-cerebras.ts` (possibly promoted from shadow to primary), `app/api/transcribe/route.ts` (race goes away — LLM is awaited unless killed), `lib/packs/*/personas.ts` (hint refinement), `scripts/test-director.ts` (fixture conversion), `scripts/fixtures/director/*.json` (re-baselined), `docs/BUILD-YOUR-OWN-BACKEND.md`, `docs/CONTEXT.md`.
+**Touches:** `lib/director.ts` (large reduction), `lib/director-llm-v2.ts` (no longer optional), `lib/director-llm-v3-cerebras-v3prompt.ts` (possibly promoted from shadow to primary), `app/api/transcribe/route.ts` (race goes away — LLM is awaited unless killed), `lib/packs/*/personas.ts` (hint refinement), `scripts/test-director.ts` (fixture conversion), `scripts/fixtures/director/*.json` (re-baselined), `docs/BUILD-YOUR-OWN-BACKEND.md`, `docs/CONTEXT.md`.
 
 **Risk:** if the LLM provider has a bad day, sessions go quiet. **Mitigation:** the safety-net heuristic exists for exactly that. Telemetry should page Seth (or at least log loudly) if the safety net is firing more than X% of ticks across all sessions.
 

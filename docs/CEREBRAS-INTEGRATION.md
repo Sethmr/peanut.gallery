@@ -29,7 +29,7 @@ Add to `.env.local` in the chrome-extension directory:
 
 ```bash
 CEREBRAS_API_KEY=csk-your-key-here
-ENABLE_SMART_DIRECTOR_V3_CEREBRAS=true
+ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT=true
 ENABLE_SMART_DIRECTOR_V2=true            # needed so there's something to shadow against
 ANTHROPIC_API_KEY=sk-ant-...             # needed for the v3 Haiku primary path
 ```
@@ -46,7 +46,7 @@ curl -sS https://api.cerebras.ai/v1/chat/completions \
   | python3 -m json.tool
 ```
 
-Expect a JSON response with `choices[0].message.content`. If you get 401, the key is wrong. If you get 404 on the model, their slug changed — tell me and I'll bump `lib/director-llm-v3-cerebras.ts`'s `CEREBRAS_MODEL` constant.
+Expect a JSON response with `choices[0].message.content`. If you get 401, the key is wrong. If you get 404 on the model, their slug changed — tell me and I'll bump `lib/director-llm-v3-cerebras-v3prompt.ts`'s `CEREBRAS_MODEL` constant.
 
 ---
 
@@ -56,7 +56,7 @@ Via Railway CLI:
 
 ```bash
 railway variables set CEREBRAS_API_KEY=csk-your-key-here
-railway variables set ENABLE_SMART_DIRECTOR_V3_CEREBRAS=true
+railway variables set ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT=true
 railway variables set ENABLE_SMART_DIRECTOR_V2=true       # if not already on
 railway up                                                 # redeploy
 ```
@@ -103,7 +103,7 @@ If agreement is high AND Cerebras is consistently faster, you have the data to j
 Kill the shadow any time:
 
 ```bash
-railway variables delete ENABLE_SMART_DIRECTOR_V3_CEREBRAS
+railway variables delete ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT
 railway up
 ```
 
@@ -125,7 +125,7 @@ These assume 400 ticks/session × 500 tokens/tick at Cerebras's blended rate. Sh
 
 ## What to do if you decide Cerebras wins
 
-Not this ticket. Open a follow-up ticket to make Cerebras the primary v3 router (retiring the Haiku call). The code shape is already there — `lib/director-llm-v3-cerebras.ts` currently returns a shadow-only pick; making it primary is a small route.ts change. Data-gated: don't do it until the canary telemetry says "Cerebras ≥ Haiku on agreement AND faster."
+Not this ticket. Open a follow-up ticket to make Cerebras the primary v3 router (retiring the Haiku call). The code shape is already there — `lib/director-llm-v3-cerebras-v3prompt.ts` currently returns a shadow-only pick; making it primary is a small route.ts change. Data-gated: don't do it until the canary telemetry says "Cerebras ≥ Haiku on agreement AND faster."
 
 ---
 
@@ -137,6 +137,6 @@ Not this ticket. Open a follow-up ticket to make Cerebras the primary v3 router 
 
 **`director_v3_shadow_compare` events never appear** — Check that `ENABLE_SMART_DIRECTOR_V2=true` is ALSO set. The shadow only fires when the main v3 Haiku path fires.
 
-**Agreement rate dramatically low (< 60 %)** — Likely the v3 prompt isn't porting cleanly. File a ticket; we'd re-tune the shadow prompt or fall back to v2-prompt shadow (which is also still wired; `ENABLE_SMART_DIRECTOR_V3_CEREBRAS` vs `ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT` control them independently).
+**Agreement rate dramatically low (< 60 %)** — Likely the v3 prompt isn't porting cleanly to Llama 8B. File a ticket; we'd re-tune the shadow prompt in `lib/director-llm-v3-cerebras-v3prompt.ts`. (The older v2-prompt fallback module was retired 2026-04-22 — it let the model echo `{"type":"object"}` instead of picking a persona.)
 
-**Cerebras deprecates `llama3.1-8b`** — Edit `CEREBRAS_MODEL` in `lib/director-llm-v3-cerebras.ts` + `lib/director-llm-v3-cerebras-v3prompt.ts` to the replacement slug. 2 lines.
+**Cerebras deprecates `llama3.1-8b`** — Edit `CEREBRAS_MODEL` in `lib/director-llm-v3-cerebras-v3prompt.ts` to the replacement slug. 1 line.

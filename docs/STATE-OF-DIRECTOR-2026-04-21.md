@@ -34,8 +34,9 @@ Post-merge audit after the 12-PR overnight push. One source of truth for where t
 | [`lib/director.ts`](../lib/director.ts) | Rule-based scorer + cascade + recency + dry-spell. SILENT short-circuit added. Live-callback ring buffer added. | Shipping (safety net). |
 | [`lib/director-llm.ts`](../lib/director-llm.ts) | Smart Director **v2**. Claude Haiku, 4 slots, free-text JSON parse. Prompt-cache padding (SET-10) lands the stable prefix past 2 048 tokens for ~85 % TTFT / ~90 % cost reduction on warm cache. | Shipped behind `ENABLE_SMART_DIRECTOR`. |
 | [`lib/director-llm-v2.ts`](../lib/director-llm-v2.ts) | Smart Director **v3**. Haiku, 5 slots incl. SILENT, `tool_use` strict enum, verbalized confidence vector, randomized persona order, live-callback prompt hook, `applyStickyPenalty` helper. | Shipped behind `ENABLE_SMART_DIRECTOR_V2`. |
-| [`lib/director-llm-v3-groq.ts`](../lib/director-llm-v3-groq.ts) | Shadow call against Groq Llama 3.1 8B (`llama-3.1-8b-instant`). Uses v2 prompt. | Shipped behind `ENABLE_SMART_DIRECTOR_V3_GROQ`. Dormant: Groq Developer tier unavailable. |
-| [`lib/director-llm-v3-cerebras.ts`](../lib/director-llm-v3-cerebras.ts) | Shadow call against Cerebras Llama 3.1 8B (`llama3.1-8b`). Uses v2 prompt. | Shipped behind `ENABLE_SMART_DIRECTOR_V3_CEREBRAS`. Working today. |
+| [`lib/director-llm-v3-cerebras-v3prompt.ts`](../lib/director-llm-v3-cerebras-v3prompt.ts) | Shadow call against Cerebras Llama 3.1 8B (`llama3.1-8b`). v3 prompt (5-slot + confidence) + `response_format: json_schema`. | Shipped behind `ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT`. Working today. |
+| [`lib/director-llm-v3-groq-v3prompt.ts`](../lib/director-llm-v3-groq-v3prompt.ts) | Shadow call against Groq Llama 3.1 8B (`llama-3.1-8b-instant`). Same v3 prompt + `json_schema` as the Cerebras module. | Shipped behind `ENABLE_SMART_DIRECTOR_V3_GROQ_V3PROMPT`. Dormant: Groq Developer tier unavailable. |
+| ~~`lib/director-llm-v3-{cerebras,groq}.ts`~~ | v2-prompt shadows (`json_object` response format). Llama 8B echoed `{"type":"object"}` instead of picking a persona, so parse-fail rate was ~100% against `json_object`. | **Removed 2026-04-22.** Replaced by the `-v3prompt.ts` pair. |
 
 ### Flags
 
@@ -43,16 +44,16 @@ Post-merge audit after the 12-PR overnight push. One source of truth for where t
 |---|---|---|
 | `ENABLE_SMART_DIRECTOR` | off | v2 Haiku race against 400 ms. Cached prefix active when on. |
 | `ENABLE_SMART_DIRECTOR_V2` | off | v3 Haiku via tool_use. Supersedes v2 path when both flags set. |
-| `ENABLE_SMART_DIRECTOR_V3_GROQ` | off | Fire-and-forget Groq shadow. Logs `director_v3_shadow_compare`. |
-| `ENABLE_SMART_DIRECTOR_V3_CEREBRAS` | off | Fire-and-forget Cerebras shadow. Logs `director_v3_shadow_compare`. |
+| `ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT` | off | Fire-and-forget Cerebras shadow (v3 prompt + `json_schema`). Logs `director_v3_shadow_compare` with `fast.promptVersion:"v3"`. |
+| `ENABLE_SMART_DIRECTOR_V3_GROQ_V3PROMPT` | off | Fire-and-forget Groq shadow (v3 prompt + `json_schema`). Same event shape as the Cerebras cohort. |
 
 ### Env vars
 
 | Var | Required when | Purpose |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | `ENABLE_SMART_DIRECTOR` or `ENABLE_SMART_DIRECTOR_V2` is on | Haiku calls |
-| `GROQ_API_KEY` | `ENABLE_SMART_DIRECTOR_V3_GROQ=true` | Shadow calls |
-| `CEREBRAS_API_KEY` | `ENABLE_SMART_DIRECTOR_V3_CEREBRAS=true` | Shadow calls |
+| `GROQ_API_KEY` | `ENABLE_SMART_DIRECTOR_V3_GROQ_V3PROMPT=true` | Shadow calls |
+| `CEREBRAS_API_KEY` | `ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT=true` | Shadow calls |
 
 Header equivalents: `X-Anthropic-Key`, `X-Groq-Key`, `X-Cerebras-Key`.
 

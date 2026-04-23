@@ -1,12 +1,13 @@
 /**
  * Peanut Gallery — Smart Director v3 prompt (Groq Llama 3.1 8B) — SET-13
  *
- * v3-prompt shadow companion. Replaces the v2 free-text JSON prompt from
- * `director-llm-v3-groq.ts` with the full v3 routing brain: 5-slot SILENT as
- * a positive pick, verbalized confidence distribution, randomised persona
- * order, and live callback candidates. Structured output enforced via
- * `response_format: { type: "json_schema" }` — Groq's OpenAI-compatible
- * analogue of Anthropic `tool_use`. Returns `LlmRoutingPickV2 | null`.
+ * v3-prompt shadow companion. Superseded the v2 free-text JSON prompt
+ * module (`director-llm-v3-groq.ts`, removed 2026-04-22) with the full v3
+ * routing brain: 5-slot SILENT as a positive pick, verbalized confidence
+ * distribution, randomised persona order, and live callback candidates.
+ * Structured output enforced via `response_format: { type: "json_schema" }`
+ * — Groq's OpenAI-compatible analogue of Anthropic `tool_use`. Returns
+ * `LlmRoutingPickV2 | null`.
  *
  * ──────────────────────────────────────────────────────
  * STATUS
@@ -23,9 +24,11 @@
  *
  * ENABLE_SMART_DIRECTOR_V3_GROQ_V3PROMPT=true
  *
- * Keep the v2-prompt flag (ENABLE_SMART_DIRECTOR_V3_GROQ) active in
- * parallel for ~1 week so the agreement-rate comparison is meaningful.
- * Both can be on at once — the route fires independent promises.
+ * This is the only Groq shadow path. The v2-prompt variant and its
+ * `ENABLE_SMART_DIRECTOR_V3_GROQ` flag were retired 2026-04-22 for the
+ * same json_object → `{"type":"object"}` echo bug that killed its
+ * Cerebras counterpart. Dormant in production until the Groq Developer
+ * tier reopens (SET-11).
  *
  * ──────────────────────────────────────────────────────
  * DESIGN CONTRACT
