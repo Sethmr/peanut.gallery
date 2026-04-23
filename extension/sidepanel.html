@@ -441,6 +441,24 @@
       color: var(--paper);
     }
 
+    /* TWiST pack swap: Lon's white egg needs a dark backdrop to pop; Alex's
+       russet potato needs a light backdrop. Scoped to the twist pack so the
+       Howard pack (Fred/Jackie) keeps its original role-based coloring. */
+    .persona-bubble[data-pack-id="twist"][data-role="cue"] .persona-avatar{
+      background: var(--ink);
+      border-color: var(--ink);
+    }
+    .persona-bubble[data-pack-id="twist"][data-role="cue"] .persona-avatar .initials{
+      color: var(--paper);
+    }
+    .persona-bubble[data-pack-id="twist"][data-role="bit"] .persona-avatar{
+      background: var(--paper);
+      border-color: var(--ink);
+    }
+    .persona-bubble[data-pack-id="twist"][data-role="bit"] .persona-avatar .initials{
+      color: var(--ink);
+    }
+
     /* The glyph overlay used to show a permanent archetype icon in the
        mug's bottom-right corner. Now that category identity comes from
        the circle's border/fill color, the icon is redundant — we hide it

@@ -312,7 +312,17 @@ function jackie(): Sample[] {
 // Render + normalize all cues to one shared loudness target
 // ──────────────────────────────────────────────────────
 
-const PEAK_TARGET = 0.2; // ≈ −14 dBFS. Sits under content audio.
+// Earcon loudness target. First cut targeted −14 dBFS peak + matched every
+// cue to the QUIETEST cue's RMS (~−29 dBFS) — Seth reported the result was
+// inaudible over video content. Revised targets:
+//   • RMS ≈ −18 dBFS (standard for UI earcons / OS notification sounds)
+//   • Peak ≤ −6 dBFS (gives ~12 dB of headroom; prevents clipping and
+//     keeps the cue perceptibly below speech content)
+// Every cue is pushed UP to the RMS target, then peak-limited. Net effect:
+// all eight cues feel equally loud, audible on top of YouTube at normal
+// levels, but never overpower the speaker.
+const RMS_TARGET = 0.126; // ≈ −18 dBFS
+const PEAK_TARGET = 0.5; // ≈ −6 dBFS
 
 const cues: Array<{ id: string; samples: Sample[] }> = [
   { id: "howard-producer", samples: babaBooey() }, // Baba Booey
@@ -325,24 +335,17 @@ const cues: Array<{ id: string; samples: Sample[] }> = [
   { id: "twist-joker", samples: alex() }, // Alex 🥔
 ];
 
-// Two-pass normalize: first peak-cap each to PEAK_TARGET, then RMS-match
-// everything to the QUIETEST cue's RMS so no persona pokes through.
-const peakCapped = cues.map(({ id, samples }) => ({
-  id,
-  samples: normalizePeak(samples, PEAK_TARGET),
-}));
-
-const rmsValues = peakCapped.map((c) => rms(c.samples));
-const minRms = Math.min(...rmsValues.filter((r) => r > 0));
-
-const normalized = peakCapped.map(({ id, samples }, i) => {
-  const currentRms = rmsValues[i];
+// Two-pass normalize: push every cue UP to the shared RMS target, then
+// peak-limit so no transient clips. Order matters — if we peak-capped
+// first we'd lose the ability to boost quiet cues.
+const normalized = cues.map(({ id, samples }) => {
+  const currentRms = rms(samples);
   if (currentRms === 0) return { id, samples };
-  // Bring every cue's RMS down to the quietest one's level. Guarantees
-  // RMS match AND preserves the peak-cap (gain < 1).
-  const gain = minRms / currentRms;
-  const scaled = scale(samples, gain);
-  return { id, samples: scaled };
+  const rmsGain = RMS_TARGET / currentRms;
+  const boosted = scale(samples, rmsGain);
+  const peak = Math.max(...boosted.map((s) => Math.abs(s)));
+  const limited = peak > PEAK_TARGET ? scale(boosted, PEAK_TARGET / peak) : boosted;
+  return { id, samples: limited };
 });
 
 mkdirSync(OUT_DIR, { recursive: true });

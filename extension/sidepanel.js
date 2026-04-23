@@ -215,11 +215,12 @@ const BODY_PATHS = {
   // tapered crown. Earlier draft was too tall/skinny and read as almond.
   egg:
     "M32 8C21 8 15 20 15 33c0 14 7 23 17 23s17-9 17-23C49 20 43 8 32 8Z",
-  // Lumpy oblong — slight asymmetry reads as potato, but not so narrow
-  // that it loses the spud silhouette. Trimmed a hair off the width vs.
-  // the first draft so the body sits clear of the dark tabloid backdrop.
+  // Lumpy, imperfect spud. Deliberate asymmetry: left shoulder juts at ~y=17,
+  // right flank swells at ~y=33, base pinches left then bulges right. A
+  // perfectly-round oval read as a dinner roll, so this one leans into the
+  // dents.
   potato:
-    "M32 7C24 7 19 11 18 19 15 23 15 31 17 36 15 44 20 55 30 56 41 57 47 50 46 40 50 34 48 23 44 16 40 9 36 7 32 7Z",
+    "M30 7C23 7 19 10 18 15 13 17 13 24 17 26 12 30 13 38 17 40 13 45 16 54 24 55 32 58 41 57 46 52 52 50 51 42 47 39 53 36 51 28 47 26 52 22 48 15 43 14 41 8 36 7 33 6 31 6 30 7Z",
 };
 
 function buildPeanutSVG({
@@ -409,6 +410,18 @@ function personaMascotHTML(personaId, packId) {
     return buildPeanutSVG({
       ns, face: "smile",
       prop: `
+        <!-- Molly's hair: long honey-blonde with a middle part, cascading past
+             the shoulders on both sides. Back layer (darker honey) falls
+             behind, front crown frames the face without covering eyes/mouth.
+             Tapered just above the notebook so the prop still reads. -->
+        <path d="M17 13Q14 22 15 34Q17 40 20 36Q19 24 19 13Z" fill="#B88746" stroke="#7A4A1C" stroke-width=".4" stroke-linejoin="round"/>
+        <path d="M47 13Q50 22 49 34Q47 40 44 36Q45 24 45 13Z" fill="#B88746" stroke="#7A4A1C" stroke-width=".4" stroke-linejoin="round"/>
+        <path d="M18 14Q20 6 28 5Q32 4 36 5Q44 6 46 14Q43 11 38 10.5Q34 10 32 12Q30 10 26 10.5Q21 11 18 14Z" fill="#D9A860" stroke="#7A4A1C" stroke-width=".5" stroke-linejoin="round"/>
+        <path d="M32 5.5L32 11.5" stroke="#8B5A22" stroke-width=".35" opacity=".55"/>
+        <path d="M22 9Q20 22 19 34" stroke="#F2CF8A" stroke-width=".5" fill="none" opacity=".8"/>
+        <path d="M42 9Q44 22 45 34" stroke="#F2CF8A" stroke-width=".5" fill="none" opacity=".8"/>
+        <path d="M19 15Q21 13 25 12" stroke="#F2CF8A" stroke-width=".4" fill="none" opacity=".7"/>
+        <path d="M45 15Q43 13 39 12" stroke="#F2CF8A" stroke-width=".4" fill="none" opacity=".7"/>
         <path d="M19 39q-2 3 1 7M45 39q2 3 -1 7" fill="none" stroke="#8B5E2F" stroke-width="2.6" stroke-linecap="round"/>
         <rect x="20" y="38" width="24" height="18" rx="1" fill="#F0EADA" stroke="#3E2A14" stroke-width="1"/>
         <path d="M23 37v2M27 37v2M31 37v2M35 37v2M39 37v2M43 37v2" stroke="#3E2A14" stroke-width="1" stroke-linecap="round"/>
@@ -424,6 +437,14 @@ function personaMascotHTML(personaId, packId) {
       ns, face: "open",
       extraDefs: `<linearGradient id="mmega-${ns}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#8B1010"/><stop offset="60%" stop-color="#ef4444"/><stop offset="100%" stop-color="#C11A00"/></linearGradient>`,
       prop: `
+        <!-- Jason's hair: short strawberry-blonde with a crisp side part on
+             viewer's left, swept flat across to the right. Painted over the
+             shell highlight so it reads as a real hairline. Two sheen strokes
+             trace the sweep direction. -->
+        <path d="M18 15Q17 8 25 7Q32 5.5 39 7Q46 8 47 15Q44 11 39 10.5Q34 10 31 11.5Q27 10.5 24 11Q20 12 18 15Z" fill="#C88A4A" stroke="#7A4A1C" stroke-width=".5" stroke-linejoin="round"/>
+        <path d="M25 7.5Q26 10 29 12" stroke="#7A4A1C" stroke-width=".5" fill="none" opacity=".75"/>
+        <path d="M29 9Q35 8.3 43 10" stroke="#EAB884" stroke-width=".7" fill="none" opacity=".85"/>
+        <path d="M30 11Q36 10.5 44 12" stroke="#D9A366" stroke-width=".45" fill="none" opacity=".7"/>
         <path d="M22 44q-3 4 2 8M42 44q4 4 -2 8" fill="none" stroke="#8B5E2F" stroke-width="2.6" stroke-linecap="round"/>
         <path d="M22 40L50 32L52 54L26 54Z" fill="url(#mmega-${ns})" stroke="#7A0000" stroke-width="1.2" stroke-linejoin="round"/>
         <ellipse cx="51" cy="43" rx="2.2" ry="10" fill="#7A0000" opacity=".85"/>
@@ -438,14 +459,16 @@ function personaMascotHTML(personaId, packId) {
     return buildPeanutSVG({
       ns, face: "flat",
       bodyShape: "egg",
-      bodyStroke: "#9E8456",
+      bodyStroke: "#D8C89A",
       showShellGrooves: false,
+      // Chicken-white shell: pure white across most of the body so it reads
+      // unambiguously "egg" on the dark tabloid backdrop. Keep a faint warm
+      // tint at ~85% and a cool bounce at the base so the depth filter still
+      // has something to work with — otherwise it flattens to a paper oval.
       bodyStops: `
-        <stop offset="0%"   stop-color="#FFFDF5"/>
-        <stop offset="35%"  stop-color="#FFF2D8"/>
-        <stop offset="70%"  stop-color="#EBD5A6"/>
-        <stop offset="93%"  stop-color="#D4B87E"/>
-        <stop offset="100%" stop-color="#8FA7BE"/>`,
+        <stop offset="0%"   stop-color="#FFFFFF"/>
+        <stop offset="92%"  stop-color="#FFFFFF"/>
+        <stop offset="100%" stop-color="#F2EEE2"/>`,
       prop: `
         <path d="M19 42q-2 3 1 6M45 42q2 3 -1 6" fill="none" stroke="#8B5E2F" stroke-width="2.6" stroke-linecap="round"/>
         <rect x="19" y="42" width="26" height="14" rx=".8" fill="#2A2A2A" stroke="#000" stroke-width="1"/>
@@ -468,25 +491,43 @@ function personaMascotHTML(personaId, packId) {
     return buildPeanutSVG({
       ns, face: "smirk",
       bodyShape: "potato",
-      bodyStroke: "#6B4A22",
+      bodyStroke: "#8A6638",
       showShellGrooves: false,
-      // Brightened vs. the first draft so the russet skin reads against
-      // the dark tabloid backdrop — the previous near-black 100% stop
-      // made Alex disappear into the page.
+      // Potato, not poo. Key artistic differences: potatoes are tan/khaki
+      // (warm yellow-brown), NOT chocolate brown; matte, not swirly; and
+      // carry dark "eyes" (sprout dimples) which poo does not. Earlier draft
+      // pushed to near-black at 100% which dragged it into poo territory —
+      // this range stays in russet-tan for every stop so the body reads as
+      // skin-on spud at a glance. The dark freckles in the prop layer do
+      // the rest of the potato-signaling.
       bodyStops: `
-        <stop offset="0%"   stop-color="#F4D69A"/>
-        <stop offset="35%"  stop-color="#DCAD6C"/>
-        <stop offset="70%"  stop-color="#A97C46"/>
-        <stop offset="93%"  stop-color="#8B6532"/>
-        <stop offset="100%" stop-color="#6A4820"/>`,
+        <stop offset="0%"   stop-color="#FBE8BE"/>
+        <stop offset="35%"  stop-color="#E8C487"/>
+        <stop offset="70%"  stop-color="#C89A5E"/>
+        <stop offset="93%"  stop-color="#A8824A"/>
+        <stop offset="100%" stop-color="#8A6638"/>`,
       prop: `
-        <!-- Skin eyes (potato freckles) scattered on the body to texture
-             the russet — positioned away from face + prop so they don't
-             clutter the silhouette. -->
-        <ellipse cx="22" cy="24" rx=".9" ry="1.1" fill="#3E2A14" opacity=".55"/>
-        <ellipse cx="44" cy="17" rx=".7" ry="1.0" fill="#3E2A14" opacity=".5"/>
-        <ellipse cx="48" cy="30" rx="1.1" ry="1.3" fill="#3E2A14" opacity=".5"/>
-        <ellipse cx="17" cy="36" rx=".8" ry="1.0" fill="#3E2A14" opacity=".55"/>
+        <!-- Green sprout out the top: the single most unambiguous "this is
+             a potato" signal — poo never grows leaves. Tiny stem + two
+             teardrop leaves on viewer's left of the crown so the face isn't
+             obscured. -->
+        <!-- Sprout sized to sit fully inside the circular avatar clip: the
+             earlier version extended to y=1 and got sliced off by the mask.
+             All anchors stay at y≥3.5 so the leaves emerge cleanly. -->
+        <path d="M24 11Q21 8 20 5" stroke="#3F7A2E" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M20 5Q13 4 13.5 8.5Q18 9.5 20 5Z" fill="#5AA840" stroke="#2E5F22" stroke-width=".5" stroke-linejoin="round"/>
+        <path d="M20 5Q26 3.5 27 7Q22.5 8 20 5Z" fill="#7ACB52" stroke="#2E5F22" stroke-width=".5" stroke-linejoin="round"/>
+        <path d="M15 7.5Q17 7 19 6" stroke="#2E5F22" stroke-width=".35" fill="none" opacity=".6"/>
+        <!-- Potato eyes (sprout dimples): darker pit + highlight ring to read
+             as indented, not painted-on dots. Cartoon potato shorthand. -->
+        <ellipse cx="22" cy="24" rx="1.4" ry="1.6" fill="#F3D39A" opacity=".7"/>
+        <ellipse cx="22" cy="24" rx=".9" ry="1.1" fill="#3E2A14" opacity=".85"/>
+        <ellipse cx="44" cy="17" rx="1.2" ry="1.4" fill="#F3D39A" opacity=".6"/>
+        <ellipse cx="44" cy="17" rx=".7" ry="1.0" fill="#3E2A14" opacity=".8"/>
+        <ellipse cx="48" cy="30" rx="1.6" ry="1.8" fill="#F3D39A" opacity=".65"/>
+        <ellipse cx="48" cy="30" rx="1.1" ry="1.3" fill="#3E2A14" opacity=".8"/>
+        <ellipse cx="17" cy="36" rx="1.3" ry="1.5" fill="#F3D39A" opacity=".65"/>
+        <ellipse cx="17" cy="36" rx=".8" ry="1.0" fill="#3E2A14" opacity=".85"/>
         <!-- Stem knob + leaf cue (pie chart) -->
         <path d="M19 39q-2 3 1 7M45 39q2 3 -1 7" fill="none" stroke="#5A3A18" stroke-width="2.6" stroke-linecap="round"/>
         <circle cx="32" cy="45" r="10" fill="#F6F0E2" stroke="#3E2A14" stroke-width="1.2"/>
@@ -722,6 +763,9 @@ function setBackendMode(mode, { persist = true } = {}) {
   // Show the front-page free-trial banner whenever Demo is active (and
   // the trial isn't exhausted). Hidden in any other mode.
   refreshFreeTierBanner();
+  // Re-evaluate the Demo tab's visibility: once the user leaves demo with
+  // the trial exhausted, the tab should disappear (one-shot rule).
+  refreshDemoOptionVisibility();
 }
 
 // Resolve selfHostBlock visibility from (mode, debugPanelOpen). Called from
@@ -1194,13 +1238,21 @@ function refreshFreeTierBanner({ liveSessionElapsedMs = 0 } = {}) {
  */
 function refreshDemoOptionVisibility() {
   if (!backendModeSegmented) return;
-  // Demo tab stays visible even after the trial is exhausted: the red
-  // "trial over" banner lives there, and it's the reminder the user
-  // needs to pick a path. Removing the tab would hide the pitch.
   const demoBtn = backendModeSegmented.querySelector(
     '.segmented-option[data-value="demo"]'
   );
-  if (demoBtn) demoBtn.hidden = false;
+  if (!demoBtn) return;
+  // Demo access rule (per Seth 2026-04-23):
+  //   • Trial NOT exhausted → tab visible always.
+  //   • Trial exhausted + currently parked on demo → tab visible, showing the
+  //     red "trial over" card. User sees WHY listening stopped.
+  //   • Trial exhausted + user has moved off demo → tab HIDDEN. Demo is a
+  //     one-shot; once they leave it with the clock at zero there's no way
+  //     back in. Prevents them from re-entering an empty-pocket mode just
+  //     to stare at the red card again.
+  const exhausted = freeTierExhausted();
+  const parkedOnDemo = backendMode === "demo";
+  demoBtn.hidden = exhausted && !parkedOnDemo;
 }
 
 // ── Elapsed-timer (paid BYOK + Plus) ──
@@ -2454,6 +2506,7 @@ function buildPersonaAvatars() {
     el.id = `bubble-${p.id}`;
     el.dataset.personaId = p.id;
     el.dataset.role = roleForSlot(p.id);
+    el.dataset.packId = currentPackId;
     const initials = personaInitials(p.name);
     const roleTag = roleForSlot(p.id).toUpperCase();
     // If a v1.8 peanut mascot exists for this persona+pack, render it in
