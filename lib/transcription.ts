@@ -638,6 +638,15 @@ export class TranscriptionManager extends EventEmitter {
       url.searchParams.set("encoding", "linear16");
       url.searchParams.set("sample_rate", "16000");
       url.searchParams.set("channels", "1");
+      // Opt out of Deepgram's Model Improvement Partnership Program on every
+      // request. Without this flag, Deepgram retains audio + transcripts for
+      // model training per MSA §3.1 AI-Data license — load-bearing for our
+      // Privacy Policy claim "Audio is streamed + discarded — never written
+      // to disk." Legal brief 2026-04-24 §1D + §12.2 flagged absence of this
+      // parameter as a compliance gap. Trade-off: the MIP discount is
+      // forfeited (~2x per-minute cost), which is acceptable for a product
+      // processing user-supplied audio.
+      url.searchParams.set("mip_opt_out", "true");
 
       // Live-specific: enable diarization so we know who's talking
       if (this.isLive) {

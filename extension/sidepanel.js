@@ -1933,6 +1933,16 @@ const EMPTY_STATE_VARIANTS = {
     dk: "Choose a writers' room lineup from Settings → Lineup and you're live.",
     cta: { text: "Choose Pack", action: "settings:lineup" },
   },
+  // v2.0.1: Peanut Gallery Plus weekly-cap-reached empty state. Distinct
+  // from "needs-keys" (the free-tier exhausted case) because the user
+  // HAS a valid Plus subscription — their path forward is to paste BYOK
+  // keys for the rest of the week, or wait for the weekly reset. Banner
+  // message from the server carries the specific hours-to-reset figure.
+  "cap-reached-plus": {
+    lg: "Cap<br>Reached.",
+    dk: "Your Peanut Gallery Plus meter is at the weekly cap. Paste your own API keys in the drawer to keep watching now, or come back after the weekly reset.",
+    cta: { text: "Open Settings", action: "settings:backend" },
+  },
 };
 
 function setEmptyStateVariant(variant) {
@@ -3460,18 +3470,42 @@ startBtn.addEventListener("click", async () => {
     // the UI back to idle so the user isn't stranded in a dead "capturing"
     // view. showIdle clears all the session state and shows the setup form.
     if (capturing) showIdle();
-    // Special-case the hosted-backend free-trial exhaustion error so the
-    // user lands directly on the API-keys section and knows exactly what to
-    // do next, instead of getting a raw banner they have to decipher.
-    // Offscreen prefixes the message with "TRIAL_EXHAUSTED:" (or
-    // "INSTALL_ID_REQUIRED:" for the rare missing-header case) — strip it
-    // before display.
+    // Special-case the hosted-backend quota errors so the user lands on
+    // the drawer with a clear path forward instead of a raw banner:
+    //   - TRIAL_EXHAUSTED        → free-tier ran out, needs API keys
+    //   - INSTALL_ID_REQUIRED    → rare missing-header case, same recovery
+    //   - SUBSCRIPTION_CAP_REACHED → Plus user hit weekly 16 h cap, can
+    //                               swap to BYOK keys or wait for reset
+    //   - SUBSCRIPTION_INVALID_KEY → Plus key not recognized on backend,
+    //                               same keys-required recovery
+    //   - SUBSCRIPTION_DISABLED  → backend doesn't have Plus turned on,
+    //                               same keys-required recovery
+    // Offscreen prefixes the message with "<CODE>:" — strip it before display.
     const rawMsg = err.message || String(err);
     if (rawMsg.startsWith("TRIAL_EXHAUSTED:") || rawMsg.startsWith("INSTALL_ID_REQUIRED:")) {
       const cleaned = rawMsg.replace(/^[A-Z_]+:/, "");
       // Flip the status strip to CAP REACHED so the free-tier user sees the
       // state even before they act on the drawer prompt.
       if (statusBar.classList.contains("with-timer")) flipToCapReached();
+      openSettingsDrawer();
+      showDrawerSection("backend");
+      showError(cleaned, "needs-keys");
+    } else if (rawMsg.startsWith("SUBSCRIPTION_CAP_REACHED:")) {
+      const cleaned = rawMsg.replace(/^[A-Z_]+:/, "");
+      // Flip the status strip to CAP REACHED so a Plus user sees the
+      // state before they open the drawer.
+      if (statusBar.classList.contains("with-timer")) flipToCapReached();
+      openSettingsDrawer();
+      showDrawerSection("backend");
+      showError(cleaned, "cap-reached-plus");
+    } else if (
+      rawMsg.startsWith("SUBSCRIPTION_INVALID_KEY:") ||
+      rawMsg.startsWith("SUBSCRIPTION_DISABLED:")
+    ) {
+      const cleaned = rawMsg.replace(/^[A-Z_]+:/, "");
+      // Key invalid or backend doesn't have Plus enabled — same recovery
+      // shape as the trial-exhausted path (paste own keys, or go to
+      // Manage to replace the key).
       openSettingsDrawer();
       showDrawerSection("backend");
       showError(cleaned, "needs-keys");
