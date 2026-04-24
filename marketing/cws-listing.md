@@ -66,7 +66,7 @@ PRIVACY-FIRST BY DESIGN
 
 COST
 
-Approximately $1.15 per 2-hour episode across all four providers at current rates. No subscription, no middleman — you pay the providers directly.
+Approximately $1 per hour across all three providers at current rates. No subscription, no middleman — you pay the providers directly.
 
 LINKS
 

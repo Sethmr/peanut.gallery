@@ -461,7 +461,7 @@ export default function LandingPage() {
           <h2 className="fade-in">Multi-provider by design.</h2>
           <p className="section-sub fade-in">
             Two LLM providers. Swap any model. No single dependency. Open source, MIT licensed.
-            Cost: ~$1.15 per 2-hour episode.
+            Cost: ~$1 per hour.
           </p>
 
           <div className="stack-grid">

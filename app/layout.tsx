@@ -223,7 +223,7 @@ export default function RootLayout({
                   name: "How much does it cost to run?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Roughly $1.15 in API costs per two-hour YouTube video if you bring your own keys. All providers have free tiers that cover casual use.",
+                    text: "Roughly $1 per hour in API costs if you bring your own keys. All providers have free tiers that cover casual use.",
                   },
                 },
                 {

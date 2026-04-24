@@ -157,7 +157,7 @@ Multi-provider by design. No platform trap.
 | Fact-check search | xAI Live Search (Grok Responses API + `web_search` tool) | Reuses the xAI key — no separate provider |
 | Smart Director (v1.6 canary) | Claude Haiku `tool_use`, 400 ms budget | Primary LLM router; rule-based scorer is the safety net. Cerebras Llama 3.1 8B runs as read-only shadow for agreement + latency validation. |
 
-**Cost per 2-hour episode: ~$1.15** at current API rates (Deepgram + Haiku + Grok Fast + one search call per fact-check candidate). Full breakdown: [`docs/CONTEXT.md#cost-per-episode`](docs/CONTEXT.md#cost-per-episode).
+**Cost: ~$1 per hour** at current API rates (Deepgram + Haiku + Grok Fast + one Grok Live Search call per fact-check candidate). Full breakdown: [`docs/CONTEXT.md#cost-per-episode`](docs/CONTEXT.md#cost-per-episode).
 
 ---
 

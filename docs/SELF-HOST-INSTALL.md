@@ -534,14 +534,13 @@ note in [Deploy](#deploy-to-a-public-host-railway--docker--vercel).
 
 On the free tiers:
 
-| Provider | Free tier | Real-world 2-hour session |
+| Provider | Free tier | Real-world per-hour spend |
 |----------|-----------|---------------------------|
-| Deepgram | $200 credit on signup | ~$0.87 (Nova-3 streaming) |
-| Anthropic | Starter credit on signup | ~$0.25 (Haiku is cheap) |
-| xAI | Free credits on signup | ~$0.05 (Grok 4.1 Fast non-reasoning) |
-| Brave | 2,000 queries/month | ~30 queries (≈1.5% of free tier) |
+| Deepgram | $200 credit on signup | ~$0.44 (Nova-3 streaming) |
+| Anthropic | Starter credit on signup | ~$0.13 (Haiku is cheap) |
+| xAI | Free credits on signup | Grok 4.1 Fast persona calls + Grok Live Search fact-check grounding |
 
-**Total per 2-hour episode: ~$1.15** once you exhaust free credit.
+**Total: ~$1 per hour** once you exhaust free credit.
 
 ---
 
