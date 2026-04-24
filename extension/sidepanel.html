@@ -92,6 +92,37 @@
       cursor: pointer; -webkit-user-select: none; user-select: none;
       padding: 2px 4px;
     }
+    /* v2.0.1: permanent AI-disclosure stamp in the top rail. Pairs with
+       the AI-notice strip below the masthead and the ToS "AI output and
+       persona framing" section to satisfy Anthropic AUP line 146 and
+       right-of-publicity best practice. */
+    .masthead .ai-stamp{
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 5px;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: var(--slab-2);
+      font-weight: 700;
+      letter-spacing: .15em;
+    }
+    /* v2.0.1: one-line AI-disclosure strip below masthead, always visible.
+       Broadsheet register: italic serif + uppercase slab stamp. */
+    .ai-notice-strip{
+      flex-shrink: 0;
+      padding: 5px 12px;
+      text-align: center;
+      font-family: var(--serif); font-style: italic;
+      font-size: 11px; color: var(--ink-2);
+      border-bottom: 1px solid var(--rule);
+      background: var(--paper);
+    }
+    .ai-notice-strip strong{
+      font-family: var(--slab-2); font-style: normal;
+      font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--ink);
+      margin-right: 4px;
+    }
     .masthead .title-row{
       padding: 8px 12px 4px;
       display:flex; justify-content:center; align-items:center;
@@ -2158,7 +2189,7 @@
   <!-- ── MASTHEAD ── -->
   <header class="masthead">
     <div class="rails">
-      <span>Vol. I · No. 001</span>
+      <span>Vol. I · No. 001 <span class="ai-stamp" title="AI-generated commentary">AI</span></span>
       <span class="rail-right">
         <button id="settingsToggleTop" class="rail-gear" type="button" title="Settings" aria-label="Settings">&#9881;</button>
         <span id="versionBadge" class="ver" title="Long-press to toggle debug"></span>
@@ -2175,6 +2206,17 @@
       <span>Daily</span>
     </div>
   </header>
+
+  <!-- ── AI DISCLOSURE STRIP (always visible) ──
+       Anthropic AUP line 146 requires users be made aware they are
+       interacting with AI-generated content. Pairs with the "AI" stamp
+       in the masthead top rail and the ToS §"AI output and persona
+       framing" section. Also signals the right-of-publicity posture:
+       every persona is a parody of a public figure, synthesized text
+       only, no voice clone. -->
+  <div class="ai-notice-strip" role="note" aria-label="AI disclosure">
+    <strong>AI-generated</strong> commentary &middot; parodies of public figures, not real people
+  </div>
 
   <!-- ── ERROR BANNER ── -->
   <div id="errorBanner" class="error-banner">
