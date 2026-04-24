@@ -12,8 +12,9 @@
  *
  * FACT-CHECKING PIPELINE (for Producer persona):
  * 1. Extract verifiable claims from recent transcript
- * 2. Run parallel search queries for each claim (Brave Search or xAI Live
- *    Search — chosen per session by the viewer)
+ * 2. Run parallel search queries for each claim via xAI Live Search
+ *    (Brave Search deprecated in v2.0.1 — one provider now covers both
+ *     persona generation and fact-check grounding)
  * 3. Inject search results into Producer's context
  * 4. Producer cross-references and corrects in real-time
  */
@@ -157,18 +158,8 @@ import {
   type FactHint,
 } from "./claim-detector";
 
-/**
- * Which search backend to use for Producer fact-checking. User-selectable per
- * session — Brave hits the Brave Search REST API; "xai" uses xAI's Grok Live
- * Search (`search_parameters` on a chat completion) which returns a synthesized
- * answer + citations in one round-trip. Default is "brave" to preserve the
- * existing behavior for users who haven't flipped the toggle.
- */
-export type SearchEngine = "brave" | "xai";
-
 export class PersonaEngine {
   private anthropic: Anthropic;
-  private braveApiKey: string;
   /**
    * xAI Grok uses an OpenAI-compatible REST API, so we call it with raw
    * fetch + SSE parsing instead of pulling in another SDK. Keys flow in the
@@ -176,15 +167,12 @@ export class PersonaEngine {
    * string means "not configured" — the xai branch in firePersona will throw
    * a clear error, which the force-react fallback will then catch and
    * convert into a visible canned bubble.
+   *
+   * v2.0.1: also carries the Producer's fact-check search traffic via
+   * Grok Live Search (Responses API /v1/responses with web_search tool).
+   * Brave Search was deprecated in this release — one key does both jobs.
    */
   private xaiKey: string;
-
-  /**
-   * Which search engine the Producer uses for fact-checking. Fixed at
-   * construction time so a single session has deterministic behavior; the
-   * route picks this up from the client header and hands it to us.
-   */
-  private searchEngine: SearchEngine;
 
   /**
    * The active pack. Defaults to the Howard pack so pre-v1.3 call sites that
@@ -335,13 +323,13 @@ export class PersonaEngine {
 
   constructor(config: {
     anthropicKey: string;
-    braveSearchKey: string;
     /**
      * xAI Grok key. Every pack's Troll/Jason AND soundfx slot routes through
      * Grok as of v1.4, so a working xAI key is required for both packs to
-     * fire cleanly. Empty-string is still accepted (force-react fallback
-     * catches the resulting throw into a visible canned bubble), but the
-     * sidebar will look sparse.
+     * fire cleanly. As of v2.0.1, also carries the Producer's fact-check
+     * search traffic (Brave Search deprecated). Empty-string is still
+     * accepted (force-react fallback catches the resulting throw into a
+     * visible canned bubble), but the sidebar will look sparse.
      */
     xaiKey: string;
     /**
@@ -353,14 +341,6 @@ export class PersonaEngine {
      */
     pack?: Pack;
     /**
-     * Optional. Search backend for Producer fact-checking. "brave" preserves
-     * the pre-v1.4 behavior (Brave Search REST API); "xai" uses Grok Live
-     * Search and folds the whole search+synthesize step into one Grok call
-     * (removes the second network hop + removes the Brave-Search dependency
-     * for users who only want one key). Defaults to "brave".
-     */
-    searchEngine?: SearchEngine;
-    /**
      * Optional. OpenAI API key for semantic anti-repetition embeddings (SET-15).
      * Required when ENABLE_SEMANTIC_ANTI_REPEAT=true; ignored otherwise.
      * Uses text-embedding-3-small via raw fetch (no SDK dep).
@@ -368,9 +348,7 @@ export class PersonaEngine {
     openAiKey?: string;
   }) {
     this.anthropic = new Anthropic({ apiKey: config.anthropicKey });
-    this.braveApiKey = config.braveSearchKey;
     this.xaiKey = config.xaiKey;
-    this.searchEngine = config.searchEngine ?? "brave";
     this.pack = config.pack ?? howardPack;
 
     // Initialize response history for every persona in the active pack
@@ -553,7 +531,7 @@ export class PersonaEngine {
           event: "search_skip",
           level: "info",
           personaId: persona.id,
-          data: { reason: "force_react", engine: this.searchEngine },
+          data: { reason: "force_react", engine: "xai" },
         });
         searchStatus = "skipped";
       } else {
@@ -1158,17 +1136,14 @@ export class PersonaEngine {
     transcript: string,
     preExtracted?: ScoredClaim[]
   ): Promise<string | undefined> {
-    // Route on the session's configured search engine. Both branches share
-    // the same claim-extraction logic — they differ only in how the actual
-    // "look this up on the web" step runs. That keeps the Producer's prompt
-    // shape identical whether we're using Brave or xAI under the hood.
-    const engine = this.searchEngine;
-    const requiredKey = engine === "brave" ? this.braveApiKey : this.xaiKey;
-    if (!requiredKey) {
+    // v2.0.1: fact-check grounding always runs through xAI Live Search
+    // (Brave Search deprecated). Producer's prompt shape is unchanged —
+    // the "look this up on the web" step is just always the xAI path.
+    if (!this.xaiKey) {
       logPipeline({
         event: "search_skip",
         level: "debug",
-        data: { reason: "no_api_key", engine },
+        data: { reason: "no_api_key", engine: "xai" },
       });
       return undefined;
     }
@@ -1196,23 +1171,21 @@ export class PersonaEngine {
         logPipeline({
           event: "search_no_claims_detected",
           level: "info",
-          data: { reason: "no_claims_scored", engine, transcriptLength: recentText.length },
+          data: { reason: "no_claims_scored", engine: "xai", transcriptLength: recentText.length },
         });
         return undefined;
       }
 
       const searchTasks = topClaims.map(async ({ sentence }) => {
         const query = this.buildSearchQuery(sentence);
-        return engine === "brave"
-          ? this.searchBrave(query)
-          : this.searchXai(query);
+        return this.searchXai(query);
       });
 
       const results = await Promise.allSettled(searchTasks);
 
       // Combine all successful search results + count outcomes so we can
-      // see the hit rate per engine at the aggregate level. Individual
-      // failure reasons are logged inside searchBrave/searchXai.
+      // see the hit rate at the aggregate level. Individual failure
+      // reasons are logged inside searchXai.
       const allResults: string[] = [];
       let succeeded = 0;
       let emptyOrFailed = 0;
@@ -1233,7 +1206,7 @@ export class PersonaEngine {
         event: "search_complete",
         level: succeeded === 0 ? "warn" : "info",
         data: {
-          engine,
+          engine: "xai",
           attempted: topClaims.length,
           succeeded,
           emptyOrFailed,
@@ -1255,7 +1228,7 @@ export class PersonaEngine {
         event: "search_pipeline_error",
         level: "error",
         data: {
-          engine,
+          engine: "xai",
           error: err instanceof Error ? err.message : String(err),
         },
       });
@@ -1354,88 +1327,6 @@ export class PersonaEngine {
 
     // Default: use the first 120 chars of the (normalized) claim
     return query.slice(0, 120);
-  }
-
-  /**
-   * Execute a single Brave Search query and format results.
-   */
-  private async searchBrave(query: string): Promise<string | undefined> {
-    const BRAVE_TIMEOUT_MS = 5000;
-    try {
-      // 5-second hard timeout. Node's native fetch has no default timeout,
-      // so a silently-stalled upstream would hang the producer's fireSingle
-      // forever and strand the avatar's spinner. 5s is generous for Brave
-      // (typical <1s) and well below the client's 15s safety timeout, so
-      // even a director-driven fact-check that bails out still gives
-      // firePersona time to produce a visible in-voice fallback.
-      const response = await fetch(
-        `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=3&freshness=py`,
-        {
-          headers: {
-            Accept: "application/json",
-            "Accept-Encoding": "gzip",
-            "X-Subscription-Token": this.braveApiKey,
-          },
-          signal: AbortSignal.timeout(BRAVE_TIMEOUT_MS),
-        }
-      );
-
-      if (!response.ok) {
-        logPipeline({
-          event: "search_upstream_error",
-          level: "warn",
-          data: {
-            engine: "brave",
-            status: response.status,
-            query: query.slice(0, 100),
-          },
-        });
-        return undefined;
-      }
-
-      const data = await response.json();
-      const results = data.web?.results || [];
-
-      if (results.length === 0) {
-        // Brave returned 200 but no hits. This isn't an error, but it IS
-        // value-reducing: the Producer will have to fall back to its own
-        // knowledge for this claim. Track frequency so we can tune the
-        // query builder (freshness window, term extraction, etc.) if the
-        // empty-hit rate climbs.
-        logPipeline({
-          event: "search_empty_result",
-          level: "info",
-          data: { engine: "brave", query: query.slice(0, 100) },
-        });
-        return undefined;
-      }
-
-      return results
-        .map(
-          (r: { title: string; description: string; url: string }) =>
-            `• [${r.title}] ${r.description}`
-        )
-        .join("\n");
-    } catch (err) {
-      // AbortSignal.timeout() throws a DOMException with name "TimeoutError"
-      // in Node 18+. Split timeout from generic network errors so operational
-      // dashboards can distinguish a slow upstream (actionable: raise the
-      // ceiling or switch engines) from a transient failure.
-      const isTimeout =
-        err instanceof DOMException && err.name === "TimeoutError";
-      logPipeline({
-        event: isTimeout ? "search_timeout" : "search_upstream_error",
-        level: "warn",
-        data: {
-          engine: "brave",
-          query: query.slice(0, 100),
-          ...(isTimeout
-            ? { timeoutMs: BRAVE_TIMEOUT_MS }
-            : { error: err instanceof Error ? err.message : String(err) }),
-        },
-      });
-      return undefined;
-    }
   }
 
   /**

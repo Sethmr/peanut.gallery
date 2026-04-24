@@ -185,7 +185,10 @@ export async function POST(req: NextRequest) {
   // tell "user brought their own (no charge)" from "user is using demo keys".
   const headerDeepgram = req.headers.get("X-Deepgram-Key");
   const headerAnthropic = req.headers.get("X-Anthropic-Key");
-  const headerBrave = req.headers.get("X-Brave-Key");
+  // v2.0.1: X-Brave-Key header deprecated (Brave Search removed from
+  // the extension). Still honoured on the server for backward-compat
+  // with older extension builds, but nothing in the PersonaEngine
+  // constructor below consumes it anymore — fact-check always uses xAI.
   const headerXai = req.headers.get("X-XAI-Key");
   const headerGroq = req.headers.get("X-Groq-Key");
   const headerCerebras = req.headers.get("X-Cerebras-Key");
@@ -210,7 +213,6 @@ export async function POST(req: NextRequest) {
 
   const deepgramKey = sanitizeKey(headerDeepgram) ?? sanitizeKey(process.env.DEEPGRAM_API_KEY);
   const anthropicKey = sanitizeKey(headerAnthropic) ?? sanitizeKey(process.env.ANTHROPIC_API_KEY);
-  const braveKey = sanitizeKey(headerBrave) ?? sanitizeKey(process.env.BRAVE_SEARCH_API_KEY);
   const xaiKey = sanitizeKey(headerXai) ?? sanitizeKey(process.env.XAI_API_KEY);
   const openAiKey = sanitizeKey(headerOpenAi) ?? sanitizeKey(process.env.OPENAI_API_KEY);
   // Shadow-provider keys for Smart Director v3 (SET-6). Never used for
@@ -220,11 +222,8 @@ export async function POST(req: NextRequest) {
   const groqKey = sanitizeKey(headerGroq) ?? sanitizeKey(process.env.GROQ_API_KEY);
   const cerebrasKey = sanitizeKey(headerCerebras) ?? sanitizeKey(process.env.CEREBRAS_API_KEY);
 
-  // Search-engine selection. Client sends "brave" or "xai" via X-Search-Engine;
-  // anything else (missing, typo, old client) falls through to Brave — that
-  // preserves pre-v1.4 behavior for any extension that hasn't updated yet.
-  const rawSearchEngine = (req.headers.get("X-Search-Engine") || "").toLowerCase();
-  const searchEngine: "brave" | "xai" = rawSearchEngine === "xai" ? "xai" : "brave";
+  // v2.0.1: Search-engine selection removed (Brave Search deprecated).
+  // Producer fact-checks always use xAI Live Search via the xAI key.
 
   // v1.7: global sensitivity. Client sends "quiet" | "normal" | "rowdy" via
   // X-Sensitivity; anything else (missing, typo) defaults to "normal" —
@@ -352,9 +351,7 @@ export async function POST(req: NextRequest) {
   log.info("session_create", {
     url: youtubeUrl,
     hasAnthropic: !!anthropicKey,
-    hasBrave: !!braveKey,
     hasXai: !!xaiKey,
-    searchEngine,
     usingAnyDemoKey,
     chargeable: !!chargeableInstallId,
     rate: rateClamped,
@@ -398,15 +395,11 @@ export async function POST(req: NextRequest) {
 
   const personaEngine = new PersonaEngine({
     anthropicKey: anthropicKey || "",
-    braveSearchKey: braveKey || "",
-    // xAI key powers the Troll/Jason AND soundfx slots in every pack. Empty
+    // xAI key powers the Troll/Jason AND soundfx slots in every pack AND
+    // the Producer's fact-check grounding via Grok Live Search. Empty
     // string is still accepted — the force-react fallback catches per-persona
     // upstream failures — but the sidebar will look sparse without it.
     xaiKey: xaiKey || "",
-    // User-selected search backend (Brave or xAI). Defaults to Brave on the
-    // engine side too, but we pass it explicitly so logs + future debugging
-    // show exactly which engine THIS session was configured with.
-    searchEngine,
     // Pass the resolved pack (never undefined — resolvePack() guarantees a
     // valid Pack). Engine internally falls back to Howard if pack is unset,
     // so this is also the "self-documenting" seam.

@@ -337,7 +337,7 @@ function sendToOffscreen(msg, callback) {
   });
 }
 
-async function handleStartCapture({ serverUrl, apiKeys, searchEngine, youtubeUrl, tabTitle, audio, installId, rate, packId, sensitivity, backendMode, subscriptionKey }) {
+async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle, audio, installId, rate, packId, sensitivity, backendMode, subscriptionKey }) {
   const streamId = await takePendingStream();
   console.log("[PG:bg] handleStartCapture: took streamId from session?", !!streamId);
 
@@ -365,10 +365,6 @@ async function handleStartCapture({ serverUrl, apiKeys, searchEngine, youtubeUrl
         streamId,
         serverUrl,
         apiKeys,
-        // User's chosen fact-check search backend (Brave or xAI). Pure
-        // passthrough — background.js doesn't interpret it; offscreen.js
-        // translates it to the X-Search-Engine header on /api/transcribe.
-        searchEngine,
         audio, // { passthrough, outputDeviceId } — optional; offscreen defaults to pre-v1.1 behavior
         installId: installId || "", // forwarded to backend as X-Install-Id header
         youtubeUrl: youtubeUrl || lastTab?.url || "",

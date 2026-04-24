@@ -664,8 +664,6 @@ function hasRequiredUserKeys() {
   const dg = (deepgramKeyInput?.value || "").trim();
   const anth = (anthropicKeyInput?.value || "").trim();
   const xai = (xaiKeyInput?.value || "").trim();
-  // Brave is optional — extension falls back to xAI Live Search when
-  // searchEngine is "brave" but no Brave key is set.
   return !!(dg && anth && xai);
 }
 
@@ -741,7 +739,7 @@ function setBackendMode(mode, { persist = true } = {}) {
   // staging, etc.). Kept wired to the same serverUrlInput so existing
   // request code doesn't need to branch.
   updateSelfHostBlockVisibility(mode);
-  // Show BYOK provider keys (Deepgram / Anthropic / xAI / Brave) ONLY in
+  // Show BYOK provider keys (Deepgram / Anthropic / xAI) ONLY in
   // "My keys" and Self-host modes. Demo runs on our hosted keys and Plus
   // runs on the subscription — neither should surface user-key fields.
   // HTML defaults the block to hidden so it doesn't flash on first paint
@@ -1363,15 +1361,10 @@ const serverUrlInput = document.getElementById("serverUrl");
 const deepgramKeyInput = document.getElementById("deepgramKey");
 const anthropicKeyInput = document.getElementById("anthropicKey");
 const xaiKeyInput = document.getElementById("xaiKey");
-const braveKeyInput = document.getElementById("braveKey");
+// v2.0.1: Brave Search deprecated. braveKey / searchEngine picker
+// removed — fact-checker always uses xAI Live Search via the xAI key.
 // (subscription-UI const refs moved up to ~line 525 so they're declared
-//  before the v1.9 BACKEND-MODE code block references them. Leaving this
-//  comment here for grep traceability so anyone tracking "where did the
-//  subscription DOM refs go" lands on the right block.)
-// Search-engine selector — controls which backend the Producer uses for
-// fact-checking. Values: "brave" (default) | "xai". Older sidepanel.html
-// without this element drops through to null and we coerce to "brave".
-const searchEngineSelect = document.getElementById("searchEngine");
+//  before the v1.9 BACKEND-MODE code block references them.)
 const passthroughToggle = document.getElementById("passthroughToggle");
 const outputDeviceSelect = document.getElementById("outputDevice");
 const muteSfxToggle = document.getElementById("muteSfxToggle");
@@ -1479,8 +1472,6 @@ function loadSettings() {
       "deepgramKey",
       "anthropicKey",
       "xaiKey",
-      "braveKey",
-      "searchEngine",
       "passthrough",
       "outputDeviceId",
       "muteSfx",
@@ -1499,13 +1490,9 @@ function loadSettings() {
       deepgramKeyInput.value = data.deepgramKey || "";
       anthropicKeyInput.value = data.anthropicKey || "";
       if (xaiKeyInput) xaiKeyInput.value = data.xaiKey || "";
-      braveKeyInput.value = data.braveKey || "";
-      // Search-engine selector. Valid values are "brave" and "xai"; anything
-      // else (or missing) falls back to "brave" to mirror the backend default.
-      if (searchEngineSelect) {
-        const savedEngine = data.searchEngine === "xai" ? "xai" : "brave";
-        searchEngineSelect.value = savedEngine;
-      }
+      // v2.0.1: Brave deprecated. Any legacy braveKey / searchEngine in
+      // chrome.storage.local is ignored; we don't bother migrating since
+      // the values just go unread.
 
       // Audio routing defaults: passthrough ON + system default device.
       // Matches pre-v1.1 behavior exactly for existing users.
@@ -1612,8 +1599,6 @@ function saveSettings() {
     deepgramKey: deepgramKeyInput.value.trim(),
     anthropicKey: anthropicKeyInput.value.trim(),
     xaiKey: xaiKeyInput ? xaiKeyInput.value.trim() : "",
-    braveKey: braveKeyInput.value.trim(),
-    searchEngine: searchEngineSelect?.value === "xai" ? "xai" : "brave",
     passthrough: passthroughToggle.checked,
     outputDeviceId: currentOutputDeviceId(),
     muteSfx: muteSfxToggle ? muteSfxToggle.checked : false,
@@ -3422,13 +3407,8 @@ startBtn.addEventListener("click", async () => {
     if (!deepgramKeyInput.value.trim()) missing.push("Deepgram");
     if (!anthropicKeyInput.value.trim()) missing.push("Anthropic");
     if (xaiKeyInput && !xaiKeyInput.value.trim()) missing.push("xAI");
-    // Brave is only required when the user chose Brave as their search engine.
-    // In xAI search mode, fact-check traffic piggybacks on the xAI key.
-    const selectedEngine =
-      searchEngineSelect?.value === "xai" ? "xai" : "brave";
-    if (selectedEngine === "brave" && !braveKeyInput.value.trim()) {
-      missing.push("Brave Search");
-    }
+    // v2.0.1: Brave deprecated. Fact-check traffic always piggybacks on
+    // the xAI key (Grok Live Search).
     if (missing.length > 0) {
       showError(
         `This mode needs your own API key${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Free keys are linked in Settings, or switch to Demo.`,
@@ -3492,14 +3472,8 @@ startBtn.addEventListener("click", async () => {
               deepgram: deepgramKeyInput.value.trim(),
               anthropic: anthropicKeyInput.value.trim(),
               xai: xaiKeyInput ? xaiKeyInput.value.trim() : "",
-              brave: braveKeyInput.value.trim(),
             }
-          : { deepgram: "", anthropic: "", xai: "", brave: "" },
-        // Which search backend Producer fact-checks through. Forwarded to
-        // /api/transcribe as the X-Search-Engine header. Missing/unknown
-        // values fall back to "brave" server-side for backward-compat.
-        searchEngine:
-          searchEngineSelect?.value === "xai" ? "xai" : "brave",
+          : { deepgram: "", anthropic: "", xai: "" },
         audio: {
           passthrough: passthroughToggle.checked,
           outputDeviceId: currentOutputDeviceId(),
@@ -3949,15 +3923,13 @@ function formatTime(ts) {
   return `${hh}:${mm}`;
 }
 
-// Save settings on input change. Skip any element that isn't present (older
-// sidepanel.html before xai/searchEngine shipped would return null for those).
+// Save settings on input change. Skip any element that isn't present
+// (older sidepanel.html before xai shipped would return null for xAI).
 [
   serverUrlInput,
   deepgramKeyInput,
   anthropicKeyInput,
   xaiKeyInput,
-  braveKeyInput,
-  searchEngineSelect,
 ].forEach((el) => {
   if (el) el.addEventListener("change", saveSettings);
 });
@@ -4427,10 +4399,6 @@ const KEY_WALKTHROUGH_STEPS = [
   {
     title: "xAI — Grok",
     stepNum: 3,
-  },
-  {
-    title: "Brave Search",
-    stepNum: 4,
   },
 ];
 
@@ -5003,19 +4971,18 @@ if (chrome.storage?.local) {
 // ──────────────────────────────────────────────────────
 //
 // Expanded-by-default panel that walks BYOK users through creating
-// accounts at each of the 4 providers. The wizard's paste fields ARE
+// accounts at each of the 3 providers. The wizard's paste fields ARE
 // the canonical BYOK inputs — input ids deepgramKey / anthropicKey /
-// xaiKey / braveKey are referenced directly by the rest of the
-// extension (saveSettings, Start Listening, request-building code).
-// No mirroring, no second source of truth.
+// xaiKey are referenced directly by the rest of the extension
+// (saveSettings, Start Listening, request-building code). No mirroring,
+// no second source of truth.
 //
 // This block is responsible for:
 //   1. Collapse/expand toggle (wizard starts expanded in the HTML).
 //   2. Per-step "done" checkmark state, derived from the input values
 //      — recomputed on every input/change event.
 //   3. "Skip for now" buttons — scroll the next step into view.
-//   4. "You're set" ribbon — shown when all three required providers
-//      (Deepgram, Anthropic, xAI) have values. Brave is optional.
+//   4. "You're set" ribbon — shown when all three providers have values.
 //
 // TDZ guard: this block uses document.getElementById inline rather
 // than forward-referencing module-level consts, per the sidepanel TDZ
@@ -5039,12 +5006,10 @@ if (chrome.storage?.local) {
 
   // Per-step metadata. inputId matches the canonical BYOK input so
   // check-state derives from the same value the rest of the app reads.
-  // Brave is `required: false` — the "You're set" ribbon ignores it.
   const STEP_INPUTS = [
     { inputId: "deepgramKey", stepId: "onboardStep1", required: true },
     { inputId: "anthropicKey", stepId: "onboardStep2", required: true },
     { inputId: "xaiKey", stepId: "onboardStep3", required: true },
-    { inputId: "braveKey", stepId: "onboardStep4", required: false },
   ];
 
   function refreshCheckState() {
@@ -5096,8 +5061,7 @@ if (chrome.storage?.local) {
       if (
         "deepgramKey" in changes ||
         "anthropicKey" in changes ||
-        "xaiKey" in changes ||
-        "braveKey" in changes
+        "xaiKey" in changes
       ) {
         setTimeout(refreshCheckState, 0);
       }

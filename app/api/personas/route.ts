@@ -26,7 +26,6 @@ export async function POST(req: NextRequest) {
   }
 
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const braveKey = process.env.BRAVE_SEARCH_API_KEY;
   const xaiKey = process.env.XAI_API_KEY;
 
   // Need at least one of the two model providers — otherwise every persona
@@ -40,21 +39,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Client may override the default search engine per request (useful for
-  // the harness). Anything other than "xai" falls back to "brave" to match
-  // the engine-level default.
-  const rawSearchEngine = (req.headers.get("X-Search-Engine") || "").toLowerCase();
-  const searchEngine: "brave" | "xai" = rawSearchEngine === "xai" ? "xai" : "brave";
-
   // resolvePack() never throws — unknown / missing / empty packId falls back
   // to Howard (see lib/packs/index.ts). Safe to call with any user input.
   const resolvedPack = resolvePack(packId);
 
   const engine = new PersonaEngine({
     anthropicKey: anthropicKey || "",
-    braveSearchKey: braveKey || "",
     xaiKey: xaiKey || "",
-    searchEngine,
     pack: resolvedPack,
   });
 
@@ -77,7 +68,6 @@ export async function POST(req: NextRequest) {
         level: "info",
         data: {
           packId: resolvedPack.meta.id,
-          searchEngine,
           transcriptLen: transcript.length,
         },
       });
@@ -113,7 +103,6 @@ export async function POST(req: NextRequest) {
           data: {
             message,
             packId: resolvedPack.meta.id,
-            searchEngine,
             transcriptLen: transcript.length,
             durationMs: Date.now() - startedAt,
             stack: err instanceof Error ? err.stack : undefined,

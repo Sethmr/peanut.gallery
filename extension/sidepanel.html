@@ -2714,23 +2714,6 @@
           <span class="drawer-section-title">Backend &amp; keys</span>
         </div>
 
-        <!-- Search-engine picker lives above the mode tabs so it's a
-             global knob — fact-checker backend applies regardless of
-             which access mode sends the request. -->
-        <div class="key-row">
-          <div class="key-label-row">
-            <label for="searchEngine">Search engine</label>
-            <span class="key-tag">fact-check</span>
-          </div>
-          <select id="searchEngine">
-            <option value="brave" selected>Brave Search</option>
-            <option value="xai">xAI Live Search (uses your xAI key)</option>
-          </select>
-          <p class="field-hint">
-            How the Fact-Checker verifies claims. <strong>Brave</strong> uses the classic Brave API &mdash; requires its own key (under My keys / Self-host). <strong>xAI</strong> uses Grok Live Search &mdash; no extra key.
-          </p>
-        </div>
-
         <!-- v1.9 BACKEND MODE segmented control. Demo is the default one-
              off trial; My keys = BYOK (no Peanut Gallery billing); Plus =
              subscription against Peanut Gallery's hosted keys. Full
@@ -2804,13 +2787,12 @@
           </p>
 
           <!-- ── v2.0.1: ONBOARDING WIZARD ──
-               Single home for all four BYOK key inputs. The wizard
+               Single home for all three BYOK key inputs. The wizard
                steps ARE the canonical key fields — input ids
-               deepgramKey / anthropicKey / xaiKey / braveKey match
-               what the rest of the extension (saveSettings, request
-               headers, startup hydration) already looks for. Expanded
-               by default so keys are immediately enterable, matching
-               the visibility of the pre-v2.0.1 row layout; the toggle
+               deepgramKey / anthropicKey / xaiKey match what the rest
+               of the extension (saveSettings, request headers,
+               startup hydration) already looks for. Expanded by
+               default so keys are immediately enterable; the toggle
                still collapses for users who don't want the stepper.
                Zero key custody — values go to chrome.storage.local
                through the existing saveSettings path. -->
@@ -2822,7 +2804,7 @@
                 <span class="onboard-toggle-chev" aria-hidden="true">&#9662;</span>
               </span>
               <span class="onboard-toggle-sub">
-                About 10 minutes across four providers. Free-tier credits cover typical use for weeks. <strong>Free forever when you run your own keys.</strong>
+                About 10 minutes across three providers. Free-tier credits cover typical use for weeks. <strong>Free forever when you run your own keys.</strong>
               </span>
             </button>
 
@@ -2903,25 +2885,6 @@
                   </div>
                 </li>
 
-                <!-- STEP 4 · Brave Search (optional) -->
-                <li class="onboard-step" id="onboardStep4" data-provider="brave">
-                  <div class="onboard-step-head">
-                    <span class="onboard-step-num">4</span>
-                    <span class="onboard-step-title">Brave Search</span>
-                    <span class="onboard-step-role"><strong>Optional</strong> &mdash; fact-check grounding</span>
-                    <span class="onboard-step-check" aria-hidden="true">&#10003;</span>
-                  </div>
-                  <p class="onboard-step-body">
-                    Richer fact-checks with live web search. Free tier: <strong>2,000 queries/month</strong>. The extension works fine without it &mdash; flip the Search engine selector above to xAI and Grok&rsquo;s built-in search covers you.
-                  </p>
-                  <ol class="onboard-step-howto">
-                    <li><a class="onboard-step-link" href="https://api-dashboard.search.brave.com/app/subscriptions/subscribe" target="_blank" rel="noopener noreferrer">Open Brave Search signup&nbsp;&#8599;</a></li>
-                    <li>Pick the <strong>Free</strong> plan, add a card (not charged under 2k queries/mo), then <strong>API Keys &rarr; Add API Key</strong>.</li>
-                    <li>Paste the key below:</li>
-                  </ol>
-                  <input type="text" id="braveKey" class="key-input onboard-key-input"
-                         placeholder="BSA..." autocomplete="off" spellcheck="false" />
-                </li>
               </ol>
 
               <div class="onboard-done" id="onboardDone" hidden>
