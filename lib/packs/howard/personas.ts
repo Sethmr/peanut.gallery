@@ -14,10 +14,16 @@
  *   C impression / D silence / E music-mini-riff), verified impressions
  *   catalog, debunk ledger (no 2012 stroke, Echo is a friend's parrot, etc.).
  *   Prompts in `./prompts/fred-norris.ts`.
- * - Baba Booey: **archetype flip** — fact-checker → trolly-heckler. Uses
- *   `Persona.producerMode: "heckler"` to suppress the tier-gate scaffolding
- *   in `buildPersonaContext` and reframe search as background facts.
- *   Prompts in `./prompts/baba-booey.ts`.
+ * - Baba Booey: **trolly-EP voice + fact-check layer**. v1.8 morning
+ *   rewrote him as a trolly heckler; v1.8 evening (2026-04-23) layered
+ *   the commissioned fact-check methodology on top. He now heckles-
+ *   with-a-fact via the CONFIRMS / CONTRADICTS / COMPLICATES / THIN
+ *   tier taxonomy baked into the kernel. Uses
+ *   `Persona.producerMode: "layered-fact-checker"` (shared with Molly)
+ *   which gives him SEARCH RESULTS framing and suppresses the legacy
+ *   `EVIDENCE: GREEN/THIN/NONE` gate (obsolete [FACT CHECK] / [HEADS UP]
+ *   tag language would contradict the new taxonomy). Methodology in
+ *   `../../docs/FACT-CHECK-LAYER.md`. Prompts in `./prompts/baba-booey.ts`.
  * - The Troll: **most ambitious archetype flip** — single "Cynical
  *   Commentator" voice → 7-sub-voice composite Wack Pack voice board
  *   (Janks / Stuttering John / High Pitch Erik / Beetlejuice / Eric the

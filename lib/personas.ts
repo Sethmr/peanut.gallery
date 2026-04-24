@@ -336,15 +336,19 @@ export function buildPersonaContext(
     context += `If what you're about to say is a near-duplicate of any of the above, pick a different angle or output a single "-" to pass.\n\n`;
   }
 
-  // ── PRODUCER SEARCH-RESULTS INJECTION (three framings) ──
-  // All three flavors of producer (fact-checker, heckler, journalist)
-  // can benefit from fresh web bullets — pre-v1.8 Molly for tier-tagged
-  // corrections, Gary-heckler for chart-position / pop-culture facts to
-  // heckle with, v1.8 Molly-journalist for named-outlet reporting to
-  // cite inline. The framing differs per mode: the fact-checker header
-  // cues tier-tagged output; the heckler header frames the bullets as
-  // raw material, not tier input; the journalist header frames them as
-  // reporting anchors she can cite from conversationally.
+  // ── PRODUCER SEARCH-RESULTS INJECTION (four framings) ──
+  // All flavors of producer can benefit from fresh web bullets; the
+  // HEADER LABEL differs per mode to match the persona's kernel:
+  //   - "fact-checker" (legacy, pre-v1.8): SEARCH RESULTS — tier-
+  //     tagged [FACT CHECK] / [HEADS UP] output. No live callers.
+  //   - "heckler" (v1.8 Baba morning): BACKGROUND FACTS — raw
+  //     heckle fuel, not tier input. Historical, no live callers.
+  //   - "journalist" (v1.8 Molly morning): REPORTING ANCHORS —
+  //     raw reporting to cite inline. Historical, no live callers.
+  //   - "layered-fact-checker" (2026-04-23 evening — Baba AND
+  //     Molly): SEARCH RESULTS — matches the header the kernel's
+  //     fact-check-layer patch instructs them to read. Voice-
+  //     agnostic scaffolding (Baba trolly / Molly NPR-reporter).
   if (searchResults && persona.id === "producer") {
     if (persona.producerMode === "heckler") {
       context += `--- BACKGROUND FACTS (use as heckle fuel if something jumps out) ---\n${searchResults}\n\n`;
@@ -358,21 +362,19 @@ export function buildPersonaContext(
     }
   }
 
-  // ── EVIDENCE-AVAILABILITY GATE (fact-checker producer only) ──
-  // Explicit signal — more reliable than letting the model infer evidence
-  // state from the presence / absence of the SEARCH RESULTS block. The
-  // AVeriTeC evaluation family shows overconfident verdicts are the primary
-  // failure mode when evidence is thin; the fix is to bias the tier
-  // selection toward abstention-style tiers ([HEADS UP]) instead of
-  // attempting a [FACT CHECK] from memory alone. Force-react path suspends
-  // this (tap must always speak in voice); everyone else reads it.
+  // ── EVIDENCE-AVAILABILITY GATE (legacy fact-checker only) ──
+  // Pre-v1.8 Molly + Baba used [FACT CHECK] / [HEADS UP] tier tags and
+  // needed an explicit GREEN/THIN/NONE signal to avoid overconfident
+  // verdicts when evidence was thin (AVeriTeC failure mode). Force-
+  // react always suspends it (tap must speak in voice).
   //
-  // v1.8: heckler-mode AND journalist-mode producers skip this entirely.
-  // Neither kernel uses the [FACT CHECK] / [HEADS UP] tier tags — the
-  // heckler outputs exasperated reactions, the journalist cites inline
-  // reporting conversationally — so an EVIDENCE block would contradict
-  // the kernel and confuse the model. The reframed search headers above
-  // carry sufficient evidence signal for both modes.
+  // EFFECTIVELY DEAD CODE on current develop — both producer personas
+  // now use `"layered-fact-checker"` which embeds the new CONFIRMS /
+  // CONTRADICTS / COMPLICATES / THIN taxonomy in the kernel itself
+  // (see `docs/FACT-CHECK-LAYER.md`). The v1.8 `"heckler"` and
+  // `"journalist"` modes also skip this gate because neither kernel
+  // uses the old tier tags. Preserved for backwards compatibility in
+  // case a future pack opts into legacy `"fact-checker"` explicitly.
   if (
     persona.id === "producer" &&
     !isForceReact &&
