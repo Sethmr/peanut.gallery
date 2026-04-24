@@ -203,15 +203,25 @@ export async function pickPersonaCerebrasV3(
     // nested schema object), so shadow telemetry captures a usable pick
     // instead of discarding the whole call.
     parsed = unwrapSchemaEnvelope(parsed);
+    parsed = coerceLooseFields(parsed);
 
     const pick = validatePickV2(parsed);
     if (!pick) {
+      // Llama 3.1 8B's second schema-echo failure mode: instead of
+      // wrapping a real instance in a `{type,properties,...}` envelope,
+      // it returns the literal JSON Schema definition verbatim — every
+      // `properties.*` value is itself a `{type,description,...}` schema
+      // node rather than a filled-in value. `unwrapSchemaEnvelope` above
+      // can't rescue this because there IS no inner instance. Detect it
+      // here and demote the log to `debug` so it doesn't drown real parse
+      // regressions in warn-level noise.
+      const isSchemaDump = isPureSchemaDump(parsed);
       logPipeline({
         event: "llm_director_v3_parse_fail",
-        level: "warn",
+        level: isSchemaDump ? "debug" : "warn",
         sessionId: ctx.sessionId,
         data: {
-          reason: "invalid_shape",
+          reason: isSchemaDump ? "schema_dump" : "invalid_shape",
           provider: "cerebras",
           promptVersion: "v3",
           elapsedMs: Date.now() - started,
@@ -266,6 +276,48 @@ export { VALID_ARCHETYPE_IDS_V2 as VALID_ARCHETYPE_IDS_V3 };
  * `properties.personaId` is already a concrete string rather than a nested
  * schema. Otherwise returns the input unchanged.
  */
+/**
+ * Llama 3.1 8B sometimes returns a structurally-correct instance with
+ * two specific field-level malformations that would otherwise fail
+ * `validatePickV2` strict checks:
+ *
+ *   1. `confidence` emitted as a JSON-encoded string instead of an
+ *      object (e.g. `"confidence": "{\"producer\": 0.9, ...}"`).
+ *   2. `callbackUsed` emitted as the literal string `"null"` instead
+ *      of the JSON null value.
+ *
+ * Both cases represent a usable routing pick we'd otherwise discard
+ * as `invalid_shape`. Coerce them before validation. Anything else
+ * falls through unchanged so real invalid shapes still surface loud.
+ */
+function coerceLooseFields(parsed: unknown): unknown {
+  if (!parsed || typeof parsed !== "object") return parsed;
+  const obj = parsed as Record<string, unknown>;
+  if (typeof obj.confidence === "string") {
+    try {
+      const reparsed = JSON.parse(obj.confidence);
+      if (reparsed && typeof reparsed === "object") obj.confidence = reparsed;
+    } catch {
+      // leave the string; validatePickV2 will reject and we'll log it.
+    }
+  }
+  if (obj.callbackUsed === "null") obj.callbackUsed = null;
+  return obj;
+}
+
+function isPureSchemaDump(parsed: unknown): boolean {
+  if (!parsed || typeof parsed !== "object") return false;
+  const envelope = parsed as { type?: unknown; properties?: unknown };
+  if (envelope.type !== "object") return false;
+  if (!envelope.properties || typeof envelope.properties !== "object") {
+    return false;
+  }
+  const inner = envelope.properties as { personaId?: unknown };
+  if (!inner.personaId || typeof inner.personaId !== "object") return false;
+  const personaIdNode = inner.personaId as { type?: unknown; enum?: unknown };
+  return personaIdNode.type === "string" && Array.isArray(personaIdNode.enum);
+}
+
 function unwrapSchemaEnvelope(parsed: unknown): unknown {
   if (!parsed || typeof parsed !== "object") return parsed;
   const envelope = parsed as {
