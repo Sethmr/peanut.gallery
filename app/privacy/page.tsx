@@ -263,10 +263,10 @@ export default function PrivacyPage() {
           </a>{" "}
           or email{" "}
           <a
-            href="mailto:seth@manugames.com"
+            href="mailto:legal@peanutgallery.live"
             className="text-[#3b82f6] hover:underline"
           >
-            seth@manugames.com
+            legal@peanutgallery.live
           </a>
           .
         </p>

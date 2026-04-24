@@ -301,6 +301,36 @@ function coerceLooseFields(parsed: unknown): unknown {
       // leave the string; validatePickV2 will reject and we'll log it.
     }
   }
+  // Third Llama 3.1 8B malformation (observed 2026-04-23 live logs):
+  // confidence emitted as a partial JSON-Schema envelope wrapping the
+  // actual number map — e.g.,
+  //   "confidence": {
+  //     "type": "object",
+  //     "properties": { "producer": 0.7, "troll": 0.1, ... }
+  //   }
+  // Unwrap once when the outer keys match a schema envelope and the
+  // inner `properties` object's values are numbers (the real
+  // instance). Symmetric with the top-level `unwrapSchemaEnvelope`
+  // above, scoped to the confidence field. Leaves anything that
+  // doesn't match the shape alone — validatePickV2 handles the rest.
+  if (obj.confidence && typeof obj.confidence === "object") {
+    const c = obj.confidence as {
+      type?: unknown;
+      properties?: unknown;
+      producer?: unknown;
+    };
+    if (
+      c.producer === undefined &&
+      c.type === "object" &&
+      c.properties &&
+      typeof c.properties === "object"
+    ) {
+      const inner = c.properties as { producer?: unknown };
+      if (typeof inner.producer === "number") {
+        obj.confidence = c.properties;
+      }
+    }
+  }
   if (obj.callbackUsed === "null") obj.callbackUsed = null;
   return obj;
 }
