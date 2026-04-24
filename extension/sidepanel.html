@@ -107,19 +107,24 @@
       letter-spacing: .15em;
     }
     /* v2.0.1: one-line AI-disclosure strip below masthead, always visible.
-       Broadsheet register: italic serif + uppercase slab stamp. */
+       Broadsheet register: italic serif + uppercase slab stamp.
+       Stays on a single line across typical side-panel widths. */
     .ai-notice-strip{
       flex-shrink: 0;
-      padding: 5px 12px;
+      padding: 3px 10px;
       text-align: center;
       font-family: var(--serif); font-style: italic;
-      font-size: 11px; color: var(--ink-2);
+      font-size: 10px; color: var(--ink-2);
+      line-height: 1.3;
       border-bottom: 1px solid var(--rule);
       background: var(--paper);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .ai-notice-strip strong{
       font-family: var(--slab-2); font-style: normal;
-      font-weight: 700; letter-spacing: .12em;
+      font-weight: 700; letter-spacing: .08em;
       text-transform: uppercase; color: var(--ink);
       margin-right: 4px;
     }
@@ -2361,7 +2366,7 @@
        every persona is a parody of a public figure, synthesized text
        only, no voice clone. -->
   <div class="ai-notice-strip" role="note" aria-label="AI disclosure">
-    <strong>AI-generated</strong> commentary &middot; parodies of public figures, not real people
+    <strong>AI-generated</strong> parody of public figures &mdash; not real people
   </div>
 
   <!-- ── ERROR BANNER ── -->
