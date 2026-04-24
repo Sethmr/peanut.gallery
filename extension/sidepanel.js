@@ -997,6 +997,25 @@ if (backendModeSegmented) {
   backendModeSegmented.addEventListener("click", (e) => {
     const btn = e.target.closest(".segmented-option");
     if (!btn) return;
+    // v2.0.1: Plus is feature-flagged OFF in production pending the
+    // reseller-approval / onboarding-relay architecture decisions driven
+    // by the 2026-04-24 legal research brief. Keep the Plus tab visible
+    // for discoverability (signals the feature is planned) but intercept
+    // the tap with a modal explaining it's coming. Don't switch the
+    // backend mode — the segmented control stays on whatever was
+    // previously selected.
+    if (btn.dataset.value === "plus") {
+      openPromptModal({
+        stamp: "Coming soon",
+        title: "Peanut Gallery Plus",
+        body:
+          "This tier is in the works but not yet available. We're working through provider-approval and compliance details before launch. For now, use <strong>Demo</strong> for a 15-minute trial or <strong>My keys</strong> to run on your own API keys (free forever).",
+        confirmLabel: "Got it",
+        cancelLabel: "Close",
+        hideInput: true,
+      }).catch(() => {});
+      return;
+    }
     setBackendMode(btn.dataset.value);
   });
 }
@@ -1056,7 +1075,16 @@ function rehydrateBackendMode() {
       freeTierUsedMs = Number.isFinite(rawUsed)
         ? Math.max(0, Math.min(FREE_TIER_QUOTA_MS, rawUsed))
         : 0;
-      if (data?.pgBackendMode) setBackendMode(data.pgBackendMode, { persist: false });
+      if (data?.pgBackendMode) {
+        // v2.0.1: Plus is feature-flagged off in production pending
+        // provider-approval decisions. Any persisted "plus" mode from a
+        // pre-v2.0.1 install silently degrades to "demo" on load so the
+        // user lands on a working mode instead of a dead Plus state.
+        // The Plus tab itself stays clickable and shows the "coming
+        // soon" modal on tap.
+        const restoredMode = data.pgBackendMode === "plus" ? "demo" : data.pgBackendMode;
+        setBackendMode(restoredMode, { persist: false });
+      }
       // Even if no stored mode (so setBackendMode wasn't called), make sure
       // the segmented control reflects the trial state on first paint.
       refreshDemoOptionVisibility();
