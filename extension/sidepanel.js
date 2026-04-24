@@ -2090,6 +2090,7 @@ if (feedMenu) {
     else if (action === "pin") togglePin(entryId);
     else if (action === "quote-card") exportQuoteCard(entryId);
     else if (action === "regenerate") regenerateEntry(entryId);
+    else if (action === "delete") deleteEntry(entryId);
     hideFeedMenu();
   });
 }
@@ -2172,7 +2173,8 @@ function persistVotes() {
  *
  * Action values must match the server's validator in
  * `app/api/feedback/route.ts`: upvote | downvote | clear_vote |
- * pin | unpin | quote_card. Anything else is rejected with 400.
+ * pin | unpin | quote_card | delete. Anything else is rejected
+ * with 400.
  */
 function sendFeedback(action, entryId) {
   // User-facing opt-out. When the "Share feedback with the project" toggle
@@ -2246,6 +2248,56 @@ function unpinEntry() {
     if (el) delete el.dataset.pinned;
     sendFeedback("unpin", prevId);
   }
+}
+
+// ── Delete a feed entry (v2.0.1) ──
+// Strong-negative feedback signal — user actively removed the take from
+// the feed rather than letting it sit with a thumbs-down. Ranks above
+// downvote in any downstream model-tuning aggregation; the server's
+// VALID_ACTIONS whitelist ("delete") has a matching note.
+//
+// Telemetry is fire-and-forget through sendFeedback, which already
+// honors the user's feedbackOptOut toggle — no separate opt-out path
+// needed here. The UI-side removal happens regardless of opt-out: the
+// user's action on their own feed is a client-side affordance that
+// doesn't depend on server acknowledgement.
+//
+// We also clean up any pin or vote state attached to the entry. Those
+// are now meaningless (the entry is gone) and we deliberately do NOT
+// emit a separate "unpin" / "clear_vote" event in that case — delete
+// is the stronger signal and downstream consumers should prefer it
+// over the weaker cleanup signals.
+function deleteEntry(entryId) {
+  const entry = feedEntries.find((e) => e.id === entryId);
+  if (!entry) return;
+
+  // Fire telemetry BEFORE mutating state — sendFeedback reads entry.text
+  // and entry.transcript from feedEntries for the payload.
+  sendFeedback("delete", entryId);
+
+  // If this entry was pinned, clear the pin silently (no "unpin" event —
+  // delete supersedes it).
+  if (pinnedEntry?.id === entryId) {
+    pinnedEntry = null;
+    hidePinnedStrip();
+    persistPin();
+  }
+
+  // Drop any vote state for this entry (same reason — delete supersedes
+  // clear_vote).
+  if (feedVotes.has(entryId)) {
+    feedVotes.delete(entryId);
+    persistVotes();
+  }
+
+  // Remove from the in-memory list so export + the smart-highlight
+  // picker skip it on future reads.
+  const idx = feedEntries.findIndex((e) => e.id === entryId);
+  if (idx >= 0) feedEntries.splice(idx, 1);
+
+  // Remove the DOM node.
+  const el = document.getElementById(`feed-${entryId}`);
+  if (el) el.remove();
 }
 
 function renderPinned() {

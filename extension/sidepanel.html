@@ -1726,6 +1726,22 @@
       background: color-mix(in srgb, var(--stamp) 20%, transparent);
       font-weight: 600;
     }
+    /* v2.0.1: destructive action separator + red accent for Delete.
+       Ranked below the positive/neutral actions; rule separates it
+       visually so the tap isn't mistaken for a regular vote. */
+    .feed-menu-sep{
+      height: 1px;
+      background: var(--ink);
+      margin: 4px 6px;
+      opacity: .25;
+    }
+    .feed-menu-item.is-destructive{ color: var(--stamp); }
+    .feed-menu-item.is-destructive .fmi-ico{ color: var(--stamp); }
+    .feed-menu-item.is-destructive:hover,
+    .feed-menu-item.is-destructive:focus-visible{
+      background: color-mix(in srgb, var(--stamp) 18%, transparent);
+      color: var(--stamp);
+    }
     .fmi-ico{
       display: inline-block; width: 14px;
       text-align: center; font-size: 11px;
@@ -3086,6 +3102,10 @@
     </button>
     <button type="button" class="feed-menu-item" data-action="regenerate" role="menuitem">
       <span class="fmi-ico" aria-hidden="true">&#x21bb;</span> Regenerate this take
+    </button>
+    <div class="feed-menu-sep" role="separator" aria-hidden="true"></div>
+    <button type="button" class="feed-menu-item is-destructive" data-action="delete" role="menuitem">
+      <span class="fmi-ico" aria-hidden="true">&times;</span> Delete this take
     </button>
   </div>
 

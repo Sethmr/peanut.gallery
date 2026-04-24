@@ -41,7 +41,7 @@
  * {
  *   "sessionId": "abc123",           // session this feedback belongs to
  *   "entryId":   "producer-7",       // client-assigned feed entry id
- *   "action":    "upvote" | "downvote" | "clear_vote" | "pin" | "unpin" | "quote_card",
+ *   "action":    "upvote" | "downvote" | "clear_vote" | "pin" | "unpin" | "quote_card" | "delete",
  *   "personaId": "producer",         // producer | troll | soundfx | joker
  *   "packId":    "howard",           // howard | twist | ...
  *   "responseText": "Heads up — …",  // what the persona said
@@ -50,6 +50,15 @@
  *   "timestamp": 1719320445000       // ms epoch (optional; server time
  *                                    // used if absent)
  * }
+ *
+ * Signal weights (for downstream model tuning):
+ *   pin      = strong positive (user wants this at the top)
+ *   upvote   = positive
+ *   neutral  = clear_vote / unpin / quote_card (no signal on quality)
+ *   downvote = negative
+ *   delete   = strong negative (user actively removed this take) — worse
+ *              than a downvote, since the user chose to burn the feed
+ *              slot rather than let the entry sit with a thumbs-down.
  *
  * Response:
  *   204 No Content on success.
@@ -82,6 +91,10 @@ const VALID_ACTIONS = new Set([
   "pin",
   "unpin",
   "quote_card",
+  // v2.0.1: "delete" ranks as a stronger negative than downvote — user
+  // actively removed the entry from their feed rather than leaving it
+  // visible with a thumbs-down.
+  "delete",
 ]);
 
 const VALID_PERSONA_IDS = new Set(["producer", "troll", "soundfx", "joker"]);
