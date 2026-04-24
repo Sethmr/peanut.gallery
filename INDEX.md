@@ -53,9 +53,9 @@ Chrome extension + Next.js backend that captures a YouTube tab's audio, transcri
 - **Transcription:** Deepgram Nova-3.
 - **Producer + Joker personas (Baba Booey, Jackie, Molly, Alex):** Anthropic Claude Haiku.
 - **Troll + Sound FX personas (Troll, Fred, Jason, Lon):** xAI Grok 4.1 Fast non-reasoning.
-- **Fact-check search:** Brave (default) OR xAI Live Search, toggled via side-panel dropdown.
+- **Fact-check search:** xAI Live Search (Grok Responses API with `web_search` tool). Brave Search was deprecated in v2.0.1 — one xAI key now covers both persona generation and fact-check grounding.
 
-**Required API keys:** Deepgram, Anthropic, xAI. **Optional:** Brave (only if `SEARCH_ENGINE=brave`, which is the default).
+**Required API keys:** Deepgram, Anthropic, xAI.
 
 ## Source-of-truth pointers
 

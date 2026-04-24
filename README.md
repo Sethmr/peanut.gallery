@@ -58,7 +58,7 @@ Inspired by the Stern staff, per Jason's original spec.
 
 | Slot | Character | Model | Role |
 |------|-----------|-------|------|
-| **Producer** | Baba Booey (Gary Dell'Abate) | Claude Haiku + Brave Search (or xAI Live Search) | Fact-checker. Pulls receipts mid-show on numbers, dates, attributions. |
+| **Producer** | Baba Booey (Gary Dell'Abate) | Claude Haiku + xAI Live Search | Fact-checker. Pulls receipts mid-show on numbers, dates, attributions. |
 | **Troll** | The Cynical Troll | xAI Grok 4.1 Fast | Contrarian. Internet-brain energy. Says what the audience is thinking. |
 | **Sound FX** | Fred Norris | xAI Grok 4.1 Fast | Bracket-delimited sound cues plus deadpan one-liners. |
 | **Joker** | Jackie Martling | Claude Haiku | Setup-punchline jokes, callbacks, observational comedy. |
@@ -79,7 +79,7 @@ Researched from public TWiST transcripts and episode clips. See [`docs/packs/twi
 
 | Slot | Character | Model | Role |
 |------|-----------|-------|------|
-| **Producer** | Molly Wood | Claude Haiku + Brave Search (or xAI Live Search) | Calm journalistic corrections, "according to" framing, receipts-first. |
+| **Producer** | Molly Wood | Claude Haiku + xAI Live Search | Calm journalistic corrections, "according to" framing, receipts-first. |
 | **Troll** | Jason Calacanis | xAI Grok 4.1 Fast | Provocateur. Confident takes, founder-market-fit framing, warm-not-mean. |
 | **Sound FX** | Lon Harris | xAI Grok 4.1 Fast | The Reframe. Bracket-delimited sound cues plus cultural analogies. |
 | **Joker** | Alex Wilhelm | Claude Haiku | Data Comedian. Eight joke techniques built on data plus absurdity. |
@@ -99,7 +99,7 @@ YouTube Tab → chrome.tabCapture → Offscreen Doc → PCM 16kHz (250ms chunks)
 
 The **Director** is the moat. It reads each transcript chunk and picks the best persona to respond, then cascades to others with decreasing probability and staggered timing. Some moments get 1 reaction, some 2-3, occasionally all four pile on. As of v1.6.0 ("The Canary") the primary router is a Claude Haiku `tool_use` call with verbalized confidence, sticky-agent penalty, unstable-tail heuristic, a live-callback ring buffer, and SILENT as a first-class choice — all behind a 400 ms budget with the rule-based scorer as the safety net. A fast-model shadow (Cerebras Llama 3.1 8B; Groq also wired) logs its pick alongside so we can verify agreement + latency before swapping primaries. The canary is flag-gated: `ENABLE_SMART_DIRECTOR_V2=true` on the backend turns the LLM router on; off keeps everything rule-based.
 
-The **Fact-Checker** has an extra step: it scores sentences for factual claims and runs parallel search queries to cross-reference. Sensitivity is per-pack design: Howard's Baba Booey is `loose` (fires on speculation + name-drops + predictions), TWiST's Molly Wood is `strict` (hard claims only). Pick **Brave Search** (separate key, dedicated search API) or **xAI Live Search** (reuses your xAI key, no extra signup) in the side-panel settings.
+The **Fact-Checker** has an extra step: it scores sentences for factual claims and runs parallel search queries via **xAI Live Search** (Grok Responses API with the `web_search` tool) to cross-reference. Sensitivity is per-pack design: Howard's Baba Booey is `loose` (fires on speculation + name-drops + predictions), TWiST's Molly Wood is `strict` (hard claims only). One xAI key covers both persona generation and fact-check grounding.
 
 If no audio is detected for 60 s, the extension auto-stops the session so it doesn't keep burning backend tokens on a paused tab. Press Start Listening again to resume.
 
@@ -113,7 +113,7 @@ The extension speaks to any backend that honors the wire spec. Three paths:
 
 ### 1. Hosted (default, easiest)
 
-Point the extension at `https://api.peanutgallery.live` and bring your own API keys via the side-panel settings. Your keys are sent per-request as headers, forwarded to Deepgram / Anthropic / xAI / Brave, and discarded at session end. Never logged, never persisted. [Audit the route](https://github.com/Sethmr/peanut.gallery/blob/main/app/api/transcribe/route.ts).
+Point the extension at `https://api.peanutgallery.live` and bring your own API keys via the side-panel settings. Your keys are sent per-request as headers, forwarded to Deepgram / Anthropic / xAI, and discarded at session end. Never logged, never persisted. [Audit the route](https://github.com/Sethmr/peanut.gallery/blob/main/app/api/transcribe/route.ts).
 
 ### 2. Self-host the reference backend
 
@@ -154,7 +154,7 @@ Multi-provider by design. No platform trap.
 | Transcription | Deepgram Nova-3 | Sub-300ms, WebSocket native |
 | Fact-Checker + Joker | Anthropic Claude Haiku | Reasoning + nuance |
 | Troll + Sound FX | xAI Grok 4.1 Fast (non-reasoning) | Reflexive, punchy output without deliberation |
-| Fact-check search | Brave Search API **or** xAI Live Search | User-selectable per-session |
+| Fact-check search | xAI Live Search (Grok Responses API + `web_search` tool) | Reuses the xAI key — no separate provider |
 | Smart Director (v1.6 canary) | Claude Haiku `tool_use`, 400 ms budget | Primary LLM router; rule-based scorer is the safety net. Cerebras Llama 3.1 8B runs as read-only shadow for agreement + latency validation. |
 
 **Cost per 2-hour episode: ~$1.15** at current API rates (Deepgram + Haiku + Grok Fast + one search call per fact-check candidate). Full breakdown: [`docs/CONTEXT.md#cost-per-episode`](docs/CONTEXT.md#cost-per-episode).
@@ -169,8 +169,7 @@ All services have free tiers.
 |-----|---------|-----------|
 | Deepgram | [console.deepgram.com](https://console.deepgram.com/signup) | Yes |
 | Anthropic | [console.anthropic.com](https://console.anthropic.com) | Yes — powers the Fact-Checker + Joker |
-| xAI | [console.x.ai](https://console.x.ai) | Yes — powers the Troll + Sound FX, plus optional Live Search |
-| Brave Search | [brave.com/search/api](https://brave.com/search/api/) | Optional — only when `SEARCH_ENGINE=brave`; skip it if you route search through xAI |
+| xAI | [console.x.ai](https://console.x.ai) | Yes — powers the Troll + Sound FX AND the Producer's fact-check grounding via Grok Live Search (one key, two jobs) |
 
 ---
 
@@ -242,4 +241,4 @@ Marketing site (separate repo, zero build step, iterates on a copy-and-design ca
 
 ## License
 
-[MIT](LICENSE). Fact-checking powered by Brave Search and xAI Live Search. Peanut Gallery is not affiliated with YouTube, Google, SiriusXM, or TWiST — personas are inspired by, not impressions of.
+[MIT](LICENSE). Fact-checking powered by xAI Live Search (Grok Responses API). Peanut Gallery is not affiliated with YouTube, Google, SiriusXM, or TWiST — personas are inspired by, not impressions of.

@@ -14,7 +14,7 @@ AI podcast sidebar that lives right next to your YouTube video. Uses `chrome.tab
 1. Start the Peanut Gallery server (`npm run dev`)
 2. Open a YouTube video
 3. Click the 🥜 extension icon — the side panel opens
-4. Set your server URL + API keys — Deepgram, Anthropic, xAI (optional: Brave Search, used when the search-engine dropdown is set to "brave"). Saved in `chrome.storage.local` between sessions.
+4. Set your server URL + API keys — Deepgram, Anthropic, xAI. xAI covers both persona generation and Producer fact-check grounding via Grok Live Search (Brave Search was deprecated in v2.0.1 — one key now does both jobs). Saved in `chrome.storage.local` between sessions.
 5. Pick a pack from the dropdown — **Howard** (default: Baba Booey, The Troll, Fred Norris, Jackie Martling) or **TWiST** (Molly Wood, Jason Calacanis, Lon Harris, Alex Wilhelm).
 6. Click **Start Listening**
 
