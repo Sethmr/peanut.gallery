@@ -151,7 +151,7 @@ export default function RootLayout({
                 url: siteUrl,
               },
               screenshot: siteImage,
-              softwareVersion: "1.8.0",
+              softwareVersion: "2.0.0",
               license: "https://opensource.org/licenses/MIT",
               isAccessibleForFree: true,
               featureList: [

@@ -6,6 +6,47 @@ All notable changes to Peanut Gallery are recorded here. Format loosely follows 
 
 Tracks in-flight work for the next release. Live on develop but not yet cut into a release branch.
 
+- Baba fact-check-layer pass-rate tuning based on live-log data (deferred post-v2.0 per Seth).
+- Llama 3.3 70B swap evaluation on Cerebras as a structural fix for Llama 3.1 8B's schema-echo shadow failures.
+- Post-lawyer-brief legal updates: remove "Draft pending legal review" banners, add AI-training-data disclosure, DMCA safe-harbor section.
+
+---
+
+## [2.0.0] — 2026-04-23 — "The Gallery"
+
+**Chrome Web Store launch release.** Main reopens for the first time since v1.5.3 "The Cast" (2026-04-20). The v2.0 manifest carries every `develop`-only release that accumulated on Railway: v1.6.0 "The Canary" (Smart Director v3 flag-gated canary), v1.7.0 "The Fine Print" (legal hard-save), v1.8.0 "The Press Pass" (Peanut Gallery Plus live end-to-end), and this session's polish + fact-check-layer work. Those entries are preserved below unchanged.
+
+Single load-bearing addition in this manifest bump: **the fact-check layer methodology**, a voice-agnostic scaffolding that makes character-driven producer personas (Baba Booey, Molly Wood) functional real-time fact-checkers without collapsing their voice. First two applications land in v2.0; the methodology doc ([`docs/FACT-CHECK-LAYER.md`](docs/FACT-CHECK-LAYER.md)) is written persona-agnostic so future producers can opt in.
+
+### Added
+- **Fact-check layer — methodology + first two applications.** New research-backed four-tier output taxonomy (CONFIRMS / CONTRADICTS / COMPLICATES / THIN) with canonical in-voice line patterns, an ASR-slip guard, a precise pass rule, and cascade / war / sourcing discipline. Compiled from AVeriTeC + FEVER + PolitiFact / AP / FactCheck.org + Swire-Thompson correction-psych + Szymański et al. ASR-NER + Stewart / Oliver "jokes don't work when they're lies" framing. Applied to Baba Booey (trolly-EP register, full patch in [`lib/packs/howard/prompts/baba-booey.ts`](lib/packs/howard/prompts/baba-booey.ts)) and Molly Wood (NPR-journalist register, full patch in [`lib/packs/twist/prompts/molly-wood.ts`](lib/packs/twist/prompts/molly-wood.ts)). New `producerMode: "layered-fact-checker"` scaffolding flag in [`lib/personas.ts`](lib/personas.ts) — voice-agnostic, swaps the legacy `[FACT CHECK]/[HEADS UP]` EVIDENCE-gate tag system for the new four-tier taxonomy. Methodology in [`docs/FACT-CHECK-LAYER.md`](docs/FACT-CHECK-LAYER.md); step-by-step procedure for applying it to future producers at the bottom of that doc.
+- **Inspired-by parody frame** (anti-impersonation hedge). New `persona.inspiredBy` field on every persona whose kernel uses direct "You are \<real name\>" framing (all 8 tagged). `buildPersonaContext` prepends a **PERSONA FRAME (parody / inspired-by disclosure)** block above every other instruction at fire time, marking the output as unofficial, unauthorized fan parody and teaching the model to clarify that it's an AI fan parody if a user asks whether it IS the real person. Single point of truth for the hedge promised in [`site/terms/`](https://www.peanutgallery.live/terms/) (IP paragraph), the homepage "Homage" block, and the pack-page FAQs. Visible parody notice also added to the Lineup drawer section so users see the framing where pack names are shown.
+- **"Feedback & bugs" settings-drawer section.** New menu item after Privacy with a pre-filled **Report a bug** link to GitHub (routes through `bug_report.yml` issue template), a **Send feedback by email** mailto to `support@peanutgallery.live`, and a secondary **Browse existing issues** link. Zero JS changes — drawer routing is `data-section` attribute driven.
+- **Mute-sfx toggle** in the Audio settings drawer. Persists in `chrome.storage.local` as `muteSfx`; gates `playPersonaCue()` on the flag. Cue playback volume also dropped from 1.0 → 0.67 so earcons sit further under content audio.
+- **Bowling-pin cue for Jason** (TWiST troll slot). Seth-delivered ElevenLabs render, normalized to the cue-set RMS/peak targets. Jackie and Jason also swap earcons so the previously-paired Jackie cue now plays for Jason. Mirror swap applied to [`scripts/synth-persona-cues.ts`](scripts/synth-persona-cues.ts) so a regen doesn't undo it.
+- **Fred + Lon cue trims.** `howard-soundfx.wav` trimmed 1.58s → 0.75s with fade; `twist-soundfx.wav` trimmed 1.87s → 0.80s with fade. Earcons now consistently sit under 1s for a cleaner per-persona transition.
+- **`homepage_url` in manifest** — points at `https://www.peanutgallery.live/`. CWS-dashboard hygiene; surfaces the marketing site alongside the listing.
+
+### Changed
+- **Baba Booey archetype** — flipped back from v1.8-morning "trolly heckler" (`producerMode: "heckler"`) to "trolly-EP fact-checker" (`producerMode: "layered-fact-checker"`) with the new four-tier taxonomy embedded in the kernel. Role string: "The Heckler" → "The Fact-Checker". directorHint rewritten to lead with the reporter-desk fact-check posture while preserving heckle triggers.
+- **Molly Wood archetype** — flipped from v1.8-morning "NPR-journalist" (`producerMode: "journalist"`, `REPORTING ANCHORS` framing) to the same shared `layered-fact-checker` scaffolding with the four-tier taxonomy, canonical lines rewritten in her reporter-desk register. Voice contract (NPR register, concession-then-pivot, inline source anchors) is unchanged. Role string: "The Journalist" → "The Fact-Checker".
+- **`producerMode` type** — new `"layered-fact-checker"` value on the union; historical `"heckler"` and `"journalist"` values preserved for back-compat but unused on current develop.
+- **Legacy EVIDENCE-availability gate** (`lib/personas.ts`) — comments updated to flag the block as effectively dead code on current develop (both producers use the new layer; the `[FACT CHECK]`/`[HEADS UP]` tag prescriptions the gate carries are superseded). Preserved for back-compat in case a future pack opts into legacy `"fact-checker"` explicitly.
+
+### Fixed
+- **Cerebras v3 shadow log spam** ([`lib/director-llm-v3-cerebras-v3prompt.ts`](lib/director-llm-v3-cerebras-v3prompt.ts)). Llama 3.1 8B on Cerebras echoes back the JSON Schema definition instead of an instance in a non-trivial fraction of calls. New `isPureSchemaDump` helper detects this second failure mode (previously only the enveloped-instance case was unwrapped) and demotes the log level from `warn` to `debug` with a `schema_dump` reason tag. New `coerceLooseFields` helper recovers two additional field-level malformations observed in live logs: stringified-JSON `confidence` and literal string `"null"` for `callbackUsed`, plus a partial-schema-envelope wrapping of the confidence object. All three coercions produce usable picks that would previously have been discarded. Shadow-path only; no runtime behavior change. Result: Railway logs drop from dozens of `warn`-level Cerebras lines per session to zero visible at default log level.
+- **Broken cross-doc legal links** ([`site/terms/`](https://www.peanutgallery.live/terms/) + [`site/privacy/`](https://www.peanutgallery.live/privacy/)). Both pages linked to `docs/SELF-HOST-FOR-INTERNATIONAL-USERS.md` which doesn't exist. Pointed both at the real `docs/SELF-HOST-INSTALL.md`. Privacy's Recording-consent section linked to a markdown-fragment anchor (`.../TERMS-OF-SERVICE.md#51-audio-capture-and-recording-consent-laws`) that doesn't resolve against the canonical HTML ToS; added `id="acceptable-use"` to the Acceptable-use H2 in `/terms/` and retargeted the privacy link at `/terms/#acceptable-use`.
+- **Stale email on legacy Next.js `/privacy` route** ([`app/privacy/page.tsx`](app/privacy/page.tsx)). Referenced `seth@manugames.com` from a different project; updated to `legal@peanutgallery.live` to match every other surface. Dead-code path behind the apex→www middleware 308, but still user-visible if middleware ever misconfigures.
+
+### Docs
+- **`docs/FACT-CHECK-LAYER.md`** — persona-agnostic methodology doc. 10 sections (operating essence, tier taxonomy, tier-to-voice mapping, ASR-slip guard, pass conditions, sourcing rules, anti-repetition discipline, war/politics red lines, 10 red-team cases) plus a 5-step "apply to a new persona" procedure pointed at Molly as the first reuse candidate (since landed).
+- **`site/pricing/` FAQ** — new "Are these the real people?" entry with inspired-by disclaimer + takedown email + matching JSON-LD entry for rich-result eligibility.
+- **`site/terms/` + `site/privacy/`** — Twitter Card meta + `og:image:width/height/alt` backfilled (were the only site pages missing them).
+- **INDEX.md + lib/packs/INDEX.md + README.md version tables** — rewritten around v2.0 as the accumulating manifest bump, with accurate descriptions of the layered-fact-checker scaffolding and the PARODY FRAME mechanism.
+
+### Chore
+- **Audit sweep** — reconciled stale v1.8-morning references in `lib/packs/howard/personas.ts` header docstring, `lib/packs/INDEX.md` pack-module table, and the PRODUCER SEARCH-RESULTS + EVIDENCE-gate comments in `lib/personas.ts`. All four docs now match the current `layered-fact-checker` reality.
+
 ---
 
 ## [1.8.0] — 2026-04-22 — "The Press Pass"

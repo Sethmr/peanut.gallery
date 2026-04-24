@@ -2,13 +2,15 @@
 
 Machine-readable map of this repo. If you are an AI resuming work here, read this first.
 
-**Current manifest version:** `v1.8.0` ("The Press Pass") — the Plus subscription pipeline end-to-end (persistent SQLite identity, Stripe checkout + webhook, Resend transactional email, dedupe gate, one-click recover-key on 409) plus v1.6/v1.7 work bundled in. Live on Railway from `develop` since 2026-04-22; not yet Chrome-Web-Store distributed.
+**Current manifest version:** `v2.0.0` ("The Gallery") — CWS launch release. Accumulates everything since v1.5.3: the Plus subscription pipeline (v1.8.0 "Press Pass"), the legal hard-save (v1.7.0 "Fine Print"), the Smart Director v3 canary (v1.6.0 "Canary"), the v1.8 deep-research persona kernels for all 8 personas, plus the v2.0 session push — **fact-check layer methodology** ([`docs/FACT-CHECK-LAYER.md`](docs/FACT-CHECK-LAYER.md)) applied to Baba + Molly via `layered-fact-checker` scaffolding, **inspired-by parody frame** via `persona.inspiredBy` + a prepended PARODY FRAME block at fire time, audio polish (mute-SFX toggle, Jackie↔Jason cue swap, bowling-pin Jason cue, Fred + Lon trims, volume 0.67), Feedback & bugs drawer section, and director-v3 Cerebras shadow log-noise reduction.
 
-**v1.7.0 "The Fine Print"** — hard-save branch + tag on origin (`release/v1.7.0`, tag `v1.7.0`). Ships the rewritten ToS/Privacy drafts, US-only gate on Plus, cookie-consent banner, and email-alias plumbing. **Not released to CWS; not merged to main.** See [`docs/legal/`](docs/legal/).
+**v1.8.0 "The Press Pass"** — absorbed into the v2.0 manifest bump. Plus subscription pipeline end-to-end (SQLite identity, Stripe checkout + webhook, Resend transactional email, dedupe gate, one-click recover-key on 409). Live on Railway from `develop` since 2026-04-22.
 
-**v1.6.0 "The Canary"** — Smart Director v3 flag-gated canary on `release/v1.6.0` (PR [#91](https://github.com/Sethmr/peanut.gallery/pull/91)). Lives on develop; absorbed into v1.8.0's manifest bump. Cerebras shadow telemetry still accumulates on Railway.
+**v1.7.0 "The Fine Print"** — hard-save branch + tag on origin (`release/v1.7.0`, tag `v1.7.0`). Rewritten ToS / Privacy drafts, US-only gate on Plus, cookie-consent banner, email-alias plumbing. Absorbed into v2.0 manifest bump. See [`docs/legal/`](docs/legal/).
 
-**Shipped Chrome-Web-Store line (stable):** v1.5.3 "The Cast" (2026-04-20) remains the last wide CWS rollout. v1.6 / v1.7 / v1.8 all live on develop + Railway but not in the CWS zip; per Seth's plan, main is frozen until v2.0.
+**v1.6.0 "The Canary"** — Smart Director v3 flag-gated canary on `release/v1.6.0` (PR [#91](https://github.com/Sethmr/peanut.gallery/pull/91)). Absorbed into v2.0 manifest bump. Cerebras shadow telemetry still accumulates on Railway; noise-reduction patches landed in v2.0.
+
+**Prior shipped Chrome-Web-Store line:** v1.5.3 "The Cast" (2026-04-20) was the last wide CWS rollout before v2.0. v2.0 is the first CWS release to carry the v1.6 / v1.7 / v1.8 accumulated work.
 
 **Canonical context for work:** [`docs/CONTEXT.md`](docs/CONTEXT.md) — stack, personas, pipeline, cost. If CONTEXT.md disagrees with this INDEX, trust CONTEXT.md.
 

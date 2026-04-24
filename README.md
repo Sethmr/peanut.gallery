@@ -2,9 +2,9 @@
 
 > **A four-seat AI writers' room that watches YouTube with you and reacts in real time.** A fact-checker keeping the host honest. A sound-effects guy scoring every moment. A comedy writer dropping one-liners. A cynical troll saying what the audience is thinking.
 
-[![Version](https://img.shields.io/badge/version-1.8.0-000000?style=flat-square&label=version&labelColor=444)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.0-000000?style=flat-square&label=version&labelColor=444)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
-[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-v1.8.0%20"The%20Press%20Pass"-34a853?style=flat-square&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/peanut-gallery/jjlpinlhfiheegiddmddkgfialcknagh)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-v2.0.0%20"The%20Gallery"-34a853?style=flat-square&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/peanut-gallery/jjlpinlhfiheegiddmddkgfialcknagh)
 [![Site](https://img.shields.io/badge/site-peanutgallery.live-000?style=flat-square)](https://www.peanutgallery.live)
 
 Peanut Gallery is a Chrome Manifest-V3 extension. It captures the active tab's audio silently (`chrome.tabCapture` — no permission picker, no playback interference), streams PCM to a local or hosted backend, transcribes with Deepgram Nova-3, and routes each chunk through the **Smart Director** — a Claude-powered routing brain that picks which of four personas gets to fire next (with a rule-based safety net). Text reactions stream back via SSE and stack in the native Chrome side panel right next to the video.
@@ -194,16 +194,17 @@ Canonical source: [`docs/ROADMAP.md`](docs/ROADMAP.md). This table is what actua
 | v1.5.6 | Dev-infra — local Linear daemon on Seth's Mac (replaces GH-Actions kickoff, uses Claude Max subscription) | 2026-04-20 |
 | v1.6.0 | **The Canary** — Smart Director v3 flag-gated canary (Haiku `tool_use`, 5-slot with SILENT, Cerebras/Groq shadow), fact-check gate with per-pack sensitivity, fallback telemetry + self-correcting penalty loop, peanut avatar stage 1 (Phong lighting + unclipped bottoms), empty-state companions, director debug panel, 60s silence auto-stop | 2026-04-21 |
 | v1.7.0 | **The Fine Print** — legal hard-save: rewritten ToS/Privacy drafts, US-only gate on Plus, cookie-consent banner, email aliases. Tagged + branched; held back from main pending lawyer review | 2026-04-21 |
-| **v1.8.0** | **The Press Pass** — Peanut Gallery Plus live end-to-end: SQLite identity (SET-25), Stripe checkout + webhook (SET-26), Resend email (SET-27), dedupe gate with one-click recover-key modal, four-mode access picker (Demo / Plus / My keys / Self-host), 15-min one-off free tier. Plus feed-UI polish (Regenerate, fire-count chips, session timer, transcript pulse) + fact-check hardening + privacy feedback opt-out | 2026-04-22 |
+| v1.8.0 | **The Press Pass** — Peanut Gallery Plus live end-to-end: SQLite identity (SET-25), Stripe checkout + webhook (SET-26), Resend email (SET-27), dedupe gate with one-click recover-key modal, four-mode access picker (Demo / Plus / My keys / Self-host), 15-min one-off free tier. Plus feed-UI polish (Regenerate, fire-count chips, session timer, transcript pulse) + fact-check hardening + privacy feedback opt-out | 2026-04-22 |
+| **v2.0.0** | **The Gallery** — CWS launch. v1.8.0 "Press Pass" Plus pipeline + v1.7.0 legal hard-save + v1.6.0 Smart Director canary all cleared to main. Persona v1.8 deep-research kernels for all 8 personas. **Fact-check layer methodology** ([`docs/FACT-CHECK-LAYER.md`](docs/FACT-CHECK-LAYER.md)) — four-tier CONFIRMS / CONTRADICTS / COMPLICATES / THIN taxonomy applied to Baba + Molly via the new `layered-fact-checker` scaffolding, voice-agnostic. **Inspired-by parody frame** — `persona.inspiredBy` field on every named-person persona, with a prepended PARODY FRAME injected at fire time closing the anti-impersonation hedge promised on the marketing site. Audio polish (mute-SFX toggle in Audio drawer, Jackie↔Jason cue swap, bowling-pin cue for Jason, Fred + Lon cue trims, cue volume reduced to 0.67). Feedback & bugs drawer section (bug → GitHub, feedback → email). Director-v3 shadow log-noise reduction (Cerebras schema-dump demotion + stringified/partial-schema confidence coercion). | 2026-04-23 |
 
 ### Next
 
 | Version | Theme | Status |
 |---------|-------|--------|
-| v1.9.x | **Smart Director GA** — once the v1.6 canary clears agreement + latency bands, promote the LLM router to primary and retire the rule-based scorer. Per-pack `directorHint` calibration from canary telemetry. Kill-switch flag stays. (Slot renumbered from v1.7 — 1.7 went to "The Fine Print.") | Blocked on v1.6 canary data (~48 h of hosted sessions) |
-| v1.10.x | **Persona refinement sprint** — re-run system prompts against 100+ transcripts per pack, tune anything the canary says is under-firing. See [`docs/PERSONA-REFINEMENT-PLAN.md`](docs/PERSONA-REFINEMENT-PLAN.md). | Blocked on v1.9 canary |
-| v1.11.x | **Avatar stage 2** — bobbleheads / 2.5D parallax / Lottie / MP4 fallback, whichever reads best in a 2-day spike. Contingent on Seth's Day-1 eval. | Planned |
-| **v2.0.0** | **The Gallery** — session recall + shareable snippet (local, PNG-to-clipboard), full audit, marketing-site refresh, launch day | Horizon |
+| v2.1.x | **Baba fact-check tuning** — live-log-driven pass-rate rebalancing for the new fact-check layer (first application landed in v2.0 but is more conservative on fire than live data wants). Potential Cerebras model swap (Llama 3.1 8B → 3.3 70B) for cleaner structured-output shadow telemetry. | Deferred post-ship per Seth |
+| v2.2.x | **Smart Director GA** — once the v1.6 canary clears agreement + latency bands, promote the LLM router to primary and retire the rule-based scorer. Per-pack `directorHint` calibration from canary telemetry. Kill-switch flag stays. | Blocked on canary data |
+| v2.3.x | **Persona refinement sprint 2** — re-run kernels against 100+ transcripts per pack after v2.0 launch feedback; tune anything the director says is under-firing. | Blocked on v2.1 tuning |
+| v2.4.x | **Avatar stage 2** — bobbleheads / 2.5D parallax / Lottie / MP4 fallback, whichever reads best in a 2-day spike. | Planned |
 | v2.x.x | Continuous Director + persona improvements while we wait for user-driven v3 direction | Post-launch |
 | v3.0.0 | **User-driven** — direction defined by what v2.0 users ask for, not by us | TBD |
 
