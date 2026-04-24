@@ -2355,6 +2355,11 @@
           <span class="dmn-hint">What leaves your browser</span>
           <span class="dmn-arrow">&rsaquo;</span>
         </button>
+        <button class="drawer-menu-item" type="button" data-section="feedback">
+          <span class="dmn-title">Feedback &amp; bugs</span>
+          <span class="dmn-hint">Report a bug · send feedback</span>
+          <span class="dmn-arrow">&rsaquo;</span>
+        </button>
       </nav>
 
       <!-- ═══════ LINEUP ═══════ -->
@@ -2676,6 +2681,55 @@
           Tab audio (streamed + discarded — never written to disk), live transcript (held in RAM, discarded at session end), and — for Plus subscribers only — your license key + weekly usage counter. Operational logs (request IDs, timings, errors) keep a 30-day retention window.
           <br /><br />
           Full detail: <a href="https://www.peanutgallery.live/privacy/" target="_blank" rel="noopener noreferrer">Privacy Policy&nbsp;&#8599;</a>.
+        </div>
+      </section>
+
+      <!-- ═══════ FEEDBACK & BUGS ═══════ -->
+      <section class="drawer-section" data-section="feedback">
+        <div class="drawer-section-head">
+          <button class="drawer-section-back" type="button" aria-label="Back to settings menu"><span aria-hidden="true">&lsaquo;</span> Menu</button>
+          <span class="drawer-section-title">Feedback &amp; bugs</span>
+        </div>
+
+        <p class="keys-intro">
+          Two ways to reach us. <strong>Bugs</strong> go to GitHub so they're public and trackable; <strong>feedback</strong> (ideas, praise, rants, confusion) goes to email so it can be a real conversation.
+        </p>
+
+        <div class="key-row">
+          <a
+            href="https://github.com/Sethmr/peanut.gallery/issues/new?template=bug_report.yml"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn small"
+            style="display:block;width:100%;text-align:center;text-decoration:none;box-sizing:border-box"
+          >&#x1F41B;&nbsp; Report a bug on GitHub &nbsp;&#8599;</a>
+          <p class="field-hint">
+            Opens a pre-filled bug-report form. Include the extension version (see <em>Lineup &rsaquo; Version</em> if you're not sure), the video you were watching, and what you expected vs. what happened.
+          </p>
+        </div>
+
+        <div class="key-row">
+          <a
+            href="mailto:support@peanutgallery.live?subject=Peanut%20Gallery%20feedback"
+            class="btn small"
+            style="display:block;width:100%;text-align:center;text-decoration:none;box-sizing:border-box"
+          >&#9993;&nbsp; Send feedback by email</a>
+          <p class="field-hint">
+            Ideas, rants, praise, confusion &mdash; mail to <strong>support@peanutgallery.live</strong>. Same inbox used for billing &amp; subscription support, so it's actually checked.
+          </p>
+        </div>
+
+        <div class="key-row">
+          <a
+            href="https://github.com/Sethmr/peanut.gallery/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="field-hint"
+            style="text-decoration:underline"
+          >Browse existing issues &nbsp;&#8599;</a>
+          <p class="field-hint">
+            Before filing, a quick search here might turn up a duplicate. Bonus: a &#x1F44D; on someone else's issue is a signal we pay attention to.
+          </p>
         </div>
       </section>
 
