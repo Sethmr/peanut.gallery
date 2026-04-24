@@ -2420,7 +2420,7 @@ async function exportQuoteCard(entryId) {
   }
 }
 
-// ── Sensitivity segmented control (Critics drawer) ──
+// ── Sensitivity segmented control (Lineup drawer — moved in v2.0.1) ──
 // Three-way radio: Quieter / Normal / Rowdy. Scales cascade probability
 // on the Director (via X-Sensitivity header on session start). Change
 // takes effect on the next session — we don't restart mid-stream.
@@ -4315,7 +4315,7 @@ const TUTORIAL_STEPS = [
   {
     targetSelector: '.drawer-menu-item[data-section="lineup"]',
     title: "Lineup",
-    body: "Pick your pack (Howard or TWiST) and how often the critics chime in. Cadence 1 is occasional; 10 is nonstop.",
+    body: "One home for every critic knob. Pick your pack (Howard or TWiST), dial cadence (1 = occasional, 10 = nonstop), set Room volume (Quieter / Normal / Rowdy) for how often the critics chain into each other, and mute anyone wearing you out.",
     onEnter: () => {
       if (!settingsDrawer?.classList.contains("visible")) openSettingsDrawer();
       showDrawerMenu();
@@ -4334,15 +4334,6 @@ const TUTORIAL_STEPS = [
     targetSelector: '.drawer-menu-item[data-section="audio"]',
     title: "Audio",
     body: "Passthrough plays captured tab audio back through your speakers so you hear the video normally. Turn it off only when your recording software is already routing the tab (OBS, Loopback, BlackHole).",
-    onEnter: () => {
-      if (!settingsDrawer?.classList.contains("visible")) openSettingsDrawer();
-      showDrawerMenu();
-    },
-  },
-  {
-    targetSelector: '.drawer-menu-item[data-section="critics"]',
-    title: "Critics & Room volume",
-    body: "Mute any critic who's wearing you out, or dial Room volume (Quieter · Normal · Rowdy) to change how often they chain into each other. Quieter = primary only, pile-ons rare. Rowdy = expect the whole room to show up.",
     onEnter: () => {
       if (!settingsDrawer?.classList.contains("visible")) openSettingsDrawer();
       showDrawerMenu();

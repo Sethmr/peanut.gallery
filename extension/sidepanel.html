@@ -2615,7 +2615,7 @@
       <nav id="drawerMenu" class="drawer-menu">
         <button class="drawer-menu-item" type="button" data-section="lineup">
           <span class="dmn-title">Lineup</span>
-          <span class="dmn-hint">Critics pack · response cadence</span>
+          <span class="dmn-hint">Pack · cadence · room volume · mutes</span>
           <span class="dmn-arrow">&rsaquo;</span>
         </button>
         <button class="drawer-menu-item" type="button" data-section="backend">
@@ -2626,11 +2626,6 @@
         <button class="drawer-menu-item" type="button" data-section="audio">
           <span class="dmn-title">Audio</span>
           <span class="dmn-hint">Passthrough · output device</span>
-          <span class="dmn-arrow">&rsaquo;</span>
-        </button>
-        <button class="drawer-menu-item" type="button" data-section="critics">
-          <span class="dmn-title">Mute a critic</span>
-          <span class="dmn-hint">Silence individuals on the wire</span>
           <span class="dmn-arrow">&rsaquo;</span>
         </button>
         <button class="drawer-menu-item" type="button" data-section="export">
@@ -2705,6 +2700,28 @@
             How often the critics chime in. 1 = occasional quips, 10 = nonstop. Defaults to 5. Takes effect on your next <em>Start Listening</em>.
           </p>
         </div>
+
+        <!-- v2.0.1: Room volume moved in from the old "Mute a critic"
+             drawer. Belongs with the lineup knobs — cadence + room
+             volume both tune how the critics behave per session. -->
+        <div class="drawer-subsection-head">
+          <span class="drawer-subsection-title">Room volume</span>
+        </div>
+        <div class="segmented" id="sensitivitySegmented" role="radiogroup" aria-label="Room volume">
+          <button type="button" class="segmented-option" data-value="quiet" role="radio" aria-checked="false">Quieter</button>
+          <button type="button" class="segmented-option is-active" data-value="normal" role="radio" aria-checked="true">Normal</button>
+          <button type="button" class="segmented-option" data-value="rowdy" role="radio" aria-checked="false">Rowdy</button>
+        </div>
+        <div class="help">How often the critics chain into each other. <strong>Quieter</strong> = primary only, cascades rare. <strong>Rowdy</strong> = pile-ons expected. Applies to the next tick.</div>
+
+        <!-- v2.0.1: Mute-a-critic moved in from its old top-level
+             drawer tile. Cleaner surface when everything persona-
+             related lives under Lineup. -->
+        <div class="drawer-subsection-head">
+          <span class="drawer-subsection-title">Mute a critic</span>
+        </div>
+        <div id="mutesContainer" class="mutes"></div>
+        <div class="help">Muted critics won&rsquo;t post to the feed. Toggles save instantly; the wire keeps running in the background.</div>
       </section>
 
       <!-- ═══════ BACKEND & KEYS ═══════ -->
@@ -2936,26 +2953,6 @@
             On: the short cue that plays when a critic starts speaking is silenced. Off (default): cues play under the content audio.
           </p>
         </div>
-      </section>
-
-      <!-- ═══════ CRITICS (mute list) ═══════ -->
-      <section class="drawer-section" data-section="critics">
-        <div class="drawer-section-head">
-          <button class="drawer-section-back" type="button" aria-label="Back to settings menu"><span aria-hidden="true">&lsaquo;</span> Menu</button>
-          <span class="drawer-section-title">Mute a critic</span>
-        </div>
-        <div id="mutesContainer" class="mutes"></div>
-        <div class="help">Muted critics won't post to the feed. Toggles save instantly; the wire keeps running in the background.</div>
-
-        <div class="drawer-subsection-head">
-          <span class="drawer-subsection-title">Room volume</span>
-        </div>
-        <div class="segmented" id="sensitivitySegmented" role="radiogroup" aria-label="Room volume">
-          <button type="button" class="segmented-option" data-value="quiet" role="radio" aria-checked="false">Quieter</button>
-          <button type="button" class="segmented-option is-active" data-value="normal" role="radio" aria-checked="true">Normal</button>
-          <button type="button" class="segmented-option" data-value="rowdy" role="radio" aria-checked="false">Rowdy</button>
-        </div>
-        <div class="help">How often the critics chain into each other. <strong>Quieter</strong> = primary only, cascades rare. <strong>Rowdy</strong> = pile-ons expected. Applies to the next tick.</div>
       </section>
 
       <!-- ═══════ EXPORT ═══════ -->
