@@ -328,9 +328,9 @@ const cues: Array<{ id: string; samples: Sample[] }> = [
   { id: "howard-producer", samples: babaBooey() }, // Baba Booey
   { id: "howard-troll", samples: troll() }, // The Troll
   { id: "howard-soundfx", samples: fred() }, // Fred
-  { id: "howard-joker", samples: jackie() }, // Jackie
+  { id: "howard-joker", samples: jason() }, // Jackie — plays Jason's cue (swap)
   { id: "twist-producer", samples: molly() }, // Molly
-  { id: "twist-troll", samples: jason() }, // Jason
+  { id: "twist-troll", samples: jackie() }, // Jason — plays Jackie's cue (swap)
   { id: "twist-soundfx", samples: lon() }, // Lon 🥚
   { id: "twist-joker", samples: alex() }, // Alex 🥔
 ];

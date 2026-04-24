@@ -1338,6 +1338,7 @@ const braveKeyInput = document.getElementById("braveKey");
 const searchEngineSelect = document.getElementById("searchEngine");
 const passthroughToggle = document.getElementById("passthroughToggle");
 const outputDeviceSelect = document.getElementById("outputDevice");
+const muteSfxToggle = document.getElementById("muteSfxToggle");
 // Response-rate dial (1-10, default 5). If an older build somehow loads a new
 // sidepanel.js without the HTML update, the ?.value pattern below keeps us safe.
 const responseRateSelect = document.getElementById("responseRate");
@@ -1446,6 +1447,7 @@ function loadSettings() {
       "searchEngine",
       "passthrough",
       "outputDeviceId",
+      "muteSfx",
       "responseRate",
       "packId",
       "theme",
@@ -1475,6 +1477,8 @@ function loadSettings() {
       const savedDevice = data.outputDeviceId || "default";
       // Selected device is applied once enumerateOutputDevices() runs (async).
       outputDeviceSelect.dataset.pendingValue = savedDevice;
+
+      if (muteSfxToggle) muteSfxToggle.checked = data.muteSfx === true;
 
       // Response-rate dial: restore saved value (1-10). Default of 5 is
       // baked into the HTML <option selected>, so a first-time user gets
@@ -1576,6 +1580,7 @@ function saveSettings() {
     searchEngine: searchEngineSelect?.value === "xai" ? "xai" : "brave",
     passthrough: passthroughToggle.checked,
     outputDeviceId: currentOutputDeviceId(),
+    muteSfx: muteSfxToggle ? muteSfxToggle.checked : false,
     responseRate: currentResponseRate(),
     packId: currentPackId,
     theme: currentTheme,
@@ -2638,6 +2643,7 @@ const personaCueCache = {};
 let lastSpeakingId = null;
 function playPersonaCue(personaId) {
   if (!personaId) return;
+  if (muteSfxToggle && muteSfxToggle.checked) return;
   const key = `${currentPackId}-${personaId}`;
   let audio = personaCueCache[key];
   if (!audio) {
@@ -2645,7 +2651,7 @@ function playPersonaCue(personaId) {
       audio = new Audio(chrome.runtime.getURL(`sounds/personas/${key}.wav`));
       // The WAVs are already RMS-normalized at synth time (-29 dBFS) to
       // sit under content audio. Volume is a user-side safety knob only.
-      audio.volume = 1.0;
+      audio.volume = 0.67;
       audio.preload = "auto";
       personaCueCache[key] = audio;
     } catch {
@@ -3698,6 +3704,11 @@ outputDeviceSelect.addEventListener("change", () => {
   saveSettings();
   sendAudioSettingsToOffscreen();
 });
+if (muteSfxToggle) {
+  muteSfxToggle.addEventListener("change", () => {
+    saveSettings();
+  });
+}
 
 // Response rate: persist on change so it sticks across panel re-opens.
 // Intentionally NOT pushed to a running session — changing cadence
