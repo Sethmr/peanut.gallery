@@ -2054,6 +2054,14 @@
     .tutorial-card-actions{
       display: flex; gap: 6px; align-items: center;
     }
+    /* Explicit display-none overrides for [hidden]. CSS `display`
+       declarations override the UA-level hidden-attribute default
+       ([hidden]{display:none}), so without these the Skip/Next row
+       and the CTA grid both stay visible when we tried to swap
+       between them. */
+    .tutorial-card-actions[hidden],
+    .tutorial-card-cta-grid[hidden],
+    .tutorial-walkthrough-host[hidden]{ display: none !important; }
     .tutorial-card-actions .skip{
       background: transparent; border: 0;
       font-family: var(--slab-2); font-size: 10px;
