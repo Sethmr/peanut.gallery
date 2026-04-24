@@ -4311,6 +4311,10 @@ const tutorialTitleEl = document.getElementById("tutorialTitle");
 const tutorialBodyEl = document.getElementById("tutorialBody");
 const tutorialNextBtn = document.getElementById("tutorialNextBtn");
 const tutorialSkipBtn = document.getElementById("tutorialSkipBtn");
+const tutorialActionsDefault = document.getElementById("tutorialActionsDefault");
+const tutorialCtaGrid = document.getElementById("tutorialCtaGrid");
+const tutorialTryNowBtn = document.getElementById("tutorialTryNowBtn");
+const tutorialGetKeysBtn = document.getElementById("tutorialGetKeysBtn");
 const replayTutorialBtn = document.getElementById("replayTutorialBtn");
 
 // Steps are declarative. `targetSelector` names the element to spotlight;
@@ -4365,24 +4369,104 @@ const TUTORIAL_STEPS = [
     },
   },
   {
-    // Final stop: the tap-a-response interaction in the feed. No specific
-    // element to spotlight — there may be no feed entries on a first run,
-    // so we skip the target and let the card speak on its own. Mentions
-    // the Export + Appearance submenus as follow-up reading so we don't
-    // need dedicated steps.
+    // Mid-journey tip: the tap-a-response interaction in the feed. No
+    // specific element to spotlight — there may be no feed entries on
+    // a first run, so we skip the target and let the card speak on its
+    // own. Mentions Export + Appearance as follow-up reading so we
+    // don't need dedicated steps.
     targetSelector: null,
     title: "Tap a response",
-    body: "During a session, tap any critic's line to pin it, upvote/downvote it, or grab a shareable quote card. Export (full session .md) and Appearance (Paper/Night + replay this tour) round out the drawer.",
+    body: "During a session, tap any critic's line to pin it, upvote/downvote it, delete it, or grab a shareable quote card. Export (full session .md) and Appearance (Paper/Night + replay this tour) round out the drawer.",
     onEnter: () => {
-      // Close the drawer so the final card doesn't hide behind it and the
-      // user lands back on the empty state / feed when they tap Done.
+      // Close the drawer so the next card doesn't hide behind it.
+      if (settingsDrawer?.classList.contains("visible")) closeSettingsDrawer();
+    },
+  },
+  {
+    // v2.0.1 terminal step — dual-CTA fork. "Try now" drops into the
+    // empty state so the user can Start Listening on demo keys; "Get
+    // my own keys" launches the KEY_WALKTHROUGH sequence for guided
+    // per-provider setup.
+    targetSelector: null,
+    final: true,
+    title: "Ready to roll?",
+    body: "Demo gives you 15 minutes on our shared keys — handy for trying Peanut Gallery right now. For unlimited use, bring your own API keys. We'll walk you through signing up at each provider if you want.",
+    onEnter: () => {
+      // Ensure the drawer isn't hiding the terminal card.
       if (settingsDrawer?.classList.contains("visible")) closeSettingsDrawer();
     },
   },
 ];
 
+// v2.0.1: optional sequential walkthrough triggered by the terminal
+// "Get my own keys" CTA. Each step spotlights one provider panel in
+// the wizard; the user is expected to tap the provider's signup link
+// in the spotlighted step, paste the key inside the wizard, and then
+// hit Next in this overlay. Skip advances without a forged value.
+//
+// Kept in a separate list from TUTORIAL_STEPS so the main tutorial's
+// step counter stays honest — the walkthrough relabels the slug to
+// "Key N · 4" while active.
+const KEY_WALKTHROUGH_STEPS = [
+  {
+    targetSelector: "#onboardStep1",
+    title: "Deepgram — speech to text",
+    body: "Click the 'Open Deepgram signup' link in the spotlighted panel to grab a free API key ($200 credit on signup — months of typical use). Paste it into the field, then tap Next.",
+    onEnter: () => ensureWizardStepVisible(1),
+  },
+  {
+    targetSelector: "#onboardStep2",
+    title: "Anthropic — Claude fact + comedy",
+    body: "Click 'Open Anthropic signup' in the spotlighted panel. Phone verification required; ~$5 free credit on signup. Create a key starting with sk-ant-, paste, then tap Next.",
+    onEnter: () => ensureWizardStepVisible(2),
+  },
+  {
+    targetSelector: "#onboardStep3",
+    title: "xAI — Grok troll + cues",
+    body: "Click 'Open xAI console' in the spotlighted panel. Phone verification required. Copy the xai- prefixed key into the field, then tap Next.",
+    onEnter: () => ensureWizardStepVisible(3),
+  },
+  {
+    targetSelector: "#onboardStep4",
+    title: "Brave Search — optional",
+    body: "Optional. Only needed if you want the fact-checker grounded in live web search; Grok's built-in search covers you if you'd rather skip. Free tier is 2,000 queries/month. Paste the key, or tap Skip to finish.",
+    onEnter: () => ensureWizardStepVisible(4),
+  },
+];
+
+// Open the settings drawer on the Backend & keys section, flip to
+// "My keys" mode so #byokKeysBlock is visible, ensure the wizard is
+// expanded, and scroll the target wizard step into view.
+function ensureWizardStepVisible(stepNum) {
+  if (!settingsDrawer?.classList.contains("visible")) openSettingsDrawer();
+  if (typeof showDrawerSection === "function") showDrawerSection("backend");
+  if (backendMode !== "byok" && backendMode !== "selfhost") {
+    setBackendMode("byok");
+  }
+  const wizard = document.getElementById("onboardWizard");
+  const body = document.getElementById("onboardBody");
+  const toggle = document.getElementById("onboardToggle");
+  if (wizard && body && body.hasAttribute("hidden")) {
+    body.removeAttribute("hidden");
+    wizard.classList.add("is-open");
+    toggle?.setAttribute("aria-expanded", "true");
+  }
+  requestAnimationFrame(() => {
+    const step = document.getElementById(`onboardStep${stepNum}`);
+    if (step) step.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}
+
 let tutorialIndex = 0;
 let tutorialActiveTarget = null;
+// v2.0.1: when the user picks "Get my own keys" on the terminal card,
+// we switch to the key-walkthrough sequence. The step-counter slug is
+// relabeled and the step list is sourced from KEY_WALKTHROUGH_STEPS.
+let tutorialMode = "main"; // "main" | "walkthrough"
+
+function activeTutorialSteps() {
+  return tutorialMode === "walkthrough" ? KEY_WALKTHROUGH_STEPS : TUTORIAL_STEPS;
+}
 
 function clearTutorialTarget() {
   if (tutorialActiveTarget) {
@@ -4392,14 +4476,32 @@ function clearTutorialTarget() {
 }
 
 function renderTutorialStep(i) {
-  const step = TUTORIAL_STEPS[i];
+  const steps = activeTutorialSteps();
+  const step = steps[i];
   if (!step) return;
   clearTutorialTarget();
   if (typeof step.onEnter === "function") step.onEnter();
-  tutorialStepEl.textContent = `Step ${i + 1} · ${TUTORIAL_STEPS.length}`;
+  const slug = tutorialMode === "walkthrough"
+    ? `Key ${i + 1} · ${steps.length}`
+    : `Step ${i + 1} · ${steps.length}`;
+  tutorialStepEl.textContent = slug;
   tutorialTitleEl.textContent = step.title;
   tutorialBodyEl.textContent = step.body;
-  tutorialNextBtn.textContent = i === TUTORIAL_STEPS.length - 1 ? "Done" : "Next ›";
+  tutorialNextBtn.textContent = i === steps.length - 1 ? "Done" : "Next ›";
+
+  // Swap action row: terminal main-tutorial step shows the dual CTA,
+  // everything else shows the Skip / Next row.
+  const showDualCta = step.final === true;
+  if (tutorialActionsDefault && tutorialCtaGrid) {
+    if (showDualCta) {
+      tutorialActionsDefault.setAttribute("hidden", "");
+      tutorialCtaGrid.removeAttribute("hidden");
+    } else {
+      tutorialActionsDefault.removeAttribute("hidden");
+      tutorialCtaGrid.setAttribute("hidden", "");
+    }
+  }
+
   // Defer target highlight one frame so any drawer navigation has painted
   // and the element exists in the flow (menu tiles get display:none'd when
   // a section is open; onEnter flips the drawer back to menu view first).
@@ -4419,14 +4521,27 @@ function renderTutorialStep(i) {
 
 function startTutorial() {
   if (!tutorialOverlay) return;
+  tutorialMode = "main";
   tutorialIndex = 0;
   tutorialOverlay.classList.add("visible");
   tutorialOverlay.setAttribute("aria-hidden", "false");
   renderTutorialStep(0);
 }
 
+function startKeyWalkthrough() {
+  if (!tutorialOverlay) return;
+  tutorialMode = "walkthrough";
+  tutorialIndex = 0;
+  // Make sure the overlay is visible (if user somehow got here without
+  // the overlay up) — same pattern as startTutorial.
+  tutorialOverlay.classList.add("visible");
+  tutorialOverlay.setAttribute("aria-hidden", "false");
+  renderTutorialStep(0);
+}
+
 function advanceTutorial() {
-  if (tutorialIndex >= TUTORIAL_STEPS.length - 1) {
+  const steps = activeTutorialSteps();
+  if (tutorialIndex >= steps.length - 1) {
     endTutorial(true);
     return;
   }
@@ -4442,16 +4557,31 @@ function endTutorial(completed) {
   // Persist only the flag so we don't race with loadSettings on the key
   // inputs. Same single-field-write pattern used by applyTheme + toggleMute.
   chrome.storage.local.set({ tutorialSeen: true });
-  // If the tour opened the drawer, leave it open on the menu view — the
-  // user just got pointed at four tiles, closing the drawer on them would
-  // feel like the tour throwing the settings away.
+  // Drawer-post-tour behavior. For the main tutorial, leave the drawer
+  // open on the menu view (the tour pointed at four tiles, closing it
+  // would throw the settings away). For the key walkthrough, leave the
+  // Backend & keys section open so the user can see the wizard with
+  // their freshly-pasted keys. Reset the mode flag either way.
   if (completed && settingsDrawer?.classList.contains("visible")) {
-    showDrawerMenu();
+    if (tutorialMode === "main") showDrawerMenu();
+    // walkthrough: keep Backend section visible (already there).
   }
+  tutorialMode = "main";
 }
 
 if (tutorialNextBtn) tutorialNextBtn.addEventListener("click", advanceTutorial);
 if (tutorialSkipBtn) tutorialSkipBtn.addEventListener("click", () => endTutorial(false));
+
+// Terminal dual-CTA wiring. "Try now" ends the tour and drops the user
+// back on the main panel so they can hit Start Listening on demo keys.
+// "Get my own keys" rebrands the overlay as a per-provider walkthrough
+// anchored to each wizard step in the Backend & keys drawer.
+if (tutorialTryNowBtn) {
+  tutorialTryNowBtn.addEventListener("click", () => endTutorial(true));
+}
+if (tutorialGetKeysBtn) {
+  tutorialGetKeysBtn.addEventListener("click", startKeyWalkthrough);
+}
 
 // Replay entry point — resets the seen flag is not necessary since we just
 // trigger startTutorial directly. Clicking Replay also closes the drawer

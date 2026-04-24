@@ -2072,6 +2072,54 @@
     }
     .tutorial-card-actions .next:hover{background: var(--stamp)}
 
+    /* ── v2.0.1: terminal dual-CTA on the final tutorial card ──
+       Two stacked full-width buttons; primary (Try now) uses the
+       ink-on-paper stamp, secondary (Get my own keys) inverts to
+       paper-on-ink. Each button carries a one-line description
+       under the label to make the tradeoff legible without opening
+       a third step. */
+    .tutorial-card-cta-grid{
+      display: flex; flex-direction: column; gap: 8px;
+      margin-top: 4px;
+    }
+    .tutorial-cta{
+      display: flex; flex-direction: column; align-items: flex-start;
+      gap: 3px;
+      width: 100%;
+      padding: 9px 12px 10px;
+      border: 2px solid var(--ink);
+      cursor: pointer;
+      text-align: left;
+      font-family: var(--serif);
+      transition: transform .08s, background .15s;
+    }
+    .tutorial-cta:hover{ transform: translate(-1px, -1px); }
+    .tutorial-cta-primary{
+      background: var(--ink); color: var(--paper);
+      box-shadow: 3px 3px 0 var(--stamp);
+    }
+    .tutorial-cta-primary:hover{ background: var(--stamp); }
+    .tutorial-cta-secondary{
+      background: var(--paper); color: var(--ink);
+      box-shadow: 3px 3px 0 var(--ink);
+    }
+    .tutorial-cta-secondary:hover{
+      background: color-mix(in srgb, var(--stamp) 8%, var(--paper));
+    }
+    .tutorial-cta-label{
+      font-family: var(--slab-2); font-weight: 700;
+      font-size: 13px; letter-spacing: .08em;
+      text-transform: uppercase;
+      line-height: 1.1;
+    }
+    .tutorial-cta-desc{
+      font-family: var(--serif); font-style: italic;
+      font-size: 11px; line-height: 1.35;
+      opacity: .85;
+    }
+    .tutorial-cta-primary .tutorial-cta-desc{ color: var(--paper); }
+    .tutorial-cta-secondary .tutorial-cta-desc{ color: var(--ink-2); }
+
     /* Spotlight ring on the element the card is pointing at. Applied by
        adding .tut-target to the element; removed when the step advances.
        Uses outline (not border) so it doesn't shift layout. */
@@ -3064,10 +3112,25 @@
       </div>
       <h3 class="tutorial-card-title" id="tutorialTitle">Welcome to the gallery</h3>
       <p class="tutorial-card-body" id="tutorialBody">Quick 30-second tour of your settings drawer. Six submenus, four things worth knowing.</p>
-      <div class="tutorial-card-actions">
+      <!-- Default action row — shown for every regular tutorial step. -->
+      <div class="tutorial-card-actions" id="tutorialActionsDefault">
         <button class="skip" id="tutorialSkipBtn" type="button">Skip</button>
         <div class="spacer"></div>
         <button class="next" id="tutorialNextBtn" type="button">Next &rsaquo;</button>
+      </div>
+      <!-- v2.0.1: terminal dual-CTA shown on the final tutorial card.
+           "Try now" closes the tour and drops the user on the empty
+           state; "Get my own keys" launches a sequential walkthrough
+           of the 4-provider wizard, one step at a time. -->
+      <div class="tutorial-card-cta-grid" id="tutorialCtaGrid" hidden>
+        <button class="tutorial-cta tutorial-cta-primary" id="tutorialTryNowBtn" type="button">
+          <span class="tutorial-cta-label">Try now</span>
+          <span class="tutorial-cta-desc">15 free minutes on our keys &mdash; no signup, no card.</span>
+        </button>
+        <button class="tutorial-cta tutorial-cta-secondary" id="tutorialGetKeysBtn" type="button">
+          <span class="tutorial-cta-label">Get my own keys</span>
+          <span class="tutorial-cta-desc">~10 minutes across four providers. Free forever when you run on your own keys. We&rsquo;ll walk you through each one.</span>
+        </button>
       </div>
     </div>
   </aside>
