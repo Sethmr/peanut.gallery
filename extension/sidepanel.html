@@ -2119,6 +2119,34 @@
     }
     .tutorial-cta-primary .tutorial-cta-desc{ color: var(--paper); }
     .tutorial-cta-secondary .tutorial-cta-desc{ color: var(--ink-2); }
+    /* Tertiary CTA (Plus — coming soon). Muted, dashed border so it
+       reads as the "not yet available" option without disabling it;
+       clicking still fires the same "Coming soon" modal users see
+       from the Backend & keys Plus tab. */
+    .tutorial-cta-tertiary{
+      background: var(--paper);
+      color: var(--ink-2);
+      border: 2px dashed var(--ink-3);
+      box-shadow: none;
+    }
+    .tutorial-cta-tertiary:hover{
+      color: var(--ink);
+      border-color: var(--ink);
+      background: color-mix(in srgb, var(--stamp) 4%, var(--paper));
+    }
+    .tutorial-cta-tertiary .tutorial-cta-desc{ color: var(--ink-3); }
+
+    /* v2.0.1: walkthrough host — container inside the tutorial card
+       that holds the wizard-step DOM while a walkthrough step is
+       active. Constrain it to the card width and reset a couple of
+       broadsheet-drawer styles that only make sense in the drawer. */
+    .tutorial-walkthrough-host{
+      margin: 2px 0 10px;
+    }
+    .tutorial-walkthrough-host .onboard-step{
+      padding: 0;
+      border-bottom: 0;
+    }
 
     /* Spotlight ring on the element the card is pointing at. Applied by
        adding .tut-target to the element; removed when the step advances.
@@ -3118,10 +3146,12 @@
         <div class="spacer"></div>
         <button class="next" id="tutorialNextBtn" type="button">Next &rsaquo;</button>
       </div>
-      <!-- v2.0.1: terminal dual-CTA shown on the final tutorial card.
-           "Try now" closes the tour and drops the user on the empty
-           state; "Get my own keys" launches a sequential walkthrough
-           of the 4-provider wizard, one step at a time. -->
+      <!-- v2.0.1: terminal triple-CTA shown on the final tutorial
+           card. "Try now" ends the tour and drops the user on the
+           empty state; "Get my own keys" launches a sequential
+           walkthrough that injects each wizard step into this same
+           card; "Peanut Gallery Plus" fires the same "Coming soon"
+           modal as the Plus tab in the Backend & keys drawer. -->
       <div class="tutorial-card-cta-grid" id="tutorialCtaGrid" hidden>
         <button class="tutorial-cta tutorial-cta-primary" id="tutorialTryNowBtn" type="button">
           <span class="tutorial-cta-label">Try now</span>
@@ -3131,7 +3161,16 @@
           <span class="tutorial-cta-label">Get my own keys</span>
           <span class="tutorial-cta-desc">~10 minutes across four providers. Free forever when you run on your own keys. We&rsquo;ll walk you through each one.</span>
         </button>
+        <button class="tutorial-cta tutorial-cta-tertiary" id="tutorialPlusBtn" type="button">
+          <span class="tutorial-cta-label">Peanut Gallery Plus</span>
+          <span class="tutorial-cta-desc">Coming soon &mdash; we handle the keys for you. $8 / mo · 16 h per week.</span>
+        </button>
       </div>
+      <!-- v2.0.1: walkthrough host. During the per-provider tour the
+           relevant #onboardStepN node is moved into here so the card
+           literally becomes the wizard step. Restored to its original
+           drawer position on exit. -->
+      <div class="tutorial-walkthrough-host" id="tutorialWalkthroughHost" hidden></div>
     </div>
   </aside>
 

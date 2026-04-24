@@ -708,6 +708,22 @@ let backendMode = "demo"; // "demo" | "byok" | "plus" | "selfhost"
 
 const HOSTED_BACKEND_URL = "https://api.peanutgallery.live";
 
+// v2.0.1: shared "Coming soon" modal for Plus. Fired both from the
+// segmented control's Plus tab (Backend & keys drawer) and the
+// first-run tutorial's final-page Plus CTA. openPromptModal writes
+// body via textContent, so no HTML — plain emphasis via punctuation.
+function openPlusComingSoonModal() {
+  return openPromptModal({
+    stamp: "Coming soon",
+    title: "Peanut Gallery Plus",
+    body:
+      "This tier is in the works but not yet available. We're working through provider-approval and compliance details before launch. For now: pick Demo for a 15-minute free trial, or My keys to run on your own API keys — free forever.",
+    confirmLabel: "Got it",
+    cancelLabel: "Close",
+    hideInput: true,
+  }).catch(() => {});
+}
+
 function setBackendMode(mode, { persist = true } = {}) {
   if (mode !== "demo" && mode !== "byok" && mode !== "plus" && mode !== "selfhost") mode = "demo";
   backendMode = mode;
@@ -1005,17 +1021,7 @@ if (backendModeSegmented) {
     // backend mode — the segmented control stays on whatever was
     // previously selected.
     if (btn.dataset.value === "plus") {
-      openPromptModal({
-        stamp: "Coming soon",
-        title: "Peanut Gallery Plus",
-        // openPromptModal writes body via textContent, so no HTML —
-        // plain emphasis through punctuation instead of <strong>.
-        body:
-          "This tier is in the works but not yet available. We're working through provider-approval and compliance details before launch. For now: pick Demo for a 15-minute free trial, or My keys to run on your own API keys — free forever.",
-        confirmLabel: "Got it",
-        cancelLabel: "Close",
-        hideInput: true,
-      }).catch(() => {});
+      openPlusComingSoonModal();
       return;
     }
     setBackendMode(btn.dataset.value);
@@ -4315,6 +4321,8 @@ const tutorialActionsDefault = document.getElementById("tutorialActionsDefault")
 const tutorialCtaGrid = document.getElementById("tutorialCtaGrid");
 const tutorialTryNowBtn = document.getElementById("tutorialTryNowBtn");
 const tutorialGetKeysBtn = document.getElementById("tutorialGetKeysBtn");
+const tutorialPlusBtn = document.getElementById("tutorialPlusBtn");
+const tutorialWalkthroughHost = document.getElementById("tutorialWalkthroughHost");
 const replayTutorialBtn = document.getElementById("replayTutorialBtn");
 
 // Steps are declarative. `targetSelector` names the element to spotlight;
@@ -4409,37 +4417,36 @@ const TUTORIAL_STEPS = [
 // "Key N · 4" while active.
 const KEY_WALKTHROUGH_STEPS = [
   {
-    targetSelector: "#onboardStep1",
     title: "Deepgram — speech to text",
-    body: "Click the 'Open Deepgram signup' link in the spotlighted panel to grab a free API key ($200 credit on signup — months of typical use). Paste it into the field, then tap Next.",
-    onEnter: () => ensureWizardStepVisible(1),
+    stepNum: 1,
   },
   {
-    targetSelector: "#onboardStep2",
-    title: "Anthropic — Claude fact + comedy",
-    body: "Click 'Open Anthropic signup' in the spotlighted panel. Phone verification required; ~$5 free credit on signup. Create a key starting with sk-ant-, paste, then tap Next.",
-    onEnter: () => ensureWizardStepVisible(2),
+    title: "Anthropic — Claude",
+    stepNum: 2,
   },
   {
-    targetSelector: "#onboardStep3",
-    title: "xAI — Grok troll + cues",
-    body: "Click 'Open xAI console' in the spotlighted panel. Phone verification required. Copy the xai- prefixed key into the field, then tap Next.",
-    onEnter: () => ensureWizardStepVisible(3),
+    title: "xAI — Grok",
+    stepNum: 3,
   },
   {
-    targetSelector: "#onboardStep4",
-    title: "Brave Search — optional",
-    body: "Optional. Only needed if you want the fact-checker grounded in live web search; Grok's built-in search covers you if you'd rather skip. Free tier is 2,000 queries/month. Paste the key, or tap Skip to finish.",
-    onEnter: () => ensureWizardStepVisible(4),
+    title: "Brave Search",
+    stepNum: 4,
   },
 ];
 
-// Open the settings drawer on the Backend & keys section, flip to
-// "My keys" mode so #byokKeysBlock is visible, ensure the wizard is
-// expanded, and scroll the target wizard step into view.
-function ensureWizardStepVisible(stepNum) {
-  if (!settingsDrawer?.classList.contains("visible")) openSettingsDrawer();
-  if (typeof showDrawerSection === "function") showDrawerSection("backend");
+// Walkthrough DOM parking — remembers the original parent + next
+// sibling of each #onboardStepN element so we can move them into the
+// tutorial card body while the walkthrough is active and restore
+// them on exit. Keyed by step number (1..4); keys present only for
+// steps currently in the tutorial card.
+const walkthroughParking = {};
+
+// Make sure the settings drawer is in a clean state for the
+// walkthrough — we close it so the tutorial card is the only focal
+// surface. Also flips backend mode to "byok" so the wizard (and the
+// #onboardStepN elements inside it) are actually rendered, which is
+// required for moveStepIntoTutorial to find them.
+function prepareDrawerForWalkthrough() {
   if (backendMode !== "byok" && backendMode !== "selfhost") {
     setBackendMode("byok");
   }
@@ -4451,10 +4458,51 @@ function ensureWizardStepVisible(stepNum) {
     wizard.classList.add("is-open");
     toggle?.setAttribute("aria-expanded", "true");
   }
-  requestAnimationFrame(() => {
-    const step = document.getElementById(`onboardStep${stepNum}`);
-    if (step) step.scrollIntoView({ behavior: "smooth", block: "center" });
-  });
+  // Show the Backend section underneath so when the user finishes the
+  // walkthrough and the step DOM is restored, they see it in context.
+  if (typeof showDrawerSection === "function") showDrawerSection("backend");
+  // But keep the drawer itself closed during the walkthrough — the
+  // tutorial card is the surface.
+  if (settingsDrawer?.classList.contains("visible")) closeSettingsDrawer();
+}
+
+function moveStepIntoTutorial(stepNum) {
+  const stepEl = document.getElementById(`onboardStep${stepNum}`);
+  if (!stepEl || !tutorialWalkthroughHost) return;
+  // Skip if already parked (defensive — shouldn't happen if we always
+  // restore before move, but guards against double-entry).
+  if (walkthroughParking[stepNum]) return;
+  walkthroughParking[stepNum] = {
+    parent: stepEl.parentNode,
+    nextSibling: stepEl.nextSibling,
+  };
+  tutorialWalkthroughHost.appendChild(stepEl);
+  tutorialWalkthroughHost.removeAttribute("hidden");
+}
+
+function restoreStep(stepNum) {
+  const info = walkthroughParking[stepNum];
+  if (!info) return;
+  const stepEl = document.getElementById(`onboardStep${stepNum}`);
+  if (!stepEl) {
+    delete walkthroughParking[stepNum];
+    return;
+  }
+  if (info.nextSibling && info.nextSibling.parentNode === info.parent) {
+    info.parent.insertBefore(stepEl, info.nextSibling);
+  } else if (info.parent) {
+    info.parent.appendChild(stepEl);
+  }
+  delete walkthroughParking[stepNum];
+}
+
+function restoreAllWalkthroughSteps() {
+  for (const n of Object.keys(walkthroughParking)) {
+    restoreStep(Number(n));
+  }
+  if (tutorialWalkthroughHost) {
+    tutorialWalkthroughHost.setAttribute("hidden", "");
+  }
 }
 
 let tutorialIndex = 0;
@@ -4480,20 +4528,42 @@ function renderTutorialStep(i) {
   const step = steps[i];
   if (!step) return;
   clearTutorialTarget();
-  if (typeof step.onEnter === "function") step.onEnter();
-  const slug = tutorialMode === "walkthrough"
-    ? `Key ${i + 1} · ${steps.length}`
-    : `Step ${i + 1} · ${steps.length}`;
-  tutorialStepEl.textContent = slug;
-  tutorialTitleEl.textContent = step.title;
-  tutorialBodyEl.textContent = step.body;
-  tutorialNextBtn.textContent = i === steps.length - 1 ? "Done" : "Next ›";
+  // Any prior walkthrough-step injection is torn down before a new
+  // step renders so we don't leave orphaned DOM in the card if the
+  // user jumps around (Skip, Escape, etc.).
+  restoreAllWalkthroughSteps();
 
-  // Swap action row: terminal main-tutorial step shows the dual CTA,
-  // everything else shows the Skip / Next row.
-  const showDualCta = step.final === true;
+  if (tutorialMode === "walkthrough") {
+    // Walkthrough: the card becomes the wizard step. Prepare the drawer
+    // state so the #onboardStepN element is rendered (visibility is
+    // driven by backendMode + wizard expand), then move it into the
+    // tutorial body host.
+    prepareDrawerForWalkthrough();
+    tutorialStepEl.textContent = `Key ${i + 1} · ${steps.length}`;
+    tutorialTitleEl.textContent = step.title;
+    // Hide the default body paragraph — the walkthrough host below it
+    // carries the wizard step content instead.
+    tutorialBodyEl.textContent = "";
+    tutorialBodyEl.setAttribute("hidden", "");
+    moveStepIntoTutorial(step.stepNum);
+  } else {
+    // Regular tutorial step.
+    if (typeof step.onEnter === "function") step.onEnter();
+    tutorialStepEl.textContent = `Step ${i + 1} · ${steps.length}`;
+    tutorialTitleEl.textContent = step.title;
+    tutorialBodyEl.textContent = step.body;
+    tutorialBodyEl.removeAttribute("hidden");
+  }
+
+  // Action row state.
+  // - final main-tutorial step: hide default row (no Skip, no Next),
+  //   show CTA grid (Try now / Get my own keys / Plus).
+  // - walkthrough last step: default row, Next labeled "Finish".
+  // - everywhere else: default row, Next labeled "Next ›".
+  // "Done" never appears as a button label per Seth's spec.
+  const showCtaGrid = step.final === true;
   if (tutorialActionsDefault && tutorialCtaGrid) {
-    if (showDualCta) {
+    if (showCtaGrid) {
       tutorialActionsDefault.setAttribute("hidden", "");
       tutorialCtaGrid.removeAttribute("hidden");
     } else {
@@ -4501,14 +4571,15 @@ function renderTutorialStep(i) {
       tutorialCtaGrid.setAttribute("hidden", "");
     }
   }
+  if (!showCtaGrid && tutorialNextBtn) {
+    const isLastWalkthrough = tutorialMode === "walkthrough" && i === steps.length - 1;
+    tutorialNextBtn.textContent = isLastWalkthrough ? "Finish" : "Next ›";
+  }
 
-  // Defer target highlight one frame so any drawer navigation has painted
-  // and the element exists in the flow (menu tiles get display:none'd when
-  // a section is open; onEnter flips the drawer back to menu view first).
+  // Spotlight (only for regular steps — walkthrough content is inside
+  // the card itself so no DOM target is needed).
+  if (tutorialMode === "walkthrough") return;
   requestAnimationFrame(() => {
-    // Steps may opt out of spotlighting by setting targetSelector: null
-    // (e.g. the final "tap a response" tip has no specific DOM target
-    // because the feed may be empty on a first-run session).
     if (!step.targetSelector) return;
     const target = document.querySelector(step.targetSelector);
     if (target) {
@@ -4532,8 +4603,6 @@ function startKeyWalkthrough() {
   if (!tutorialOverlay) return;
   tutorialMode = "walkthrough";
   tutorialIndex = 0;
-  // Make sure the overlay is visible (if user somehow got here without
-  // the overlay up) — same pattern as startTutorial.
   tutorialOverlay.classList.add("visible");
   tutorialOverlay.setAttribute("aria-hidden", "false");
   renderTutorialStep(0);
@@ -4549,38 +4618,64 @@ function advanceTutorial() {
   renderTutorialStep(tutorialIndex);
 }
 
+// Skip jumps to the final (dual/triple-CTA) card of the main tutorial
+// rather than closing the overlay. If invoked from inside the
+// walkthrough, it drops the walkthrough mode and lands on the same
+// CTA page so the user can restart or pick a different path.
+function skipToFinal() {
+  tutorialMode = "main";
+  const finalIdx = TUTORIAL_STEPS.findIndex((s) => s.final === true);
+  tutorialIndex = finalIdx >= 0 ? finalIdx : TUTORIAL_STEPS.length - 1;
+  renderTutorialStep(tutorialIndex);
+}
+
 function endTutorial(completed) {
   clearTutorialTarget();
+  // Always restore any parked wizard-step DOM before closing — even
+  // on Escape or a rage-skip — so the Backend & keys drawer isn't
+  // left with holes where step elements used to be.
+  restoreAllWalkthroughSteps();
+  // Put the default tutorial body back in the renderable state for
+  // the next time the user replays the tour.
+  if (tutorialBodyEl) tutorialBodyEl.removeAttribute("hidden");
   if (!tutorialOverlay) return;
   tutorialOverlay.classList.remove("visible");
   tutorialOverlay.setAttribute("aria-hidden", "true");
   // Persist only the flag so we don't race with loadSettings on the key
   // inputs. Same single-field-write pattern used by applyTheme + toggleMute.
   chrome.storage.local.set({ tutorialSeen: true });
-  // Drawer-post-tour behavior. For the main tutorial, leave the drawer
-  // open on the menu view (the tour pointed at four tiles, closing it
-  // would throw the settings away). For the key walkthrough, leave the
-  // Backend & keys section open so the user can see the wizard with
-  // their freshly-pasted keys. Reset the mode flag either way.
+  // If the tour opened the drawer, leave it on the menu view so the
+  // user isn't dropped into a random submenu.
   if (completed && settingsDrawer?.classList.contains("visible")) {
-    if (tutorialMode === "main") showDrawerMenu();
-    // walkthrough: keep Backend section visible (already there).
+    showDrawerMenu();
   }
   tutorialMode = "main";
 }
 
 if (tutorialNextBtn) tutorialNextBtn.addEventListener("click", advanceTutorial);
-if (tutorialSkipBtn) tutorialSkipBtn.addEventListener("click", () => endTutorial(false));
+// Skip jumps to the final CTA card instead of closing the tour. Per
+// Seth's spec in v2.0.1 — closing is reserved for Escape / Try now /
+// completing a walkthrough.
+if (tutorialSkipBtn) tutorialSkipBtn.addEventListener("click", skipToFinal);
 
-// Terminal dual-CTA wiring. "Try now" ends the tour and drops the user
-// back on the main panel so they can hit Start Listening on demo keys.
-// "Get my own keys" rebrands the overlay as a per-provider walkthrough
-// anchored to each wizard step in the Backend & keys drawer.
+// Terminal CTA wiring. "Try now" ends the tour and drops the user
+// back on the main panel so they can hit Start Listening on demo
+// keys. "Get my own keys" switches the overlay into walkthrough mode
+// where each wizard step is injected into this same card. "Peanut
+// Gallery Plus" fires the shared "Coming soon" modal — same one the
+// Backend & keys drawer's Plus tab uses.
 if (tutorialTryNowBtn) {
   tutorialTryNowBtn.addEventListener("click", () => endTutorial(true));
 }
 if (tutorialGetKeysBtn) {
   tutorialGetKeysBtn.addEventListener("click", startKeyWalkthrough);
+}
+if (tutorialPlusBtn) {
+  tutorialPlusBtn.addEventListener("click", () => {
+    // Don't close the tutorial — Seth wants the Plus modal stacked on
+    // top of the CTA page so users can back out and pick another path.
+    openPlusComingSoonModal();
+  });
 }
 
 // Replay entry point — resets the seen flag is not necessary since we just
