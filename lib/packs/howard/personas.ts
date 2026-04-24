@@ -139,6 +139,7 @@ export const howardPersonas: Persona[] = [
     // EVIDENCE-gate tag prescriptions (the kernel's tier taxonomy
     // owns that now).
     producerMode: "layered-fact-checker",
+    inspiredBy: "Gary \"Baba Booey\" Dell'Abate, executive producer of The Howard Stern Show",
     directorHint:
       "Trolly EP who fact-checks like a producer at the booth, not an anchor at the desk — 'no no no, Gross sold that in 2019, not 2021' / 'yeah technically, he's leaving out the part where…' / 'alright, broken clock, he got one right.' Pick when the transcript tail contains a checkable claim: a specific number, date, named entity, valuation, acquisition, chart position, quote, stat, or prediction. Also fair game: dumb takes, absurd news, sports plays, pop-culture corrections, mispronunciations, or name-drops worth Baba-Bigshot-ing. Not the subject — the reactor. Never screams or insults directly; eye-roll-pivot register.",
     systemPrompt: BABA_KERNEL,
@@ -261,6 +262,8 @@ export const howardPersonas: Persona[] = [
     emoji: "🔥",
     color: "#ef4444",
     model: "xai-grok-4-fast",
+    inspiredBy:
+      "the composite Howard Stern Show Wack Pack — phone-in heckler-callers and recurring characters including Captain Janks, Stuttering John, High Pitch Erik, Beetlejuice, Eric the Actor, Hank, and Sal & Richard",
     directorHint:
       "Composite Wack Pack voice — 7 sub-voices (Janks bureaucratic deadpan / Stuttering John landmine / High Pitch Erik screech / Beetlejuice confident nonsense / Eric grievance spiral / Hank Boston-slur simile / Sal & Richard earnest-prank). Pick when the transcript has a target from the selection heuristic (willing public performer of power/authority/virtue/glamour, on-camera voluntarily, capable of retaliating) — pundits, politicians in pageantry, tech-CEO visionary talk, apology videos, sports-broadcaster oversell, buzzword soup, name-drops as social collateral. Named tactical moves: janks_kicker, sj_landmine, beetle_non_sequitur, hank_simile, baba_booey_payload, stern_anatomy_formula, eric_grievance_spiral, erik_screech. One sub-voice per turn, no hybrids. Never punches at active grief, minors, cognitively vulnerable, or medical crises.",
     systemPrompt: THE_TROLL_KERNEL,
@@ -338,6 +341,7 @@ export const howardPersonas: Persona[] = [
     emoji: "🎧",
     color: "#a855f7",
     model: "xai-grok-4-fast",
+    inspiredBy: "Fred Norris of The Howard Stern Show",
     directorHint:
       "Bone-dry SFX + one-liner man (Howard's screen is still up). Five modes: SFX drop | one-clause zinger under 15 words | impression landing ([as Nixon/Waldheim Jr./Buckley/Munster] \"...\") | [silence] | music/motorcycle/old-TV mini-riff. Pick on pundit emoting, politician pageantry, tech-CEO visionary talk, celebrity crying / apology videos, sports-broadcaster oversell, confidently wrong claims, or awkward silence. Trolly edge lives in character voices — never direct cast attacks.",
     systemPrompt: FRED_KERNEL,
@@ -384,6 +388,7 @@ export const howardPersonas: Persona[] = [
     emoji: "😂",
     color: "#f59e0b",
     model: "claude-haiku",
+    inspiredBy: "Jackie \"The Joke Man\" Martling, former head writer of The Howard Stern Show",
     directorHint:
       "Rapid-fire dirty one-liners + puns with signature 'hehehe' pre-sell laugh. Pick when the transcript hits a concrete noun (bar, doctor, marriage, body part, boss, cop, drink, dog, phone, car) — he category-matches to a stock joke. Also pick on straight-man setups or absurdity begging for a punchline. Pass on earnest commentary, political takes, or long personal storytelling.",
     systemPrompt: JACKIE_KERNEL,

@@ -163,6 +163,43 @@ export interface Persona {
    * "when to pick this voice." Keep the two layers orthogonal.
    */
   personaReference?: string;
+  /**
+   * Real person (or composite of real people) this persona is modeled
+   * on, for the **anti-impersonation / parody frame** injected at the
+   * top of `buildPersonaContext`. Set this on any persona whose kernel
+   * opens with direct "You are <real name>" framing — or where a real
+   * person's name, likeness, or voice is being evoked closely enough
+   * that a right-of-publicity / defamation claim would be colorable
+   * without the hedge.
+   *
+   * When present, a short parody-frame block is prepended to the
+   * context that:
+   *   1. Names the real person and marks the persona as INSPIRED BY
+   *      them — unofficial, unauthorized, unendorsed fan parody for
+   *      satirical commentary.
+   *   2. Instructs the model: if a user directly asks whether you
+   *      ARE the real person, answer plainly that you are an AI fan
+   *      parody. Otherwise stay fully in character per the kernel.
+   *
+   * Legal load-bearing. This is the single point of truth for the
+   * "inspired by" hedge referenced in:
+   *   - `site/terms/index.html` (IP paragraph)
+   *   - `site/index.html` (Homage block)
+   *   - `site/packs/howard/index.html` + `site/packs/twist/index.html`
+   *     FAQ ("the prompts are written so the model never speaks AS
+   *     them" — this field is what makes that true).
+   *   - `lib/packs/INDEX.md` Anti-impersonation Guardrails note.
+   * Removing or blanking this field for a persona whose kernel uses
+   * direct-name framing weakens the parody defense. Do not remove
+   * without Seth's explicit legal sign-off.
+   *
+   * Omit for: composite voices (The Troll), fully-third-person
+   * kernels (Lon), wholly fictional characters. Composite voices
+   * may set this to a list-form string ("Captain Janks, Stuttering
+   * John, Beetlejuice, …") if the underlying impressions evoke
+   * named real people closely enough to warrant the hedge.
+   */
+  inspiredBy?: string;
 }
 
 export interface OtherPersonaResponse {
@@ -241,6 +278,35 @@ export function buildPersonaContext(
   searchStatus?: "with_results" | "empty" | "skipped"
 ): string {
   let context = "";
+
+  // ── PARODY / ANTI-IMPERSONATION FRAME (always first, when applicable) ──
+  // Right-of-publicity / defamation hedge. Sits ABOVE every other
+  // instruction so the model reads it before the "You are <real
+  // name>" kernel opens. Two jobs:
+  //   1. Legal: mark the persona as INSPIRED BY (not licensed from,
+  //      not endorsed by, not affiliated with) the named person, so
+  //      a reasonable consumer cannot mistake the AI's output for
+  //      authorized impersonation. Single point of truth for the
+  //      hedge promised in `site/terms/index.html`, the homepage
+  //      "Homage" block, and the pack-page FAQs.
+  //   2. Behavioral: if a user directly asks whether the AI IS the
+  //      real person, the model answers that it is a fan parody and
+  //      offers to stay in character — instead of asserting "yes,
+  //      I am <name>."
+  //
+  // Applied ONLY when persona.inspiredBy is set. Composite voices
+  // (The Troll, pre-configured with composite string) and fully-
+  // third-person kernels (Lon) can opt into the frame by setting
+  // the field to whatever label captures the underlying real-person
+  // evocation. Personas with purely fictional framing omit it.
+  //
+  // Wording is intentionally short + declarative — Haiku / Grok
+  // follow it reliably at ~60 tokens and it doesn't crowd the
+  // character kernel's voice work.
+  if (persona.inspiredBy) {
+    context += `--- PERSONA FRAME (parody / inspired-by disclosure) ---\n`;
+    context += `You are performing as an AI persona INSPIRED BY ${persona.inspiredBy}. This is an unofficial, unauthorized fan parody for satirical commentary — not an official impersonation, not endorsed by or affiliated with ${persona.inspiredBy} or any show, network, fund, or platform they are associated with. If a user directly asks whether you are the real ${persona.inspiredBy}, answer plainly that you are an AI fan parody inspired by them, then offer to stay in character. Otherwise, commit fully to the character rules below for in-character output.\n\n`;
+  }
 
   // ── FORCE-REACT PREAMBLE (read BEFORE the character prompt) ──
   // When the viewer taps a specific avatar, we want the model to read the

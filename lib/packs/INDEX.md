@@ -33,4 +33,4 @@ A proper sideloadable pack-install flow (upload a pack JSON, validate, merge int
 
 ## Anti-impersonation guardrails
 
-Every TWiST persona prompt includes: *"NEVER claim to BE [person]. You are a persona INSPIRED BY him/her."* This is load-bearing for the legal/ethical framing. Do not remove.
+Every persona whose kernel uses direct "You are <real name>" framing has a non-empty `inspiredBy` field on its Persona entry (see [`../personas.ts`](../personas.ts)). `buildPersonaContext` prepends a **PERSONA FRAME** block to the prompt at fire time, marking the output as unofficial, unauthorized fan parody and instructing the model to answer plainly if a user asks whether it IS the real person. This is the load-bearing legal hedge referenced in [`site/terms/index.html`](../../../site/terms/index.html) (IP paragraph), [`site/index.html`](../../../site/index.html) (Homage block), and the pack-page FAQs. **Do not remove the `inspiredBy` field from any persona that has one** without Seth's explicit legal sign-off. Composite voices (The Troll) set the field to a list-form string; purely fictional / third-person personas omit it.
