@@ -4718,3 +4718,134 @@ if (chrome.storage?.local) {
     // Storage unavailable — leave panel closed (the default).
   }
 }
+
+// ──────────────────────────────────────────────────────
+// ONBOARDING WIZARD (v2.0.1)
+// ──────────────────────────────────────────────────────
+//
+// Collapsed-by-default expandable panel that walks BYOK users through
+// creating accounts at each of the 4 providers. Paste fields mirror
+// values into the existing BYOK key inputs via a synthetic "change"
+// event so the existing saveSettings path handles persistence — one
+// source of truth (the real BYOK input). Step-completion UI is derived
+// from the BYOK input values on every refresh, so switching backend
+// mode or re-opening the drawer always shows the correct check-state.
+//
+// TDZ guard: this block uses document.getElementById inline rather than
+// forward-referencing module-level consts, per the sidepanel TDZ lesson
+// (#106 / #112 — hoisting from later const declarations has bit us).
+(function setupOnboardingWizard() {
+  const wizard = document.getElementById("onboardWizard");
+  if (!wizard) return;
+  const toggle = document.getElementById("onboardToggle");
+  const body = document.getElementById("onboardBody");
+  const doneEl = document.getElementById("onboardDone");
+  if (!toggle || !body) return;
+
+  toggle.addEventListener("click", () => {
+    const opening = body.hasAttribute("hidden");
+    if (opening) body.removeAttribute("hidden");
+    else body.setAttribute("hidden", "");
+    wizard.classList.toggle("is-open", opening);
+    toggle.setAttribute("aria-expanded", opening ? "true" : "false");
+  });
+
+  // wizardId → targetId mapping for the 4 provider steps. required:true
+  // steps gate the "You're set" ribbon; Brave is optional and doesn't.
+  const STEP_INPUTS = [
+    { wizardId: "onboardDeepgramKey", targetId: "deepgramKey", stepId: "onboardStep1", required: true },
+    { wizardId: "onboardAnthropicKey", targetId: "anthropicKey", stepId: "onboardStep2", required: true },
+    { wizardId: "onboardXaiKey", targetId: "xaiKey", stepId: "onboardStep3", required: true },
+    { wizardId: "onboardBraveKey", targetId: "braveKey", stepId: "onboardStep4", required: false },
+  ];
+
+  function refreshCheckState() {
+    let requiredDone = 0;
+    let requiredTotal = 0;
+    for (const s of STEP_INPUTS) {
+      const stepEl = document.getElementById(s.stepId);
+      const target = document.getElementById(s.targetId);
+      if (!stepEl) continue;
+      const filled = !!(target?.value || "").trim();
+      stepEl.classList.toggle("is-done", filled);
+      if (s.required) {
+        requiredTotal += 1;
+        if (filled) requiredDone += 1;
+      }
+    }
+    if (doneEl) {
+      const allDone = requiredTotal > 0 && requiredDone === requiredTotal;
+      if (allDone) doneEl.removeAttribute("hidden");
+      else doneEl.setAttribute("hidden", "");
+    }
+  }
+
+  function mirrorWizardToTarget(wizardEl, targetId) {
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    target.value = wizardEl.value;
+    // Route through the existing "change" listener so saveSettings
+    // persists the key exactly as if the user had typed it into the
+    // canonical BYOK field.
+    target.dispatchEvent(new Event("change", { bubbles: true }));
+    refreshCheckState();
+  }
+
+  function rehydrateWizardFromBYOK() {
+    for (const s of STEP_INPUTS) {
+      const wizardEl = document.getElementById(s.wizardId);
+      const target = document.getElementById(s.targetId);
+      if (wizardEl && target) wizardEl.value = target.value;
+    }
+    refreshCheckState();
+  }
+
+  for (const s of STEP_INPUTS) {
+    const wizardEl = document.getElementById(s.wizardId);
+    if (!wizardEl) continue;
+    wizardEl.addEventListener("input", () => mirrorWizardToTarget(wizardEl, s.targetId));
+    wizardEl.addEventListener("change", () => mirrorWizardToTarget(wizardEl, s.targetId));
+  }
+
+  // Skip buttons scroll the next step into view — the step stays
+  // "undone" (no forged value). Matches the spec's "Skip for now"
+  // semantic: acknowledge intent, don't fabricate credentials.
+  for (const btn of wizard.querySelectorAll(".onboard-skip")) {
+    btn.addEventListener("click", () => {
+      const n = parseInt(btn.dataset.step, 10);
+      if (!Number.isFinite(n)) return;
+      const next = document.getElementById(`onboardStep${n + 1}`);
+      if (next) next.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  // Keep check-state live when the user pastes into the BYOK inputs
+  // directly (outside the wizard), e.g., scrolled past the wizard and
+  // pasted into the existing input rows.
+  for (const s of STEP_INPUTS) {
+    const target = document.getElementById(s.targetId);
+    if (!target) continue;
+    target.addEventListener("input", refreshCheckState);
+    target.addEventListener("change", refreshCheckState);
+  }
+
+  // Rehydrate whenever chrome.storage.local BYOK values change — covers
+  // initial-load async fill and cross-drawer edits.
+  if (chrome?.storage?.onChanged) {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "local") return;
+      if (
+        "deepgramKey" in changes ||
+        "anthropicKey" in changes ||
+        "xaiKey" in changes ||
+        "braveKey" in changes
+      ) {
+        setTimeout(rehydrateWizardFromBYOK, 0);
+      }
+    });
+  }
+
+  // Initial rehydrate — BYOK inputs may already be populated from the
+  // loadSettings path that ran earlier during startup.
+  rehydrateWizardFromBYOK();
+})();

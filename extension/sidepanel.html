@@ -123,6 +123,152 @@
       text-transform: uppercase; color: var(--ink);
       margin-right: 4px;
     }
+
+    /* ── v2.0.1: ONBOARDING WIZARD (BYOK) ──
+       Lives at the top of the byokKeysBlock. Collapsed by default;
+       expands into a 4-step stepper. Broadsheet register: slab-2
+       titles, serif body, ruled rows per step. Stays inside the
+       existing drawer width; no modal. */
+    .onboard-wizard{
+      margin: 10px 0 14px;
+      border: 1px solid var(--rule);
+      background: var(--paper-2);
+    }
+    .onboard-toggle{
+      display: block;
+      width: 100%;
+      padding: 10px 12px;
+      background: transparent;
+      border: 0;
+      text-align: left;
+      cursor: pointer;
+      color: var(--ink);
+      transition: background .15s;
+    }
+    .onboard-toggle:hover{ background: var(--paper-3); }
+    .onboard-toggle-lede{
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+    .onboard-toggle-lede strong{
+      font-family: var(--slab-2); letter-spacing: .04em; font-weight: 700;
+    }
+    .onboard-toggle-chev{
+      font-size: 12px; color: var(--ink-3);
+      transition: transform .15s;
+    }
+    .onboard-wizard.is-open .onboard-toggle-chev{ transform: rotate(180deg); }
+    .onboard-toggle-sub{
+      display: block;
+      margin-top: 4px;
+      font-family: var(--serif);
+      font-size: 11px; color: var(--ink-2);
+      font-style: italic;
+    }
+    .onboard-toggle-sub strong{ font-style: normal; color: var(--ink); }
+
+    .onboard-body{
+      padding: 0 12px 12px;
+      border-top: 1px solid var(--rule);
+    }
+    .onboard-promise{
+      margin: 10px 0;
+      padding: 6px 8px;
+      border-left: 2px solid var(--ink-2);
+      font-family: var(--serif);
+      font-size: 11px; color: var(--ink-2);
+      background: var(--paper);
+    }
+    .onboard-promise strong{ color: var(--ink); }
+    .onboard-promise a{ color: var(--ink); }
+
+    .onboard-steps{
+      list-style: none; padding: 0; margin: 0;
+    }
+    .onboard-step{
+      padding: 10px 0;
+      border-bottom: 1px dashed var(--rule);
+    }
+    .onboard-step:last-child{ border-bottom: 0; }
+    .onboard-step-head{
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 4px;
+    }
+    .onboard-step-num{
+      display: inline-flex; justify-content: center; align-items: center;
+      width: 22px; height: 22px;
+      background: var(--ink); color: var(--paper);
+      font-family: var(--slab-2); font-weight: 700; font-size: 12px;
+      border-radius: 50%;
+      transition: background .2s;
+    }
+    .onboard-step.is-done .onboard-step-num{ background: var(--green); color: var(--paper); }
+    .onboard-step-title{
+      font-family: var(--slab-2); font-weight: 700;
+      font-size: 13px; color: var(--ink);
+      letter-spacing: .04em;
+    }
+    .onboard-step-role{
+      font-family: var(--serif); font-style: italic;
+      font-size: 10px; color: var(--ink-3);
+    }
+    .onboard-step-check{
+      margin-left: auto;
+      color: var(--green);
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    .onboard-step.is-done .onboard-step-check{ opacity: 1; }
+    .onboard-step-body{
+      margin: 4px 0;
+      font-family: var(--serif);
+      font-size: 12px; color: var(--ink-2); line-height: 1.45;
+    }
+    .onboard-step-body strong{ color: var(--ink); }
+    .onboard-step-howto{
+      margin: 6px 0 8px 18px; padding: 0;
+      font-family: var(--serif);
+      font-size: 11px; color: var(--ink-2); line-height: 1.55;
+    }
+    .onboard-step-howto li{ margin-bottom: 3px; }
+    .onboard-step-howto code{
+      font-family: var(--mono); font-size: 10px;
+      padding: 1px 3px; background: var(--paper-3); color: var(--ink);
+    }
+    .onboard-step-link{
+      display: inline-block;
+      padding: 2px 8px;
+      background: var(--ink); color: var(--paper);
+      font-family: var(--slab-2); font-weight: 700;
+      letter-spacing: .05em; font-size: 11px;
+      text-decoration: none;
+    }
+    .onboard-step-link:hover{ opacity: .85; }
+    .onboard-key-input{
+      margin: 6px 0 6px;
+    }
+    .onboard-step-actions{
+      display: flex; justify-content: flex-end;
+    }
+    .onboard-skip{
+      background: transparent; border: 0;
+      padding: 2px 6px; cursor: pointer;
+      font-family: var(--serif); font-style: italic;
+      font-size: 11px; color: var(--ink-3);
+      text-decoration: underline;
+    }
+    .onboard-skip:hover{ color: var(--ink-2); }
+    .onboard-done{
+      margin: 10px 0 0;
+      padding: 8px 10px;
+      background: var(--ink); color: var(--paper);
+      font-family: var(--slab-2);
+      font-size: 12px; text-align: center; letter-spacing: .04em;
+    }
+    .onboard-done strong{ font-weight: 700; }
+    .onboard-done em{ font-style: normal; text-decoration: underline; }
     .masthead .title-row{
       padding: 8px 12px 4px;
       display:flex; justify-content:center; align-items:center;
@@ -2551,6 +2697,136 @@
             While we're in the early window, peanutgallery.live covers the providers so you can try it without signing up. That shared access is rate-limited and will be retired. Every provider below takes ~90 seconds to sign up for. Or
             <a href="https://github.com/Sethmr/peanut.gallery/blob/main/docs/BUILD-YOUR-OWN-BACKEND.md" target="_blank" rel="noopener noreferrer">run your own backend&nbsp;&#8599;</a>.
           </p>
+
+          <!-- ── v2.0.1: ONBOARDING WIZARD ──
+               Collapsed by default. Expands into a 4-step stepper
+               (Deepgram, Anthropic, xAI, Brave). Each step opens the
+               provider's signup in a new tab, explains where to grab
+               the key, and accepts a paste that mirrors into the BYOK
+               inputs below via a synthetic 'change' event. Zero key
+               custody — values go to chrome.storage.local through the
+               existing saveSettings path. The wizard is the product
+               answer to the Plus-deferral gap: free-forever BYOK with
+               the same friction removal Plus would have provided. -->
+          <div class="onboard-wizard" id="onboardWizard">
+            <button type="button" class="onboard-toggle" id="onboardToggle"
+                    aria-expanded="false" aria-controls="onboardBody">
+              <span class="onboard-toggle-lede">
+                <strong>Need keys? We&rsquo;ll walk you through it.</strong>
+                <span class="onboard-toggle-chev" aria-hidden="true">&#9662;</span>
+              </span>
+              <span class="onboard-toggle-sub">
+                About 10 minutes across four providers. Free-tier credits cover typical use for weeks. <strong>Free forever when you run your own keys.</strong>
+              </span>
+            </button>
+
+            <div class="onboard-body" id="onboardBody" hidden>
+              <p class="onboard-promise">
+                <strong>We never see your keys.</strong> They stay in your browser and go directly to each provider from your computer. See the
+                <a href="https://peanutgallery.live/privacy/#byok" target="_blank" rel="noopener noreferrer">BYOK section of our Privacy Policy&nbsp;&#8599;</a>.
+              </p>
+
+              <ol class="onboard-steps">
+
+                <!-- STEP 1 · Deepgram (required) -->
+                <li class="onboard-step" id="onboardStep1" data-provider="deepgram">
+                  <div class="onboard-step-head">
+                    <span class="onboard-step-num">1</span>
+                    <span class="onboard-step-title">Deepgram</span>
+                    <span class="onboard-step-role">speech &rarr; text</span>
+                    <span class="onboard-step-check" aria-hidden="true">&#10003;</span>
+                  </div>
+                  <p class="onboard-step-body">
+                    Turns tab audio into real-time text. Free on signup: <strong>$200 in credit</strong> &mdash; months of typical use.
+                  </p>
+                  <ol class="onboard-step-howto">
+                    <li><a class="onboard-step-link" href="https://console.deepgram.com/signup" target="_blank" rel="noopener noreferrer">Open Deepgram signup&nbsp;&#8599;</a></li>
+                    <li>Sign in, then <strong>API Keys &rarr; Create a New API Key</strong>. Name it &ldquo;Peanut Gallery,&rdquo; scope = <em>Member</em>.</li>
+                    <li>Copy the key and paste it below:</li>
+                  </ol>
+                  <input type="text" id="onboardDeepgramKey" class="key-input onboard-key-input"
+                         data-target="deepgramKey" placeholder="dg_..." autocomplete="off" spellcheck="false" />
+                  <div class="onboard-step-actions">
+                    <button type="button" class="onboard-skip" data-step="1">Skip for now</button>
+                  </div>
+                </li>
+
+                <!-- STEP 2 · Anthropic (required) -->
+                <li class="onboard-step" id="onboardStep2" data-provider="anthropic">
+                  <div class="onboard-step-head">
+                    <span class="onboard-step-num">2</span>
+                    <span class="onboard-step-title">Anthropic</span>
+                    <span class="onboard-step-role">Claude &mdash; fact-checker + comedy writer</span>
+                    <span class="onboard-step-check" aria-hidden="true">&#10003;</span>
+                  </div>
+                  <p class="onboard-step-body">
+                    Powers the Fact and Bit slots on Claude Haiku. Free on signup: <strong>~$5 in credit</strong>. <em>Heads up &mdash; phone verification required.</em>
+                  </p>
+                  <ol class="onboard-step-howto">
+                    <li><a class="onboard-step-link" href="https://console.anthropic.com/signup" target="_blank" rel="noopener noreferrer">Open Anthropic signup&nbsp;&#8599;</a></li>
+                    <li>Sign in, verify phone, then <strong>Settings &rarr; API Keys &rarr; Create Key</strong>.</li>
+                    <li>Copy the key starting with <code>sk-ant-</code> and paste it below:</li>
+                  </ol>
+                  <input type="text" id="onboardAnthropicKey" class="key-input onboard-key-input"
+                         data-target="anthropicKey" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
+                  <div class="onboard-step-actions">
+                    <button type="button" class="onboard-skip" data-step="2">Skip for now</button>
+                  </div>
+                </li>
+
+                <!-- STEP 3 · xAI (required) -->
+                <li class="onboard-step" id="onboardStep3" data-provider="xai">
+                  <div class="onboard-step-head">
+                    <span class="onboard-step-num">3</span>
+                    <span class="onboard-step-title">xAI</span>
+                    <span class="onboard-step-role">Grok &mdash; troll + sound-cue voices</span>
+                    <span class="onboard-step-check" aria-hidden="true">&#10003;</span>
+                  </div>
+                  <p class="onboard-step-body">
+                    Powers the Dunk and Cue slots on Grok 4.1 Fast &mdash; sub-200ms reflex voices. <em>Heads up &mdash; phone verification required.</em>
+                  </p>
+                  <ol class="onboard-step-howto">
+                    <li><a class="onboard-step-link" href="https://console.x.ai/" target="_blank" rel="noopener noreferrer">Open xAI console&nbsp;&#8599;</a></li>
+                    <li>Sign in with X, verify phone, then <strong>API Keys &rarr; Create API Key</strong>.</li>
+                    <li>Copy the key starting with <code>xai-</code> and paste it below:</li>
+                  </ol>
+                  <input type="text" id="onboardXaiKey" class="key-input onboard-key-input"
+                         data-target="xaiKey" placeholder="xai-..." autocomplete="off" spellcheck="false" />
+                  <div class="onboard-step-actions">
+                    <button type="button" class="onboard-skip" data-step="3">Skip for now</button>
+                  </div>
+                </li>
+
+                <!-- STEP 4 · Brave Search (optional) -->
+                <li class="onboard-step" id="onboardStep4" data-provider="brave">
+                  <div class="onboard-step-head">
+                    <span class="onboard-step-num">4</span>
+                    <span class="onboard-step-title">Brave Search</span>
+                    <span class="onboard-step-role">optional &mdash; fact-check grounding</span>
+                    <span class="onboard-step-check" aria-hidden="true">&#10003;</span>
+                  </div>
+                  <p class="onboard-step-body">
+                    Optional. Richer fact-checks with live web search. Free tier: <strong>2,000 queries/month</strong>. The extension works fine without it &mdash; flip the Search engine selector above to xAI and Grok&rsquo;s built-in search covers you.
+                  </p>
+                  <ol class="onboard-step-howto">
+                    <li><a class="onboard-step-link" href="https://api-dashboard.search.brave.com/app/subscriptions/subscribe" target="_blank" rel="noopener noreferrer">Open Brave Search signup&nbsp;&#8599;</a></li>
+                    <li>Pick the <strong>Free</strong> plan, add a card (not charged under 2k queries/mo), then <strong>API Keys &rarr; Add API Key</strong>.</li>
+                    <li>Paste the key below:</li>
+                  </ol>
+                  <input type="text" id="onboardBraveKey" class="key-input onboard-key-input"
+                         data-target="braveKey" placeholder="BSA..." autocomplete="off" spellcheck="false" />
+                  <div class="onboard-step-actions">
+                    <button type="button" class="onboard-skip" data-step="4">Skip &mdash; I don&rsquo;t need Brave</button>
+                  </div>
+                </li>
+              </ol>
+
+              <div class="onboard-done" id="onboardDone" hidden>
+                <strong>You&rsquo;re set.</strong> Close this panel and tap <em>Start Listening</em> on any YouTube tab.
+              </div>
+            </div>
+          </div>
+
 
           <div class="key-row">
             <div class="key-label-row">
