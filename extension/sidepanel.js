@@ -4535,6 +4535,14 @@ function renderTutorialStep(i) {
     const isLastWalkthrough = tutorialMode === "walkthrough" && i === steps.length - 1;
     tutorialNextBtn.textContent = isLastWalkthrough ? "Finish" : "Next ›";
   }
+  // Explicit Skip-button guard for the final CTA card. The whole
+  // #tutorialActionsDefault row is hidden above, which should be
+  // enough — but belt-and-suspenders so no future CSS specificity
+  // tweak can accidentally re-expose Skip on the final page.
+  if (tutorialSkipBtn) {
+    if (showCtaGrid) tutorialSkipBtn.setAttribute("hidden", "");
+    else tutorialSkipBtn.removeAttribute("hidden");
+  }
 
   // Spotlight (only for regular steps — walkthrough content is inside
   // the card itself so no DOM target is needed).
