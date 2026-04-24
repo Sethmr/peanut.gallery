@@ -2720,20 +2720,21 @@
           </p>
 
           <!-- ── v2.0.1: ONBOARDING WIZARD ──
-               Collapsed by default. Expands into a 4-step stepper
-               (Deepgram, Anthropic, xAI, Brave). Each step opens the
-               provider's signup in a new tab, explains where to grab
-               the key, and accepts a paste that mirrors into the BYOK
-               inputs below via a synthetic 'change' event. Zero key
-               custody — values go to chrome.storage.local through the
-               existing saveSettings path. The wizard is the product
-               answer to the Plus-deferral gap: free-forever BYOK with
-               the same friction removal Plus would have provided. -->
-          <div class="onboard-wizard" id="onboardWizard">
+               Single home for all four BYOK key inputs. The wizard
+               steps ARE the canonical key fields — input ids
+               deepgramKey / anthropicKey / xaiKey / braveKey match
+               what the rest of the extension (saveSettings, request
+               headers, startup hydration) already looks for. Expanded
+               by default so keys are immediately enterable, matching
+               the visibility of the pre-v2.0.1 row layout; the toggle
+               still collapses for users who don't want the stepper.
+               Zero key custody — values go to chrome.storage.local
+               through the existing saveSettings path. -->
+          <div class="onboard-wizard is-open" id="onboardWizard">
             <button type="button" class="onboard-toggle" id="onboardToggle"
-                    aria-expanded="false" aria-controls="onboardBody">
+                    aria-expanded="true" aria-controls="onboardBody">
               <span class="onboard-toggle-lede">
-                <strong>Need keys? We&rsquo;ll walk you through it.</strong>
+                <strong>Set up your API keys &mdash; we&rsquo;ll walk you through it.</strong>
                 <span class="onboard-toggle-chev" aria-hidden="true">&#9662;</span>
               </span>
               <span class="onboard-toggle-sub">
@@ -2741,7 +2742,7 @@
               </span>
             </button>
 
-            <div class="onboard-body" id="onboardBody" hidden>
+            <div class="onboard-body" id="onboardBody">
               <p class="onboard-promise">
                 <strong>We never see your keys.</strong> They stay in your browser and go directly to each provider from your computer. See the
                 <a href="https://peanutgallery.live/privacy/#byok" target="_blank" rel="noopener noreferrer">BYOK section of our Privacy Policy&nbsp;&#8599;</a>.
@@ -2765,8 +2766,8 @@
                     <li>Sign in, then <strong>API Keys &rarr; Create a New API Key</strong>. Name it &ldquo;Peanut Gallery,&rdquo; scope = <em>Member</em>.</li>
                     <li>Copy the key and paste it below:</li>
                   </ol>
-                  <input type="text" id="onboardDeepgramKey" class="key-input onboard-key-input"
-                         data-target="deepgramKey" placeholder="dg_..." autocomplete="off" spellcheck="false" />
+                  <input type="text" id="deepgramKey" class="key-input onboard-key-input"
+                         placeholder="dg_..." autocomplete="off" spellcheck="false" />
                   <div class="onboard-step-actions">
                     <button type="button" class="onboard-skip" data-step="1">Skip for now</button>
                   </div>
@@ -2788,8 +2789,8 @@
                     <li>Sign in, verify phone, then <strong>Settings &rarr; API Keys &rarr; Create Key</strong>.</li>
                     <li>Copy the key starting with <code>sk-ant-</code> and paste it below:</li>
                   </ol>
-                  <input type="text" id="onboardAnthropicKey" class="key-input onboard-key-input"
-                         data-target="anthropicKey" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
+                  <input type="text" id="anthropicKey" class="key-input onboard-key-input"
+                         placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
                   <div class="onboard-step-actions">
                     <button type="button" class="onboard-skip" data-step="2">Skip for now</button>
                   </div>
@@ -2811,8 +2812,8 @@
                     <li>Sign in with X, verify phone, then <strong>API Keys &rarr; Create API Key</strong>.</li>
                     <li>Copy the key starting with <code>xai-</code> and paste it below:</li>
                   </ol>
-                  <input type="text" id="onboardXaiKey" class="key-input onboard-key-input"
-                         data-target="xaiKey" placeholder="xai-..." autocomplete="off" spellcheck="false" />
+                  <input type="text" id="xaiKey" class="key-input onboard-key-input"
+                         placeholder="xai-..." autocomplete="off" spellcheck="false" />
                   <div class="onboard-step-actions">
                     <button type="button" class="onboard-skip" data-step="3">Skip for now</button>
                   </div>
@@ -2823,22 +2824,19 @@
                   <div class="onboard-step-head">
                     <span class="onboard-step-num">4</span>
                     <span class="onboard-step-title">Brave Search</span>
-                    <span class="onboard-step-role">optional &mdash; fact-check grounding</span>
+                    <span class="onboard-step-role"><strong>Optional</strong> &mdash; fact-check grounding</span>
                     <span class="onboard-step-check" aria-hidden="true">&#10003;</span>
                   </div>
                   <p class="onboard-step-body">
-                    Optional. Richer fact-checks with live web search. Free tier: <strong>2,000 queries/month</strong>. The extension works fine without it &mdash; flip the Search engine selector above to xAI and Grok&rsquo;s built-in search covers you.
+                    Richer fact-checks with live web search. Free tier: <strong>2,000 queries/month</strong>. The extension works fine without it &mdash; flip the Search engine selector above to xAI and Grok&rsquo;s built-in search covers you.
                   </p>
                   <ol class="onboard-step-howto">
                     <li><a class="onboard-step-link" href="https://api-dashboard.search.brave.com/app/subscriptions/subscribe" target="_blank" rel="noopener noreferrer">Open Brave Search signup&nbsp;&#8599;</a></li>
                     <li>Pick the <strong>Free</strong> plan, add a card (not charged under 2k queries/mo), then <strong>API Keys &rarr; Add API Key</strong>.</li>
                     <li>Paste the key below:</li>
                   </ol>
-                  <input type="text" id="onboardBraveKey" class="key-input onboard-key-input"
-                         data-target="braveKey" placeholder="BSA..." autocomplete="off" spellcheck="false" />
-                  <div class="onboard-step-actions">
-                    <button type="button" class="onboard-skip" data-step="4">Skip &mdash; I don&rsquo;t need Brave</button>
-                  </div>
+                  <input type="text" id="braveKey" class="key-input onboard-key-input"
+                         placeholder="BSA..." autocomplete="off" spellcheck="false" />
                 </li>
               </ol>
 
@@ -2846,59 +2844,6 @@
                 <strong>You&rsquo;re set.</strong> Close this panel and tap <em>Start Listening</em> on any YouTube tab.
               </div>
             </div>
-          </div>
-
-
-          <div class="key-row">
-            <div class="key-label-row">
-              <label for="deepgramKey">Deepgram</label>
-              <span class="key-tag required">required</span>
-              <span class="key-tag">transcription</span>
-            </div>
-            <input type="text" id="deepgramKey" class="key-input" placeholder="dg_..." />
-            <p class="field-hint">
-              Turns tab audio into real-time text. Free tier: $200 credit.
-              <a href="https://console.deepgram.com/signup" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
-            </p>
-          </div>
-
-          <div class="key-row">
-            <div class="key-label-row">
-              <label for="anthropicKey">Anthropic</label>
-              <span class="key-tag required">required</span>
-              <span class="key-tag">fact + comedy</span>
-            </div>
-            <input type="text" id="anthropicKey" class="key-input" placeholder="sk-ant-..." />
-            <p class="field-hint">
-              Powers the Fact and Bit slots on Claude Haiku.
-              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Get a key &#8599;</a>
-            </p>
-          </div>
-
-          <div class="key-row">
-            <div class="key-label-row">
-              <label for="xaiKey">xAI</label>
-              <span class="key-tag required">required</span>
-              <span class="key-tag">dunk + cue</span>
-            </div>
-            <input type="text" id="xaiKey" class="key-input" placeholder="xai-..." />
-            <p class="field-hint">
-              Powers the Dunk and Cue slots on Grok 4.1 Fast — sub-200ms reflex voices.
-              <a href="https://console.x.ai/" target="_blank" rel="noopener noreferrer">Get a key &#8599;</a>
-            </p>
-          </div>
-
-          <div class="key-row">
-            <div class="key-label-row">
-              <label for="braveKey">Brave Search</label>
-              <span class="key-tag optional">Brave mode only</span>
-              <span class="key-tag">live facts</span>
-            </div>
-            <input type="text" id="braveKey" class="key-input" placeholder="BSA..." />
-            <p class="field-hint">
-              Only needed when the selector above is set to Brave. Free tier: 2,000 queries/month.
-              <a href="https://api-dashboard.search.brave.com/app/keys" target="_blank" rel="noopener noreferrer">Get a free key &#8599;</a>
-            </p>
           </div>
         </div>
       </section>
