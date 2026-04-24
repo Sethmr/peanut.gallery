@@ -8,7 +8,33 @@ Tracks in-flight work for the next release. Live on develop but not yet cut into
 
 - Baba fact-check-layer pass-rate tuning based on live-log data (deferred post-v2.0 per Seth).
 - Llama 3.3 70B swap evaluation on Cerebras as a structural fix for Llama 3.1 8B's schema-echo shadow failures.
-- Post-lawyer-brief legal updates: remove "Draft pending legal review" banners, add AI-training-data disclosure, DMCA safe-harbor section.
+
+---
+
+## [2.0.1] — 2026-04-24 — "The Gallery — compliance pass"
+
+**Post-lawyer-brief compliance pass + BYOK onboarding wizard.** Same-day follow-up to v2.0.0. Pulls provider-compliance signals in line with the 2026-04-24 legal research brief ([`legal-research/BRIEF-2026-04-24.md`](legal-research/BRIEF-2026-04-24.md)), lands the long-planned BYOK onboarding wizard so non-technical users can reach the product without a Plus tier, and closes out two UX edges surfaced during the v2.0.0 final test pass. Paired ToS + Privacy rewrite shipped in the companion `peanut.gallery.site` repo under the same release tag. v2.0.1 is the first release of the v2 lineage to reach the Chrome Web Store — the v2.0.0 zip was staged but held so this batch could ship together.
+
+### Added
+- **BYOK onboarding wizard** ([`extension/sidepanel.html`](extension/sidepanel.html), [`extension/sidepanel.js`](extension/sidepanel.js)). Collapsed-by-default expandable panel at the top of the Backend & keys drawer's BYOK block. When "My keys" or Self-host is active, users can click **"Need keys? We'll walk you through it."** to expand a 4-step stepper (Deepgram → Anthropic → xAI → Brave). Each step has a prominent "Open <provider> signup" link, numbered instructions for grabbing the key after signup, and an inline paste field that mirrors into the canonical BYOK input below via a synthetic `change` event — one source of truth, values go to `chrome.storage.local` through the existing `saveSettings` path. Completion state is derived from the BYOK input values on each refresh (no separate wizard-state storage), so check marks stay accurate across drawer reopen, mode flip, or direct paste into the BYOK inputs. In-copy legal framing: *"We never see your keys — they stay in your browser and go directly to each provider from your computer,"* with a link to the Privacy BYOK section. Product rationale: with Plus deferred (see below), the wizard is the value-add that offsets the friction-removal Plus would have provided — free-forever BYOK with guided setup. It also becomes the skeleton for Plus at v2.5+: "create your own keys (free, guided) / have us create them for you ($8/mo)."
+- **Always-visible AI disclosure** ([`extension/sidepanel.html`](extension/sidepanel.html)). Two paired surfaces, no JS. (1) Masthead top rail gets an **"AI"** stamp (ink-on-paper pill) next to "Vol. I · No. 001" — always visible, unmissable in screenshots and quote cards. (2) One-line strip below the masthead: *"AI-generated commentary · parodies of public figures, not real people."* Italic serif body, slab-stamp lede, centered, ruled bottom. Always visible across idle + capture states; no show/hide logic. Satisfies Anthropic AUP line 146 (user-awareness of AI-generated content) and reinforces the right-of-publicity posture spelled out in the ToS "AI output and persona framing" section.
+
+### Changed
+- **Peanut Gallery Plus tab now feature-flagged off in production** ([`extension/sidepanel.js`](extension/sidepanel.js)). The Plus tab stays visible in the segmented control for discoverability, but a click intercepts to a branded **"Coming soon"** modal explaining the tier is pending provider-approval and compliance work. The segmented control does *not* switch to Plus; prior mode sticks. Any persisted `pgBackendMode: "plus"` from a pre-v2.0.1 install silently degrades to `"demo"` on load so no one boots into a dead Plus state. Paired with `ENABLE_SUBSCRIPTION=false` on Railway. Plus is deferred to v2.5+ pending the reseller-approval / pre-paid BYOK-relay architecture decisions driven by the legal brief's finding that Anthropic §D.4 and Deepgram §2.3(c) bar resale by default.
+
+### Fixed
+- **Deepgram `mip_opt_out=true` on every WebSocket connection** ([`lib/transcription.ts`](lib/transcription.ts)). Without this, Deepgram MSA §3.1 grants them a license to use Content for model training via MIPP. Our Privacy Policy claims "Audio streamed + discarded"; `mip_opt_out=true` makes the claim true. Trade-off: forfeits the MIPP pricing discount (~2× per-minute cost), accepted as worth it for the privacy posture.
+- **`SUBSCRIPTION_CAP_REACHED` / `INVALID_KEY` / `DISABLED` drawer UX** ([`extension/sidepanel.js`](extension/sidepanel.js)). These three server-side rejection paths previously surfaced as raw error-banner text behind the settings drawer (`#errorBanner` is invisible when the drawer is open — cf. `feedback_modal_for_drawer_triggered_errors.md`). Now they open a branded `openPromptModal({hideInput:true})` dialog on top of the drawer with a clear next-step CTA. Relevant again when Plus relaunches at v2.5+; shipping the fix now so the drawer-error class is closed.
+
+### Legal + compliance (cross-repo)
+- **ToS + Privacy Policy rewrite** ([`peanut.gallery.site` · `502b734`](https://github.com/Sethmr/peanut.gallery.site/commit/502b734)). Entity set to "Manu Games LLC, a North Carolina limited liability company." Plus deferred throughout. New ToS sections: **AI output and persona framing** (text-only, no voice clone, no image likeness), **Provider usage policies** (flow-down of Anthropic / xAI / Deepgram / Brave AUPs), **AI training on your content** (non-training posture per provider with `mip_opt_out=true` claim), **Export and sanctions** (brief §9E), **DMCA safe harbor** (designated agent + § 512(c)(3) takedown process). Privacy additions: AI-training-data disclosure mirroring the ToS section, explicit BYOK-is-not-a-processor language, retention table trimmed of Plus-specific rows.
+- **DMCA designated agent registered** at [copyright.gov](https://dmca.copyright.gov) (operational — Manu Games LLC filed 2026-04-24, $6 per 3-year period).
+- **`ENABLE_SUBSCRIPTION=false` on Railway** (operational — flipped 2026-04-24 alongside the UI-side Plus-tab popup).
+- **`dmca@peanutgallery.live` mail alias** added to Cloudflare Email Routing so the registered agent route actually forwards (`legal@`, `privacy@`, `security@`, `seth@` were already live).
+
+### Release plumbing
+- **Manifest bump** `2.0.0` → `2.0.1` ([`extension/manifest.json`](extension/manifest.json)).
+- **CWS zip** at `releases/peanut-gallery-v2.0.1.zip`. First zip of the v2 lineage to reach the store.
 
 ---
 
