@@ -4305,7 +4305,7 @@ const TUTORIAL_STEPS = [
   {
     targetSelector: "#settingsToggleTop",
     title: "Welcome to the gallery",
-    body: "Quick tour of what's tunable. Six submenus in the drawer plus one interaction right in the feed — six short stops.",
+    body: "Quick tour — three drawer stops, one feed interaction, and a last card where you pick how to run the thing. Six stops.",
     onEnter: () => {
       // Don't auto-open yet — let the user see the gear being highlighted
       // first, then advance opens the drawer.
@@ -4343,11 +4343,12 @@ const TUTORIAL_STEPS = [
     // Mid-journey tip: the tap-a-response interaction in the feed. No
     // specific element to spotlight — there may be no feed entries on
     // a first run, so we skip the target and let the card speak on its
-    // own. Mentions Export + Appearance as follow-up reading so we
-    // don't need dedicated steps.
+    // own. The closing line names the remaining drawer tiles (Export,
+    // Appearance, Privacy, Feedback & bugs) so the tour doesn't need
+    // dedicated steps for them.
     targetSelector: null,
     title: "Tap a response",
-    body: "During a session, tap any critic's line to pin it, upvote/downvote it, delete it, or grab a shareable quote card. Export (full session .md) and Appearance (Paper/Night + replay this tour) round out the drawer.",
+    body: "During a session, tap any critic's line to pin it, upvote/downvote it, delete it, or grab a shareable quote card. The remaining drawer tiles — Export (.md), Appearance (Paper/Night, replay this tour), Privacy, and Feedback & bugs — cover themselves.",
     onEnter: () => {
       // Close the drawer so the next card doesn't hide behind it.
       if (settingsDrawer?.classList.contains("visible")) closeSettingsDrawer();
