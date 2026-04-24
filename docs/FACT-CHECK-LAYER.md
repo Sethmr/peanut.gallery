@@ -129,14 +129,14 @@ Preserves the existing Peanut Gallery memory rule (fact-checker personas don't d
 **Step 2 — set the scaffolding flag.** On the persona's config in `lib/packs/<pack>/personas.ts`:
 
 ```ts
-producerMode: "trolly-fact-checker",
+producerMode: "layered-fact-checker",
 ```
 
-This flag (defined in [`lib/personas.ts`](../lib/personas.ts)):
+This flag (defined in [`lib/personas.ts`](../lib/personas.ts)) is **voice-agnostic** — it controls scaffolding, not voice:
 - Uses the default `SEARCH RESULTS (use for fact-checking)` framing on the bullet block.
 - **Skips** the legacy `EVIDENCE: GREEN / THIN / NONE` tier-gate injection (which prescribes obsolete `[FACT CHECK]` / `[HEADS UP]` tags — the new kernel patch's four-tier taxonomy supersedes it).
 
-Other `producerMode` values (`"fact-checker"` legacy, `"heckler"`, `"journalist"`) are orthogonal and don't apply this layer.
+The voice contract lives entirely in the persona's kernel — a trolly-EP (Baba), an NPR journalist (Molly), or any future register all use the same scaffolding flag. Other `producerMode` values (`"fact-checker"` legacy, `"heckler"`, `"journalist"`) are orthogonal and don't apply this layer.
 
 **Step 3 — append the kernel patch.** Drop the ~200-word block below into the persona's `systemPrompt` / `KERNEL`, between the voice/direction sections and the avoid list. Rewrite the four canonical tier lines at the bottom in the new persona's voice while preserving the register shape (see §3).
 

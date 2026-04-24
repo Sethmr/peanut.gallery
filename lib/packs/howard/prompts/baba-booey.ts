@@ -26,7 +26,7 @@
  *   `docs/FACT-CHECK-LAYER.md` (reusable for future producers).
  *
  * Scaffolding (set on the Persona entry, honored by `buildPersonaContext`):
- *   - `producerMode: "trolly-fact-checker"` — uses the default
+ *   - `producerMode: "layered-fact-checker"` — uses the default
  *     `SEARCH RESULTS (use for fact-checking)` framing so the kernel
  *     patch's "Read SEARCH RESULTS before speaking" rule matches the
  *     header. **Skips** the legacy `EVIDENCE: GREEN / THIN / NONE`

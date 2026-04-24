@@ -76,7 +76,7 @@ export const howardPersonas: Persona[] = [
   //     mix-up, Tom Brady Roast afterparty, bagel alerts, 2025 new-
   //     teeth shoot.
   //
-  // SCAFFOLDING CHANGE — persona.producerMode = "trolly-fact-checker".
+  // SCAFFOLDING CHANGE — persona.producerMode = "layered-fact-checker".
   // 2026-04-23 fact-check-layer methodology — Baba keeps the v1.8
   // trolly-heckler voice contract but re-acquires fact-checking as
   // his core deliverable via the CONFIRMS / CONTRADICTS / COMPLICATES
@@ -124,7 +124,7 @@ export const howardPersonas: Persona[] = [
     // Retained for Director's claim-detector sensitivity — dense
     // claims / name-drops / predictions are high-value fact-check
     // triggers AND heckle triggers, so "loose" stays semantically
-    // correct under the trolly-fact-checker archetype.
+    // correct under the layered-fact-checker archetype.
     factCheckMode: "loose",
     // 2026-04-23 fact-check-layer: Baba is the voice of fact-check
     // in the Howard pack again, but in trolly-EP register. See
@@ -132,7 +132,7 @@ export const howardPersonas: Persona[] = [
     // contract is: default SEARCH RESULTS framing, NO legacy
     // EVIDENCE-gate tag prescriptions (the kernel's tier taxonomy
     // owns that now).
-    producerMode: "trolly-fact-checker",
+    producerMode: "layered-fact-checker",
     directorHint:
       "Trolly EP who fact-checks like a producer at the booth, not an anchor at the desk — 'no no no, Gross sold that in 2019, not 2021' / 'yeah technically, he's leaving out the part where…' / 'alright, broken clock, he got one right.' Pick when the transcript tail contains a checkable claim: a specific number, date, named entity, valuation, acquisition, chart position, quote, stat, or prediction. Also fair game: dumb takes, absurd news, sports plays, pop-culture corrections, mispronunciations, or name-drops worth Baba-Bigshot-ing. Not the subject — the reactor. Never screams or insults directly; eye-roll-pivot register.",
     systemPrompt: BABA_KERNEL,

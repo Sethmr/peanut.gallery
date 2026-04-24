@@ -87,16 +87,27 @@ export const twistPersonas: Persona[] = [
   //     Director 2022, Molly Wood Media / Amasia VP 2023-present).
   //   - Startup-advice lean at line-end per pack-wide direction.
   //
-  // SCAFFOLDING CHANGE — persona.producerMode = "journalist".
+  // SCAFFOLDING CHANGE — persona.producerMode = "layered-fact-checker".
+  // 2026-04-23 evening: Molly is the second persona to land the
+  // fact-check-layer methodology (Baba was first). The voice contract
+  // (NPR-journalist, concession-then-pivot, inline source anchors,
+  // sage-over-snark) is UNCHANGED from v1.8; the kernel now also
+  // embeds the CONFIRMS / CONTRADICTS / COMPLICATES / THIN tier
+  // taxonomy with canonical lines rewritten in her reporter-desk
+  // register. Methodology doc: `docs/FACT-CHECK-LAYER.md`.
+  //
   // `buildPersonaContext` reads this flag and:
-  //   - skips the EVIDENCE: GREEN / THIN / NONE tier-gate
-  //     injection (tier tags contradict her kernel)
-  //   - reframes the SEARCH RESULTS block as "REPORTING ANCHORS
-  //     (cite inline if one fits your reaction)" — raw reporting
-  //     she can cite from conversationally
-  //   - leaves pre-animation + "-" safety net intact (UI
-  //     contract, not voice contract)
-  // See lib/personas.ts for the gate and producerMode docs.
+  //   - uses the default `SEARCH RESULTS (use for fact-checking)`
+  //     framing (CHANGED from the prior `REPORTING ANCHORS` framing)
+  //     so the kernel patch's "Read SEARCH RESULTS before speaking"
+  //     rule matches the header. She still cites named sources
+  //     inline; the header label doesn't change her voice, just
+  //     aligns labels with the tier-taxonomy instruction.
+  //   - **skips** the legacy EVIDENCE: GREEN / THIN / NONE gate
+  //     (obsolete [FACT CHECK] / [HEADS UP] tags would contradict
+  //     the new four-tier taxonomy).
+  //   - leaves pre-animation + "-" safety net intact.
+  // See `lib/personas.ts` for the gate and producerMode docs.
   //
   // factCheckMode stays "strict" — she's a veteran journalist,
   // the Director's claim-detector sensitivity should stay tight
@@ -116,7 +127,7 @@ export const twistPersonas: Persona[] = [
   {
     id: "producer",
     name: "Molly",
-    role: "The Journalist",
+    role: "The Fact-Checker",
     emoji: "📓",
     color: "#3b82f6",
     model: "claude-haiku",
@@ -124,12 +135,13 @@ export const twistPersonas: Persona[] = [
     // should stay anchored to hard sourceable claims (numbers, dates,
     // attributions, corporate actions). Orthogonal to producerMode.
     factCheckMode: "strict",
-    // v1.8 archetype flag — flips `buildPersonaContext` into journalist-
-    // mode (no tier gate, REPORTING ANCHORS framing for search). See
-    // `lib/personas.ts` Persona.producerMode for the full contract.
-    producerMode: "journalist",
+    // 2026-04-23 fact-check-layer: NPR-journalist register plus the
+    // CONFIRMS / CONTRADICTS / COMPLICATES / THIN tier taxonomy,
+    // canonical lines written in her voice. See
+    // `docs/FACT-CHECK-LAYER.md` for the full methodology.
+    producerMode: "layered-fact-checker",
     directorHint:
-      "NPR-trained reporter turned climate-tech VC — concedes the frame, cites the source, lands the unit-economics question. Pick on hard sourceable claims (funding, timelines, gross margin, Scope 3, cap table, corporate actions), greenwashing tells, 'move fast and break things' applied to infrastructure/biotech, or moments where a named-outlet citation ('Heatmap's reporting…', 'the GridLab study…') would reframe the story. Per TWiST pack-wide startup-advice lean: sage over snark; closes with a question or actionable unit-economics reframe. Refuses to characterize Jason Calacanis or the 2023 exit — redirects forward.",
+      "NPR-trained reporter turned climate-tech VC who fact-checks from the reporter-desk posture — concedes the frame, cites a named source ('Heatmap's reporting…', 'the GridLab study…'), lands the unit-economics question. Pick on hard sourceable claims (funding, timelines, gross margin, Scope 3, cap table, corporate actions, numbers, dates, attributions), greenwashing tells, or 'move fast and break things' applied to infrastructure/biotech. Per TWiST pack-wide startup-advice lean: sage over snark; closes with a question or actionable unit-economics reframe. Refuses to characterize Jason Calacanis or the 2023 exit — redirects forward.",
     systemPrompt: MOLLY_KERNEL,
     personaReference: MOLLY_REFERENCE,
   },
