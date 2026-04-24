@@ -76,16 +76,27 @@ export const howardPersonas: Persona[] = [
   //     mix-up, Tom Brady Roast afterparty, bagel alerts, 2025 new-
   //     teeth shoot.
   //
-  // SCAFFOLDING CHANGE — persona.producerMode = "heckler".
+  // SCAFFOLDING CHANGE — persona.producerMode = "trolly-fact-checker".
+  // 2026-04-23 fact-check-layer methodology — Baba keeps the v1.8
+  // trolly-heckler voice contract but re-acquires fact-checking as
+  // his core deliverable via the CONFIRMS / CONTRADICTS / COMPLICATES
+  // / THIN tier taxonomy baked into BABA_KERNEL. The methodology is
+  // persona-agnostic and documented in `docs/FACT-CHECK-LAYER.md`
+  // for future reuse (Molly, a future pack's fact-checker, etc.).
+  //
   // `buildPersonaContext` reads this flag and:
-  //   - skips the EVIDENCE: GREEN / THIN / NONE tier-gate injection
-  //     (it contradicts the kernel's no-tier-tags framing)
-  //   - reframes the SEARCH RESULTS block as "BACKGROUND FACTS (use
-  //     as heckle fuel if something jumps out)" — raw material for
-  //     chart-position / pop-culture corrections in heckle register
+  //   - uses the default `SEARCH RESULTS (use for fact-checking)`
+  //     framing — the kernel patch explicitly tells Baba to read
+  //     SEARCH RESULTS before speaking, so label match matters.
+  //   - **skips** the legacy EVIDENCE: GREEN / THIN / NONE tier-gate
+  //     injection (which prescribes obsolete [FACT CHECK] / [HEADS UP]
+  //     tags; the kernel's four-tier taxonomy supersedes them, and
+  //     leaving the gate active would inject contradictory tag
+  //     prescriptions).
   //   - leaves the pre-animation + "-" safety net intact (UI
-  //     contract, not voice contract)
-  // See lib/personas.ts for the gate and producerMode docs.
+  //     contract, not voice contract).
+  // See `lib/personas.ts` for the full producerMode docs and
+  // `docs/FACT-CHECK-LAYER.md` for the methodology.
   //
   // factCheckMode stays "loose" — vestigial from pre-v1.8 but still
   // consumed by the Director's rule-scorer to tune claim-detector
@@ -106,21 +117,24 @@ export const howardPersonas: Persona[] = [
   {
     id: "producer",
     name: "Baba Booey",
-    role: "The Heckler",
+    role: "The Fact-Checker",
     emoji: "🎯",
     color: "#3b82f6",
     model: "claude-haiku",
-    // Retained for Director's claim-detector sensitivity even under
-    // heckler archetype — dense claims / name-drops / predictions
-    // are still good heckle triggers, so the pre-v1.8 "loose"
-    // setting stays semantically correct.
+    // Retained for Director's claim-detector sensitivity — dense
+    // claims / name-drops / predictions are high-value fact-check
+    // triggers AND heckle triggers, so "loose" stays semantically
+    // correct under the trolly-fact-checker archetype.
     factCheckMode: "loose",
-    // v1.8 archetype flag — flips `buildPersonaContext` into heckler-
-    // mode (no tier gate, background-facts framing). See
-    // `lib/personas.ts` Persona.producerMode for the full contract.
-    producerMode: "heckler",
+    // 2026-04-23 fact-check-layer: Baba is the voice of fact-check
+    // in the Howard pack again, but in trolly-EP register. See
+    // `docs/FACT-CHECK-LAYER.md` for the full methodology. Scaffolding
+    // contract is: default SEARCH RESULTS framing, NO legacy
+    // EVIDENCE-gate tag prescriptions (the kernel's tier taxonomy
+    // owns that now).
+    producerMode: "trolly-fact-checker",
     directorHint:
-      "Trolly, exasperated EP — 'oh come ON' / 'heh heh heh... unbelievable' / 'no no no, that peaked at number THREE.' Pick when the transcript has a caller/guest/pundit/play/claim worth heckling: dumb takes, absurd news, sports plays, pop-culture or chart facts to correct, mispronunciations, or a name-drop Howard would call Baba Bigshot on. Not the subject — the reactor. Never screams or insults directly; eye-roll-pivot register (observation → dismissive tic → redirect to logistics/charity/career data).",
+      "Trolly EP who fact-checks like a producer at the booth, not an anchor at the desk — 'no no no, Gross sold that in 2019, not 2021' / 'yeah technically, he's leaving out the part where…' / 'alright, broken clock, he got one right.' Pick when the transcript tail contains a checkable claim: a specific number, date, named entity, valuation, acquisition, chart position, quote, stat, or prediction. Also fair game: dumb takes, absurd news, sports plays, pop-culture corrections, mispronunciations, or name-drops worth Baba-Bigshot-ing. Not the subject — the reactor. Never screams or insults directly; eye-roll-pivot register.",
     systemPrompt: BABA_KERNEL,
     personaReference: BABA_REFERENCE,
   },

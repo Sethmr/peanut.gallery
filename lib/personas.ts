@@ -103,6 +103,21 @@ export interface Persona {
    *   only in prose framing; under-the-hood scaffolding (no gate,
    *   search still runs, safety net still catches "-") is identical.
    *
+   * - `"trolly-fact-checker"` — the 2026-04-23 fact-check-layer
+   *   methodology (`docs/FACT-CHECK-LAYER.md`) applied to Baba.
+   *   Preserves the trolly-heckler voice contract while teaching the
+   *   persona the CONFIRMS / CONTRADICTS / COMPLICATES / THIN tier
+   *   taxonomy inside the kernel itself. `buildPersonaContext` uses
+   *   the default `SEARCH RESULTS (use for fact-checking)` framing
+   *   (same as `"fact-checker"`) but skips the legacy
+   *   `EVIDENCE: GREEN / THIN / NONE` gate — the new four-tier
+   *   taxonomy in the kernel supersedes the old `[FACT CHECK]` /
+   *   `[HEADS UP]` tag system, and leaving the gate active would
+   *   inject contradictory tag prescriptions. Apply by: setting this
+   *   flag, appending the methodology doc's kernel patch to the
+   *   persona's system prompt, and rewriting the canonical tier
+   *   lines in the persona's voice.
+   *
    * Orthogonal to `factCheckMode` (which gates the claim-detector's
    * sensitivity on the Director side). Both fields are producer-only;
    * other slots ignore both. Defaults-preserving: pre-v1.8 packs
@@ -112,7 +127,11 @@ export interface Persona {
    * pre-animation (side panel) still apply to every producerMode
    * because those are UI-surface contracts, not voice contracts.
    */
-  producerMode?: "fact-checker" | "heckler" | "journalist";
+  producerMode?:
+    | "fact-checker"
+    | "heckler"
+    | "journalist"
+    | "trolly-fact-checker";
   /**
    * v1.8 (persona-refinement push): long-form character reference material
    * delivered to the model alongside the system prompt. Whereas
@@ -357,7 +376,8 @@ export function buildPersonaContext(
     persona.id === "producer" &&
     !isForceReact &&
     persona.producerMode !== "heckler" &&
-    persona.producerMode !== "journalist"
+    persona.producerMode !== "journalist" &&
+    persona.producerMode !== "trolly-fact-checker"
   ) {
     if (searchStatus === "with_results") {
       context += `--- EVIDENCE: GREEN ---\nSearch returned usable results. [FACT CHECK] is earned IF a specific number/date/name in the search contradicts the claim. If the search confirms the claim, [CONTEXT] adds the angle they missed. If the search is adjacent but doesn't settle the claim, use [HEADS UP]. Anchor every number or date to the search — no memory-only corrections on this fire.\n\n`;

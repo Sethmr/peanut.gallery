@@ -68,6 +68,7 @@ Chrome extension + Next.js backend that captures a YouTube tab's audio, transcri
 | Most recent session handoff | [`docs/SESSION-NOTES-2026-04-23-persona-v18-push.md`](docs/SESSION-NOTES-2026-04-23-persona-v18-push.md) |
 | Director state (modules, flags, telemetry, PR lineage) | [`docs/STATE-OF-DIRECTOR-2026-04-21.md`](docs/STATE-OF-DIRECTOR-2026-04-21.md) |
 | Design principles (durable Seth-directives) | [`docs/DESIGN-PRINCIPLES.md`](docs/DESIGN-PRINCIPLES.md) |
+| Fact-check layer (reusable methodology — applied to Baba, ready for future producers) | [`docs/FACT-CHECK-LAYER.md`](docs/FACT-CHECK-LAYER.md) |
 | Persona refinement plan (100+ transcript study) | [`docs/PERSONA-REFINEMENT-PLAN.md`](docs/PERSONA-REFINEMENT-PLAN.md) |
 | Persona character research (TWiST pack) | [`docs/packs/twist/RESEARCH.md`](docs/packs/twist/RESEARCH.md) |
 | Linear → Claude kickoff pipeline (local daemon) | [`docs/LINEAR-AGENT-RUBRIC.md`](docs/LINEAR-AGENT-RUBRIC.md) + [`scripts/linear-daemon.ts`](scripts/linear-daemon.ts) + [`scripts/install-linear-daemon.sh`](scripts/install-linear-daemon.sh) — setup in [`docs/GITHUB-MANUAL-STEPS.md § 18`](docs/GITHUB-MANUAL-STEPS.md) |
