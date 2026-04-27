@@ -54,6 +54,21 @@ If you catch yourself drafting a third attempt, stop mid-sentence and escalate.
 - `.DS_Store` is tracked (pre-gitignore-tightening). If it sneaks into a commit, leave it. Do not amend-and-force-push to strip it.
 - `chmod` / `chown` in the working tree also blocked — don't bother.
 
+### 4. Never read `.env.local` or any sibling `.env*` file with real secrets
+
+`chrome-extension/.env.local` contains live API keys (Anthropic, OpenAI, Stripe, Deepgram, xAI, Cerebras, Resend) and webhook secrets. Reading it — via `Read`, `cat`, `head`, `tail`, `grep`, `sed`, `less`, anything that returns the file's contents — pulls those secrets into Claude's context window. Once seen, the only safe mitigation is rotation. Peanut Gallery is open source and Seth routinely shares screenshots, transcripts, and AI-session contents externally; that makes "secrets in context" a real exposure path, not a theoretical one.
+
+**Rules:**
+
+- **Do not `Read` or shell-cat `.env.local`, `.env.production`, or any sibling `.env*`.** `.env.example` is the only `.env*` file safe to read (placeholder values, committed).
+- If you need to know whether a flag is set, **ask Seth** ("is `ENABLE_X` on in your `.env.local`?") instead of opening the file.
+- To enumerate variable *names* without their values: `grep -hE '^[A-Z_]+=' chrome-extension/.env.local | cut -d= -f1`. Names are not secret; values are.
+- For behavioral verification, run the dev server (which auto-loads `.env.local` into `process.env`) and observe the running process. Code that reads `process.env.X` works fine without you ever seeing the value.
+- **Edits are OK** as long as your `Edit` `old_string` / `new_string` arguments contain only variable names and comment text, never a value. Use the names-only `grep` above to find anchor lines.
+- **If you slip and read a secret anyway**, tell Seth immediately so he can decide whether to rotate. Don't quietly continue as if nothing happened.
+
+**Override:** Seth can grant a scoped in-session exception ("read line 7 of .env.local for me"). That's a deliberate one-time call. The default — and the rule for every other case — is don't open the file.
+
 ---
 
 ## Where to read next

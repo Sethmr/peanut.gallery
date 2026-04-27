@@ -124,7 +124,8 @@ Ordered by (impact × ease) descending. Numbered for easy reference in chat.
 | Date | Milestone | Status |
 |---|---|---|
 | 2026-04-20 (Mon) | GSC indexing data populates; Bing Search Performance data unlocks | ⏳ **scheduled task ran; delta docs scaffolded at `2026-04-20-{gsc,bing}-delta.md`; numeric pulls blocked on Seth's keyboard** |
-| 2026-04-25 (Sat) | 7-day post-variant-ship delta measurable in GA4 + GSC | ⏳ pending |
+| 2026-04-22 (Wed) | Ad-hoc full-stack pull (GSC + BWT + GA4 in one session) | ✅ **`2026-04-22-seo-snapshot.md` — 0 clicks / 13 impressions / position 20.8 over 28d in GSC; Bing still empty; GA4 72 active users / 28d; 5 critical action items captured** |
+| 2026-04-25 (Sat) | 7-day post-variant-ship delta measurable in GA4 + GSC | ⏳ **scheduled task ran; delta docs at `2026-04-25-{ga4,gsc}-delta.md` + comparison-post status at `2026-04-25-w2-comparison-post-status.md`. Variant A *not yet shipped* — v2.0 CWS launch + v2.0.1 compliance pass took the week. Numeric pulls blocked on Seth's keyboard.** |
 | 2026-05-02 (Sat) | First real position data in GSC; first install-CTR trend | ⏳ pending |
 | 2026-05-16 (Sat) | 4-week view; CWV starts to populate if we've pushed traffic | ⏳ pending |
 | 2026-07-11 (Sat) | End-of-plan measurement. Target: 100+ clicks from non-branded queries | ⏳ pending |
