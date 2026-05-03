@@ -4,7 +4,7 @@
  * Single source of truth for "does this text contain something a producer
  * could fact-check?" Extracted from lib/persona-engine.ts so the Director
  * can gate its producer-pick on the same signal the fact-check pipeline
- * would use — closes the "Baba Booey lights up but has nothing to say"
+ * would use — closes the "the Producer lights up but has nothing to say"
  * UX bug where the Director fires a producer on thin content and Haiku
  * passes with `-`, leaving the UI with a dead speaking animation.
  *
@@ -22,7 +22,7 @@
  * Upgrade path
  * ────────────
  * The regex patterns here are grep-brittle but calibrated over ~30 real
- * TWiST + Howard sessions. If a pattern is added, add a corresponding
+ * TWiST + Morning Crew sessions. If a pattern is added, add a corresponding
  * unit test in scripts/test-claim-detector.ts so the Director fixture
  * suite keeps its grip on behavior.
  */
@@ -40,9 +40,9 @@
  *  X is Y"), predictions ("by 2030 it'll…"), confidence-stacked assertions
  *  ("everyone knows that"), historical hand-waves ("back in the day"),
  *  name-drops, unit-less statistics, etc. The right mode for voices whose
- *  character IS the over-correction — Howard's Baba Booey is the canonical
- *  "well, actually" guy. Wrong fact-checks are cheaper UX than empty
- *  speaking animations.
+ *  character IS the over-correction — the Morning Crew's Producer is the
+ *  canonical "well, actually" voice. Wrong fact-checks are cheaper UX than
+ *  empty speaking animations.
  *
  * Each pack declares its producer's mode via `Persona.factCheckMode`.
  * `buildFactHint` + `extractTopClaims` accept the mode; default is
@@ -58,8 +58,8 @@ export type FactCheckMode = "strict" | "loose";
  * 2026-04-21 hardening (LiveFC / AVeriTeC-inspired): two changes aimed at
  * live-podcast ASR reality.
  *  1. Spoken numbers now match. On a live-ASR feed "three billion" is
- *     the norm and `\$[\d]+` never fires on it, leaving Baba silent on
- *     the exact claims he was built to catch. Added a word-number rule
+ *     the norm and `\$[\d]+` never fires on it, leaving the Producer silent
+ *     on the exact claims he was built to catch. Added a word-number rule
  *     that only fires when the spoken number is followed by a real unit
  *     (dollars / billion / percent / users / years) so we don't catch
  *     casual numeric language like "three times" or "few dozen people".
@@ -118,9 +118,9 @@ export const CLAIM_PATTERNS_STRICT: readonly RegExp[] = [
  * Soft-claim patterns. Added on top of the strict set when
  * `factCheckMode === "loose"`. These catch speculation, predictions,
  * opinion-as-fact, hand-wavy quantification, and name-drops — cues the
- * "Baba corrects everything" archetype loves to push back on.
+ * "Producer corrects everything" archetype loves to push back on.
  *
- * 2026-04-21: added a handful of cues that Baba's loose mode was
+ * 2026-04-21: added a handful of cues that the Producer's loose mode was
  * missing in practice — tech-history rhymes ("back in the dot-com
  * days"), sponsor/ad numeric claims ("saves you X hours"), and
  * personal-history tells ("my first company") that are often

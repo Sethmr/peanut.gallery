@@ -41,13 +41,13 @@ No single persona should dominate for long. Even when the Director has a strong 
 
 Each pack's producer declares `Persona.factCheckMode: "strict" | "loose"`.
 
-- **Loose** — fires on speculation, predictions, "everyone knows" claims, name-drops, confidence-stacking. Howard's Baba Booey default. Being wrong-sometimes is part of the character.
+- **Loose** — fires on speculation, predictions, "everyone knows" claims, name-drops, confidence-stacking. Howard's The Producer default. Being wrong-sometimes is part of the character.
 - **Strict** — hard claims only (numbers, dates, attributions, corporate actions). TWiST's Molly Wood default (veteran journalist).
 
 The mode is a pack-design decision, NOT a user setting. When adding a new pack, pick the mode that fits the character.
 
 ### 3a. Persona prompts are the lever, not the Director
-*(2026-04-21 — codified after the Baba Booey false-pass audit; see [PACK-AUTHORING-GUIDE.md § Refinement loop](PACK-AUTHORING-GUIDE.md#refinement-loop-how-we-evolve-packs-over-time).)*
+*(2026-04-21 — codified after the The Producer false-pass audit; see [PACK-AUTHORING-GUIDE.md § Refinement loop](PACK-AUTHORING-GUIDE.md#refinement-loop-how-we-evolve-packs-over-time).)*
 
 When a pack's behavior is off, the fix order is:
 

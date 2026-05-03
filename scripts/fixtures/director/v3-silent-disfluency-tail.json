@@ -1,7 +1,7 @@
 {
   "name": "v3-silent-disfluency-tail",
   "description": "v1.7 Smart Director v3 SILENT slot. The transcript tail is mid-restart / mid-disfluency ('uh, let me rephrase that — the thing about…') — not a TRP. The v3 router picked silent. Asserts the empty-chain path is taken and no persona fires even though the tail contains some pattern-match keywords.",
-  "pack": "howard",
+  "pack": "morning-crew",
   "input": {
     "transcript": "Yeah so the valuation was, uh, let me rephrase that — the thing about the Series B is that —",
     "llmPickV2": {

@@ -15,7 +15,7 @@ AI podcast sidebar that lives right next to your YouTube video. Uses `chrome.tab
 2. Open a YouTube video
 3. Click the 🥜 extension icon — the side panel opens
 4. Set your server URL + API keys — Deepgram, Anthropic, xAI. xAI covers both persona generation and Producer fact-check grounding via Grok Live Search (Brave Search was deprecated in v2.0.1 — one key now does both jobs). Saved in `chrome.storage.local` between sessions.
-5. Pick a pack from the dropdown — **Howard** (default: Baba Booey, The Troll, Fred Norris, Jackie Martling) or **TWiST** (Molly Wood, Jason Calacanis, Lon Harris, Alex Wilhelm).
+5. Pick a pack from the dropdown — **Howard** (default: The Producer, The Troll, The Sound Guy, The Joke Writer) or **TWiST** (Molly Wood, Jason Calacanis, Lon Harris, Alex Wilhelm).
 6. Click **Start Listening**
 
 Four AI personas react in real-time in the sidebar while you watch. Pack choice applies on the next Start Listening — mid-session swaps are intentionally not supported (same reason the response-rate dial is setup-time only).
