@@ -68,7 +68,7 @@ Written-for-the-file PR reviews. Local only (not posted on GitHub) — intended 
 - [`docs/V1.2-PLAN.md`](V1.2-PLAN.md) — step-by-step implementation plan for v1.2.0. Shipped; kept for history.
 - [`docs/V1.3-PLAN.md`](V1.3-PLAN.md) — step-by-step implementation plan for v1.3.0 (TWiST pack). Shipped; kept for history.
 - [`docs/TEST-V1.1.md`](TEST-V1.1.md) — end-to-end test checklist used before the v1.1 Railway deploy + CWS publish. Shipped; kept for history.
-- [`TWIST-AI-SIDEBAR-BUILD-PLAN.md`](../TWIST-AI-SIDEBAR-BUILD-PLAN.md) — original pre-build plan from 2026-04-15. References "Chaos Agent" (now Fred Norris), Vercel (now Railway), `twist-sidebar` (now `peanut.gallery`), and `-f wav` (fixed to `-f s16le`). Kept for history; superseded by CONTEXT.md.
+- [`TWIST-AI-SIDEBAR-BUILD-PLAN.md`](../TWIST-AI-SIDEBAR-BUILD-PLAN.md) — original pre-build plan from 2026-04-15. References "Chaos Agent" (now The Sound Guy), Vercel (now Railway), `twist-sidebar` (now `peanut.gallery`), and `-f wav` (fixed to `-f s16le`). Kept for history; superseded by CONTEXT.md.
 
 ## Community & governance
 

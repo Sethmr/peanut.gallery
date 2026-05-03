@@ -1,7 +1,7 @@
 {
   "name": "llm-agrees-with-rule",
   "description": "v1.5: when the LLM picks the SAME archetype slot the rule-based scorer would've picked, source must still be 'llm' (the routing layer was consulted and its pick won, even though it matches). This catches a class of future regressions where a refactor accidentally flips source back to 'rule' on agreement, which would silently hide the LLM's contribution in canary rollups. Fact-driven transcript routes to producer; LLM also picks producer; assert sourceIn=['llm'] and rationale flows into reason.",
-  "pack": "howard",
+  "pack": "morning-crew",
   "input": {
     "transcript": "Airbnb was founded in 2008 and raised $20 million in their Series A according to the report. The company went public in December 2020 and has a market cap of roughly 85 billion dollars with over 150 million users worldwide.",
     "llmPick": {

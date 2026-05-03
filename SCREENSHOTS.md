@@ -56,10 +56,10 @@ For the screenshots, **don't use copyrighted music videos or movie clips** — r
 
 ## Shot 2 — Fact-checker catching a claim
 
-**What:** Close-up feel — the side panel showing Baba Booey with a correction that includes a Brave Search snippet/source link.
+**What:** Close-up feel — the side panel showing The Producer with a correction that includes a Brave Search snippet/source link.
 
 **Setup:**
-- Let it run until Baba Booey fires on a factual claim (dates, stats, company names trigger him reliably)
+- Let it run until The Producer fires on a factual claim (dates, stats, company names trigger him reliably)
 - Once you see a good correction with a source, pause YouTube
 - Scroll the side panel so Baba's response is centered and fully visible
 - If the YouTube video is distracting, that's fine — the side panel is the subject

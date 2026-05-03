@@ -1,7 +1,7 @@
 {
   "name": "llm-unknown-id-falls-back",
   "description": "v1.5: when the LLM returns an archetype id the pack doesn't expose (e.g. a typo or a hallucinated slot name), the Director silently falls back to the rule-based pick. This fixture seeds a fact-driven transcript and a bad LLM id — must still route to producer with source='rule'.",
-  "pack": "howard",
+  "pack": "morning-crew",
   "input": {
     "transcript": "Jason said that Uber was founded in 2007 and raised 50 million dollars in their Series A. According to the report, the company now has 100 million users worldwide and is valued at 90 billion dollars.",
     "llmPick": {

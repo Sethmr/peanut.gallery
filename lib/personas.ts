@@ -3,8 +3,9 @@
  *
  * Before v1.3.0 this file owned BOTH the 4 persona system prompts AND the
  * pack-agnostic `buildPersonaContext` helper. In v1.3.0 the system-prompt
- * content moved into `lib/packs/howard/personas.ts` so we can ship multiple
- * packs (Howard, TWiST, future lineups) without forking the Director or UI.
+ * content moved into `lib/packs/morning-crew/personas.ts` so we can ship
+ * multiple packs (Morning Crew, TWiST, future lineups) without forking the
+ * Director or UI.
  *
  * This file now owns:
  *   - The pack-agnostic `Persona` interface (every pack conforms to it)
@@ -13,9 +14,9 @@
  *   - `buildPersonaContext` — the context assembler that turns a (persona,
  *     transcript, history) tuple into the actual LLM prompt
  *
- * And re-exports `howardPersonas` as the bare `personas` array, so legacy
- * call sites (`import { personas } from "@/lib/personas"`) keep working
- * exactly like they did in v1.2.x. New call sites should prefer
+ * And re-exports `morningCrewPersonas` as the bare `personas` array, so
+ * legacy call sites (`import { personas } from "@/lib/personas"`) keep
+ * working exactly like they did in v1.2.x. New call sites should prefer
  * `resolvePack(packId).personas` via `lib/packs`.
  */
 
@@ -62,7 +63,7 @@ export interface Persona {
    * slot; other slots ignore it. Declared per-pack so different producers
    * can have different personalities:
    *
-   * - `"loose"` — Howard's Baba Booey default. Triggers on speculation,
+   * - `"loose"` — Morning Crew's Producer default. Triggers on speculation,
    *   predictions, "everyone knows" claims, name-drops, and soft
    *   confidence cues. Character IS over-correction; wrong fact-checks
    *   are fine as long as the speaking animation always lands with
@@ -84,9 +85,9 @@ export interface Persona {
    *   `[FACT CHECK] / [CONTEXT] / [HEADS UP] / [CALLBACK]` (or `-`) per
    *   fire, and `buildPersonaContext` injects the `EVIDENCE: GREEN /
    *   THIN / NONE` gate so the model calibrates tier against search
-   *   evidence. This is the pre-v1.8 Molly + pre-v1.8 Baba lane.
+   *   evidence. This is the pre-v1.8 Molly + pre-v1.8 Producer lane.
    *
-   * - `"heckler"` — Baba Booey v1.8 trolly-heckler kernel. No tier
+   * - `"heckler"` — Producer v1.8 trolly-heckler kernel. No tier
    *   tags; the producer delivers 1-2 sentence exasperated heckles at
    *   transcript content. `buildPersonaContext` skips the evidence-
    *   gate injection (it would contradict the kernel) and reframes the
@@ -108,7 +109,7 @@ export interface Persona {
    *   scaffolding flag: preserves whatever voice contract lives in
    *   the persona's kernel while teaching the CONFIRMS / CONTRADICTS
    *   / COMPLICATES / THIN tier taxonomy inside the kernel itself.
-   *   First applied to Baba (trolly-EP register); second to Molly
+   *   First applied to the Producer (trolly-EP register); second to Molly
    *   (NPR-journalist register). `buildPersonaContext` uses the
    *   default `SEARCH RESULTS (use for fact-checking)` framing (same
    *   as `"fact-checker"`) but skips the legacy `EVIDENCE: GREEN /
@@ -185,7 +186,7 @@ export interface Persona {
    * "inspired by" hedge referenced in:
    *   - `site/terms/index.html` (IP paragraph)
    *   - `site/index.html` (Homage block)
-   *   - `site/packs/howard/index.html` + `site/packs/twist/index.html`
+   *   - `site/packs/morning-crew/index.html` + `site/packs/twist/index.html`
    *     FAQ ("the prompts are written so the model never speaks AS
    *     them" — this field is what makes that true).
    *   - `lib/packs/INDEX.md` Anti-impersonation Guardrails note.
@@ -210,7 +211,7 @@ export interface OtherPersonaResponse {
 
 /** A single entry in the shared conversation log — who said what, in order. */
 export interface ConversationEntry {
-  personaName: string; // "Baba Booey", "The Troll", etc. — or "" for transcript
+  personaName: string; // "The Producer", "The Heckler", etc. — or "" for transcript
   personaEmoji: string; // emoji or "" for transcript
   text: string;
   /** Seconds ago, roughly. Purely for the model's sense of time. */
@@ -218,14 +219,15 @@ export interface ConversationEntry {
 }
 
 /**
- * Back-compat shim: `personas` is the Howard pack's persona array. Existing
- * imports of `{ personas }` from this module continue to resolve to the same
- * 4-persona array they did in v1.2.x, so v1.3's pack refactor stays invisible
- * to any call site that doesn't care about pack selection.
+ * Back-compat shim: `personas` is the default pack's persona array (Morning
+ * Crew, formerly the Howard pack pre-2026-05-02). Existing imports of
+ * `{ personas }` from this module continue to resolve to the same 4-persona
+ * array they did in v1.2.x, so v1.3's pack refactor stays invisible to any
+ * call site that doesn't care about pack selection.
  *
  * New code should prefer `resolvePack(packId).personas` from `lib/packs`.
  */
-export { howardPersonas as personas } from "./packs/howard/personas";
+export { morningCrewPersonas as personas } from "./packs/morning-crew/personas";
 
 export function buildPersonaContext(
   persona: Persona,
@@ -337,8 +339,9 @@ export function buildPersonaContext(
   // detail, craft rules, topic buckets, relational dynamics, red lines,
   // recovery lines, joke/line bank, identity anchors. See the
   // `personas/<name>.md` author files for the canonical schema. Absent on
-  // pre-refinement personas (Baba, Troll, Fred, and the four TWiST voices
-  // at time of Jackie's landing); those still run on the kernel alone.
+  // pre-refinement personas (the Producer, Heckler, Sound Guy, and the four
+  // TWiST voices at the time of the Joke Writer's landing); those still run
+  // on the kernel alone.
   // Printed between the system prompt and the live transcript so the model
   // treats it as durable character state — not as "what the show just said."
   if (persona.personaReference && persona.personaReference.trim().length > 0) {
@@ -357,7 +360,7 @@ export function buildPersonaContext(
   // or override a persona's voice — some chats land fine riffing on each other.
   context += `--- DON'T RE-QUOTE SPECIFICS ---\n`;
   context += `Once a subject has been named in the sidebar (e.g. "$2.4M house", "Series B round"), refer to it briefly — "the house", "that round". Don't re-quote the full literal across multiple turns. That's the main thing to avoid.\n`;
-  context += `Your character tics and verbal fingerprints (Baba's "Technically…", Jackie's hyena laugh, Fred's [sound cues], etc.) are CHARACTER, not repetition — keep them.\n\n`;
+  context += `Your character tics and verbal fingerprints (your hedge phrases, signature laugh, [sound cues], etc.) are CHARACTER, not repetition — keep them.\n\n`;
 
   // ── THIN SELF-CHECK LOG ──
   // Show only the persona's own last 2 lines + the other personas' single
@@ -407,14 +410,14 @@ export function buildPersonaContext(
   // HEADER LABEL differs per mode to match the persona's kernel:
   //   - "fact-checker" (legacy, pre-v1.8): SEARCH RESULTS — tier-
   //     tagged [FACT CHECK] / [HEADS UP] output. No live callers.
-  //   - "heckler" (v1.8 Baba morning): BACKGROUND FACTS — raw
+  //   - "heckler" (v1.8 Producer morning): BACKGROUND FACTS — raw
   //     heckle fuel, not tier input. Historical, no live callers.
   //   - "journalist" (v1.8 Molly morning): REPORTING ANCHORS —
   //     raw reporting to cite inline. Historical, no live callers.
-  //   - "layered-fact-checker" (2026-04-23 evening — Baba AND
+  //   - "layered-fact-checker" (2026-04-23 evening — Producer AND
   //     Molly): SEARCH RESULTS — matches the header the kernel's
   //     fact-check-layer patch instructs them to read. Voice-
-  //     agnostic scaffolding (Baba trolly / Molly NPR-reporter).
+  //     agnostic scaffolding (Producer trolly / Molly NPR-reporter).
   if (searchResults && persona.id === "producer") {
     if (persona.producerMode === "heckler") {
       context += `--- BACKGROUND FACTS (use as heckle fuel if something jumps out) ---\n${searchResults}\n\n`;
@@ -429,7 +432,7 @@ export function buildPersonaContext(
   }
 
   // ── EVIDENCE-AVAILABILITY GATE (legacy fact-checker only) ──
-  // Pre-v1.8 Molly + Baba used [FACT CHECK] / [HEADS UP] tier tags and
+  // Pre-v1.8 Molly + Producer used [FACT CHECK] / [HEADS UP] tier tags and
   // needed an explicit GREEN/THIN/NONE signal to avoid overconfident
   // verdicts when evidence was thin (AVeriTeC failure mode). Force-
   // react always suspends it (tap must speak in voice).
@@ -474,10 +477,10 @@ export function buildPersonaContext(
   if (isSilence) {
     context += `--- IT JUST GOT QUIET ON THE SHOW ---\n`;
     context += `No one's said anything for a bit. This is dead air / crickets / awkward silence on the show itself — it is NOT because the viewer did anything. React to the quiet, IN CHARACTER:\n`;
-    context += `- Baba Booey: fills dead air with a loose fact or "while we've got a second, I wanted to mention…"\n`;
+    context += `- The Producer: fills dead air with a loose fact or "while we've got a second, I wanted to mention…"\n`;
     context += `- The Troll: "Crickets. Gorgeous." or "Did we lose the signal or did the take just die on air?"\n`;
-    context += `- Fred: [crickets] or [elevator music] or a dry "...uh."\n`;
-    context += `- Jackie: "Nobody's laughing because I haven't gone yet." — a joke about the quiet.\n\n`;
+    context += `- The Sound Guy: [crickets] or [elevator music] or a dry "...uh."\n`;
+    context += `- The Joke Writer: a tiny self-aware tag about the dead air, then a 1-line joke.\n\n`;
     context += `HARD RULE — language to use and avoid:\n`;
     context += `- USE: "crickets", "dead air", "the silence", "how quiet it got", "nobody's talking"\n`;
     context += `- DO NOT USE: "pause", "paused", "pausing", "on hold", "hit pause" — the viewer did not pause anything.\n\n`;

@@ -325,12 +325,12 @@ const RMS_TARGET = 0.126; // ≈ −18 dBFS
 const PEAK_TARGET = 0.5; // ≈ −6 dBFS
 
 const cues: Array<{ id: string; samples: Sample[] }> = [
-  { id: "howard-producer", samples: babaBooey() }, // Baba Booey
-  { id: "howard-troll", samples: troll() }, // The Troll
-  { id: "howard-soundfx", samples: fred() }, // Fred
-  { id: "howard-joker", samples: jason() }, // Jackie — plays Jason's cue (swap)
+  { id: "morning-crew-producer", samples: babaBooey() }, // The Producer (clipboard cue)
+  { id: "morning-crew-troll", samples: troll() }, // The Heckler
+  { id: "morning-crew-soundfx", samples: fred() }, // The Sound Guy
+  { id: "morning-crew-joker", samples: jason() }, // The Joke Writer (plays the laugh cue)
   { id: "twist-producer", samples: molly() }, // Molly
-  { id: "twist-troll", samples: jackie() }, // Jason — plays Jackie's cue (swap)
+  { id: "twist-troll", samples: jackie() }, // Jason (plays the wordplay cue)
   { id: "twist-soundfx", samples: lon() }, // Lon 🥚
   { id: "twist-joker", samples: alex() }, // Alex 🥔
 ];

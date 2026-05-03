@@ -357,8 +357,9 @@ export async function POST(req: NextRequest) {
     rate: rateClamped,
     paceMultiplier,
     // Log both requested + resolved so we can see fallbacks in the logs
-    // (e.g. someone sending "Howard" with a capital H should show
-    // requestedPackId="Howard", packId="howard" — or unknown → "howard").
+    // (e.g. someone sending "Morning-Crew" with mixed case should show
+    // requestedPackId="Morning-Crew", packId="morning-crew" — or unknown
+    // → "morning-crew", or legacy "howard" → "morning-crew").
     requestedPackId: typeof packId === "string" ? packId : null,
     packId: resolvedPack.meta.id,
     // Shadow flag state, for filtering director_v3_shadow_compare events.
@@ -1039,12 +1040,13 @@ export async function POST(req: NextRequest) {
 
             // Build cascade context from previous persona's response.
             // Look the persona up in the session's resolved pack — not the
-            // global `personas` shim, which always resolves to Howard. A
-            // TWiST cascade that used the shim would stamp the cascade
-            // source with Baba Booey's name/emoji instead of Molly's, so
-            // the next persona's prompt would reference a Howard cast
-            // member who isn't in the conversation. Slot ids match across
-            // packs, so .find() still works — only the name/emoji differ.
+            // global `personas` shim, which always resolves to the default
+            // pack (Morning Crew). A TWiST cascade that used the shim
+            // would stamp the cascade source with the Producer's name/emoji
+            // instead of Molly's, so the next persona's prompt would
+            // reference a Morning Crew member who isn't in the conversation.
+            // Slot ids match across packs, so .find() still works — only the
+            // name/emoji differ.
             const cascadeFrom = i > 0 && lastResponse
               ? (() => {
                   const p = session.resolvedPack.personas.find((p) => p.id === lastPersonaId);

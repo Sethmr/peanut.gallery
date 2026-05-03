@@ -40,8 +40,9 @@ interface DirectorFixture {
    * harness can filter by pack (e.g. `--pack twist`) and so a failing fixture
    * can be traced back to the transcript vocabulary that drove it.
    *
-   * Fixtures without this field default to "howard" (back-compat with the
-   * pre-v1.3 suite). No existing fixture needs to be edited.
+   * Fixtures without this field default to "morning-crew" (back-compat with
+   * the pre-v1.3 suite, which predates the 2026-05-02 rename from "howard").
+   * No existing fixture needs to be edited.
    */
   pack?: string;
   initialState?: {
@@ -147,9 +148,11 @@ const FILTER_NAME = (() => {
   return idx === -1 ? null : args[idx + 1];
 })();
 // --pack <id> (v1.3): filter fixtures whose pack field matches. Fixtures
-// without a pack field default to "howard", so `--pack howard` covers both
-// explicit "howard" and the legacy (untagged) fixtures. Unknown pack ids
-// produce zero matches and exit 1, which is the right behavior for CI.
+// without a pack field default to "morning-crew", so `--pack morning-crew`
+// covers both explicit "morning-crew" and the legacy (untagged) fixtures.
+// `--pack howard` is also accepted as the legacy id (aliased to morning-crew
+// in the pack registry). Unknown pack ids produce zero matches and exit 1,
+// which is the right behavior for CI.
 const FILTER_PACK = (() => {
   const idx = args.indexOf("--pack");
   if (idx === -1) return null;
@@ -443,7 +446,13 @@ function main() {
 
   let fixtures = allFixtures;
   if (FILTER_PACK) {
-    fixtures = fixtures.filter((f) => (f.pack ?? "howard") === FILTER_PACK);
+    // Normalize legacy "howard" pack id to "morning-crew" so old fixtures
+    // and old --pack arguments still match cleanly post-2026-05-02 rename.
+    const normalizedFilter = FILTER_PACK === "howard" ? "morning-crew" : FILTER_PACK;
+    fixtures = fixtures.filter((f) => {
+      const fixturePack = (f.pack ?? "morning-crew") === "howard" ? "morning-crew" : (f.pack ?? "morning-crew");
+      return fixturePack === normalizedFilter;
+    });
   }
   if (FILTER_NAME) {
     fixtures = fixtures.filter(

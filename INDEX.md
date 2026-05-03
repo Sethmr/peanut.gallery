@@ -16,7 +16,7 @@ Machine-readable map of this repo. If you are an AI resuming work here, read thi
 
 ## What this repo is
 
-Chrome extension + Next.js backend that captures a YouTube tab's audio, transcribes it, and streams back reactions from 4 AI personas. Two persona packs — Howard Stern staff (default) or This Week in Startups lineup.
+Chrome extension + Next.js backend that captures a YouTube tab's audio, transcribes it, and streams back reactions from 4 AI personas. Two persona packs — Morning Crew (default morning-radio archetypes) or the This Week in Startups lineup.
 
 ## Top-level tree
 
@@ -51,7 +51,7 @@ Chrome extension + Next.js backend that captures a YouTube tab's audio, transcri
 ## Provider stack (v1.4)
 
 - **Transcription:** Deepgram Nova-3.
-- **Producer + Joker personas (Baba Booey, Jackie, Molly, Alex):** Anthropic Claude Haiku.
+- **Producer + Joker personas (The Producer, Jackie, Molly, Alex):** Anthropic Claude Haiku.
 - **Troll + Sound FX personas (Troll, Fred, Jason, Lon):** xAI Grok 4.1 Fast non-reasoning.
 - **Fact-check search:** xAI Live Search (Grok Responses API with `web_search` tool). Brave Search was deprecated in v2.0.1 — one xAI key now covers both persona generation and fact-check grounding.
 

@@ -52,20 +52,20 @@ Plus is an accessibility lever, not a profit center — anyone who wants can alw
 
 Every pack ships four archetype slots. The Director is pack-agnostic — same routing, same cascade, same cooldowns — only the voices change.
 
-### Howard Stern Show (default)
+### Morning Crew (default)
 
 Inspired by the Stern staff, per Jason's original spec.
 
 | Slot | Character | Model | Role |
 |------|-----------|-------|------|
-| **Producer** | Baba Booey (Gary Dell'Abate) | Claude Haiku + xAI Live Search | Fact-checker. Pulls receipts mid-show on numbers, dates, attributions. |
+| **Producer** | The Producer (Gary Dell'Abate) | Claude Haiku + xAI Live Search | Fact-checker. Pulls receipts mid-show on numbers, dates, attributions. |
 | **Troll** | The Cynical Troll | xAI Grok 4.1 Fast | Contrarian. Internet-brain energy. Says what the audience is thinking. |
-| **Sound FX** | Fred Norris | xAI Grok 4.1 Fast | Bracket-delimited sound cues plus deadpan one-liners. |
-| **Joker** | Jackie Martling | Claude Haiku | Setup-punchline jokes, callbacks, observational comedy. |
+| **Sound FX** | The Sound Guy | xAI Grok 4.1 Fast | Bracket-delimited sound cues plus deadpan one-liners. |
+| **Joker** | The Joke Writer | Claude Haiku | Setup-punchline jokes, callbacks, observational comedy. |
 
 Sample fires:
 
-> *Baba Booey:* [FACT CHECK] "Jason just said Uber was founded in 2007. It was 2009. Again."
+> *The Producer:* [FACT CHECK] "Jason just said Uber was founded in 2007. It was 2009. Again."
 >
 > *Troll:* "Oh cool, another AI wrapper. Very 2024."
 >
@@ -99,7 +99,7 @@ YouTube Tab → chrome.tabCapture → Offscreen Doc → PCM 16kHz (250ms chunks)
 
 The **Director** is the moat. It reads each transcript chunk and picks the best persona to respond, then cascades to others with decreasing probability and staggered timing. Some moments get 1 reaction, some 2-3, occasionally all four pile on. As of v1.6.0 ("The Canary") the primary router is a Claude Haiku `tool_use` call with verbalized confidence, sticky-agent penalty, unstable-tail heuristic, a live-callback ring buffer, and SILENT as a first-class choice — all behind a 400 ms budget with the rule-based scorer as the safety net. A fast-model shadow (Cerebras Llama 3.1 8B; Groq also wired) logs its pick alongside so we can verify agreement + latency before swapping primaries. The canary is flag-gated: `ENABLE_SMART_DIRECTOR_V2=true` on the backend turns the LLM router on; off keeps everything rule-based.
 
-The **Fact-Checker** has an extra step: it scores sentences for factual claims and runs parallel search queries via **xAI Live Search** (Grok Responses API with the `web_search` tool) to cross-reference. Sensitivity is per-pack design: Howard's Baba Booey is `loose` (fires on speculation + name-drops + predictions), TWiST's Molly Wood is `strict` (hard claims only). One xAI key covers both persona generation and fact-check grounding.
+The **Fact-Checker** has an extra step: it scores sentences for factual claims and runs parallel search queries via **xAI Live Search** (Grok Responses API with the `web_search` tool) to cross-reference. Sensitivity is per-pack design: Howard's The Producer is `loose` (fires on speculation + name-drops + predictions), TWiST's Molly Wood is `strict` (hard claims only). One xAI key covers both persona generation and fact-check grounding.
 
 If no audio is detected for 60 s, the extension auto-stops the session so it doesn't keep burning backend tokens on a paused tab. Press Start Listening again to resume.
 

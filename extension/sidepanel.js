@@ -38,15 +38,19 @@ window.addEventListener("unhandledrejection", (event) => {
 //
 // Adding a new pack: add an entry to PACKS_CLIENT (same 4 slot ids, any
 // names/emojis/colors), then add a matching <option> to sidepanel.html's
-// packSelect. The server resolves unknown pack ids to "howard" via
+// packSelect. The server resolves unknown pack ids to "morning-crew" via
 // resolvePack(), so an older server won't reject a newer client's choice —
 // the UI will simply show different names than the personas that speak.
+//
+// The legacy "howard" id (pre-2026-05-02 rename) is aliased to "morning-crew"
+// so persisted user storage continues to resolve cleanly. New code should
+// use "morning-crew".
 const PACKS_CLIENT = {
-  howard: [
-    { id: "producer", name: "Baba Booey", role: "Fact-Checker", emoji: "🎯", color: "#3b82f6" },
-    { id: "troll", name: "The Troll", role: "Cynical Commentator", emoji: "🔥", color: "#ef4444" },
-    { id: "soundfx", name: "Fred", role: "Sound Effects", emoji: "🎧", color: "#a855f7" },
-    { id: "joker", name: "Jackie", role: "Comedy Writer", emoji: "😂", color: "#f59e0b" },
+  "morning-crew": [
+    { id: "producer", name: "The Producer", role: "Fact-Checker", emoji: "🎯", color: "#3b82f6" },
+    { id: "troll", name: "The Heckler", role: "Cynical Commentator", emoji: "🔥", color: "#ef4444" },
+    { id: "soundfx", name: "The Sound Guy", role: "Sound Effects", emoji: "🎧", color: "#a855f7" },
+    { id: "joker", name: "The Joke Writer", role: "Comedy Writer", emoji: "😂", color: "#f59e0b" },
   ],
   twist: [
     { id: "producer", name: "Molly", role: "Fact-Checker", emoji: "📓", color: "#3b82f6" },
@@ -55,14 +59,18 @@ const PACKS_CLIENT = {
     { id: "joker", name: "Alex", role: "Data Comedian", emoji: "📊", color: "#f59e0b" },
   ],
 };
-const DEFAULT_PACK_ID = "howard";
+// Legacy alias — pre-2026-05-02 client storage stored "howard"; resolve to
+// the renamed pack so old chrome.storage values keep matching the dropdown.
+PACKS_CLIENT.howard = PACKS_CLIENT["morning-crew"];
+const DEFAULT_PACK_ID = "morning-crew";
 
 // Short display names for the trace panel's pack label. Kept separate from
 // PACKS_CLIENT (which is only personas) so the sidebar header doesn't have
 // to inline a longer name like "This Week in Startups". Falls back to the
 // pack id for anything not listed.
 const PACK_DISPLAY_NAMES = {
-  howard: "howard",
+  "morning-crew": "morning crew",
+  howard: "morning crew", // legacy alias
   twist: "twist",
 };
 function packDisplayName(id) {
@@ -333,12 +341,15 @@ function buildPeanutSVG({
 }
 
 function personaMascotHTML(personaId, packId) {
-  const pack = packId || "howard";
+  // Normalize legacy "howard" → "morning-crew" so old chrome.storage values
+  // hit the same mascot branch as the renamed pack.
+  const rawPack = packId || "morning-crew";
+  const pack = rawPack === "howard" ? "morning-crew" : rawPack;
   const ns = `${pack}-${personaId}`;
 
-  // ── Howard pack ──
-  if (pack === "howard" && personaId === "producer") {
-    // Baba Booey — wooden clipboard with a big blue checkmark.
+  // ── Morning Crew pack ──
+  if (pack === "morning-crew" && personaId === "producer") {
+    // The Producer — wooden clipboard with a big blue checkmark.
     return buildPeanutSVG({
       ns, face: "smile",
       extraDefs: `<linearGradient id="mclip-${ns}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#A47E4D"/><stop offset="100%" stop-color="#69482A"/></linearGradient>`,
@@ -351,8 +362,8 @@ function personaMascotHTML(personaId, packId) {
         <path d="M25 48l4 4 9-9" fill="none" stroke="#3b82f6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>`,
     });
   }
-  if (pack === "howard" && personaId === "troll") {
-    // The Troll — BOILED peanut. Dark wet shell, smirk, beads of moisture
+  if (pack === "morning-crew" && personaId === "troll") {
+    // The Heckler — BOILED peanut. Dark wet shell, smirk, beads of moisture
     // running down the sides. No prop — the boiled state IS the character:
     // "guy's in hot water and smirking about it."
     return buildPeanutSVG({
@@ -376,8 +387,8 @@ function personaMascotHTML(personaId, packId) {
         <ellipse cx="45" cy="20" rx=".9" ry="1.3" fill="#B8CED9" opacity=".8"/>`,
     });
   }
-  if (pack === "howard" && personaId === "soundfx") {
-    // Fred — big purple DJ headphones wrapped over the top lobe.
+  if (pack === "morning-crew" && personaId === "soundfx") {
+    // The Sound Guy — big purple DJ headphones wrapped over the top lobe.
     return buildPeanutSVG({
       ns, face: "flat",
       prop: `
@@ -390,8 +401,8 @@ function personaMascotHTML(personaId, packId) {
         <ellipse cx="48" cy="20" rx=".9" ry="1.4" fill="#fff" opacity=".4"/>`,
     });
   }
-  if (pack === "howard" && personaId === "joker") {
-    // Jackie — vintage stand mic with amber-trimmed head. Toothy grin.
+  if (pack === "morning-crew" && personaId === "joker") {
+    // The Joke Writer — vintage stand mic with amber-trimmed head. Toothy grin.
     return buildPeanutSVG({
       ns, face: "grin",
       prop: `

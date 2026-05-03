@@ -18,7 +18,7 @@ The tabloid / newsprint side-panel rebrand that landed in v1.5 ("The Broadsheet"
 
 ## Inspiration
 
-- The **Howard Stern Show** for the four-seat writers'-room structure that maps cleanly onto "producer / troll / soundfx / joker" — the best radio producers have always known that a show is a group.
+- The **Morning Crew** for the four-seat writers'-room structure that maps cleanly onto "producer / troll / soundfx / joker" — the best radio producers have always known that a show is a group.
 - **NotebookLM** for proving that a podcast-adjacent UX with real AI personas can feel like a product, not a demo.
 - **Dmooji** and **ai_licia** for showing that overlay-style reactions have an audience, and for sharpening the "Director is the moat" thesis by contrast.
 
