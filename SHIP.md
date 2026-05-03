@@ -60,7 +60,7 @@ Then visit `https://peanutgallery.live` and confirm:
 
 1. **0:00–0:05** — Title card: "Peanut Gallery. The TWiST bounty, shipped."
 2. **0:05–0:20** — Open a recent TWiST clip on YouTube. Click the 🥜 icon. Side panel slides in. Click Start Listening.
-3. **0:20–0:55** — Just let it run. Don't narrate. The point is: Jason says something, Baba Booey fact-checks it, the Troll dunks, Jackie lands a punchline. Let the product speak.
+3. **0:20–0:55** — Just let it run. Don't narrate. The point is: Jason says something, The Producer fact-checks it, the Troll dunks, Jackie lands a punchline. Let the product speak.
 4. **0:55–1:10** — Brief cut to the landing page at peanutgallery.live showing "Install the Extension."
 5. **1:10–1:20** — End card: `peanutgallery.live` / `github.com/Sethmr/peanut.gallery` / MIT.
 
@@ -97,9 +97,9 @@ Then visit `https://peanutgallery.live` and confirm:
 >
 > [attach video]
 
-**Option C — the Baba Booey opener:**
+**Option C — the The Producer opener:**
 
-> @jason — Baba Booey just told me Uber was founded in 2007 (it was 2009, per the Jason Calacanis podcast archive). He's not wrong.
+> @jason — The Producer just told me Uber was founded in 2007 (it was 2009, per the Jason Calacanis podcast archive). He's not wrong.
 >
 > The TWiST bounty: 4 AI personas watching your podcast, live. Chrome extension, native side panel, open source.
 >
@@ -107,7 +107,7 @@ Then visit `https://peanutgallery.live` and confirm:
 >
 > [attach video]
 
-**My pick:** Option B. It leads with the novel thing (no screen-share picker) and the credits Jason already. Don't use C unless the demo actually shows Baba Booey making that specific call.
+**My pick:** Option B. It leads with the novel thing (no screen-share picker) and the credits Jason already. Don't use C unless the demo actually shows The Producer making that specific call.
 
 **Time of day:** Tuesday–Thursday, 10am–12pm PT. Matches when Jason is usually active on X.
 
@@ -168,12 +168,12 @@ Watch any YouTube video with an AI writers' room. 4 personas react in real-time 
 ```
 Peanut Gallery is an AI writers' room for your podcasts. 4 personas watch any YouTube video alongside you — a fact-checker, a sound effects guy, a comedy writer, and a cynical troll — reacting live in Chrome's native side panel, with no tab switching and no screen-share picker.
 
-Built for long-form talk shows, interviews, and pods — where a booth producer actually adds something. Inspired by the Howard Stern Show. Two packs ship out of the box; swap between them in the side panel per session.
+Built for long-form talk shows, interviews, and pods — where a booth producer actually adds something. Inspired by the Morning Crew. Two packs ship out of the box; swap between them in the side panel per session.
 
 THE HOWARD PACK (default)
-• Baba Booey — fact-checker (Claude Haiku + Brave Search or xAI Live Search). Mid-show corrections and background data on every claim.
-• Fred Norris — sound effects guy (xAI Grok 4.1 Fast). Well-timed cues and the occasional razor-sharp aside.
-• Jackie Martling — comedy writer (Claude Haiku). Setup-punchline jokes and callbacks.
+• The Producer — fact-checker (Claude Haiku + Brave Search or xAI Live Search). Mid-show corrections and background data on every claim.
+• The Sound Guy — sound effects guy (xAI Grok 4.1 Fast). Well-timed cues and the occasional razor-sharp aside.
+• The Joke Writer — comedy writer (Claude Haiku). Setup-punchline jokes and callbacks.
 • The Cynical Troll — contrarian commentator (xAI Grok 4.1 Fast, non-reasoning). Says what the chat is thinking.
 
 THE TWIST PACK (swap in the side panel)

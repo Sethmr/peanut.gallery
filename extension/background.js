@@ -372,11 +372,12 @@ async function handleStartCapture({ serverUrl, apiKeys, youtubeUrl, tabTitle, au
         // User-chosen pace dial (1-10). Forwarded verbatim to offscreen,
         // which embeds it in the /api/transcribe POST body.
         rate: Number.isFinite(rate) ? rate : 5,
-        // Persona pack id (howard | twist | ...). Forwarded as-is; offscreen
-        // includes it in the /api/transcribe POST body. Older servers ignore
-        // the field, so omitting or sending an unknown value is always safe
-        // — the server defaults to Howard via resolvePack().
-        packId: typeof packId === "string" && packId.length > 0 ? packId : "howard",
+        // Persona pack id (morning-crew | twist | ...). Forwarded as-is;
+        // offscreen includes it in the /api/transcribe POST body. Older
+        // servers ignore the field, so omitting or sending an unknown value
+        // is always safe — the server defaults to Morning Crew via
+        // resolvePack(). The legacy "howard" id resolves there too.
+        packId: typeof packId === "string" && packId.length > 0 ? packId : "morning-crew",
         // v1.7: global sensitivity from the Critics drawer segmented
         // control. Pure passthrough — offscreen.js maps this to the
         // X-Sensitivity header on /api/transcribe. Server defaults to

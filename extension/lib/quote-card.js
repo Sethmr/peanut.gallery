@@ -6,7 +6,8 @@
 // buildQuoteCardBlob(entry, packId, theme) → Promise<Blob>
 //   entry   : feedEntries record — { id, personaId, personaName, role,
 //             text, transcript, timestamp }
-//   packId  : active pack ("howard" | "twist")
+//   packId  : active pack ("morning-crew" | "twist"; legacy "howard"
+//             accepted for back-compat with pre-2026-05-02 storage)
 //   theme   : "paper" | "night"
 //
 // Design: pure OffscreenCanvas render with no DOM dependencies beyond
@@ -237,7 +238,7 @@
     const mascotFn = typeof personaMascotHTML === "function"
       ? personaMascotHTML
       : null;
-    const svgStr = mascotFn ? mascotFn(entry.personaId, packId || "howard") : null;
+    const svgStr = mascotFn ? mascotFn(entry.personaId, packId || "morning-crew") : null;
 
     if (svgStr) {
       try {

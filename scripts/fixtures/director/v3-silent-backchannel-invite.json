@@ -1,7 +1,7 @@
 {
   "name": "v3-silent-backchannel-invite",
   "description": "v1.7 Smart Director v3 SILENT slot. The transcript tail is a backchannel-inviting tag-question (Ward & Tsukahara-style text correlate). The v3 router returned 'silent' with rationale. Asserts the Director short-circuits: empty chain, source='silent-llm', reason mentions silent. Rule-based scorer would otherwise fire someone — this fixture PROTECTS the silent path.",
-  "pack": "howard",
+  "pack": "morning-crew",
   "input": {
     "transcript": "And so the whole funding thing just fell apart, you know what I mean?",
     "llmPickV2": {

@@ -4,9 +4,10 @@
  * Takes transcript chunks, fans out to 4 LLM calls in parallel,
  * and streams responses back via callbacks.
  *
- * Multi-provider: xAI Grok (non-reasoning) for fast/reflexive voices (Troll,
- * Jason, Fred, Lon) and Claude Haiku for the nuanced ones (Baba/Molly
- * producer, Jackie/Alex joker). Groq was in the mix pre-v1.4 but hit free-tier
+ * Multi-provider: xAI Grok (non-reasoning) for fast/reflexive voices (the
+ * Heckler, Jason, the Sound Guy, Lon) and Claude Haiku for the nuanced
+ * voices (the Producer / Molly producer slot, the Joke Writer / Alex joker
+ * slot). Groq was in the mix pre-v1.4 but hit free-tier
  * TPD caps in production; swapped out for Grok which has a better-fitting
  * voice for the sarcastic/reflex slots anyway.
  *
@@ -27,7 +28,7 @@ import {
   type OtherPersonaResponse,
   type ConversationEntry,
 } from "./personas";
-import { howardPack } from "./packs/howard";
+import { morningCrewPack } from "./packs/morning-crew";
 import type { Pack } from "./packs/types";
 import { SemanticCache } from "./semantic-cache";
 
@@ -59,7 +60,7 @@ interface LogEntry {
  * model decided.
  *
  * Keyed by archetype slot id (`producer` / `troll` / `soundfx` / `joker`)
- * so they work across any pack (Howard, TWiST, future). Lines are
+ * so they work across any pack (Morning Crew, TWiST, future). Lines are
  * deliberately short + hedge-shaped — enough to fill the bubble, easy on
  * the eye, not trying to impersonate the specific persona's sharp voice.
  */
@@ -68,9 +69,9 @@ interface LogEntry {
  *
  * Before v1.7 this was a single deterministic string per persona. That
  * bit us when SET-20 surfaced: once the director-driven producer safety
- * net (PR #82) started emitting these on every passed fire, Baba would
- * repeat the SAME line across every tick where the transcript had no
- * fresh claim — "Baba Booey just keeps repeating this." Safety-net
+ * net (PR #82) started emitting these on every passed fire, the Producer
+ * would repeat the SAME line across every tick where the transcript had
+ * no fresh claim — "the Producer just keeps repeating this." Safety-net
  * fallback + single-string + no anti-repeat coverage on the
  * non-LLM path = deterministic loop.
  *
@@ -175,7 +176,7 @@ export class PersonaEngine {
   private xaiKey: string;
 
   /**
-   * The active pack. Defaults to the Howard pack so pre-v1.3 call sites that
+   * The active pack. Defaults to the Morning Crew pack so pre-v1.3 call sites that
    * construct the engine without a pack keep working unchanged. All internal
    * references to "the 4 personas" flow through `this.pack.personas`, which
    * means swapping packs is a constructor-arg change — no engine rewrite.
@@ -200,7 +201,7 @@ export class PersonaEngine {
   /**
    * v1.7 — last-used index into FORCE_REACT_FALLBACKS[personaId] so
    * pickFallbackVariant can skip it on the next fire. Fixes SET-20
-   * "Baba Booey just keeps repeating this" by preventing the deterministic
+   * "the Producer just keeps repeating this" by preventing the deterministic
    * safety-net fallback from selecting the same string twice in a row.
    */
   private readonly lastFallbackIdx: Map<string, number> = new Map();
@@ -226,10 +227,10 @@ export class PersonaEngine {
    * filler-only stretch doesn't accumulate a permanent -∞ penalty they can't
    * decay out of. Cap at 3 → max penalty -6 in the Director. Plenty to
    * suppress a persona when another can fire, but beatable by a strong
-   * content match. Chosen so "3 strikes and you rest" matches the Stern-
-   * show dynamic Seth wants: Baba can fallback a couple times without
-   * being sidelined forever, and decay restores him cleanly once a
-   * fact-checkable line lands.
+   * content match. Chosen so "3 strikes and you rest" matches the morning-
+   * radio dynamic Seth wants: the Producer can fallback a couple times
+   * without being sidelined forever, and decay restores him cleanly once
+   * a fact-checkable line lands.
    */
   private static readonly RECENT_FALLBACK_CAP = 3;
 
@@ -239,7 +240,7 @@ export class PersonaEngine {
    *   1. The `persona_fallback_fired` event fires exactly once per
    *      fallback (unified schema regardless of which branch emitted it).
    *   2. `lastFallbackIdx` advances so the next fallback picks a different
-   *      variant (fix for SET-20 — Baba stopped repeating).
+   *      variant (fix for SET-20 — the Producer stopped repeating).
    *   3. `recentFallbacks` increments so the Director sees the hit and
    *      penalizes this persona on the next tick.
    */
@@ -333,7 +334,7 @@ export class PersonaEngine {
      */
     xaiKey: string;
     /**
-     * Optional. Defaults to the Howard pack (pre-v1.3 behavior). When v1.3's
+     * Optional. Defaults to the Morning Crew pack (pre-v1.3 behavior). When v1.3's
      * pack selector forwards a user-chosen pack from the extension, the
      * transcribe route resolves it via `resolvePack(...)` and passes the
      * resulting `Pack` object here. `resolvePack` never returns undefined,
@@ -349,7 +350,7 @@ export class PersonaEngine {
   }) {
     this.anthropic = new Anthropic({ apiKey: config.anthropicKey });
     this.xaiKey = config.xaiKey;
-    this.pack = config.pack ?? howardPack;
+    this.pack = config.pack ?? morningCrewPack;
 
     // Initialize response history for every persona in the active pack
     for (const p of this.pack.personas) {
@@ -457,7 +458,7 @@ export class PersonaEngine {
      * v1.7: Pre-extracted verifiable claims from the Director (factHint).
      * When present and the persona is the producer, skips the local
      * re-extraction and searches the Director's sentences directly. This
-     * guarantees Baba Booey is fact-checking the same claim the Director
+     * guarantees the Producer is fact-checking the same claim the Director
      * saw, not a different sentence the re-extractor happened to rank
      * higher on a second pass. When absent, fetchSearchResults falls back
      * to its local extraction (unchanged pre-v1.7 behavior).
@@ -503,18 +504,20 @@ export class PersonaEngine {
 
     // Fetch search results for producer.
     //
-    // Explicitly SKIPPED on isForceReact: a tap on Baba's avatar must feel
-    // instant, and search is the only pre-stream I/O this persona does. A
-    // slow or hung upstream (Brave 500, xAI Live Search drag) would block
-    // `firePersona` from ever starting, leaving the avatar's spinner running
-    // with no bubble to show for it — the exact "animates and doesn't
-    // respond" symptom we shipped in v1.4. Baba's prompt already handles the
+    // Explicitly SKIPPED on isForceReact: a tap on the Producer's avatar
+    // must feel instant, and search is the only pre-stream I/O this persona
+    // does. A slow or hung upstream (Brave 500, xAI Live Search drag) would
+    // block `firePersona` from ever starting, leaving the avatar's spinner
+    // running with no bubble to show for it — the exact "animates and
+    // doesn't respond" symptom we shipped in v1.4. The Producer's prompt
+    // already handles the
     // no-search case (context / callback / heads-up / self-deprecating), so
     // skipping on force-react costs us a fact but never the response itself.
     // Director-driven fires still fetch search — that path has budget for
     // the round-trip and benefits from cited facts.
-    // Decide + log separately so a force-react skip is trackable. Baba fires
-    // without citation context in that branch, which degrades his value
+    // Decide + log separately so a force-react skip is trackable. The
+    // Producer fires without citation context in that branch, which degrades
+    // his value
     // prop; if tap frequency is high we may want to revisit (e.g. serve a
     // cached recent-fact lookup on tap instead of skipping entirely).
     let searchResults: string | undefined;
@@ -905,7 +908,7 @@ export class PersonaEngine {
 
       // v1.7: producer safety net on director-driven fires. Seth's rule
       // "I never want a failed animation": if the Director committed to
-      // the producer slot, the side panel is already showing Baba's
+      // the producer slot, the side panel is already showing the Producer's
       // speaking indicator. A bare "-" pass leaves the animation
       // painting over nothing. Force-react has had this protection since
       // v1.4; extending it to any director-driven producer fire closes
@@ -1163,11 +1166,12 @@ export class PersonaEngine {
         : extractTopClaims(recentText, { limit: 3 });
 
       if (topClaims.length === 0) {
-        // This is a value-reducing branch: Baba fires without search context
-        // because our claim-extraction heuristics flagged nothing. If this
-        // fires too often, CLAIM_PATTERNS in lib/claim-detector.ts probably
-        // needs a new rule (common in new domains — see how many TWiST
-        // episodes lean on startup-speak the old Howard patterns never caught).
+        // This is a value-reducing branch: the Producer fires without search
+        // context because our claim-extraction heuristics flagged nothing.
+        // If this fires too often, CLAIM_PATTERNS in lib/claim-detector.ts
+        // probably needs a new rule (common in new domains — see how many
+        // TWiST episodes lean on startup-speak the early Morning Crew
+        // patterns never caught).
         logPipeline({
           event: "search_no_claims_detected",
           level: "info",
@@ -1210,9 +1214,9 @@ export class PersonaEngine {
           attempted: topClaims.length,
           succeeded,
           emptyOrFailed,
-          // Flag the value-reducing outcome so we can alert on it: Baba
-          // fires without citation context even though we had claims to
-          // check, which usually means the upstream is degraded.
+          // Flag the value-reducing outcome so we can alert on it: the
+          // Producer fires without citation context even though we had
+          // claims to check, which usually means the upstream is degraded.
           degraded: succeeded === 0,
         },
       });
@@ -1221,7 +1225,7 @@ export class PersonaEngine {
     } catch (err) {
       // The outer try/catch used to swallow everything silently — meaning a
       // regex bug or an unexpected throw inside claim extraction would
-      // silently neuter Baba's fact-checking. Log the shape so we can tell
+      // silently neuter the Producer's fact-checking. Log the shape so we can tell
       // "upstream blew up" (handled per-engine below) from "our own
       // pipeline threw" (handled here).
       logPipeline({

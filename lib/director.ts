@@ -4,10 +4,10 @@
  * The "booth producer" that decides WHO speaks and WHEN.
  *
  * Instead of all 4 personas firing simultaneously every 60 seconds (which feels
- * like a wall of text), the Director creates natural Stern Show dynamics:
+ * like a wall of text), the Director creates natural morning-radio dynamics:
  *
  *   1. Reads each chunk of transcript
- *   2. Scores it against each persona's specialty (facts → Baba Booey, hype → Troll, etc.)
+ *   2. Scores it against each persona's specialty (facts → Producer, hype → Heckler, etc.)
  *   3. Picks the ONE best persona for this moment
  *   4. After that persona responds, rolls the dice for a cascade:
  *      - 50% chance a second persona reacts to the first's response
@@ -32,7 +32,7 @@ import { buildFactHint, type FactHint, type FactCheckMode } from "./claim-detect
 // ──────────────────────────────────────────────────────
 
 const PERSONA_PATTERNS: Record<string, { patterns: RegExp[]; keywords: RegExp[] }> = {
-  // Baba Booey: facts, numbers, claims, corrections
+  // The Producer: facts, numbers, claims, corrections
   producer: {
     patterns: [
       /(?:founded|started|launched|created|began)\s+(?:in|around)\s+\d{4}/i,
@@ -81,10 +81,11 @@ const PERSONA_PATTERNS: Record<string, { patterns: RegExp[]; keywords: RegExp[] 
     ],
   },
 
-  // Fred: mood shifts, surprising moments, topic changes, quiet observations
-  // NOTE: Fred was firing too rarely. His patterns are intentionally broad because
-  // on the Stern Show, Fred reacts to EVERYTHING — he just does it with a sound
-  // effect instead of words. His triggers should be the most generous.
+  // The Sound Guy: mood shifts, surprising moments, topic changes, quiet observations
+  // NOTE: this slot was firing too rarely. Its patterns are intentionally broad
+  // because the morning-radio sound-effects archetype reacts to EVERYTHING — it
+  // just does it with a sound cue instead of words. Its triggers should be the
+  // most generous.
   soundfx: {
     patterns: [
       /\b(?:awkward|silence|pause|wait|hold on|actually|um|uh)\b/i,
@@ -144,13 +145,13 @@ const CASCADE_DELAY_MAX_MS = 4000;
 // ──────────────────────────────────────────────────────
 
 const BASELINE_SCORE: Record<string, number> = {
-  // Baba Booey: only speaks when he has a fact to deliver — low baseline
+  // The Producer: only speaks when he has a fact to deliver — low baseline
   producer: 0,
-  // The Troll: WANTS the mic. High baseline so he wins more random-tie rounds.
+  // The Heckler: WANTS the mic. High baseline so he wins more random-tie rounds.
   troll: 2,
-  // Fred: quiet by design. Lowest baseline.
+  // The Sound Guy: quiet by design. Lowest baseline.
   soundfx: -1,
-  // Jackie: a joke machine — medium-high baseline
+  // The Joke Writer: a joke machine — medium-high baseline
   joker: 1,
 };
 
@@ -555,7 +556,7 @@ export class Director {
     //   2. TriggerDecision.factHint — the route threads this to the persona
     //      engine so the producer's search is pre-seeded with the Director's
     //      sentence (no double-extraction, no drift between what the
-    //      Director saw and what Baba searches for).
+    //      Director saw and what the Producer searches for).
     const factMode: FactCheckMode = opts?.producerFactCheckMode ?? "strict";
     const factHint = buildFactHint(recentTranscript, factMode);
 

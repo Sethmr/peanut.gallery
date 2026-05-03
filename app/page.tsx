@@ -45,7 +45,7 @@ export default function LandingPage() {
               Peanut Gallery is a free Chrome extension that sits next to any YouTube video and reacts in real-time.
               4 AI personas — a fact-checker, a sound effects guy, a comedy writer, a cynical troll —
               watch the show with you through a native Chrome side panel. Pick your lineup:{" "}
-              <strong>Howard Stern crew</strong> or the <strong>This Week in Startups</strong> cast.
+              the <strong>Morning Crew</strong> or the <strong>This Week in Startups</strong> cast.
               No tab switching. No screen-share picker. Audio captured silently while you watch.
             </p>
 
@@ -100,7 +100,7 @@ export default function LandingPage() {
             <span><span className="ticker-accent">MIT open source</span> · self-host ready</span>
             <span>Audio captured silently via <code>chrome.tabCapture</code></span>
             <span><span className="ticker-accent">Built for the TWiST $5k bounty</span></span>
-            <span>Two packs · Howard Stern crew · This Week in Startups</span>
+            <span>Two packs · Morning Crew · This Week in Startups</span>
             {/* Duplicate run — required for the -50% translateX loop to
                 appear seamless. Keep the two runs identical. */}
             <span><span className="ticker-accent">● On Air</span></span>
@@ -110,7 +110,7 @@ export default function LandingPage() {
             <span><span className="ticker-accent">MIT open source</span> · self-host ready</span>
             <span>Audio captured silently via <code>chrome.tabCapture</code></span>
             <span><span className="ticker-accent">Built for the TWiST $5k bounty</span></span>
-            <span>Two packs · Howard Stern crew · This Week in Startups</span>
+            <span>Two packs · Morning Crew · This Week in Startups</span>
           </div>
         </div>
 
@@ -278,19 +278,19 @@ export default function LandingPage() {
           </p>
 
           <h3 className="fade-in" style={{ marginTop: "3rem", marginBottom: "0.5rem", fontSize: "1.4rem" }}>
-            Howard Stern Show{" "}
+            Morning Crew{" "}
             <span style={{ color: "var(--text-secondary, #9ca3af)", fontWeight: 400, fontSize: "0.9rem" }}>
               (default)
             </span>
           </h3>
           <p className="section-sub fade-in" style={{ marginTop: 0, marginBottom: "1.5rem" }}>
-            The original spec — inspired by the Stern staff.
+            Four archetypes from the morning-radio shock-jock-show format — quality, not likeness.
           </p>
 
           <div className="personas-grid">
             <div className="persona-card producer fade-in">
               <div className="persona-icon">🎯</div>
-              <h3>Baba Booey</h3>
+              <h3>The Producer</h3>
               <div className="persona-role">Fact-Checker &middot; Claude Haiku + Brave Search</div>
               <p>
                 Monitors the conversation for factual claims and provides corrections
@@ -304,11 +304,11 @@ export default function LandingPage() {
 
             <div className="persona-card troll fade-in">
               <div className="persona-icon">🔥</div>
-              <h3>The Cynical Troll</h3>
+              <h3>The Heckler</h3>
               <div className="persona-role">Commentary &middot; xAI Grok 4.1 Fast</div>
               <p>
-                The &ldquo;chaotic or negative cynical&rdquo; commentator. Says what the audience
-                is thinking but won&apos;t type. Dunks with internet-brain energy.
+                The cynical commentator. Says what the audience is thinking but won&apos;t
+                type. Dunks with internet-brain energy.
               </p>
               <div className="persona-quote">
                 &ldquo;Oh cool, another AI wrapper. Very 2024.&rdquo;
@@ -317,7 +317,7 @@ export default function LandingPage() {
 
             <div className="persona-card fred fade-in">
               <div className="persona-icon">🎧</div>
-              <h3>Fred Norris</h3>
+              <h3>The Sound Guy</h3>
               <div className="persona-role">Sound Effects &middot; xAI Grok 4.1 Fast</div>
               <p>
                 Supplies background context and sound effects. Communicates through
@@ -330,7 +330,7 @@ export default function LandingPage() {
 
             <div className="persona-card joker fade-in">
               <div className="persona-icon">😂</div>
-              <h3>Jackie Martling</h3>
+              <h3>The Joke Writer</h3>
               <div className="persona-role">Comedy Writer &middot; Claude Haiku</div>
               <p>
                 Generates one-liners and jokes related to the current discussion.
@@ -475,11 +475,11 @@ export default function LandingPage() {
             </div>
             <div className="stack-item fade-in">
               <div className="stack-name">Claude Haiku</div>
-              <div className="stack-role">Baba Booey + Jackie</div>
+              <div className="stack-role">The Producer + The Joke Writer</div>
             </div>
             <div className="stack-item fade-in">
               <div className="stack-name">xAI Grok 4.1 Fast</div>
-              <div className="stack-role">Troll + Fred (non-reasoning, reflexive)</div>
+              <div className="stack-role">Heckler + Sound Guy (non-reasoning, reflexive)</div>
             </div>
             <div className="stack-item fade-in">
               <div className="stack-name">Brave or xAI Live Search</div>
