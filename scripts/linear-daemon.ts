@@ -453,15 +453,27 @@ async function transitionIssueToInReview(issue: LinearIssue): Promise<void> {
 // Todo-state transitions are the "start now" signal. Documented in
 // docs/LINEAR-AGENT-RUBRIC.md.
 const AI_ASSIGNEE_EMAIL = "ai@manugames.com";
+// v1.10 — Linear project routing (2026-05-27): the SET team now contains
+// multiple Linear projects (Peanut Gallery + Tideward). The daemon must
+// filter to its own project so a Tideward ticket assigned to ai@manugames.com
+// doesn't get picked up by this daemon and executed in the wrong repo.
+// Each project has its own sibling daemon (manu.tideward.linear-daemon
+// lives in tideward-app/). Project IDs are stable UUIDs from Linear.
+const PEANUT_GALLERY_PROJECT_ID = "7bc39d9b-af98-41a8-9069-319844712eee";
 async function fetchUnstartedIssues(since?: string): Promise<LinearIssue[]> {
   const sinceIso = since ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const query = `
-    query UnstartedIssues($since: DateTimeOrDuration!, $aiEmail: String!) {
+    query UnstartedIssues(
+      $since: DateTimeOrDuration!
+      $aiEmail: String!
+      $projectId: ID!
+    ) {
       issues(
         filter: {
           state: { type: { eq: "unstarted" } }
           updatedAt: { gt: $since }
           assignee: { email: { eq: $aiEmail } }
+          project: { id: { eq: $projectId } }
         }
         first: 50
         orderBy: updatedAt
@@ -483,6 +495,7 @@ async function fetchUnstartedIssues(since?: string): Promise<LinearIssue[]> {
   const data = await linearGraphQL<{ issues: { nodes: LinearIssue[] } }>(query, {
     since: sinceIso,
     aiEmail: AI_ASSIGNEE_EMAIL,
+    projectId: PEANUT_GALLERY_PROJECT_ID,
   });
   return data.issues.nodes;
 }
