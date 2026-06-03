@@ -2,7 +2,7 @@
   "name": "force-react-regression",
   "description": "ISSUE-004 guard. The force-react path now lives in the route, not the Director. This fixture proves decide() still returns a complete, well-shaped TriggerDecision when called with a plain transcript — the original regression scenario.",
   "input": {
-    "transcript": "OK so the founder walks in and pitches a new AI app that's like a better version of ChatGPT. Jason is skeptical."
+    "transcript": "OK so the founder walks in and pitches a new AI app that's like a better version of ChatGPT. The Host is skeptical."
   },
   "assertions": {
     "chainMaxLength": 4,

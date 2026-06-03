@@ -36,7 +36,7 @@ Strong hierarchy, but **H2 #9 is the problem**: "The web app still exists — as
 - "Chrome extension" / "extension" — ~10 occurrences (strong signal)
 - "side panel" — 5 occurrences (good for the differentiator)
 - "open source" — 4 occurrences (trust signal for the blue-ocean story)
-- "This Week in Startups" / "TWiST" — 5 occurrences (branded traffic opportunity)
+- "Startup Roundtable" / "Startup Roundtable" — 5 occurrences (branded traffic opportunity)
 
 No keyword stuffing; no dilution. ✅
 
@@ -75,7 +75,7 @@ Clean hierarchy. The numbered `<ol>` under "How to install" is **exactly the pat
 
 1. **No page-specific metadata.** `app/watch/page.tsx` is `"use client"`, so it can't export `metadata`. It falls back to the layout defaults, which advertise the Chrome extension — good — but the page itself is the **legacy web app**. There's no page-local control over canonical, OG image, or description.
 
-2. **No visible "get the extension" CTA.** The top bar has a logo linking to `/` and a GitHub link. That's it. Visitors who land on `/watch` from a stale TWiST link get the reference app with no nudge toward the CWS listing — which is where we actually want the conversion to happen.
+2. **No visible "get the extension" CTA.** The top bar has a logo linking to `/` and a GitHub link. That's it. Visitors who land on `/watch` from a stale Startup Roundtable link get the reference app with no nudge toward the CWS listing — which is where we actually want the conversion to happen.
 
 **The fix is small and falls within the project rule** "only tiny SEO tweaks on /watch":
 - Add `app/watch/layout.tsx` (a new server component layout) that exports page-specific `metadata`. This works cleanly because Next.js lets a nested layout wrap a client page and still export metadata.
@@ -95,7 +95,7 @@ From `app/layout.tsx`:
 - `FAQPage` with 7 Q&As — ✅ (this should unlock FAQ rich snippets in ~2–4 weeks)
 - `Organization` with `@id` anchor + `logo` + `sameAs` to GitHub + CWS — ✅ (added this session)
 - `Person` (Seth) with `@id` anchor + `jobTitle` + `knowsAbout` + `sameAs` to GitHub/X/personal site — ✅ (added this session)
-- 3 × `VideoObject` (v1.5 walkthrough, product demo, Jason $5k bounty clip) — ✅
+- 3 × `VideoObject` (v1.5 walkthrough, product demo, The Host $5k bounty clip) — ✅
 - Cross-linked via `publisher` / `author` / `founder` `@id` refs — ✅
 
 **Gaps:**

@@ -4,7 +4,7 @@
  * Before v1.3.0 this file owned BOTH the 4 persona system prompts AND the
  * pack-agnostic `buildPersonaContext` helper. In v1.3.0 the system-prompt
  * content moved into `lib/packs/morning-crew/personas.ts` so we can ship
- * multiple packs (Morning Crew, TWiST, future lineups) without forking the
+ * multiple packs (Morning Crew, Startup Roundtable, future lineups) without forking the
  * Director or UI.
  *
  * This file now owns:
@@ -43,8 +43,8 @@ export interface Persona {
   /**
    * One-sentence routing hint for the Smart Director v2 (v1.5+). Tells the
    * routing LLM what THIS pack's voice at THIS slot actually does — useful
-   * for disambiguating same-slot personas across packs (e.g. Howard's
-   * joker is a rapid-fire one-liner machine; TWiST's joker is a data
+   * for disambiguating same-slot personas across packs (e.g. the morning-radio host's
+   * joker is a rapid-fire one-liner machine; Startup Roundtable's joker is a data
    * comedian). The routing LLM sees id + name + role + directorHint for
    * every persona in the active pack, every tick.
    *
@@ -68,7 +68,7 @@ export interface Persona {
    *   confidence cues. Character IS over-correction; wrong fact-checks
    *   are fine as long as the speaking animation always lands with
    *   content.
-   * - `"strict"` — TWiST's Molly Wood default. Veteran journalist: only
+   * - `"strict"` — Startup Roundtable's the Correspondent default. Veteran journalist: only
    *   triggers on hard, sourceable claims (numbers, dates, attributions,
    *   corporate actions). Stays quiet on soft content.
    *
@@ -85,7 +85,7 @@ export interface Persona {
    *   `[FACT CHECK] / [CONTEXT] / [HEADS UP] / [CALLBACK]` (or `-`) per
    *   fire, and `buildPersonaContext` injects the `EVIDENCE: GREEN /
    *   THIN / NONE` gate so the model calibrates tier against search
-   *   evidence. This is the pre-v1.8 Molly + pre-v1.8 Producer lane.
+   *   evidence. This is the pre-v1.8 the Correspondent + pre-v1.8 Producer lane.
    *
    * - `"heckler"` — Producer v1.8 trolly-heckler kernel. No tier
    *   tags; the producer delivers 1-2 sentence exasperated heckles at
@@ -94,7 +94,7 @@ export interface Persona {
    *   search-results header as raw "background facts" the heckler can
    *   pull chart-positions / pop-culture corrections from.
    *
-   * - `"journalist"` — Molly Wood v1.8 NPR-reporter kernel. Still
+   * - `"journalist"` — the Correspondent v1.8 NPR-reporter kernel. Still
    *   fact-checks — but conversationally, with inline source anchors
    *   (*"Heatmap's reporting has them ducking Scope 3..."*) rather
    *   than tier-tagged output. `buildPersonaContext` skips the
@@ -109,7 +109,7 @@ export interface Persona {
    *   scaffolding flag: preserves whatever voice contract lives in
    *   the persona's kernel while teaching the CONFIRMS / CONTRADICTS
    *   / COMPLICATES / THIN tier taxonomy inside the kernel itself.
-   *   First applied to the Producer (trolly-EP register); second to Molly
+   *   First applied to the Producer (trolly-EP register); second to the Correspondent
    *   (NPR-journalist register). `buildPersonaContext` uses the
    *   default `SEARCH RESULTS (use for fact-checking)` framing (same
    *   as `"fact-checker"`) but skips the legacy `EVIDENCE: GREEN /
@@ -195,9 +195,9 @@ export interface Persona {
    * without Seth's explicit legal sign-off.
    *
    * Omit for: composite voices (The Troll), fully-third-person
-   * kernels (Lon), wholly fictional characters. Composite voices
-   * may set this to a list-form string ("Captain Janks, Stuttering
-   * John, Beetlejuice, …") if the underlying impressions evoke
+   * kernels (the Reframer), wholly fictional characters. Composite voices
+   * may set this to a list-form string ("The Heckler, Stuttering
+   * John, The Heckler, …") if the underlying impressions evoke
    * named real people closely enough to warrant the hedge.
    */
   inspiredBy?: string;
@@ -220,7 +220,7 @@ export interface ConversationEntry {
 
 /**
  * Back-compat shim: `personas` is the default pack's persona array (Morning
- * Crew, formerly the Howard pack pre-2026-05-02). Existing imports of
+ * Crew, formerly the morning-radio host pack pre-2026-05-02). Existing imports of
  * `{ personas }` from this module continue to resolve to the same 4-persona
  * array they did in v1.2.x, so v1.3's pack refactor stays invisible to any
  * call site that doesn't care about pack selection.
@@ -298,7 +298,7 @@ export function buildPersonaContext(
   //
   // Applied ONLY when persona.inspiredBy is set. Composite voices
   // (The Troll, pre-configured with composite string) and fully-
-  // third-person kernels (Lon) can opt into the frame by setting
+  // third-person kernels (the Reframer) can opt into the frame by setting
   // the field to whatever label captures the underlying real-person
   // evocation. Personas with purely fictional framing omit it.
   //
@@ -340,7 +340,7 @@ export function buildPersonaContext(
   // recovery lines, joke/line bank, identity anchors. See the
   // `personas/<name>.md` author files for the canonical schema. Absent on
   // pre-refinement personas (the Producer, Heckler, Sound Guy, and the four
-  // TWiST voices at the time of the Joke Writer's landing); those still run
+  // Startup Roundtable voices at the time of the Joke Writer's landing); those still run
   // on the kernel alone.
   // Printed between the system prompt and the live transcript so the model
   // treats it as durable character state — not as "what the show just said."
@@ -412,12 +412,12 @@ export function buildPersonaContext(
   //     tagged [FACT CHECK] / [HEADS UP] output. No live callers.
   //   - "heckler" (v1.8 Producer morning): BACKGROUND FACTS — raw
   //     heckle fuel, not tier input. Historical, no live callers.
-  //   - "journalist" (v1.8 Molly morning): REPORTING ANCHORS —
+  //   - "journalist" (v1.8 the Correspondent morning): REPORTING ANCHORS —
   //     raw reporting to cite inline. Historical, no live callers.
   //   - "layered-fact-checker" (2026-04-23 evening — Producer AND
-  //     Molly): SEARCH RESULTS — matches the header the kernel's
+  //     the Correspondent): SEARCH RESULTS — matches the header the kernel's
   //     fact-check-layer patch instructs them to read. Voice-
-  //     agnostic scaffolding (Producer trolly / Molly NPR-reporter).
+  //     agnostic scaffolding (Producer trolly / the Correspondent NPR-reporter).
   if (searchResults && persona.id === "producer") {
     if (persona.producerMode === "heckler") {
       context += `--- BACKGROUND FACTS (use as heckle fuel if something jumps out) ---\n${searchResults}\n\n`;
@@ -432,7 +432,7 @@ export function buildPersonaContext(
   }
 
   // ── EVIDENCE-AVAILABILITY GATE (legacy fact-checker only) ──
-  // Pre-v1.8 Molly + Producer used [FACT CHECK] / [HEADS UP] tier tags and
+  // Pre-v1.8 the Correspondent + Producer used [FACT CHECK] / [HEADS UP] tier tags and
   // needed an explicit GREEN/THIN/NONE signal to avoid overconfident
   // verdicts when evidence was thin (AVeriTeC failure mode). Force-
   // react always suspends it (tap must speak in voice).

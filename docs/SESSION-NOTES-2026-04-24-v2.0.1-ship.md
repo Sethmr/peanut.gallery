@@ -71,7 +71,7 @@ Summarized; [`CHANGELOG.md`](../CHANGELOG.md) is the canonical source.
 1. **Upload [`releases/peanut-gallery-v2.0.1.zip`](../releases/peanut-gallery-v2.0.1.zip) to the Chrome Web Store developer console.** Manifest bumped (`2.0.1 > 1.5.3` currently published); no version conflict.
 2. **Paste listing copy** from [`marketing/cws-listing.md`](../marketing/cws-listing.md) into the developer console description field — updated to "three providers" + "~$1 per hour."
 3. **Eyeball screenshots.** UI has changed meaningfully since v1.5.3: masthead "AI" stamp, AI-disclosure strip below the masthead, restructured Lineup section with Room volume + mute tiles folded in, 3-step wizard replacing the old BYOK row layout. If any CWS-gallery screenshots feel stale, refresh them.
-4. **Leave "Mature content" unchecked** (decision made this session — Peanut Gallery is commentary, not adult content; both model providers carry safety training; TWiST pack is straight-professional; family-filter discoverability loss isn't worth it; can be flipped retroactively if a reviewer insists).
+4. **Leave "Mature content" unchecked** (decision made this session — Peanut Gallery is commentary, not adult content; both model providers carry safety training; Startup Roundtable pack is straight-professional; family-filter discoverability loss isn't worth it; can be flipped retroactively if a reviewer insists).
 
 ---
 
@@ -95,7 +95,7 @@ M  panel/index.html              ← 435 insertions / 305 deletions, ~rewrite
 - **Issue [#133](https://github.com/Sethmr/peanut.gallery/issues/133) — Peanut Gallery Plus legal blockers + call for pro-bono legal help.** Summarizes the 2026-04-24 brief's findings (Anthropic §D.4 + Deepgram §2.3(c) reseller restrictions, Section 230 post-*Anderson*/*Garcia*, right-of-publicity exposure, subscription legal plumbing) and invites anyone with AI-service reseller / right-of-publicity / consumer-SaaS subscription / DMCA / media-liability-insurance background to donate pro-bono time. Reach-out paths: comment on the issue or email `legal@peanutgallery.live` with subject `Pro-bono inquiry — …`. Labels: `help wanted` · `question` · `documentation`. Watch this thread in future sessions.
 
 ### Deferred / parking lot (unchanged from prior handoff)
-- **Baba fact-check-layer pass-rate tuning** — waiting on live-log data from v2.0.1 captures. Queued post-v2.0.1 iteration.
+- **The Producer fact-check-layer pass-rate tuning** — waiting on live-log data from v2.0.1 captures. Queued post-v2.0.1 iteration.
 - **Llama 3.3 70B swap on Cerebras** as structural fix for Llama 3.1 8B schema-echo shadow failures. Evaluate post-v2.0.1.
 - **Delete `app/privacy/page.tsx`** Next.js dead-code route (308-redirected by middleware; unreachable). Cleanup only.
 - **Lemon Squeezy MoR switch** — tied to Plus relaunch at v2.5+.
@@ -104,7 +104,7 @@ M  panel/index.html              ← 435 insertions / 305 deletions, ~rewrite
 - **Cookie-consent banner** — brief §7D says IP-block EU from Plus funnel is cleaner at <1K subscribers.
 - **Formal arbitration clause** — pending counsel review.
 - **Plus relaunch architecture** — pre-paid BYOK relay vs. bundled with reseller approvals. Core v2.5 decision.
-- **Jason Calacanis consent path** — parked from prior handoff. Revisit when Seth decides to approach directly.
+- **The Host consent path** — parked from prior handoff. Revisit when Seth decides to approach directly.
 
 ### Cost measurement
 - Cost is currently **"~$1 per hour"** everywhere. Arrived at by rounding up the old "~$1.15 per 2-hour podcast" (which was $0.575/hour) because post-Brave-removal fact-check grounding now runs through xAI Grok Live Search (per-source pay-as-you-go) where Brave Search was effectively free under the 2k/month tier. **Next session**: measure a real 1-hour session and update the figure if the conservative guess is too pessimistic (or too optimistic).

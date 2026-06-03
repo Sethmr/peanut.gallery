@@ -66,7 +66,7 @@ const PERSONA_PATTERNS: Record<string, { patterns: RegExp[]; keywords: RegExp[] 
       // Self-promotion cues
       /\b(?:my company|my firm|my fund|at my|I built|I founded|I created|I invested in|I was early)\b/i,
       /\b(?:bought|sold|exited|flipped|acquired)\s+(?:at|for)\b/i,
-      // Podcast-tic phrases (these show up constantly on TWiST)
+      // Podcast-tic phrases (these show up constantly on Startup Roundtable)
       /\b(?:by the way|so look|here's the thing|at the end of the day|the reality is)\b/i,
     ],
     keywords: [
@@ -105,7 +105,7 @@ const PERSONA_PATTERNS: Record<string, { patterns: RegExp[]; keywords: RegExp[] 
     ],
   },
 
-  // Jackie: joke setups, absurdity, comparisons, self-deprecation
+  // The Joke Writer: joke setups, absurdity, comparisons, self-deprecation
   joker: {
     patterns: [
       /\b(?:like|similar to|reminds me of|compared to|same as|equivalent)\b/i,
@@ -255,7 +255,7 @@ export interface TriggerDecision {
    * active pack's producer `factCheckMode`. Threaded through the route
    * into the persona engine so the producer's fire starts from the
    * exact sentence the Director spotted — no redundant re-extraction,
-   * and Baba's fact-check is guaranteed to have SOMETHING concrete to
+   * and The Producer's fact-check is guaranteed to have SOMETHING concrete to
    * anchor to (no more empty speaking animations when Haiku passes with
    * "-" because the local claim-extractor found nothing). When the hint
    * says `hasClaim: false` the producer's score is penalized but not

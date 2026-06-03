@@ -11,7 +11,7 @@
  * that breaks this pack breaks the entire product's "zero-configuration" path,
  * so it should stay boringly stable.
  *
- * Renamed from "Howard Stern Show" / "howard" to "Morning Crew" / "morning-crew"
+ * Renamed from "the morning show" / "howard" to "Morning Crew" / "morning-crew"
  * on 2026-05-02 as a §8C / §8A legal-hygiene pass per
  * `legal-research/BRIEF-2026-04-24.md`. Personas are now archetypal — quality,
  * not likeness. See `legal-research/CONTEXT.md` for the audit trail entry.

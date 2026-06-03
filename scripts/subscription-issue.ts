@@ -4,27 +4,23 @@
  *
  * Usage:
  *   npm run subscription:issue -- --email alice@example.com
- *   npm run subscription:issue -- --email alice@example.com --stripe-sub sub_xxx
  *   npm run subscription:issue -- --email alice@example.com --dry-run
  *
  * Requires `ENABLE_SUBSCRIPTION=true` and `SUBSCRIPTION_DB_PATH=...`.
  *
  * Prints the issued key to stdout. Email delivery is NOT triggered —
- * this is the hand-delivery path for the Phase 1 / Phase 2 operator
- * workflow. Phase 3 Stripe webhook uses the same primitives in
- * `lib/subscription.ts` + `lib/subscription-store.ts` but also
- * invokes `sendWelcomeEmail` from `lib/email.ts`.
+ * this is the hand-delivery path for the operator workflow: issue a
+ * key here, then send it to the subscriber out-of-band.
  *
  * Why a manual CLI?
  * ────────────────
- *   - Early Plus subscribers get a hand-delivered key via email
- *     from Seth before Stripe Phase 3 ships.
- *   - Operators self-hosting Plus without Stripe issue keys out-of-band.
+ *   - Plus subscribers get a hand-delivered key, sent out-of-band.
+ *   - Operators self-hosting Plus issue keys out-of-band.
  *   - QA + integration tests need a deterministic key-creation path.
  *
  * The CLI talks directly to the subscription store — no HTTP, no
- * Stripe, no email. Idempotent by virtue of the store's unique-key
- * constraint; re-running with the same `--email` issues a FRESH key.
+ * email. Re-running with the same `--email` issues a FRESH key (the
+ * store's unique-key constraint is on the license key, not the email).
  */
 
 import { createSubscription, reserveUniqueLicenseKey } from "../lib/subscription-store";
@@ -32,20 +28,16 @@ import { generateLicenseKey, isValidLicenseKey } from "../lib/subscription-keys"
 
 interface Args {
   email: string;
-  stripeSubId: string | null;
   dryRun: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
   let email = "";
-  let stripeSubId: string | null = null;
   let dryRun = false;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--email" || a === "-e") {
       email = argv[++i] || "";
-    } else if (a === "--stripe-sub" || a === "-s") {
-      stripeSubId = argv[++i] || null;
     } else if (a === "--dry-run") {
       dryRun = true;
     } else if (a === "--help" || a === "-h") {
@@ -53,23 +45,18 @@ function parseArgs(argv: string[]): Args {
       process.exit(0);
     } else if (a.startsWith("--email=")) {
       email = a.slice("--email=".length);
-    } else if (a.startsWith("--stripe-sub=")) {
-      stripeSubId = a.slice("--stripe-sub=".length);
     }
   }
-  return { email: email.trim(), stripeSubId, dryRun };
+  return { email: email.trim(), dryRun };
 }
 
 function printHelp(): void {
   console.log(`Usage:
   npm run subscription:issue -- --email alice@example.com
-  npm run subscription:issue -- --email alice@example.com --stripe-sub sub_xxx
   npm run subscription:issue -- --email alice@example.com --dry-run
 
 Flags:
   --email, -e       Email on file for the subscription (required).
-  --stripe-sub, -s  Stripe subscription ID to link (optional; omit for
-                    hand-issued keys before Phase 3 Stripe ships).
   --dry-run         Generate and print a candidate key WITHOUT writing
                     to the store. Useful for testing the generator.
   --help, -h        Show this message.
@@ -86,7 +73,7 @@ function isValidEmail(s: string): boolean {
 }
 
 function main(): void {
-  const { email, stripeSubId, dryRun } = parseArgs(process.argv.slice(2));
+  const { email, dryRun } = parseArgs(process.argv.slice(2));
 
   if (!email) {
     console.error("error: --email is required");
@@ -127,11 +114,11 @@ function main(): void {
     process.exit(2);
   }
 
-  const record = createSubscription({ licenseKey, email, stripeSubId });
+  const record = createSubscription({ licenseKey, email });
   console.log(`Issued license key for ${record.email}:`);
   console.log(licenseKey);
   console.log(
-    `createdAt=${record.createdAt} status=${record.status} stripeSubId=${record.stripeSubId ?? "(none)"}`,
+    `createdAt=${record.createdAt} status=${record.status}`,
   );
 }
 

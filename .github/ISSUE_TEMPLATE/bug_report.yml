@@ -35,8 +35,8 @@ body:
     attributes:
       label: Persona pack
       options:
-        - "Howard (default)"
-        - "TWiST"
+        - "the morning-radio host (default)"
+        - "Startup Roundtable"
         - "Other / custom"
     validations:
       required: true
@@ -46,7 +46,7 @@ body:
     attributes:
       label: What happened?
       description: "Include what you were watching (URL is fine), what you expected, and what you got instead."
-      placeholder: "Started listening on a TWiST episode. Baba Booey fired once, then all four mugs stopped updating for the rest of the session."
+      placeholder: "Started listening on a Startup Roundtable episode. The Producer fired once, then all four mugs stopped updating for the rest of the session."
     validations:
       required: true
 

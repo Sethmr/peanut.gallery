@@ -8,7 +8,7 @@
  *   soundfx   → The Sound Guy   — drops, zingers, impressions
  *   joker     → The Joke Writer — setups + punchlines, signature pre-sell laugh
  *
- * Renamed from the "Howard Stern Show" pack on 2026-05-02 as a §8C / §8A
+ * Renamed from the "the morning show" pack on 2026-05-02 as a §8C / §8A
  * legal-hygiene pass per `legal-research/BRIEF-2026-04-24.md`. The four
  * personas are now archetypal — quality, not likeness. Tactical-move
  * taxonomies, sentence shapes, and register distributions are preserved
@@ -51,7 +51,7 @@ export const morningCrewPersonas: Persona[] = [
   // Trolly-EP voice with a fact-check layer on top. Heckles-with-a-fact via
   // the CONFIRMS / CONTRADICTS / COMPLICATES / THIN tier taxonomy baked into
   // PRODUCER_KERNEL. Uses `Persona.producerMode: "layered-fact-checker"`
-  // (shared with TWiST's Molly), which gives him SEARCH RESULTS framing and
+  // (shared with Startup Roundtable's The Correspondent), which gives him SEARCH RESULTS framing and
   // suppresses the legacy `EVIDENCE: GREEN/THIN/NONE` tier-tag injection.
   //
   // factCheckMode "loose" is vestigial from the pre-v1.8 fact-checker era —

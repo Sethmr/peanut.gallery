@@ -268,7 +268,7 @@ curl -N -X POST http://localhost:3000/api/transcribe \
 ```bash
 # Test personas standalone (no pipeline needed)
 npx tsx scripts/test-personas.ts
-npx tsx scripts/test-personas.ts --fixture  # Uses real TWiST transcript
+npx tsx scripts/test-personas.ts --fixture  # Uses real Startup Roundtable transcript
 ```
 
 ---
@@ -361,7 +361,7 @@ cat logs/pipeline-debug.jsonl | jq 'select(.sessionId == "SESSION_ID_HERE")'
   "level": "info",
   "sessionId": "1713214200000",
   "data": {
-    "text": "Jason just said that...",
+    "text": "The Host just said that...",
     "bufferSize": 42,
     "newTranscriptLength": 156
   }

@@ -8,7 +8,7 @@ Open Claude Design, create a new project titled **Peanut Gallery — brand kit +
 
 ## Project description (paste verbatim)
 
-> Peanut Gallery is a free, open‑source Chrome extension that adds a live AI writers' room to any YouTube video. Four personas — a fact‑checker, a comedy writer, a sound effects guy, and a cynical troll — react in real time from Chrome's native side panel. It was built to win Jason Calacanis's $5k "live AI sidebar" bounty on *This Week in Startups*. Stack: Deepgram Nova‑3 → Claude Haiku + xAI Grok 4.1 Fast → Chrome side panel. Dark, late‑night-TV aesthetic. Voice is confident, dry, a little irreverent — more *Letterman writers' room* than *SaaS landing page*.
+> Peanut Gallery is a free, open‑source Chrome extension that adds a live AI writers' room to any YouTube video. Four personas — a fact‑checker, a comedy writer, a sound effects guy, and a cynical troll — react in real time from Chrome's native side panel. It was built to win The Host's $5k "live AI sidebar" bounty on *Startup Roundtable*. Stack: Deepgram Nova‑3 → Claude Haiku + xAI Grok 4.1 Fast → Chrome side panel. Dark, late‑night-TV aesthetic. Voice is confident, dry, a little irreverent — more *Letterman writers' room* than *SaaS landing page*.
 >
 > This project is the asset factory for every public surface: Chrome Web Store listing, peanutgallery.live landing page, GitHub social card, YouTube thumbnails, X/LinkedIn cards, and blog headers. Every asset must pass two tests: (1) recognizable as Peanut Gallery at 128×128 px, (2) stops the scroll on a feed dominated by SaaS gradient slop.
 
@@ -19,7 +19,7 @@ Open Claude Design, create a new project titled **Peanut Gallery — brand kit +
 ### Brand colors — **global palette (what every asset uses by default)**
 
 Aligned to the shipping `app/landing.css` as of 2026-04-18 — the site runs a
-TWiST-broadcast aesthetic: matte black base, burnt orange primary, recording
+Startup Roundtable-broadcast aesthetic: matte black base, burnt orange primary, recording
 red for LIVE cues, amber for soft highlights.
 
 | Token | Hex | Use |
@@ -30,7 +30,7 @@ red for LIVE cues, amber for soft highlights.
 | `text.primary` | `#e5e5e5` | Body copy on dark. |
 | `text.dim` | `#9a9a9a` | Captions, metadata, "as seen on". |
 | `text.bright` | `#ffffff` | Headlines, hero text, logo. |
-| **`accent.primary`** | **`#ff5a1f`** | **TWiST burnt orange — the hero accent. CTAs, section labels, chyron marks, nav CTA, link color.** Use this when no persona is named. |
+| **`accent.primary`** | **`#ff5a1f`** | **Startup Roundtable burnt orange — the hero accent. CTAs, section labels, chyron marks, nav CTA, link color.** Use this when no persona is named. |
 | `accent.hot` | `#ef4444` | Recording red. ON-AIR cues, LIVE dots, CTA hover, ticker pulse. |
 | `accent.soft` | `#f59e0b` | Amber. Inline code, highlighted quotes, quiet accent. |
 
@@ -41,10 +41,10 @@ quote panels. Never swap, never blend, never bleed into global surfaces.
 
 | Persona | Accent | Hex |
 |---|---|---|
-| Fact-checker (Baba Booey / Molly Wood) | Persona-blue | `#3b82f6` |
-| Troll (The Troll / Jason) | Persona-red | `#ef4444` |
-| Comedy writer (Jackie / Alex) | Persona-purple | `#a855f7` |
-| Sound effects (Fred / Lon) | Persona-amber | `#f59e0b` |
+| Fact-checker (The Producer / The Correspondent) | Persona-blue | `#3b82f6` |
+| Troll (The Troll / The Host) | Persona-red | `#ef4444` |
+| Comedy writer (The Joke Writer / The Quant) | Persona-purple | `#a855f7` |
+| Sound effects (The Sound Guy / The Reframer) | Persona-amber | `#f59e0b` |
 
 **Rule:** If an asset features a named persona, use that persona's accent.
 If the asset is pack-agnostic or cross-cutting, use `accent.primary`
@@ -77,7 +77,7 @@ Upload, in order, so Claude Design anchors on them:
 1. `/sessions/practical-busy-pasteur/mnt/peanut.gallery/marketing/promo/` — every existing promo tile & screenshot currently in CWS. These are the "must look like this family" anchors.
 2. `/sessions/practical-busy-pasteur/mnt/peanut.gallery/public/og-image.png` — the current OG/Twitter card. Use its composition as the default for new social cards.
 3. `/sessions/practical-busy-pasteur/mnt/peanut.gallery/public/icons/icon128.png` — the product icon, sacred. Never regenerate without approval.
-4. **Howard Stern writers' room photo reference** (Seth to drop in) — the emotional North Star. Cluttered desk, shared mic, late-night energy.
+4. **the morning-radio host writers' room photo reference** (Seth to drop in) — the emotional North Star. Cluttered desk, shared mic, late-night energy.
 5. **Letterman / Conan late-night stage references** — for hero compositions where we want the "four chairs, one host" energy.
 
 Tell Claude Design: *"Every asset should feel like one of the reference late-night sets redrawn in our palette. If a generation looks like a SaaS landing page, reject it and try again."*
@@ -89,7 +89,7 @@ Tell Claude Design: *"Every asset should feel like one of the reference late-nig
 - **Confident, dry, a little irreverent.** We don't over-explain. We don't say "empowering" or "delightful."
 - **Writers' room, not product team.** We talk about jokes, bits, running gags, hot takes — not "user flows" or "value props."
 - **Receipts over claims.** If a persona claims a fact, we show the fact. If we claim speed, we show the latency.
-- **Never cute about the bounty.** $5k from Jason is the origin, not a punchline. Acknowledge once, move on.
+- **Never cute about the bounty.** $5k from The Host is the origin, not a punchline. Acknowledge once, move on.
 - **Never hedge.** No "helps you," "try to," "can allow." Either it does it or it doesn't.
 - **Anti-patterns to reject:** gradient blobs, abstract 3D shapes, AI brain icons, rocket emojis, "next-gen", "revolutionary", em-dash overload in copy (the product uses `—` on purpose in the UI; marketing copy can breathe).
 
@@ -100,7 +100,7 @@ Tell Claude Design: *"Every asset should feel like one of the reference late-nig
 Generate in this order. Each line is a Claude Design prompt seed.
 
 ### Week 1 (SEO-PLAN §4 — ship this week)
-1. **CWS screenshot 01 — "The hero shot"** (1280×800, PNG). Chrome side panel open on a YouTube video of a TWiST episode. Four persona avatars stacked vertically, one mid-typing. Amber highlighted quote from the sound effects guy. Caption row beneath: "Four AI personas react live. No tab switching."
+1. **CWS screenshot 01 — "The hero shot"** (1280×800, PNG). Chrome side panel open on a YouTube video of a Startup Roundtable episode. Four persona avatars stacked vertically, one mid-typing. Amber highlighted quote from the sound effects guy. Caption row beneath: "Four AI personas react live. No tab switching."
 2. **CWS screenshot 02 — "The fact-checker moment"** (1280×800). Side panel zoomed on a fact-checker message with a citation link + source favicon. Blue accent. Caption: "Every claim gets a receipt."
 3. **CWS screenshot 03 — "The troll"** (1280×800). Red accent. Troll message mid-roast. Caption: "Your loudest friend, on tap."
 4. **CWS screenshot 04 — "The comedy writer"** (1280×800). Purple accent. Comedy writer serving a callback to an earlier moment. Caption: "Running gags. Actual ones."
@@ -110,8 +110,8 @@ Generate in this order. Each line is a Claude Design prompt seed.
 8. **OG / Twitter card v2** (1200×630, PNG). Replaces `public/og-image.png`. Must survive Twitter's card compression — no text smaller than 28px.
 
 ### Week 2 (persona pack landing pages — SEO‑PLAN §3 Part B)
-9. **Howard pack cover** (1200×630). Stern's writers' room aesthetic without using his likeness — shared-mic silhouette, cluttered desk, one lamp.
-10. **TWiST pack cover** (1200×630). Four chairs, one round table, laptop open on the "live" dot.
+9. **the morning-radio host pack cover** (1200×630). the morning-radio host's writers' room aesthetic without using his likeness — shared-mic silhouette, cluttered desk, one lamp.
+10. **Startup Roundtable pack cover** (1200×630). Four chairs, one round table, laptop open on the "live" dot.
 11. **"/packs" index hero** (1600×600). Both packs side-by-side in a mosaic.
 
 ### Week 3 (content marketing — SEO‑PLAN §3 Part C)
@@ -127,7 +127,7 @@ Generate in this order. Each line is a Claude Design prompt seed.
 
 ## Frontier‑design play (do this once, then bank the outputs)
 
-In the same project, run **three** separate generations of the OG card with Claude Design's "push the frontier" mode. One that looks like a Criterion Collection cover. One that looks like a *Rolling Stone* music feature. One that looks like the back cover of an O'Reilly book. Keep whichever one Jason would screenshot. Bank the other two for future launches (v1.6, v2.0).
+In the same project, run **three** separate generations of the OG card with Claude Design's "push the frontier" mode. One that looks like a Criterion Collection cover. One that looks like a *Rolling Stone* music feature. One that looks like the back cover of an O'Reilly book. Keep whichever one The Host would screenshot. Bank the other two for future launches (v1.6, v2.0).
 
 ---
 

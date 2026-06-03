@@ -10,7 +10,7 @@ The full plan lives in [`marketing/SEO-PLAN.md`](SEO-PLAN.md) §4. This file is 
 |---|---|
 | [`marketing/CLAUDE-DESIGN-BRIEF.md`](CLAUDE-DESIGN-BRIEF.md) | Paste-ready setup brief for the Claude Design project. Tokens, fonts, brand voice, asset priority list, frontier-design play, boundary clause. |
 | [`marketing/CWS-SHORT-DESCRIPTION-VARIANTS.md`](CWS-SHORT-DESCRIPTION-VARIANTS.md) | 3 short-description variants (A keyword-max, B conversion, C trust) + reordered 20 keyword slots + sync steps when rotating. |
-| [`marketing/WIKIDATA-ENTRY-DRAFT.md`](WIKIDATA-ENTRY-DRAFT.md) | Copy-paste draft for Wikidata submission: labels, descriptions, statements, references. Includes the Person-item decision (skip until TWiST mention). |
+| [`marketing/WIKIDATA-ENTRY-DRAFT.md`](WIKIDATA-ENTRY-DRAFT.md) | Copy-paste draft for Wikidata submission: labels, descriptions, statements, references. Includes the Person-item decision (skip until Startup Roundtable mention). |
 | [`marketing/P1-P2-RESEARCH-WORKSHEET.md`](P1-P2-RESEARCH-WORKSHEET.md) | Worksheet Seth fills in a live Chrome session — CWS category audit + per-query rank table. |
 | [`app/layout.tsx`](../app/layout.tsx) | Added `Organization` and `Person` JSON-LD blocks with `@id` anchors, and wired `publisher` + `author` on the existing `SoftwareApplication` to reference those IDs. TypeScript clean. |
 
@@ -66,7 +66,7 @@ After Seth completes tasks 1-5 and tells me, I'll:
 1. Read the filled-in `P1-P2-RESEARCH-WORKSHEET.md` and rewrite the long description if the competitor pattern analysis suggests a different structure.
 2. Commit the `app/layout.tsx` Wikidata `sameAs` update once the Q-number is in.
 3. Draft Week 2 assets: persona pack landing pages (`/packs/howard`, `/packs/twist`) — Next.js 15 static pages using the brand tokens, seeded with the Claude Design pack covers.
-4. Write the first long-form content piece (P10 in SEO-PLAN): *"How I built an AI writers' room for YouTube in 6 weeks"* — ~1,800 words, targets `AI writers room` + `build chrome extension` + TWiST mention.
+4. Write the first long-form content piece (P10 in SEO-PLAN): *"How I built an AI writers' room for YouTube in 6 weeks"* — ~1,800 words, targets `AI writers room` + `build chrome extension` + Startup Roundtable mention.
 
 ---
 

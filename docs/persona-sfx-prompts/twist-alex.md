@@ -1,4 +1,4 @@
-# ElevenLabs SFX prompt — Alex Wilhelm (Data Comedian)
+# ElevenLabs SFX prompt — The Quant (Data Comedian)
 
 **Duration:** 0.8s
 **Prompt influence:** 65

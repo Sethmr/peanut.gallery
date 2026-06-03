@@ -53,10 +53,10 @@ const PACKS_CLIENT = {
     { id: "joker", name: "The Joke Writer", role: "Comedy Writer", emoji: "😂", color: "#f59e0b" },
   ],
   twist: [
-    { id: "producer", name: "Molly", role: "Fact-Checker", emoji: "📓", color: "#3b82f6" },
-    { id: "troll", name: "Jason", role: "Provocateur", emoji: "🎙️", color: "#ef4444" },
-    { id: "soundfx", name: "Lon", role: "The Reframe", emoji: "🎬", color: "#a855f7" },
-    { id: "joker", name: "Alex", role: "Data Comedian", emoji: "📊", color: "#f59e0b" },
+    { id: "producer", name: "The Correspondent", role: "Fact-Checker", emoji: "📓", color: "#3b82f6" },
+    { id: "troll", name: "The Host", role: "Provocateur", emoji: "🎙️", color: "#ef4444" },
+    { id: "soundfx", name: "The Reframer", role: "The Reframe", emoji: "🎬", color: "#a855f7" },
+    { id: "joker", name: "The Quant", role: "Data Comedian", emoji: "📊", color: "#f59e0b" },
   ],
 };
 // Legacy alias — pre-2026-05-02 client storage stored "howard"; resolve to
@@ -66,7 +66,7 @@ const DEFAULT_PACK_ID = "morning-crew";
 
 // Short display names for the trace panel's pack label. Kept separate from
 // PACKS_CLIENT (which is only personas) so the sidebar header doesn't have
-// to inline a longer name like "This Week in Startups". Falls back to the
+// to inline a longer name like "Startup Roundtable". Falls back to the
 // pack id for anything not listed.
 const PACK_DISPLAY_NAMES = {
   "morning-crew": "morning crew",
@@ -80,10 +80,10 @@ function packDisplayName(id) {
 // Pretty-print label for the masthead pack badge (the little tag that sits
 // under the nameplate). Kept separate from PACK_DISPLAY_NAMES (which is
 // the lowercased trace-panel label) so the masthead can show a more
-// "newsstand" version — "Howard" / "TWiST" — without reshaping the trace.
+// "newsstand" version — "Morning Crew" / "Startup Roundtable" — without reshaping the trace.
 const PACK_BADGE_NAMES = {
-  howard: "Howard",
-  twist: "TWiST",
+  howard: "Morning Crew",
+  twist: "Startup Roundtable",
 };
 function packBadgeName(id) {
   return PACK_BADGE_NAMES[id] || id || "—";
@@ -120,7 +120,7 @@ function personaInitials(name) {
 // Mutable reference to the active pack's persona array. The server picks up
 // the pack id from the /api/transcribe body and never reads names — so any
 // mismatch between client names and server personas degrades to "unknown
-// pack → Howard on the server" while the UI still renders its chosen labels.
+// pack → Morning Crew on the server" while the UI still renders its chosen labels.
 let currentPackId = DEFAULT_PACK_ID;
 
 // Pack id committed to the currently-running session. Captured at Start
@@ -213,7 +213,7 @@ const PEANUT_MOUTHS = {
 };
 
 // Canonical body shapes. The peanut is the default; egg and potato are used
-// by the TWiST Lon / Alex mascots so their bobbling body reads as the running
+// by the Startup Roundtable The Reframer / The Quant mascots so their bobbling body reads as the running
 // gag from the show (see lib/packs/twist/personas.ts). Coordinates assume the
 // 64×64 viewBox and the scale(1.10) wrapper in buildPeanutSVG.
 const BODY_PATHS = {
@@ -415,13 +415,13 @@ function personaMascotHTML(personaId, packId) {
     });
   }
 
-  // ── TWiST pack ──
+  // ── Startup Roundtable pack ──
   if (pack === "twist" && personaId === "producer") {
-    // Molly — spiral-bound reporter's notebook with blue ruled lines.
+    // The Correspondent — spiral-bound reporter's notebook with blue ruled lines.
     return buildPeanutSVG({
       ns, face: "smile",
       prop: `
-        <!-- Molly's hair: long honey-blonde with a middle part, cascading past
+        <!-- The Correspondent's hair: long honey-blonde with a middle part, cascading past
              the shoulders on both sides. Back layer (darker honey) falls
              behind, front crown frames the face without covering eyes/mouth.
              Tapered just above the notebook so the prop still reads. -->
@@ -443,12 +443,12 @@ function personaMascotHTML(personaId, packId) {
     });
   }
   if (pack === "twist" && personaId === "troll") {
-    // Jason — megaphone, cone pointing up-right. Open yelling mouth.
+    // The Host — megaphone, cone pointing up-right. Open yelling mouth.
     return buildPeanutSVG({
       ns, face: "open",
       extraDefs: `<linearGradient id="mmega-${ns}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#8B1010"/><stop offset="60%" stop-color="#ef4444"/><stop offset="100%" stop-color="#C11A00"/></linearGradient>`,
       prop: `
-        <!-- Jason's hair: short strawberry-blonde with a crisp side part on
+        <!-- The Host's hair: short strawberry-blonde with a crisp side part on
              viewer's left, swept flat across to the right. Painted over the
              shell highlight so it reads as a real hairline. Two sheen strokes
              trace the sweep direction. -->
@@ -464,7 +464,7 @@ function personaMascotHTML(personaId, packId) {
     });
   }
   if (pack === "twist" && personaId === "soundfx") {
-    // Lon 🥚 — egg body (running gag from the show). Clapperboard prop
+    // The Reframer 🥚 — egg body (running gag from the show). Clapperboard prop
     // survives. Cream-on-white gradient with a cool bounce at the base;
     // no shell grooves (eggs are smooth).
     return buildPeanutSVG({
@@ -496,7 +496,7 @@ function personaMascotHTML(personaId, packId) {
     });
   }
   if (pack === "twist" && personaId === "joker") {
-    // Alex 🥔 — potato body (running gag from the show). Pie-chart prop
+    // The Quant 🥔 — potato body (running gag from the show). Pie-chart prop
     // survives. Earthy russet gradient + scattered skin "eyes"
     // (the potato kind, not the face kind) as prop overlay for texture.
     return buildPeanutSVG({
@@ -692,9 +692,6 @@ const subscriptionBlock = document.getElementById("subscriptionBlock");
 const subProgressFill = document.getElementById("subProgressFill");
 const subProgressText = document.getElementById("subProgressText");
 const subscriptionProgress = document.getElementById("subscriptionProgress");
-const buySubBtn = document.getElementById("buySubBtn");
-const manageSubBtn = document.getElementById("manageSubBtn");
-const recoverSubBtn = document.getElementById("recoverSubBtn");
 const backendModeSegmented = document.getElementById("backendModeSegmented");
 const backendModeHint = document.getElementById("backendModeHint");
 
@@ -915,108 +912,6 @@ function openPromptModal({ stamp = "Dispatch", title, body, placeholder = "", in
   });
 }
 
-async function openSubscriptionCheckout() {
-  const email = await openPromptModal({
-    stamp: "Subscribe",
-    title: "Peanut Gallery Plus",
-    body: "We'll send your license key to this address. $8/month, cancel anytime.",
-    placeholder: "you@example.com",
-    inputType: "email",
-    confirmLabel: "Continue to Stripe",
-  });
-  if (!email) return;
-  const url = normalizeServerUrl(serverUrlInput?.value);
-  if (!url) return;
-  try {
-    const res = await fetch(`${url}/api/subscription/checkout`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    const data = await res.json();
-    if (data.checkoutUrl) {
-      window.open(data.checkoutUrl, "_blank", "noopener");
-      return;
-    }
-    // The backend refused the checkout because this email already has
-    // an active Plus subscription. Surface a modal (the error banner
-    // sits on the main panel and is invisible while the user is in
-    // the settings drawer). The modal offers a one-click "resend key"
-    // that reuses the email the user just typed.
-    if (res.status === 409 && data.code === "ALREADY_SUBSCRIBED") {
-      const confirmed = await openPromptModal({
-        stamp: "Already subscribed",
-        title: "You already have Plus",
-        body:
-          "This email is already on an active Peanut Gallery Plus subscription. Want us to email your license key again?",
-        hideInput: true,
-        confirmLabel: "Email me my key",
-        cancelLabel: "Close",
-      });
-      if (!confirmed) return;
-      try {
-        const r = await fetch(`${url}/api/subscription/manage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, action: "recover_key" }),
-        });
-        const d = await r.json();
-        await openPromptModal({
-          stamp: "Dispatch",
-          title: "Check your inbox",
-          body: d.message || "We'll email your license key shortly.",
-          hideInput: true,
-          confirmLabel: "OK",
-          cancelLabel: "Close",
-        });
-      } catch {
-        await openPromptModal({
-          stamp: "Error",
-          title: "Couldn't reach the backend",
-          body: "Please try again in a moment.",
-          hideInput: true,
-          confirmLabel: "OK",
-          cancelLabel: "Close",
-        });
-      }
-      return;
-    }
-    showError(data.error || "Couldn't start checkout. Try again later.", null);
-  } catch {
-    showError("Couldn't reach the backend to start checkout.", null);
-  }
-}
-
-async function requestSubscriptionManage(action) {
-  const stamp = action === "recover_key" ? "Recover key" : action === "cancel" ? "Cancel" : "Manage";
-  const title = action === "recover_key" ? "Email me my key" : action === "cancel" ? "Cancel subscription" : "Manage subscription";
-  const body = action === "recover_key"
-    ? "Enter the email you signed up with. If we find an active subscription, we'll resend your license key."
-    : "Enter the email on your subscription. We'll email you a Stripe portal link to update or cancel.";
-  const email = await openPromptModal({
-    stamp,
-    title,
-    body,
-    placeholder: "you@example.com",
-    inputType: "email",
-    confirmLabel: "Send email",
-  });
-  if (!email) return;
-  const url = normalizeServerUrl(serverUrlInput?.value);
-  if (!url) return;
-  try {
-    const res = await fetch(`${url}/api/subscription/manage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, action }),
-    });
-    const data = await res.json();
-    showError(data.message || "Request logged.", null);
-  } catch {
-    showError("Couldn't reach the backend. Try again later.", null);
-  }
-}
-
 // Wire the segmented controls + buttons.
 if (backendModeSegmented) {
   backendModeSegmented.addEventListener("click", (e) => {
@@ -1045,9 +940,6 @@ if (subscriptionKeyInput) {
     statusDebounce = setTimeout(() => refreshSubscriptionStatus(), 500);
   });
 }
-if (buySubBtn) buySubBtn.addEventListener("click", () => openSubscriptionCheckout());
-if (manageSubBtn) manageSubBtn.addEventListener("click", () => requestSubscriptionManage("cancel"));
-if (recoverSubBtn) recoverSubBtn.addEventListener("click", () => requestSubscriptionManage("recover_key"));
 
 // Persist the self-host URL only when the user is actively in selfhost mode.
 // In any other mode the input is force-set to HOSTED_BACKEND_URL by
@@ -1527,7 +1419,7 @@ function loadSettings() {
       // Persona pack: restore saved pack or fall back to the default. An
       // unknown pack id (old extension storage, manual tampering) coerces to
       // the default, and the server does the same on its end via
-      // resolvePack(). First-time users land on Howard, which matches pre-v1.3
+      // resolvePack(). First-time users land on Morning Crew, which matches pre-v1.3
       // behavior exactly.
       const savedPack =
         typeof data.packId === "string" && data.packId in PACKS_CLIENT
@@ -1547,7 +1439,7 @@ function loadSettings() {
       );
 
       // buildPersonaAvatars() ran synchronously at init with the default
-      // pack. If the user's saved pack is different (e.g. TWiST persisted
+      // pack. If the user's saved pack is different (e.g. Startup Roundtable persisted
       // from a previous session), the avatar row is currently showing the
       // wrong faces — rebuild it so the avatars, the dropdown, and the
       // packId we'll send to /api/transcribe all agree on the same pack
@@ -1560,7 +1452,7 @@ function loadSettings() {
       if (packSelect) packSelect.value = savedPack;
       if (packChanged || mutedPersonas.size > 0) buildPersonaAvatars();
       // Repaint the pack preview with the restored pack — always, so a
-      // saved TWiST user sees their lineup under the dropdown without
+      // saved Startup Roundtable user sees their lineup under the dropdown without
       // having to open and close it.
       if (packChanged) renderPackChooser();
       // Mirror the restored selection in the trace header so the debug
@@ -3390,12 +3282,12 @@ startBtn.addEventListener("click", async () => {
   // configured during the rollout window) we skip the check — the server has
   // demo keys in its env vars and will use them whenever the extension sends
   // no key headers.
-  // Plus mode requires a license key. The user might have selected Plus but
-  // never completed checkout — surface an error with a CTA to open the
+  // Plus mode requires a license key. The user might have selected Plus
+  // without a key on hand — surface an error with a CTA to open the
   // settings drawer (don't auto-navigate; the error needs to stay visible).
   if (backendMode === "plus" && !subscriptionKeyInput?.value.trim()) {
     showError(
-      "Plus mode needs a subscription key. Subscribe to get one, or switch to Demo / My keys.",
+      "Plus mode needs a subscription key. Paste one in settings, or switch to Demo / My keys.",
       "needs-keys",
       {
         label: "Open settings",
@@ -3509,9 +3401,9 @@ startBtn.addEventListener("click", async () => {
         subscriptionKey: subscriptionKeyInput?.value.trim() || "",
         // Persona pack id (howard | twist | ...). Forwarded through the same
         // chain and handed to resolvePack() on the server. Unknown ids fall
-        // back to Howard server-side, so a new client + old server still
+        // back to Morning Crew server-side, so a new client + old server still
         // works — the UI shows the chosen names but the backend speaks
-        // Howard until it's updated.
+        // Morning Crew until it's updated.
         packId: currentPackId,
       }, resolve);
     });
@@ -4326,7 +4218,7 @@ const TUTORIAL_STEPS = [
   {
     targetSelector: '.drawer-menu-item[data-section="lineup"]',
     title: "Lineup",
-    body: "One home for every critic knob. Pick your pack (Howard or TWiST), dial cadence (1 = occasional, 10 = nonstop), set Room volume (Quieter / Normal / Rowdy) for how often the critics chain into each other, and mute anyone wearing you out.",
+    body: "One home for every critic knob. Pick your pack (Morning Crew or Startup Roundtable), dial cadence (1 = occasional, 10 = nonstop), set Room volume (Quieter / Normal / Rowdy) for how often the critics chain into each other, and mute anyone wearing you out.",
     onEnter: () => {
       if (!settingsDrawer?.classList.contains("visible")) openSettingsDrawer();
       showDrawerMenu();

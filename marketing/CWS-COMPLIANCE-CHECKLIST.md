@@ -20,7 +20,7 @@ For every change, answer yes/no to each:
 
 - [ ] **Claim accuracy.** Every feature claim matches the shipping code (no "coming soon" framed as shipping).
 - [ ] **Permission parity.** No new permission claim exceeds what `extension/manifest.json` actually declares.
-- [ ] **Persona branding safety.** All persona names use "inspired by" framing, never "is" or "the official X." Trademarked names (Howard Stern, Baba Booey, etc.) never appear in the CWS *name* or *short description* field.
+- [ ] **Persona branding safety.** All persona names use "inspired by" framing, never "is" or "the official X." Trademarked names (the morning-radio host, The Producer, etc.) never appear in the CWS *name* or *short description* field.
 - [ ] **No keyword stuffing.** The name, short description, and category fields don't list unrelated keywords or repeat the same keyword more than needed for meaning.
 - [ ] **Same-content-same-language.** If we edit EN copy, any other locale listing (currently: none) stays consistent.
 - [ ] **No deceptive install claims.** Nothing says "official," "verified by Google," "featured," or implies endorsement we don't have.
@@ -104,7 +104,7 @@ The highest-leverage copy field. Check every variant:
 ### B4. Screenshots (1280×800 or 640×400, up to 5)
 
 - [ ] Each screenshot reflects actual UI (no mockups that deviate from shipping product).
-- [ ] No copyrighted video content visible that we don't have rights to show. If a screenshot shows a TWiST YouTube video playing, the fair-use claim is "functional demo of a Chrome extension overlaying YouTube's public interface" — that's reasonable but borderline; prefer a generic YouTube video (own content, CC, or a public livestream with clearly de-identified framing) when possible.
+- [ ] No copyrighted video content visible that we don't have rights to show. If a screenshot shows a Startup Roundtable YouTube video playing, the fair-use claim is "functional demo of a Chrome extension overlaying YouTube's public interface" — that's reasonable but borderline; prefer a generic YouTube video (own content, CC, or a public livestream with clearly de-identified framing) when possible.
 - [ ] No screenshots with inflammatory, political, or adult content visible in the background.
 - [ ] No misleading UI annotations (don't label a non-existent button).
 - [ ] Trademarks visible in screenshots (YouTube logo, Chrome logo) used in descriptive / nominative fair-use context only.
@@ -133,9 +133,9 @@ The highest-leverage copy field. Check every variant:
 ### C1. No misleading claims
 
 - [ ] Never say "verified," "approved by Google," "Chrome-partnered," or similar unless literally true.
-- [ ] Never imply affiliation with Anthropic, xAI, Deepgram, Google, YouTube, or TWiST unless we have documented permission.
-- [ ] Never include "Howard Stern," "Baba Booey," "Robin Quivers," "Fred Norris," "Jackie Martling" in the extension name, short description, or as primary positioning outside clearly labeled "inspired by" framing in the detailed description.
-- [ ] Never include "Jason Calacanis," "Molly Wood," "Lon Harris," "Alex Wilhelm" in the extension name or short description. Detailed description may reference "This Week in Startups" with attribution as inspiration, not endorsement.
+- [ ] Never imply affiliation with Anthropic, xAI, Deepgram, Google, YouTube, or Startup Roundtable unless we have documented permission.
+- [ ] Never include "the morning-radio host," "The Producer," "the co-host," "The Sound Guy," "The Joke Writer" in the extension name, short description, or as primary positioning outside clearly labeled "inspired by" framing in the detailed description.
+- [ ] Never include "The Host," "The Correspondent," "The Reframer," "The Quant" in the extension name or short description. Detailed description may reference "Startup Roundtable" with attribution as inspiration, not endorsement.
 
 ### C2. No forced installs / install tricks
 
@@ -168,9 +168,9 @@ Good (what we're doing):
 Our persona names reference real people and media properties. CWS and Google's trademark policy requires:
 
 - [ ] Nominative fair use only: we reference names to describe *inspiration*, not to imply *origin*.
-- [ ] No logos of Howard Stern Show, SiriusXM, TWiST, or Jason Calacanis's personal brand on the CWS listing or promotional artwork unless we have written permission.
+- [ ] No logos of the morning show, SiriusXM, Startup Roundtable, or The Host's personal brand on the CWS listing or promotional artwork unless we have written permission.
 - [ ] Persona descriptions in the detailed description always frame as "inspired by" and credit the source material when relevant.
-- [ ] If any of the living persona namesakes (Jason Calacanis, Molly Wood, Lon Harris, Alex Wilhelm) sends a takedown request, we rename that persona within 48 hours — a "living reference" framework is in place in `.auto-memory`.
+- [ ] If any of the living persona namesakes (The Host, The Correspondent, The Reframer, The Quant) sends a takedown request, we rename that persona within 48 hours — a "living reference" framework is in place in `.auto-memory`.
 
 ### D2. YouTube / Chrome branding
 
@@ -219,8 +219,8 @@ High-risk items that deserve ongoing monitoring:
 
 | Risk | Severity | Mitigation |
 |---|---|---|
-| Living-person persona names (Calacanis, Wood, Harris, Wilhelm) | High | "Inspired by" framing everywhere; 48h rename SLA on takedown request |
-| Deceased / retired person persona names (Stern crew) | Medium | "Inspired by" framing; estate-aware when a name corresponds to a living estate (Baba Booey is alive — same rule) |
+| Living-person persona names (The Host, Wood, Harris, The Quant) | High | "Inspired by" framing everywhere; 48h rename SLA on takedown request |
+| Deceased / retired person persona names (the morning-radio host crew) | Medium | "Inspired by" framing; estate-aware when a name corresponds to a living estate (The Producer is alive — same rule) |
 | YouTube terms of service | Medium | We use `chrome.tabCapture` (user-consented), not scraping. Reviewed against YouTube's TOS §I.A and §III.A. |
 | "Free" claim | Low | Truly free. No pricing tier exists. |
 | Side Panel API stability | Low | NoteGPT removed it — investigate before next update |

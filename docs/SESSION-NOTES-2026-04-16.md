@@ -1,18 +1,18 @@
 # Peanut Gallery — Session Notes (2026-04-16)
 
 > Handoff from a research pass. Nothing was changed in the repo. This doc summarizes:
-> (1) what Jason actually wants, (2) where we stand, (3) the permissions setup that is known-good and must not be overwritten, (4) web research tips, (5) a prioritized "finish strong" checklist.
+> (1) what The Host actually wants, (2) where we stand, (3) the permissions setup that is known-good and must not be overwritten, (4) web research tips, (5) a prioritized "finish strong" checklist.
 
 ---
 
-## 1. What Jason wants (consolidated from the repo)
+## 1. What The Host wants (consolidated from the repo)
 
-From `README.md`, `TWIST-AI-SIDEBAR-BUILD-PLAN.md`, `docs/CONTEXT.md`, and the landing-page HTML, Jason Calacanis and Lon Harris posted a $5,000 + guest-spot bounty on This Week in Startups for an AI sidebar that watches the show in real time. The spec boils down to eight non-negotiables:
+From `README.md`, `TWIST-AI-SIDEBAR-BUILD-PLAN.md`, `docs/CONTEXT.md`, and the landing-page HTML, The Host and The Reframer posted a $5,000 + guest-spot bounty on Startup Roundtable for an AI sidebar that watches the show in real time. The spec boils down to eight non-negotiables:
 
-1. Four personas, explicitly modeled on Howard Stern Show staff: Gary Dell'Abate (fact-checker), Fred Norris (sound effects / context), Jackie Martling (comedy writer), and a cynical troll archetype (Artie Lange + callers).
+1. Four personas, explicitly modeled on the morning show staff: The Producer (fact-checker), The Sound Guy (sound effects / context), The Joke Writer (comedy writer), and a cynical troll archetype (Artie Lange + callers).
 2. Real-time reactions to live podcast audio — not post-show commentary.
 3. Bubble / gallery UI with a sine-wave "speaking" animation per persona.
-4. Multi-provider LLM stack — no single-API dependency (Jason has specifically warned against platform traps).
+4. Multi-provider LLM stack — no single-API dependency (The Host has specifically warned against platform traps).
 5. Open source, MIT licensed.
 6. Live fact-checking with real web search.
 7. Cross-persona awareness — they can riff off each other.
@@ -101,7 +101,7 @@ From web searches this session — filed here for judgment calls, not copy-paste
 
 **No evidence of competing public repos.** Searching GitHub and the web turned up no other public submissions for this specific bounty by handle or description. The nearest adjacent repos (`project-raven`, `natively-cluely-ai-assistant`, `podcast-ai`, etc.) are different shapes — meeting copilots or post-show summarizers — not live podcast sidebars with persona cascades. Our build appears to be the strongest matched submission.
 
-**X/Twitter chatter.** The WebSearch tool did not return indexed chatter tied to this bounty (search engines don't crawl X reliably). If more signal is needed, search directly on x.com for `@twistartups peanut gallery` and `@jason AI sidebar bounty`. Nothing surfaced in indexed results to suggest a new spec change from Jason since the original post.
+**X/Twitter chatter.** The WebSearch tool did not return indexed chatter tied to this bounty (search engines don't crawl X reliably). If more signal is needed, search directly on x.com for `@twistartups peanut gallery` and `@jason AI sidebar bounty`. Nothing surfaced in indexed results to suggest a new spec change from The Host since the original post.
 
 **peanutgallery.live was not fetchable.** The egress proxy blocked the live site from this session, so the check was done against the local copies (`docs/index.html` and `app/page.tsx`). If the deployed Railway site has diverged, that will need a manual check next session.
 
@@ -111,14 +111,14 @@ From web searches this session — filed here for judgment calls, not copy-paste
 
 Ordered by what actually moves the bounty forward. Each item has a quick success signal.
 
-1. **First E2E extension run.** Load unpacked extension → pin the peanut icon → navigate to a TWiST episode → click icon → side panel opens with detected tab title → enter server URL + keys → click Start Listening. Signal of success: `[PG] Browser audio: first chunk received` in the server terminal, followed by transcript events and persona responses in the side panel feed within ~30 seconds.
+1. **First E2E extension run.** Load unpacked extension → pin the peanut icon → navigate to a Startup Roundtable episode → click icon → side panel opens with detected tab title → enter server URL + keys → click Start Listening. Signal of success: `[PG] Browser audio: first chunk received` in the server terminal, followed by transcript events and persona responses in the side panel feed within ~30 seconds.
    - If it stalls at "Connecting to Deepgram...", check `DEEPGRAM_API_KEY` in headers.
    - If no audio chunks arrive server-side, open DevTools on the offscreen document (`chrome://extensions` → inspect views: offscreen.html) and watch for `[PG]` console logs.
    - If persona responses never arrive but transcript does, check `GROQ_API_KEY` and look at `logs/pipeline-debug.jsonl` for persona errors.
 
-2. **Record the demo.** 60 seconds, max. Per the build plan's notes on what impresses Jason: lead with the fact-checker correcting a real claim he made; show the troll dunking; end on the GitHub link + "Open source. MIT licensed. Ship it." Keep the audio from the show audible in the recording — this is the whole point.
+2. **Record the demo.** 60 seconds, max. Per the build plan's notes on what impresses The Host: lead with the fact-checker correcting a real claim he made; show the troll dunking; end on the GitHub link + "Open source. MIT licensed. Ship it." Keep the audio from the show audible in the recording — this is the whole point.
 
-3. **Post the demo as a reply to Jason's original bounty tweet.** Tag `@jason` and `@twistartups`. Include the repo link and the `peanutgallery.live` URL.
+3. **Post the demo as a reply to The Host's original bounty tweet.** Tag `@jason` and `@twistartups`. Include the repo link and the `peanutgallery.live` URL.
 
 4. **Chrome Web Store submission.** After E2E is confirmed. Needs: promo screenshots, short description, privacy policy URL (clarify that keys are stored in the user's browser and only relayed through the server during a session).
 
@@ -141,8 +141,8 @@ Condensed from `docs/DEBUGGING.md`, the docx handoff, and the research notes abo
 - `chrome.action.onClicked` will not fire if `default_popup` is set in the manifest. Leave `action` with only `default_title` and `default_icon`.
 - The content script is deliberately scoped to `localhost` and `*.peanut.gallery` — NOT to YouTube. Do not widen this; it would broaden the permissions surface for no benefit.
 - Keys are passed via request headers per session, never stored on the server. `README.md` and the audit link point to `app/api/transcribe/route.ts` as the proof. Keep this behavior visible in code review.
-- The build plan (`TWIST-AI-SIDEBAR-BUILD-PLAN.md`) still references "Chaos Agent" in places. It was replaced by Fred Norris / Sound Effects. `docs/CONTEXT.md` is the current source of truth for persona naming.
-- Per the project's own rule in `docs/CONTEXT.md` §Notes for AI Assistants: the sandbox can't run git, always hand Seth a ready-to-paste commit command in the Jason Calacanis house style (lowercase, punchy, describes the "why" not the "what", emoji at end). No commit was created this session because nothing was changed.
+- The build plan (`TWIST-AI-SIDEBAR-BUILD-PLAN.md`) still references "Chaos Agent" in places. It was replaced by The Sound Guy / Sound Effects. `docs/CONTEXT.md` is the current source of truth for persona naming.
+- Per the project's own rule in `docs/CONTEXT.md` §Notes for AI Assistants: the sandbox can't run git, always hand Seth a ready-to-paste commit command in the Host house style (lowercase, punchy, describes the "why" not the "what", emoji at end). No commit was created this session because nothing was changed.
 
 ---
 

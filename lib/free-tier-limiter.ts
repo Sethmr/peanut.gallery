@@ -28,7 +28,7 @@
  *    this matters; horizontally scaling would require Redis. CAVEAT:
  *    one-off mode plus in-memory storage means a redeploy gives every
  *    user another 15 minutes until we back this with durable storage.
- *    For Phase 1 (pre-Stripe) that's acceptable — signup pressure is low.
+ *    For now (pre-durable-storage) that's acceptable — signup pressure is low.
  *    Tracked as follow-up in docs/SUBSCRIPTION-ARCHITECTURE.md § Open items.
  * 2. **Soft limit, not security.** The `installId` is a UUID the extension
  *    generates on first run. A determined user can reset it by clearing
