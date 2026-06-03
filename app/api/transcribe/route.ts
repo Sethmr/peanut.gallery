@@ -26,7 +26,6 @@ import { resolvePack } from "@/lib/packs";
 import { Director } from "@/lib/director";
 import { pickPersonaLLM, type LlmRoutingPick } from "@/lib/director-llm";
 import { pickPersonaCerebrasV3 } from "@/lib/director-llm-v3-cerebras-v3prompt";
-import { pickPersonaGroqV3 } from "@/lib/director-llm-v3-groq-v3prompt";
 import {
   pickPersonaLLMv2,
   applyStickyPenalty,
@@ -67,7 +66,7 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Groq-Key, X-Cerebras-Key, X-OpenAI-Key, X-Search-Engine, X-Install-Id, X-Sensitivity, X-Subscription-Key",
+    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Cerebras-Key, X-OpenAI-Key, X-Search-Engine, X-Install-Id, X-Sensitivity, X-Subscription-Key",
   "Access-Control-Expose-Headers": "X-Session-Id",
   "Access-Control-Max-Age": "86400",
 };
@@ -190,7 +189,6 @@ export async function POST(req: NextRequest) {
   // with older extension builds, but nothing in the PersonaEngine
   // constructor below consumes it anymore — fact-check always uses xAI.
   const headerXai = req.headers.get("X-XAI-Key");
-  const headerGroq = req.headers.get("X-Groq-Key");
   const headerCerebras = req.headers.get("X-Cerebras-Key");
   // OpenAI key for semantic anti-repetition embeddings (SET-15). Only used
   // when ENABLE_SEMANTIC_ANTI_REPEAT=true. Self-hosters who don't need
@@ -215,11 +213,9 @@ export async function POST(req: NextRequest) {
   const anthropicKey = sanitizeKey(headerAnthropic) ?? sanitizeKey(process.env.ANTHROPIC_API_KEY);
   const xaiKey = sanitizeKey(headerXai) ?? sanitizeKey(process.env.XAI_API_KEY);
   const openAiKey = sanitizeKey(headerOpenAi) ?? sanitizeKey(process.env.OPENAI_API_KEY);
-  // Shadow-provider keys for Smart Director v3 (SET-6). Never used for
+  // Shadow-provider key for Smart Director v3 (SET-6). Never used for
   // user-facing persona calls — only for the parallel shadow LLM call that
-  // logs agreement rate vs Haiku. Groq is deferred until Developer tier
-  // reopens (SET-11); Cerebras is the working fast-provider path today.
-  const groqKey = sanitizeKey(headerGroq) ?? sanitizeKey(process.env.GROQ_API_KEY);
+  // logs agreement rate vs Haiku. Cerebras is the fast-provider shadow.
   const cerebrasKey = sanitizeKey(headerCerebras) ?? sanitizeKey(process.env.CEREBRAS_API_KEY);
 
   // v2.0.1: Search-engine selection removed (Brave Search deprecated).
@@ -363,12 +359,9 @@ export async function POST(req: NextRequest) {
     requestedPackId: typeof packId === "string" ? packId : null,
     packId: resolvedPack.meta.id,
     // Shadow flag state, for filtering director_v3_shadow_compare events.
-    // SET-13: v3-prompt shadows (5-slot + confidence, json_schema). The
-    // v2-prompt cohort (SET-6) was retired on 2026-04-22 along with the
-    // deprecated director-llm-v3-{cerebras,groq}.ts modules.
-    groqShadowV3Enabled:
-      process.env.ENABLE_SMART_DIRECTOR_V3_GROQ_V3PROMPT === "true" &&
-      !!groqKey,
+    // SET-13: v3-prompt Cerebras shadow (5-slot + confidence, json_schema).
+    // The v2-prompt cohort (SET-6) was retired on 2026-04-22; the Groq
+    // shadow path was retired on 2026-06-03 along with the groq-sdk dep.
     cerebrasShadowV3Enabled:
       process.env.ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT === "true" &&
       !!cerebrasKey,
@@ -675,8 +668,8 @@ export async function POST(req: NextRequest) {
           // v1.7 experimental: v3 router (SILENT slot + tool_use + confidence
           // + callback memory). Opt-in only. When the v3 flag is set, v3 wins
           // — v2 fallback is the already-shipped code path, so we don't race
-          // both Haiku calls. The Groq shadow still fires in parallel below
-          // and compares against whichever of v2/v3 was the active pick.
+          // both Haiku calls. The Cerebras shadow still fires in parallel
+          // below and compares against whichever of v2/v3 was the active pick.
           const smartV2On =
             process.env.ENABLE_SMART_DIRECTOR_V2 === "true" && !!anthropicKey;
 
@@ -684,46 +677,20 @@ export async function POST(req: NextRequest) {
           // Fire in parallel with the Haiku primary. Deliberately NOT awaited
           // before routing — the shadow pick is logged but never fed to
           // director.decide(). A 2 s timeout bounds tail latency on the async
-          // log path; sub-200 ms TTFT on both providers means the shadow
-          // usually resolves before the cascade finishes.
+          // log path; sub-200 ms TTFT means the shadow usually resolves
+          // before the cascade finishes.
           //
-          // Two shadow providers are wired, independently flag-gated, both
-          // using the v3 prompt (5-slot + confidence) with json_schema-
-          // enforced structured output:
+          // One shadow provider is wired, flag-gated, using the v3 prompt
+          // (5-slot + confidence) with json_schema-enforced structured output:
           //   - Cerebras (ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT):
-          //     working today. Llama 3.1 8B, ~100–440 ms TTFT, paid self-serve.
-          //   - Groq     (ENABLE_SMART_DIRECTOR_V3_GROQ_V3PROMPT): deferred,
-          //     tracked in Linear SET-11 until Developer tier reopens. Same
-          //     model as Cerebras so the eventual switch is a 1-env-flip.
-          // Both flags can be on at once for a head-to-head comparison.
+          //     Llama 3.1 8B, ~100–440 ms TTFT, paid self-serve.
           //
           // Historical note: the v2-prompt cohort (SET-6 / json_object) was
-          // retired 2026-04-22 along with the deprecated director-llm-v3-
-          // {cerebras,groq}.ts modules — the v2 prompt's "describe the JSON
-          // shape" style let Llama 8B echo `{"type":"object"}` instead of
-          // actually picking a persona. Json_schema enum constraints closed
-          // that class of parse failures.
-          const groqShadowV3On =
-            process.env.ENABLE_SMART_DIRECTOR_V3_GROQ_V3PROMPT === "true" &&
-            (smartOn || smartV2On) &&
-            !!groqKey;
-          const groqShadowV3Start = groqShadowV3On ? Date.now() : null;
-          const groqShadowV3Promise: Promise<LlmRoutingPickV2 | null> =
-            groqShadowV3On
-              ? pickPersonaGroqV3({
-                  recentTranscript: directorInput,
-                  isSilence: isSilenceTick,
-                  recentFirings: director.getRecentFirings(),
-                  cooldownsMs: director.getCooldownsMs(),
-                  packPersonas: session.resolvedPack.personas,
-                  liveCallbacks: director.getLiveCallbacks(),
-                  unstableTailLen,
-                  groqKey: groqKey!,
-                  signal: AbortSignal.timeout(2000),
-                  sessionId,
-                }).catch(() => null)
-              : Promise.resolve(null);
-
+          // retired 2026-04-22 — the v2 prompt's "describe the JSON shape"
+          // style let Llama 8B echo `{"type":"object"}` instead of actually
+          // picking a persona. Json_schema enum constraints closed that
+          // class of parse failures. The Groq shadow path (SET-11) was
+          // retired on 2026-06-03 along with the groq-sdk dependency.
           const cerebrasShadowV3On =
             process.env.ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT === "true" &&
             (smartOn || smartV2On) &&
@@ -903,7 +870,7 @@ export async function POST(req: NextRequest) {
           // preserves the `promptVersion` field on `fast` (always "v3" now)
           // so historical log rows from the retired v2-prompt cohort remain
           // queryable against the same shape.
-          if (groqShadowV3On || cerebrasShadowV3On) {
+          if (cerebrasShadowV3On) {
             const capturedHaikuPick = smartV2On
               ? llmPickV2?.personaId ?? null
               : llmPick?.personaId ?? null;
@@ -914,7 +881,7 @@ export async function POST(req: NextRequest) {
             const capturedHaikuVersion = smartV2On ? "v3" : "v2";
 
             const emitShadowCompare = (
-              provider: "groq" | "cerebras",
+              provider: "cerebras",
               model: string,
               shadowPick: LlmRoutingPickV2 | null,
               elapsedMs: number | null
@@ -942,21 +909,6 @@ export async function POST(req: NextRequest) {
                 isSilence: isSilenceTick,
               });
             };
-
-            if (groqShadowV3On) {
-              groqShadowV3Promise.then((groqV3Pick) => {
-                const elapsedMs =
-                  groqShadowV3Start !== null
-                    ? Date.now() - groqShadowV3Start
-                    : null;
-                emitShadowCompare(
-                  "groq",
-                  "llama-3.1-8b-instant",
-                  groqV3Pick,
-                  elapsedMs
-                );
-              });
-            }
 
             if (cerebrasShadowV3On) {
               cerebrasShadowV3Promise.then((cerebrasV3Pick) => {
