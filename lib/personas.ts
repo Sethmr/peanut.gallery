@@ -34,9 +34,10 @@ export interface Persona {
    * means adding an alias here AND a branch in `firePersona`.
    *
    * Groq was in this union pre-v1.4 (`groq-llama-70b`, `groq-llama-8b`) but
-   * was removed when every persona moved to Claude Haiku or xAI Grok. If we
-   * ever re-add it, revive the aliases here AND the branch in `firePersona`
-   * AND the `groq-sdk` dep in package.json.
+   * was removed when every persona moved to Claude Haiku or xAI Grok. The
+   * `groq-sdk` dependency was also retired (2026-06-03). If we ever re-add
+   * it, revive the aliases here AND the branch in `firePersona` AND add
+   * `groq-sdk` back to package.json.
    */
   model: "claude-haiku" | "xai-grok-4-fast";
   systemPrompt: string;
