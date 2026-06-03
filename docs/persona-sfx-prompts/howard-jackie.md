@@ -1,4 +1,4 @@
-# ElevenLabs SFX prompt — Jackie "The Joke Man" Martling
+# ElevenLabs SFX prompt — The Joke Writer "The Joke Man" The Joke Writer
 
 **Duration:** 0.9s
 **Prompt influence:** 65

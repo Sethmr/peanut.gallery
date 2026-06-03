@@ -24,7 +24,7 @@ Captured live from Google Analytics via Chrome MCP. Account: `ai@manugames.com`.
 | India | 1 |
 | South Korea | 1 |
 
-US dominates (67%) — expected for a TWiST-audience product. International reach is non-trivial for a site that's been live <1 week.
+US dominates (67%) — expected for a Startup Roundtable-audience product. International reach is non-trivial for a site that's been live <1 week.
 
 ## Sessions by channel
 
@@ -49,7 +49,7 @@ US dominates (67%) — expected for a TWiST-audience product. International reac
 
 The `/watch` page (old title: "AI Podcast Sidebar") is pulling **23× more views than the new homepage** (`/`). That's massive. Possible causes:
 
-1. Old social links (Twitter/TWiST mentions) pointing at `/watch`, not `/`.
+1. Old social links (Twitter/Startup Roundtable mentions) pointing at `/watch`, not `/`.
 2. `/watch` was the live demo during the bounty announcement and those links are still circulating.
 3. Direct URL typed-in traffic from people who only know the old URL.
 4. Internal linking: from `/` to `/watch` is driving second-page views on every session.
@@ -80,7 +80,7 @@ These are ~20-line changes to `app/watch/page.tsx` metadata + one CTA component.
 1. **[PRIORITY 1] Fix the /watch funnel.** Propose minimal metadata + CTA change to `app/watch/page.tsx`. Diff-preview first, ship after Seth approval.
 2. **[PRIORITY 2] Identify which 14 clicks are converting.** Drill into GA Events → `click` → breakdown by `link_url`. Feeds next session.
 3. **[PRIORITY 3] Track install CTR as a Key Event.** Only 3 "key events" counted across 7 days. GA4 requires explicit Key Event configuration; we should mark the install button click as a Key Event so the 14 clicks start counting toward a conversion funnel.
-4. **[PRIORITY 4] Find the Twitter/TWiST links pointing to /watch.** Google `site:twitter.com peanutgallery.live/watch` and `site:thisweekinstartups.com peanutgallery.live` to trace the 21 organic-social sessions. If any high-profile link exists, see if we can get it updated to point at `/` instead — preserves SEO equity on the canonical URL.
+4. **[PRIORITY 4] Find the Twitter/Startup Roundtable links pointing to /watch.** Google `site:twitter.com peanutgallery.live/watch` and `site:thisweekinstartups.com peanutgallery.live` to trace the 21 organic-social sessions. If any high-profile link exists, see if we can get it updated to point at `/` instead — preserves SEO equity on the canonical URL.
 
 ## Next-measurement checkpoints
 

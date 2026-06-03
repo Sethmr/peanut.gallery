@@ -14,14 +14,14 @@ For each of the 8 personas, we need enough in-voice content to pattern-match ver
 
 | Pack | Persona | What to grab | Why |
 |---|---|---|---|
-| Howard | Baba Booey (Gary Dell'Abate) | His own podcast ("Baba Booey's Book Report"), public interview appearances, clips from official Stern YouTube channel | Need solo content to separate his voice from Howard's banter |
-| Howard | The Troll (composite) | Artie Lange's "Halfway House" podcast, Artie on Joe Rogan / Jim Norton / Colin Quinn, Stern-caller compilations | This slot is a composite — Artie + great callers are the strongest data |
-| Howard | Fred Norris | Rare — "Fred Norris classic" compilations on YouTube, any podcast appearance he's done, Howard's interviews with Fred | Fred speaks little; we need every public line we can get |
-| Howard | Jackie Martling | "The Jackie Martling Joke Hunt" podcast (still running), stand-up album clips on YouTube, "Stump the Comedian" compilations | Jackie has been publicly active for 30 years — tons of solo content |
-| TWiST | Molly Wood | NPR Marketplace Tech archive (free transcripts), her "Molly Wood Reports" newsletter, TWiST episodes | Marketplace archive is pre-transcribed gold; skip paying for it |
-| TWiST | Jason Calacanis | TWiST main channel, All-In Podcast (he's a co-host), his book "ANGEL" as a voice reference | All YouTube; pick 20 recent episodes of each |
-| TWiST | Lon Harris | TWiST episodes (he's there most weeks), his Substack writing | Paste Substack posts as a writing-voice reference alongside the audio |
-| TWiST | Alex Wilhelm | TWiST + Fortune Term Sheet archive + Mostly Metrics podcast appearances | Alex has a distinct data-comedy voice; isolated solo content is best |
+| the morning-radio host | The Producer (The Producer) | His own podcast ("The Producer's Book Report"), public interview appearances, clips from official the morning-radio host YouTube channel | Need solo content to separate his voice from the morning-radio host's banter |
+| the morning-radio host | The Troll (composite) | Artie Lange's "Halfway House" podcast, Artie on Joe Rogan / Jim Norton / Colin Quinn, the morning-radio host-caller compilations | This slot is a composite — Artie + great callers are the strongest data |
+| the morning-radio host | The Sound Guy | Rare — "The Sound Guy classic" compilations on YouTube, any podcast appearance he's done, the morning-radio host's interviews with The Sound Guy | The Sound Guy speaks little; we need every public line we can get |
+| the morning-radio host | The Joke Writer | "the Joke Writer Joke Hunt" podcast (still running), stand-up album clips on YouTube, "Stump the Comedian" compilations | The Joke Writer has been publicly active for 30 years — tons of solo content |
+| Startup Roundtable | The Correspondent | NPR Marketplace Tech archive (free transcripts), her "The Correspondent Reports" newsletter, Startup Roundtable episodes | Marketplace archive is pre-transcribed gold; skip paying for it |
+| Startup Roundtable | The Host | Startup Roundtable main channel, All-In Podcast (he's a co-host), his book "ANGEL" as a voice reference | All YouTube; pick 20 recent episodes of each |
+| Startup Roundtable | The Reframer | Startup Roundtable episodes (he's there most weeks), his Substack writing | Paste Substack posts as a writing-voice reference alongside the audio |
+| Startup Roundtable | The Quant | Startup Roundtable + Fortune Term Sheet archive + Mostly Metrics podcast appearances | The Quant has a distinct data-comedy voice; isolated solo content is best |
 
 ---
 
@@ -76,7 +76,7 @@ This is the trick that keeps you under $20:
 | **2. Local whisper** | whisper.cpp or `whisper` CLI on downloaded audio | **$0** (CPU/GPU time) | When auto-captions on a clip are garbage (noisy audio, heavy accents, music beds). |
 | **3. OpenAI Whisper API** | `https://api.openai.com/v1/audio/transcriptions` | $0.006/min | Last resort for critical clips where local whisper isn't accurate enough. Budget ~$10 of API credit = 27 hours of fallback transcription. |
 
-Deepgram Nova-3 is also an option (~$0.004/min via PG's existing backend) and has diarization built in — good if you have TWiST episodes where you want automatic speaker splitting. But you don't need it for the bulk: Claude can speaker-split from raw text by verbal fingerprint, since you're only tagging one speaker at a time anyway.
+Deepgram Nova-3 is also an option (~$0.004/min via PG's existing backend) and has diarization built in — good if you have Startup Roundtable episodes where you want automatic speaker splitting. But you don't need it for the bulk: Claude can speaker-split from raw text by verbal fingerprint, since you're only tagging one speaker at a time anyway.
 
 ---
 
@@ -84,9 +84,9 @@ Deepgram Nova-3 is also an option (~$0.004/min via PG's existing backend) and ha
 
 YouTube auto-captions don't tell you who's speaking. Here's how to handle that without paying for diarization:
 
-1. **Solo sources first** — prioritize content where one of the 8 personas is the only speaker. Marketplace Tech (Molly only), "The Jackie Martling Joke Hunt" (Jackie + one guest), "Baba Booey's Book Report" (Baba + one guest), Jason's solo monologues on TWiST. Goal: 5+ hours of solo per persona. That's enough for voice-pattern extraction.
+1. **Solo sources first** — prioritize content where one of the 8 personas is the only speaker. Marketplace Tech (The Correspondent only), "the Joke Writer Joke Hunt" (The Joke Writer + one guest), "The Producer's Book Report" (The Producer + one guest), The Host's solo monologues on Startup Roundtable. Goal: 5+ hours of solo per persona. That's enough for voice-pattern extraction.
 2. **Duo interviews** — one persona + one non-persona interviewer. Easy: the persona is almost every other paragraph. Claude can split these from context in seconds.
-3. **Group shows** (TWiST with all 4, All-In with all 4) — these are the multi-speaker hard case. Either:
+3. **Group shows** (Startup Roundtable with all 4, All-In with all 4) — these are the multi-speaker hard case. Either:
    - Skip them for phase 1 (plenty of solo content exists)
    - Or use Deepgram's diarization through the existing PG pipeline (budget ~$5 for 20 hours of group content)
 
@@ -94,14 +94,14 @@ Per-persona target: **5–10 hours of clearly-attributable speech** is plenty. Q
 
 ---
 
-## Bulk download recipe — TWiST (free, ~40 hours of content)
+## Bulk download recipe — Startup Roundtable (free, ~40 hours of content)
 
-TWiST uploads most episodes to YouTube. Auto-captions are excellent because studio audio.
+Startup Roundtable uploads most episodes to YouTube. Auto-captions are excellent because studio audio.
 
 ### Grab the last 50 episode IDs into a list
 
 ```bash
-# TWiST main channel uploads playlist
+# Startup Roundtable main channel uploads playlist
 YT_CHANNEL_URL="https://www.youtube.com/@ThisWeekInStartups/videos"
 
 # List the last 50 uploads (IDs + titles)
@@ -153,7 +153,7 @@ ls *.txt | head -5
 ```bash
 # Template for each source (run once per source):
 {
-  echo "- **TWiST E2278** — https://youtube.com/watch?v=xFJceTJrbWo — 2026-02-14 — 4 speakers — auto-captions tier-1"
+  echo "- **Startup Roundtable E2278** — https://youtube.com/watch?v=xFJceTJrbWo — 2026-02-14 — 4 speakers — auto-captions tier-1"
 } >> /Users/seth/Projects/Seth/peanut.gallery/chrome-extension/docs/persona-research/INDEX.md
 ```
 
@@ -163,21 +163,21 @@ ls *.txt | head -5
 
 For each persona, grab 3–5 solo pieces. Examples below — swap URLs for whatever YouTube surfaces today.
 
-### Molly Wood — NPR Marketplace Tech (free, already transcribed)
+### The Correspondent — NPR Marketplace Tech (free, already transcribed)
 
 Marketplace publishes transcripts on their site. No download needed:
 
 ```bash
 # Visit: https://www.marketplace.org/shows/marketplace-tech/
-# For each episode with Molly as host, right-click "Transcript" → save as HTML,
+# For each episode with The Correspondent as host, right-click "Transcript" → save as HTML,
 # or copy-paste the transcript text directly into a .txt file.
-# ~50 episodes exist from Molly's era; grab 20.
+# ~50 episodes exist from The Correspondent's era; grab 20.
 
 # Save as:
 docs/persona-research/transcripts/twist/producer/marketplace-tech_2023-03-15.txt
 ```
 
-### Jason Calacanis — All-In Podcast + solo TWiST monologues
+### The Host — All-In Podcast + solo Startup Roundtable monologues
 
 ```bash
 ALLIN_CHANNEL="https://www.youtube.com/@allin/videos"
@@ -193,11 +193,11 @@ yt-dlp \
 
 Then same `.vtt → .txt` cleanup as above.
 
-### Jackie Martling — "The Jackie Martling Joke Hunt"
+### The Joke Writer — "the Joke Writer Joke Hunt"
 
 ```bash
-# Jackie's podcast channel — find current URL by searching YouTube for
-# "Jackie Martling Joke Hunt"
+# The Joke Writer's podcast channel — find current URL by searching YouTube for
+# "The Joke Writer Joke Hunt"
 JACKIE_URL="<paste-playlist-url-here>"
 yt-dlp --skip-download --write-auto-subs --sub-langs en --sub-format vtt \
   --playlist-end 10 \
@@ -205,23 +205,23 @@ yt-dlp --skip-download --write-auto-subs --sub-langs en --sub-format vtt \
   "$JACKIE_URL"
 ```
 
-### Baba Booey — "Baba Booey's Book Report"
+### The Producer — "The Producer's Book Report"
 
 Search YouTube for the current playlist URL. 20+ episodes available. Same command pattern.
 
-### Fred Norris — compilations
+### The Sound Guy — compilations
 
-Fred's solo content is rare. Search YouTube for "Fred Norris compilation" or "Fred Norris best of" — grab 5 clips totaling ~1 hour. Auto-captions are fine.
+The Sound Guy's solo content is rare. Search YouTube for "The Sound Guy compilation" or "The Sound Guy best of" — grab 5 clips totaling ~1 hour. Auto-captions are fine.
 
 ### Artie Lange (Troll proxy)
 
 "Artie Lange's Halfway House" and Artie's guest spots on Joe Rogan / Jim Norton / Colin Quinn Tell Me a Story are all public YouTube. Easy 10 hours.
 
-### Alex Wilhelm — Mostly Metrics + TechCrunch Equity archive
+### The Quant — Mostly Metrics + TechCrunch Equity archive
 
 Equity Podcast archived at TechCrunch (free). Mostly Metrics on YouTube. Target: 5 hours solo.
 
-### Lon Harris — his Substack (writing, not audio)
+### The Reframer — his Substack (writing, not audio)
 
 Copy-paste his Substack posts as `.txt` files into `docs/persona-research/transcripts/twist/soundfx/`. Writing voice counts for Phase 2 even without audio. Target: 10+ posts.
 
@@ -315,15 +315,15 @@ Then Phase 3 (prompt rewrite) uses those reports as the source of truth for new 
 
 | Line | Cost | Notes |
 |---|---|---|
-| yt-dlp + auto-captions for 50 TWiST episodes | $0.00 | |
+| yt-dlp + auto-captions for 50 Startup Roundtable episodes | $0.00 | |
 | yt-dlp + auto-captions for 20 All-In episodes | $0.00 | |
-| yt-dlp + auto-captions for 10 Jackie episodes | $0.00 | |
-| yt-dlp + auto-captions for 10 Baba episodes | $0.00 | |
+| yt-dlp + auto-captions for 10 The Joke Writer episodes | $0.00 | |
+| yt-dlp + auto-captions for 10 The Producer episodes | $0.00 | |
 | yt-dlp + auto-captions for 10 Artie episodes | $0.00 | |
-| yt-dlp + auto-captions for 5 Fred clips | $0.00 | |
-| yt-dlp + auto-captions for 10 Alex clips | $0.00 | |
-| Marketplace Tech archive (Molly) | $0.00 | pre-transcribed, free |
-| Substack copy-paste (Lon) | $0.00 | |
+| yt-dlp + auto-captions for 5 The Sound Guy clips | $0.00 | |
+| yt-dlp + auto-captions for 10 The Quant clips | $0.00 | |
+| Marketplace Tech archive (The Correspondent) | $0.00 | pre-transcribed, free |
+| Substack copy-paste (The Reframer) | $0.00 | |
 | Whisper API fallback (budget $10, probably spend <$5) | ~$5.00 | |
 | **Total** | **~$5** | Well under the $20 preferred ceiling |
 
@@ -350,7 +350,7 @@ You can repeat steps 2–5 indefinitely on Claude time. The $10–20 of Whisper 
 - All sources listed are public YouTube content, public podcast feeds, or public newsletters.
 - Transcripts are used to *study* voice patterns; the outputs are `systemPrompt` blocks describing voice in general terms + 3–5 paraphrased few-shot examples per persona. No verbatim quotes > 20 words.
 - Do NOT commit raw audio files to git. `docs/persona-research/raw-audio/` should be `.gitignore`d.
-- Do NOT commit transcripts of paywalled content (SiriusXM live Stern Show). Only the publicly-posted clips on the official Stern YouTube channel are fair game.
+- Do NOT commit transcripts of paywalled content (SiriusXM live the morning-radio host Show). Only the publicly-posted clips on the official the morning-radio host YouTube channel are fair game.
 - When citing patterns in voice reports, always include source URL + timestamp. If a pattern can only be cited from one source, drop it — not enough signal to generalize.
 
 ---

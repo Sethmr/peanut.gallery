@@ -61,8 +61,8 @@ These fire every time a persona tries to pass on a user-initiated tap. They shou
 - [ ] \`npm run check\` green.
 
 ## Voice references
-- \`lib/packs/howard/personas.ts\` — Baba Booey (producer), The Troll, Fred (soundfx), Jackie (joker).
-- \`lib/packs/twist/personas.ts\` — Molly Wood (producer), Jason (troll), Lon (soundfx), Alex (joker).
+- \`lib/packs/howard/personas.ts\` — The Producer (producer), The Troll, The Sound Guy (soundfx), The Joke Writer (joker).
+- \`lib/packs/twist/personas.ts\` — The Correspondent (producer), The Host (troll), The Reframer (soundfx), The Quant (joker).
 
 ## Files
 - \`lib/persona-engine.ts\` — \`FORCE_REACT_FALLBACKS\` table
@@ -83,7 +83,7 @@ The repo has no issue templates and no CONTRIBUTING.md. New contributors have no
 
 ## What
 - [ ] Create \`.github/ISSUE_TEMPLATE/config.yml\` with \`blank_issues_enabled: false\` and a link to discussions if we ever enable them.
-- [ ] Create \`.github/ISSUE_TEMPLATE/bug_report.yml\` (YAML form). Fields: version, browser, pack (Howard / TWiST / custom), transcript or YouTube URL (optional), steps to reproduce, expected, actual, pipeline log excerpt (optional — pointer to \`docs/DEBUGGING.md\`).
+- [ ] Create \`.github/ISSUE_TEMPLATE/bug_report.yml\` (YAML form). Fields: version, browser, pack (the morning-radio host / Startup Roundtable / custom), transcript or YouTube URL (optional), steps to reproduce, expected, actual, pipeline log excerpt (optional — pointer to \`docs/DEBUGGING.md\`).
 - [ ] Create \`.github/ISSUE_TEMPLATE/feature_request.yml\`. Fields: problem (not solution), who benefits, acceptance criteria, roadmap alignment (link to \`docs/ROADMAP.md\`).
 - [ ] Create \`.github/ISSUE_TEMPLATE/persona_pack.yml\` for new-pack proposals. Fields: show / universe, 4 personas (name + archetype + 1-line personality), sample transcript to test against.
 - [ ] Create \`CONTRIBUTING.md\` in the repo root. Should cover: local dev setup (pointer to \`docs/SELF-HOST-INSTALL.md\`), \`npm run check\` gate, pack-authoring pointer (\`docs/ROADMAP.md\` + \`lib/packs/twist/personas.ts\` as reference), commit message style (look at recent \`git log\`), where to put screenshots in issues.
@@ -108,9 +108,9 @@ gh issue create --repo "$REPO" \
   --label "help wanted,content" \
   --body "$(cat <<'EOF'
 ## Why
-Peanut Gallery ships with two packs today: Howard Stern and TWiST. Each pack tunes the product for a specific show's audience at roughly the cost of four persona prompts. Packs are the most asymmetric distribution lever Peanut Gallery has — a well-done pack for a show whose audience we can reach is worth a 10×-more-expensive engineering project.
+Peanut Gallery ships with two packs today: the morning-radio host and Startup Roundtable. Each pack tunes the product for a specific show's audience at roughly the cost of four persona prompts. Packs are the most asymmetric distribution lever Peanut Gallery has — a well-done pack for a show whose audience we can reach is worth a 10×-more-expensive engineering project.
 
-The \`docs/ROADMAP.md\` v1.7 entry lists day-one pack targets: **All-In** (Chamath, Jason, Friedberg, Sacks), **Acquired** (Ben + David + 2 research-assistant archetypes), **Lex Fridman** (Lex + 3 thematic companions). You can also propose a pack for any show you love — gaming streams, sports podcasts, cooking shows, whatever — as long as the 4-archetype slot system fits.
+The \`docs/ROADMAP.md\` v1.7 entry lists day-one pack targets: **All-In** (Chamath, The Host, Friedberg, Sacks), **Acquired** (Ben + David + 2 research-assistant archetypes), **Lex Fridman** (Lex + 3 thematic companions). You can also propose a pack for any show you love — gaming streams, sports podcasts, cooking shows, whatever — as long as the 4-archetype slot system fits.
 
 ## What
 - [ ] Pick a show / universe you know well. Verify it has ≥ 2 recurring hosts (or ≥ 1 host plus clear thematic archetypes that can pad to 4).
@@ -190,7 +190,7 @@ gh issue create --repo "$REPO" \
 The director routing suite is 17 fixtures × 50 runs = 850 regression checks per \`npm run test:director\`. Every new fixture is a regression guard against a real-world edge case. The cheapest way to make Smart Director v2 trustworthy is more fixtures covering more transcript shapes.
 
 ## What
-Pick a real YouTube episode of a podcast the project supports (Howard / TWiST for now; any pack from issue #3 once merged). For a 30–60 s chunk where you have an opinion about which persona *should* fire:
+Pick a real YouTube episode of a podcast the project supports (the morning-radio host / Startup Roundtable for now; any pack from issue #3 once merged). For a 30–60 s chunk where you have an opinion about which persona *should* fire:
 
 - [ ] Transcribe the chunk (yt-dlp + whisper, or copy the YouTube auto-captions, or listen + type).
 - [ ] Create \`scripts/fixtures/director/<descriptive-name>.json\` following the schema in the existing fixtures.
@@ -232,7 +232,7 @@ The Chrome extension side panel (\`extension/sidepanel.html\` + \`extension/side
 - [ ] Run axe DevTools (or equivalent) against the side panel in a Chrome session with the extension loaded against localhost:3000.
 - [ ] Capture the full failure list in a comment on this issue (violation id, element, severity, suggested fix).
 - [ ] Open a PR that fixes the high-severity failures first: semantic landmarks, keyboard focus traps, ARIA labels on the persona cards, \`aria-live=\"polite\"\` on the reactions feed.
-- [ ] Verify visible focus states exist on every interactive element in both Howard (dark) and TWiST (dark) packs.
+- [ ] Verify visible focus states exist on every interactive element in both the morning-radio host (dark) and Startup Roundtable (dark) packs.
 - [ ] Confirm color contrast ≥ 4.5:1 for body text and ≥ 3:1 for large text, across both packs' palettes.
 - [ ] Verify the force-react tap surface works with keyboard (Space/Enter) and is announced to screen readers.
 
@@ -276,7 +276,7 @@ This is a pure visualization / UX task. All the data already exists in telemetry
 
 ## Acceptance
 - [ ] Cost meter shows within ±10% of the real provider-reported cost for the same session.
-- [ ] Works across both packs (Howard and TWiST have different Anthropic/Grok mixes).
+- [ ] Works across both packs (the morning-radio host and Startup Roundtable have different Anthropic/Grok mixes).
 - [ ] Cap warning fires but does NOT stop the session unless the user explicitly opts in to a hard stop.
 - [ ] No secrets leaked (prices come from a static table, not from API calls that would expose rate-card).
 - [ ] \`npm run check\` green.

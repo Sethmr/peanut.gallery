@@ -22,8 +22,8 @@
  * Phase 2 (SET-25) rewires this module to delegate to the pluggable
  * {@link lib/subscription-store.SubscriptionStore SubscriptionStore}
  * singleton rather than its own process-local maps, but the callers
- * in `/api/transcribe`, `/api/subscription/status`, and
- * `/api/subscription/checkout` see the exact same behavior.
+ * in `/api/transcribe` and `/api/subscription/status` see the exact
+ * same behavior.
  *
  * STORAGE MODE SELECTION
  * ──────────────────────
@@ -263,7 +263,7 @@ export function subscriptionDeniedBody(status: SubscriptionStatus): {
   if (status.error === "INVALID_KEY") {
     return {
       error:
-        "Subscription key not recognized. Check you pasted the whole key from your email, or request a new key via Manage subscription.",
+        "Subscription key not recognized. Double-check you pasted the whole key, or contact support for a new one.",
       code: "SUBSCRIPTION_INVALID_KEY",
       weeklyCapHours: status.weeklyCapHours,
       retryAfterMs: 0,
@@ -287,7 +287,7 @@ export function subscriptionDeniedBody(status: SubscriptionStatus): {
 
 /**
  * Look up the most recent subscription record for an email address.
- * Used by `/api/subscription/manage` for recover-key and cancel flows.
+ * Available for admin / programmatic lookups by subscriber email.
  */
 export function findSubscriptionByEmail(
   email: string
@@ -297,12 +297,10 @@ export function findSubscriptionByEmail(
 }
 
 /**
- * Back-compat alias for the SET-27 email-flow code that expected a
- * `findActiveKeyByEmail(email): string | null` signature. Returns
- * the license key string if an active subscription exists for this
- * email; null if the email is unknown or the subscription has been
- * revoked / cancelled. The newer {@link findSubscriptionByEmail}
- * returns the full record.
+ * Convenience lookup: returns the license-key string for the active
+ * subscription on file for this email, or null if the email is unknown
+ * or its subscription has been revoked / cancelled. The related
+ * {@link findSubscriptionByEmail} returns the full record.
  */
 export function findActiveKeyByEmail(email: string): string | null {
   const rec = findSubscriptionByEmail(email);
@@ -312,8 +310,8 @@ export function findActiveKeyByEmail(email: string): string | null {
 }
 
 /**
- * Mark a subscription revoked. Called by the Stripe webhook on
- * `customer.subscription.deleted` and by the admin CLI.
+ * Mark a subscription revoked (admin / programmatic use). Flips the
+ * stored status to `revoked` and stamps `cancelledAt`.
  */
 export function revokeSubscription(licenseKey: string): void {
   if (!ENABLED) return;

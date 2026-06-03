@@ -1,4 +1,4 @@
-# ElevenLabs SFX prompt — The Troll (Howard Stern provocateur)
+# ElevenLabs SFX prompt — The Troll (the morning-radio host provocateur)
 
 **Duration:** 0.8s
 **Prompt influence:** 65

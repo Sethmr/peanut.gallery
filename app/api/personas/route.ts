@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   }
 
   // resolvePack() never throws — unknown / missing / empty packId falls back
-  // to Howard (see lib/packs/index.ts). Safe to call with any user input.
+  // to the morning-radio host (see lib/packs/index.ts). Safe to call with any user input.
   const resolvedPack = resolvePack(packId);
 
   const engine = new PersonaEngine({

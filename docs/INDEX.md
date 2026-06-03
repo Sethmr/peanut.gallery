@@ -19,7 +19,7 @@ Map of every markdown file in the repo, ordered by when you should read it.
 2.2. [`docs/SESSION-NOTES-2026-04-20-autonomous-pass.md`](SESSION-NOTES-2026-04-20-autonomous-pass.md) — 2026-04-20 autonomous pass; six merged PRs (SEO refresh, `/watch` retirement, logging, a11y, orphan dep, session notes).
 2.3. [`docs/SESSION-NOTES-2026-04-20-director-v3-deep-build.md`](SESSION-NOTES-2026-04-20-director-v3-deep-build.md) — the initial v3 Director deep-build pass; lands `director-v3-silent-slot-2026-04-20` branch (SILENT slot + tool_use + confidence + callback memory). That branch was superseded by PR #68 on 2026-04-21; keep for design rationale + open-questions context.
 2.4. [`docs/SESSION-NOTES-2026-04-18.md`](SESSION-NOTES-2026-04-18.md) — post-v1.3.0 force-react / persona-tap debugging. **Read §1 "meta-note" before touching code** — two files on the working tree are modified but unverified-in-production; §5 is the localhost verification checklist to run first. §4 captures Seth's load-bearing principles (model decides *how* not *if*).
-2.5. [`docs/SESSION-NOTES-2026-04-18-seo-push.md`](SESSION-NOTES-2026-04-18-seo-push.md) — paired with the handoff above, covers the same day's SEO / marketing / UI-redesign work. Claude Design brief, CWS baseline audits, Jason-calibrated landing-page palette shift, and the standing manual-queue Seth still needs to work through. Seth's "hard rules" section near the bottom calls out load-bearing constraints (`/watch` is legacy, server-side demo keys immutable, etc.).
+2.5. [`docs/SESSION-NOTES-2026-04-18-seo-push.md`](SESSION-NOTES-2026-04-18-seo-push.md) — paired with the handoff above, covers the same day's SEO / marketing / UI-redesign work. Claude Design brief, CWS baseline audits, The Host-calibrated landing-page palette shift, and the standing manual-queue Seth still needs to work through. Seth's "hard rules" section near the bottom calls out load-bearing constraints (`/watch` is legacy, server-side demo keys immutable, etc.).
 3. [`docs/SESSION-NOTES-2026-04-17.md`](SESSION-NOTES-2026-04-17.md) — prior handoff. v1.1.1 shipped. §3 is the **immutable** server-side demo-keys architecture — do not re-embed keys in the extension. §5 is the finish-strong checklist. §6 points at `ROADMAP.md`.
 4. [`docs/SESSION-NOTES-2026-04-16.md`](SESSION-NOTES-2026-04-16.md) — earlier handoff. §3 is the **immutable** permissions/gesture setup for the Chrome extension — read it before editing `extension/`.
 5. [`docs/DEBUGGING.md`](DEBUGGING.md) — canonical post-mortem log (ISSUE-001..010), v1.4 pipeline-event names, provider-specific error signatures. Diagnostic checklist + silent-failure table. Read before chasing any pipeline bug. Newest: ISSUE-010 (sidepanel TDZ → nothing tappable when a new top-level block forward-references `const` DOM refs).
@@ -29,7 +29,7 @@ Map of every markdown file in the repo, ordered by when you should read it.
 ## Architecture & operations
 
 - [`docs/SERVER-SIDE-DEMO-KEYS.md`](SERVER-SIDE-DEMO-KEYS.md) — how the backend covers demo users via env-var fallback, and why the extension ships with zero keys. Read before any change to the extension's key-handling code.
-- [`docs/OPS.md`](OPS.md) — key rotation runbook, provider dashboards, cap locations, post-TWiST checklist.
+- [`docs/OPS.md`](OPS.md) — key rotation runbook, provider dashboards, cap locations, post-Startup Roundtable checklist.
 - [`docs/AI-GIT-PROTOCOL.md`](AI-GIT-PROTOCOL.md) — **read before any git write.** Prevention rules + one-shot escalation when `.git/index.lock` appears. Source of truth for the hard "no third method" rule. Supersedes all earlier ad-hoc guidance.
 - [`docs/LINEAR-AGENT-RUBRIC.md`](LINEAR-AGENT-RUBRIC.md) — Linear → Claude kickoff pipeline (local-daemon-only as of 2026-04-20; the earlier webhook path is retired): Linear Todo transition → [`scripts/linear-daemon.ts`](../scripts/linear-daemon.ts) → worktree → PR → auto-merge (or `needs-review` opt-out). Claude's authority scope, commit style, and pre-merge gate for Linear-triggered work. Setup in [`GITHUB-MANUAL-STEPS.md § 18`](GITHUB-MANUAL-STEPS.md).
 - [`docs/BUILD-YOUR-OWN-BACKEND.md`](BUILD-YOUR-OWN-BACKEND.md) — contract for anyone running an alternative backend.
@@ -39,10 +39,10 @@ Map of every markdown file in the repo, ordered by when you should read it.
 
 - [`extension/README.md`](../extension/README.md) — Chrome extension: install, architecture diagram, why it exists.
 - [`README.md`](../README.md) — public-facing README. Setup, personas overview, cost, deploy.
-- [`AUTHORS.md`](../AUTHORS.md) — credits ledger: Seth, Jason + Lon, Claude Design, OSS deps.
+- [`AUTHORS.md`](../AUTHORS.md) — credits ledger: Seth, The Host + The Reframer, Claude Design, OSS deps.
 - [`docs/index.html`](index.html) — legacy reference landing page kept in-repo for the self-host preview only. Production marketing now lives at [www.peanutgallery.live](https://www.peanutgallery.live) and is served from the [`Sethmr/peanut.gallery.site`](https://github.com/Sethmr/peanut.gallery.site) repo (GitHub Pages).
 - [`docs/PODCASTER-SETUP.md`](PODCASTER-SETUP.md) — audio routing guide for OBS, Riverside, SquadCast, BlackHole/Loopback, VB-Audio, RODECaster, GoXLR, Wave XLR. Pairs with the Audio Routing section of the side panel.
-- [`docs/packs/twist/RESEARCH.md`](packs/twist/RESEARCH.md) — character research for the TWiST pack (Molly Wood, Jason Calacanis, Lon Harris, Alex Wilhelm). Source of truth when a TWiST voice feels off; paired with `lib/packs/twist/personas.ts`.
+- [`docs/packs/twist/RESEARCH.md`](packs/twist/RESEARCH.md) — character research for the Startup Roundtable pack (The Correspondent, The Host, The Reframer, The Quant). Source of truth when a Startup Roundtable voice feels off; paired with `lib/packs/twist/personas.ts`.
 
 ## In progress
 
@@ -66,9 +66,9 @@ Written-for-the-file PR reviews. Local only (not posted on GitHub) — intended 
 ## Archived (do not trust as source of truth)
 
 - [`docs/V1.2-PLAN.md`](V1.2-PLAN.md) — step-by-step implementation plan for v1.2.0. Shipped; kept for history.
-- [`docs/V1.3-PLAN.md`](V1.3-PLAN.md) — step-by-step implementation plan for v1.3.0 (TWiST pack). Shipped; kept for history.
+- [`docs/V1.3-PLAN.md`](V1.3-PLAN.md) — step-by-step implementation plan for v1.3.0 (Startup Roundtable pack). Shipped; kept for history.
 - [`docs/TEST-V1.1.md`](TEST-V1.1.md) — end-to-end test checklist used before the v1.1 Railway deploy + CWS publish. Shipped; kept for history.
-- [`TWIST-AI-SIDEBAR-BUILD-PLAN.md`](../TWIST-AI-SIDEBAR-BUILD-PLAN.md) — original pre-build plan from 2026-04-15. References "Chaos Agent" (now Fred Norris), Vercel (now Railway), `twist-sidebar` (now `peanut.gallery`), and `-f wav` (fixed to `-f s16le`). Kept for history; superseded by CONTEXT.md.
+- [`TWIST-AI-SIDEBAR-BUILD-PLAN.md`](../TWIST-AI-SIDEBAR-BUILD-PLAN.md) — original pre-build plan from 2026-04-15. References "Chaos Agent" (now The Sound Guy), Vercel (now Railway), `twist-sidebar` (now `peanut.gallery`), and `-f wav` (fixed to `-f s16le`). Kept for history; superseded by CONTEXT.md.
 
 ## Community & governance
 
@@ -94,8 +94,8 @@ To avoid the duplication that prompted this audit, each topic has ONE canonical 
 | Branch model + release flow + Claude's self-merge contract | [`RELEASE.md`](RELEASE.md) + [`../.claude/settings.json`](../.claude/settings.json) |
 | Dependabot PR triage rubric (bot-Claude playbook) | [`BOT-TRIAGE-RUBRIC.md`](BOT-TRIAGE-RUBRIC.md) + [`../.github/workflows/claude-triage.yml`](../.github/workflows/claude-triage.yml) |
 | AI-instruction file protection (who can edit what) | [`AI-INSTRUCTIONS-POLICY.md`](AI-INSTRUCTIONS-POLICY.md) + [`../.github/workflows/protect-ai-instructions.yml`](../.github/workflows/protect-ai-instructions.yml) + [`../.github/CODEOWNERS`](../.github/CODEOWNERS) |
-| "What Jason wants" spec | [`CONTEXT.md` — What Jason Wants](CONTEXT.md#what-jason-wants-master-truth) |
-| Persona list + character research | `lib/packs/<pack>/personas.ts` (code) + [`CONTEXT.md` — The 4 Archetype Slots](CONTEXT.md#the-4-archetype-slots-swappable-via-persona-packs) (table). TWiST-specific voice notes: [`docs/packs/twist/RESEARCH.md`](packs/twist/RESEARCH.md). |
+| "What The Host wants" spec | [`CONTEXT.md` — What The Host Wants](CONTEXT.md#what-jason-wants-master-truth) |
+| Persona list + character research | `lib/packs/<pack>/personas.ts` (code) + [`CONTEXT.md` — The 4 Archetype Slots](CONTEXT.md#the-4-archetype-slots-swappable-via-persona-packs) (table). Startup Roundtable-specific voice notes: [`docs/packs/twist/RESEARCH.md`](packs/twist/RESEARCH.md). |
 | **Pack authoring + producer contract** | [`PACK-AUTHORING-GUIDE.md`](PACK-AUTHORING-GUIDE.md) — living doc. Archetype slots, `Persona` type fields, producer correction-tier system, `factCheckMode` dial, pack registration, refinement loop. |
 | **Persona voice-data collection** | [`PERSONA-REFINEMENT-PLAN.md`](PERSONA-REFINEMENT-PLAN.md) (strategy) + [`PERSONA-DATA-ACQUISITION-GUIDE.md`](PERSONA-DATA-ACQUISITION-GUIDE.md) (copy-paste operator guide, under $20 budget, public sources only). |
 | **Peanut Gallery Plus subscription** | [`SUBSCRIPTION-ARCHITECTURE.md`](SUBSCRIPTION-ARCHITECTURE.md) — canonical architecture (modes, identity, endpoints, phases, economics). [`STRIPE-INTEGRATION.md`](STRIPE-INTEGRATION.md) — operator step-by-step for Seth's Stripe dashboard work (SET-28). [`EMAIL-INTEGRATION.md`](EMAIL-INTEGRATION.md) — operator step-by-step for Resend + DNS + the support inbox (SET-29). [`legal/TERMS-OF-SERVICE.md`](legal/TERMS-OF-SERVICE.md) + [`legal/PRIVACY-POLICY.md`](legal/PRIVACY-POLICY.md) — drafts pending lawyer review. v1.9.x. |

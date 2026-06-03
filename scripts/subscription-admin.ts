@@ -3,9 +3,8 @@
  * Admin CLI — inspect / delete Peanut Gallery Plus subscription rows.
  *
  * Sibling of `scripts/subscription-issue.ts` for the rare times when
- * an operator needs to surgically remove rows — e.g. the sandbox test
- * emails that got inserted during Stripe integration testing and now
- * 409-block the same person subscribing for real.
+ * an operator needs to surgically remove rows — e.g. stale test rows
+ * that got inserted during testing and need clearing out.
  *
  * Usage (run INSIDE the Railway container via `railway shell`, so
  * /data/subscriptions.db is actually on the volume):
@@ -16,9 +15,9 @@
  *
  * Requires `SUBSCRIPTION_DB_PATH` to be set. Opens the DB read-write
  * via better-sqlite3 directly — we bypass the SubscriptionStore
- * abstraction because deletes aren't part of the public API (rows
- * represent payment events; revoking is the normal path). This is
- * an admin escape hatch for pre-launch test data.
+ * abstraction because hard deletes aren't part of the public API
+ * (revoking is the normal path). This is an admin escape hatch for
+ * clearing test data.
  */
 
 import { existsSync } from "fs";
@@ -96,7 +95,7 @@ function main(): void {
   if (args.list) {
     const rows = db
       .prepare(
-        `SELECT license_key, email, status, stripe_sub_id, created_at
+        `SELECT license_key, email, status, created_at
          FROM subscriptions
          ORDER BY created_at DESC`,
       )
@@ -104,7 +103,6 @@ function main(): void {
         license_key: string;
         email: string;
         status: string;
-        stripe_sub_id: string | null;
         created_at: number;
       }>;
     if (rows.length === 0) {
@@ -115,8 +113,7 @@ function main(): void {
     for (const r of rows) {
       const prefix = r.license_key.slice(0, 8);
       const date = new Date(r.created_at).toISOString();
-      const stripe = r.stripe_sub_id ?? "(no-stripe)";
-      console.log(`  ${prefix}… ${r.email} [${r.status}] ${stripe} ${date}`);
+      console.log(`  ${prefix}… ${r.email} [${r.status}] ${date}`);
     }
     return;
   }

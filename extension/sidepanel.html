@@ -623,9 +623,9 @@
       color: var(--paper);
     }
 
-    /* TWiST pack swap: Lon's white egg needs a dark backdrop to pop; Alex's
+    /* Startup Roundtable pack swap: The Reframer's white egg needs a dark backdrop to pop; The Quant's
        russet potato needs a light backdrop. Scoped to the twist pack so the
-       Howard pack (Fred/Jackie) keeps its original role-based coloring. */
+       Morning Crew pack keeps its original role-based coloring. */
     .persona-bubble[data-pack-id="twist"][data-role="cue"] .persona-avatar{
       background: var(--ink);
       border-color: var(--ink);
@@ -2671,8 +2671,8 @@
                UI is the pack-chooser card grid below; clicks there drive
                this select via dispatchEvent. -->
           <select id="packSelect" style="display:none" aria-hidden="true" tabindex="-1">
-            <option value="howard" selected>Howard Stern Show</option>
-            <option value="twist">This Week in Startups</option>
+            <option value="morning-crew" selected>Morning Crew</option>
+            <option value="twist">Startup Roundtable</option>
           </select>
           <!-- Two-card pack chooser. Each card shows the pack's 4 peanut
                mascots plus name + active/tap-to-switch label. Clicking a
@@ -2682,7 +2682,7 @@
             Which four critics show up in the feed. Swap anytime — the new pack applies next time you hit <em>Start Listening</em>.
           </p>
           <p class="field-hint" style="border-top:1px dashed var(--ink-3);padding-top:10px;margin-top:10px">
-            <strong>Parody notice.</strong> The packs are <em>inspired by</em> public figures from <em>The Howard Stern Show</em> and <em>This Week in Startups</em> — unofficial fan commentary, not licensed from or endorsed by any of them. The AI is instructed to clarify if a user asks whether it's the real person. Full legal framing in the <a href="https://www.peanutgallery.live/terms/" target="_blank" rel="noopener noreferrer">Terms of Service&nbsp;&#8599;</a>.
+            <strong>Parody notice.</strong> The packs are generic archetypes — morning-radio shock-jock roles (Morning Crew) and startup-podcast roundtable roles (Startup Roundtable) — an unofficial fan homage and parody, not affiliated with, licensed from, or endorsed by any real show, host, or producer. The personas don't reproduce anyone's copyrighted material, and if you ask whether one is a real person, it'll say it's an AI parody. Full legal framing in the <a href="https://www.peanutgallery.live/terms/" target="_blank" rel="noopener noreferrer">Terms of Service&nbsp;&#8599;</a>.
           </p>
         </div>
 
@@ -2780,19 +2780,15 @@
             </div>
             <input type="text" id="subscriptionKey" class="key-input" placeholder="pg-xxxx-xxxx-xxxx" />
             <p class="field-hint">
-              Paste the code we emailed you. Lost it? <button type="button" id="recoverSubBtn" class="inline-settings-link">Email me my key</button>.
+              Paste your Peanut Gallery Plus license key.
             </p>
           </div>
           <div class="subscription-progress" id="subscriptionProgress" hidden>
             <div class="sub-progress-bar"><div class="sub-progress-fill" id="subProgressFill"></div></div>
             <div class="sub-progress-text" id="subProgressText">&mdash;</div>
           </div>
-          <div class="subscription-actions">
-            <button type="button" id="buySubBtn" class="btn small" style="flex:1">&#x271A;&nbsp; Subscribe ($8/mo · 16 h/week)</button>
-            <button type="button" id="manageSubBtn" class="btn small">Manage</button>
-          </div>
           <p class="field-hint subscription-intent">
-            Peanut Gallery Plus is an accessibility tier, not a profit center &mdash; it exists so non-technical users can reach the product without juggling API keys. Your data doesn't train anything; cancel anytime from Manage.
+            Peanut Gallery Plus is an accessibility tier, not a profit center &mdash; it exists so non-technical users can reach the product without juggling API keys. Your data doesn't train anything.
           </p>
         </div>
 

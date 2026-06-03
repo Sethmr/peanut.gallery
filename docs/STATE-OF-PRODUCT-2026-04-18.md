@@ -89,7 +89,7 @@ Ordered by severity:
 2. **Git sandbox lock rule.** `peanut.gallery` FUSE policy blocks removal of `.git/*.lock` and some `releases/*.zip` files from the sandbox. The rule is explicit: one `rm`, one `mv`, then escalate to Seth's terminal. Never a third method. Documented in `CLAUDE.md` + `docs/AI-GIT-PROTOCOL.md`; memory-indexed.
 3. **Voice latency is unmeasured.** v1.6 voice features assume p95 TTS first-byte under 800ms. Not yet proven with any provider. The v1.6 provider bake-off (step 1) is essentially a research spike disguised as a dev task; treat its outcome as load-bearing before planning the rest of v1.6.
 4. **Canary prompt brittleness.** Routing LLM could systematically favor one slot on edge cases the fixtures don't cover. Canary telemetry (`director_v2_compare`) catches that; iteration on the prompt is cheaper than re-architecture.
-5. **Pack system has two path inheritances.** Pre-v1.3 callers can `import { personas } from "@/lib/personas"` and get the Howard array. Post-v1.3 callers use `resolvePack(id).personas`. Both work today; don't add a third pattern.
+5. **Pack system has two path inheritances.** Pre-v1.3 callers can `import { personas } from "@/lib/personas"` and get the morning-radio host array. Post-v1.3 callers use `resolvePack(id).personas`. Both work today; don't add a third pattern.
 6. **Cost surprise for self-hosters with `ENABLE_SMART_DIRECTOR=true`.** Documented, not structurally mitigated. The Haiku tier is cheap (~$0.02/hour of director ticks at $0.80/M input tokens) but compounds for hours-long sessions. Worth calling out if we flip the default in v1.5.1.
 
 ---
@@ -100,7 +100,7 @@ The full sub-step breakdowns live in [`ROADMAP.md`](ROADMAP.md). Summarized here
 
 - **v1.5.1 Smart Director Polish** — turns the canary data into a calibrated default. Unlocks: a credible "our LLM routing beats rule-based" claim, backed by fixture-pinned numbers.
 - **v1.6 Voice + Clip Share** — the two biggest perception shifts Peanut Gallery could ship next. Unlocks: the "it talks back" headline + viral clip distribution of the funniest cascades. Voice recovers the Dmooji text-only differentiation gap. Clips turn every session into potential distribution.
-- **v1.7 Pack Lab** — broadens the pack surface dramatically. Unlocks: All-In / Acquired / Lex Fridman packs without engineering effort; user-generated packs without PRs; the "install the All-In pack" landing page as a Jason-retweetable artifact.
+- **v1.7 Pack Lab** — broadens the pack surface dramatically. Unlocks: All-In / Acquired / Lex Fridman packs without engineering effort; user-generated packs without PRs; the "install the All-In pack" landing page as a The Host-retweetable artifact.
 - **v1.8 Live Moments** — three small reactive-surface upgrades (danmaku overlay + event triggers + personal context). Unlocks: parity with Dmooji on UX modes; reactivity to ad-breaks / chapter-changes; per-viewer relevance. Each is a few days of work standalone.
 - **v2.0 3D Bobbleheads** — the visual payoff. Unlocks: Peanut Gallery looks like a *show*. Intentionally vision-level until v1.8 ships.
 

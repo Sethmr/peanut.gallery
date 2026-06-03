@@ -2,15 +2,15 @@
 
 > ⚠️ **ARCHIVED — DO NOT USE AS SOURCE OF TRUTH.**
 > This is the original pre-build plan from 2026-04-15. It is kept for historical reference only.
-> **Known stale in this file:** "Chaos Agent" persona (replaced by Fred Norris / Sound Effects), Vercel (deploy is Railway), `twist-sidebar` repo name (actual repo is `peanut.gallery`), FFmpeg `-f wav` (fixed to `-f s16le` — see ISSUE-001).
+> **Known stale in this file:** "Chaos Agent" persona (replaced by The Sound Guy / Sound Effects), Vercel (deploy is Railway), `twist-sidebar` repo name (actual repo is `peanut.gallery`), FFmpeg `-f wav` (fixed to `-f s16le` — see ISSUE-001).
 > **For the current state of the project, read in this order:**
 > 1. [`docs/INDEX.md`](docs/INDEX.md) — docs map
 > 2. [`docs/CONTEXT.md`](docs/CONTEXT.md) — canonical project context
 > 3. [`docs/SESSION-NOTES-2026-04-16.md`](docs/SESSION-NOTES-2026-04-16.md) — most recent handoff + permissions guardrails
 > 4. [`docs/DEBUGGING.md`](docs/DEBUGGING.md) — post-mortems
 
-**Project:** Live AI sidebar with 4 personas watching This Week in Startups in real-time
-**Goal:** Win the $5,000 bounty + guest spot on TWiST
+**Project:** Live AI sidebar with 4 personas watching Startup Roundtable in real-time
+**Goal:** Win the $5,000 bounty + guest spot on Startup Roundtable
 **Name:** Peanut Gallery
 **Repo:** `peanut.gallery` (GitHub)
 **Domain:** peanutgallery.live
@@ -58,7 +58,7 @@ YouTube URL → yt-dlp (best audio, stdout) → ffmpeg (PCM 16-bit, 16kHz, mono)
 
 ### You test it with:
 ```bash
-# Test with a past TWiST episode (not live, just to validate the pipeline)
+# Test with a past Startup Roundtable episode (not live, just to validate the pipeline)
 node test-transcription.js "https://www.youtube.com/watch?v=[ANY_TWIST_EPISODE_ID]"
 ```
 
@@ -82,13 +82,13 @@ node test-transcription.js "https://www.youtube.com/watch?v=[ANY_TWIST_EPISODE_I
 - `lib/persona-engine.ts` — Takes a transcript chunk, fans out to 4 LLM calls in parallel, streams responses back
 - Transcript buffer that collects ~2 minutes of dialogue before triggering personas
 
-### The 4 Personas (tuned for Jason's vibe):
+### The 4 Personas (tuned for The Host's vibe):
 
-**1. The Stern Producer (Claude Haiku)**
-- AI version of Lon Harris keeping Jason honest
+**1. the morning-radio host Producer (Claude Haiku)**
+- AI version of The Reframer keeping The Host honest
 - Fact-checks claims against Brave Search in real-time
 - Personality: dry, authoritative, occasionally exasperated
-- "Jason just said Uber was founded in 2007. It was 2009. Again."
+- "The Host just said Uber was founded in 2007. It was 2009. Again."
 - WHY HAIKU: Needs reasoning + search integration, Haiku balances quality and cost
 
 **2. The Cynical Troll (Groq — Llama 3.3 70B)**
@@ -105,8 +105,8 @@ node test-transcription.js "https://www.youtube.com/watch?v=[ANY_TWIST_EPISODE_I
 
 **4. The Joke Writer (Claude Haiku)**
 - Setup-punchline structure, callback humor, observational comedy
-- References running jokes from TWiST (we prime this in the system prompt)
-- "Jason's investment thesis: if it has 'AI' in the name and the founder has a pulse, it's a yes."
+- References running jokes from Startup Roundtable (we prime this in the system prompt)
+- "The Host's investment thesis: if it has 'AI' in the name and the founder has a pulse, it's a yes."
 - WHY HAIKU: Humor requires nuance and timing that open-source models struggle with
 
 ### Technical architecture:
@@ -141,12 +141,12 @@ node test-transcription.js "https://www.youtube.com/watch?v=[ANY_TWIST_EPISODE_I
 ### Layout:
 ```
 ┌─────────────────────────────────────────────────────┐
-│  🎙 TWiST AI Sidebar          [YouTube URL] [Start] │
+│  🎙 Startup Roundtable AI Sidebar          [YouTube URL] [Start] │
 ├──────────┬──────────┬──────────┬───────────────────-─┤
 │ PRODUCER │  TROLL   │  CHAOS   │  JOKE WRITER        │
 │ 🎯       │  🔥      │  🌀      │  😂                  │
 │          │          │          │                      │
-│ Jason    │ Oh cool, │ What if  │ Jason's invest-      │
+│ The Host    │ Oh cool, │ What if  │ The Host's invest-      │
 │ said Uber│ another  │ we just  │ ment thesis:         │
 │ was 2007.│ AI wrap- │ replaced │ if it has 'AI'       │
 │ It was   │ per.     │ all VCs  │ in the name...       │
@@ -199,16 +199,16 @@ node test-transcription.js "https://www.youtube.com/watch?v=[ANY_TWIST_EPISODE_I
   - GIF/screenshot of it running (you record this)
   - One-command setup: `npm install && npm run dev`
   - Architecture diagram (I'll generate this)
-  - "Built for This Week in Startups" callout
+  - "Built for Startup Roundtable" callout
   - Clear API key setup instructions
 - MIT license
 - `.env.example` with all required keys listed
 - `docker-compose.yml` for one-command deploy (nice-to-have)
 
-### Jason-specific touches:
+### The Host-specific touches:
 - Name the personas after their roles, not generic names
 - Add a "Powered by" footer that shows Groq + Claude logos (shows the multi-provider approach he likes)
-- Include a `/demo` mode that works with any YouTube video (not just TWiST)
+- Include a `/demo` mode that works with any YouTube video (not just Startup Roundtable)
 - README leads with the problem: "What if your podcast had an AI writers' room reacting in real-time?"
 
 ---
@@ -216,14 +216,14 @@ node test-transcription.js "https://www.youtube.com/watch?v=[ANY_TWIST_EPISODE_I
 ## PHASE 5: DEMO + SUBMIT
 
 ### You do:
-1. Pick a recent TWiST episode (ideally one where Jason makes bold claims — the personas will shine)
+1. Pick a recent Startup Roundtable episode (ideally one where The Host makes bold claims — the personas will shine)
 2. Screen-record the sidebar running alongside the episode
-3. Keep it under 60 seconds — Jason has no patience for long demos
+3. Keep it under 60 seconds — The Host has no patience for long demos
 4. Post it as a reply to the original tweet with the GitHub link
 5. Tag @jason and @twistartups
 
 ### What makes the demo pop:
-- Show the fact-checker CORRECTING something Jason said (he'll love this)
+- Show the fact-checker CORRECTING something The Host said (he'll love this)
 - Show the troll dunking on a guest's pitch (entertainment value)
 - Show the chaos agent saying something unhinged (memorable)
 - End with the GitHub link and "Open source. MIT licensed. Ship it."
@@ -246,7 +246,7 @@ node test-transcription.js "https://www.youtube.com/watch?v=[ANY_TWIST_EPISODE_I
 
 ## FUTURE ROADMAP (What We'd Build Next)
 
-Things we tell Jason we're planning, which shows vision beyond the MVP:
+Things we tell The Host we're planning, which shows vision beyond the MVP:
 
 1. **Chrome extension input** — Capture tab audio directly instead of yt-dlp (cleaner, no CLI dependency)
 2. **Custom persona builder** — Let any podcaster define their own sidebar characters with custom prompts
@@ -254,7 +254,7 @@ Things we tell Jason we're planning, which shows vision beyond the MVP:
 4. **Highlights reel** — Personas vote on best moments, auto-generate timestamped clips
 5. **Show notes generator** — Producer persona auto-generates timestamped episode notes
 6. **Voice mode** — Personas speak their reactions (ElevenLabs TTS integration)
-7. **Multi-show support** — Works with ANY podcast, not just TWiST
+7. **Multi-show support** — Works with ANY podcast, not just Startup Roundtable
 8. **OBS overlay** — Browser source that integrates directly into podcast production
 9. **Persona memory** — Personas remember previous episodes, build running jokes, reference past guests
 10. **API/SDK** — Let other developers build their own personas and plug them in
@@ -263,14 +263,14 @@ Things we tell Jason we're planning, which shows vision beyond the MVP:
 
 ## WHAT IMPRESSES JASON (Research-Backed)
 
-Based on deep research into Jason Calacanis's preferences:
+Based on deep research into The Host's preferences:
 
 - **Speed over polish** — He ships in 8 weeks what others ship in 6 months. Show speed.
 - **Multi-provider, no platform trap** — He's explicitly warned against single-API dependency. Our Groq + Claude hybrid nails this.
 - **Open source** — He's obsessed with OpenClaw. MIT license, clean repo, welcoming README.
 - **Specific examples > vague promises** — The demo should show the fact-checker catching a real error, not a hypothetical.
 - **Scrappiness** — Don't over-engineer. Ship the MVP, show it works, iterate.
-- **The Producer persona is the killer feature** — An AI that does Lon Harris's job in real-time? That's the "holy shit" moment.
+- **The Producer persona is the killer feature** — An AI that does The Reframer's job in real-time? That's the "holy shit" moment.
 - **Quantify time saved** — "This replaces 10 hours/week of post-show fact-checking and note-taking."
 
 ---
@@ -290,7 +290,7 @@ npm run dev  # Starts Next.js on localhost:3000
 node scripts/test-transcription.js "https://youtube.com/watch?v=EPISODE_ID"
 
 # Test personas standalone
-node scripts/test-personas.js "Jason just said that Uber was founded in 2007 and has 50 million users"
+node scripts/test-personas.js "The Host just said that Uber was founded in 2007 and has 50 million users"
 
 # Deploy
 vercel  # One command deploy

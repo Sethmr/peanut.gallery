@@ -21,7 +21,7 @@ This was deliberately deferred pre-bounty because the current pipeline is known-
 - [ ] Register the worklet in `offscreen.js` via `audioContext.audioWorklet.addModule(...)`.
 - [ ] Replace `createScriptProcessor` + the connect chain with `new AudioWorkletNode(audioContext, 'pcm-worklet')`, keeping `source.connect(node); node.connect(audioContext.destination)` so the tab audio stays audible.
 - [ ] Declare the worklet file under `web_accessible_resources` in `manifest.json`.
-- [ ] Verify transcription accuracy hasn't regressed vs. the ScriptProcessor baseline on a 10 min TWiST clip.
+- [ ] Verify transcription accuracy hasn't regressed vs. the ScriptProcessor baseline on a 10 min Startup Roundtable clip.
 
 ## Links
 - Chrome blog: https://developer.chrome.com/blog/audio-worklet
@@ -35,13 +35,13 @@ gh issue create --repo "$REPO" \
   --label "enhancement,product" \
   --body "$(cat <<'EOF'
 ## Why
-The Howard Stern cast is hardcoded in `lib/personas.ts`. For the product to work outside the TWiST use case, users need to define their own panel — e.g. a crypto podcast wants a rug-pull watcher + a maxi + a regulator, not Baba Booey.
+The the morning-radio host cast is hardcoded in `lib/personas.ts`. For the product to work outside the Startup Roundtable use case, users need to define their own panel — e.g. a crypto podcast wants a rug-pull watcher + a maxi + a regulator, not The Producer.
 
 ## What
 - [ ] UI in the side panel (and the reference web app) for creating/editing a persona: name, emoji, color, model, system prompt, specialty patterns for the Director.
 - [ ] Persist the custom cast in `chrome.storage.local` — it's already the BYOK surface, so it doesn't require server state.
 - [ ] Add an "Import from JSON" / "Export to JSON" path so casts can be shared as gists.
-- [ ] Ship 2–3 starter casts: TWiST (Stern staff), Crypto (bull/bear/regulator/degen), Generic (analyst/skeptic/enthusiast/comedian).
+- [ ] Ship 2–3 starter casts: Startup Roundtable (the morning-radio host staff), Crypto (bull/bear/regulator/degen), Generic (analyst/skeptic/enthusiast/comedian).
 - [ ] Make sure the Director cascade still works when a user ships fewer than 4 personas.
 
 ## Out of scope (for v1.1)
@@ -57,7 +57,7 @@ gh issue create --repo "$REPO" \
 Every episode already produces a full transcript + 4 streams of persona reactions with timestamps. That's enough raw material to ship two high-value post-show artifacts for free:
 
 1. **Show notes** — a structured markdown summary with guest names, claims made, fact-checker corrections, and the best one-liners.
-2. **Highlights reel** — a list of timestamped clip ranges (start/end in seconds) where personas piled on, Baba Booey corrected a claim, or the Troll landed a dunk. Exportable as a CSV or an ffmpeg concat list.
+2. **Highlights reel** — a list of timestamped clip ranges (start/end in seconds) where personas piled on, The Producer corrected a claim, or the Troll landed a dunk. Exportable as a CSV or an ffmpeg concat list.
 
 ## What
 - [ ] New endpoint `app/api/postshow/route.ts` that takes a `sessionId` (or an uploaded transcript + persona log) and returns `{ notes: string, highlights: Array<{ start, end, label, personaId }> }`.
@@ -75,11 +75,11 @@ gh issue create --repo "$REPO" \
   --label "enhancement,product" \
   --body "$(cat <<'EOF'
 ## Why
-Reading reactions while watching a podcast is a context-switch. Speaking them (quietly, panned left or right) would let Peanut Gallery sit in the background of a listening session the way actual radio bits do. This is also the most-likely-to-go-viral UX change because the Howard Stern framing lives or dies by voices, not text.
+Reading reactions while watching a podcast is a context-switch. Speaking them (quietly, panned left or right) would let Peanut Gallery sit in the background of a listening session the way actual radio bits do. This is also the most-likely-to-go-viral UX change because the the morning-radio host framing lives or dies by voices, not text.
 
 ## What
 - [ ] Add an ElevenLabs API key field in the side panel settings (BYOK — same pattern as Deepgram/Groq/Anthropic).
-- [ ] Map each persona to a voice ID (config in `lib/personas.ts`). Suggested: gravelly for the Troll, deadpan for Fred, nasal for Jackie, flustered for Baba Booey.
+- [ ] Map each persona to a voice ID (config in `lib/personas.ts`). Suggested: gravelly for the Troll, deadpan for The Sound Guy, nasal for The Joke Writer, flustered for The Producer.
 - [ ] Stream TTS audio as personas finish streaming tokens (queue so two personas never speak over each other).
 - [ ] "Mute voice" toggle in the side panel, default off so the text experience stays the primary mode.
 - [ ] Optional: pan personas L/R/C so they feel like they're sitting around a mic.
@@ -94,7 +94,7 @@ gh issue create --repo "$REPO" \
   --label "enhancement,polish" \
   --body "$(cat <<'EOF'
 ## Why
-Right now each persona remembers its last ~3 messages within a single session (`buildPersonaContext` in `lib/personas.ts`). The Stern-show magic comes from the opposite: Baba Booey has been getting dunked on for the same thing for 30 years. Without cross-episode memory, the personas will always feel like strangers meeting each host for the first time.
+Right now each persona remembers its last ~3 messages within a single session (`buildPersonaContext` in `lib/personas.ts`). The the morning-radio host-show magic comes from the opposite: The Producer has been getting dunked on for the same thing for 30 years. Without cross-episode memory, the personas will always feel like strangers meeting each host for the first time.
 
 ## What
 - [ ] Add an optional IndexedDB store in the side panel keyed by channel/host (e.g. `@twistartups`, `@lexfridman`). Persist: 5–10 most notable reactions per persona per channel, plus a small running-jokes string.

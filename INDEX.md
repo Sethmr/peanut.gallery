@@ -2,7 +2,7 @@
 
 Machine-readable map of this repo. If you are an AI resuming work here, read this first.
 
-**Current manifest version:** `v2.0.0` ("The Gallery") — CWS launch release. Accumulates everything since v1.5.3: the Plus subscription pipeline (v1.8.0 "Press Pass"), the legal hard-save (v1.7.0 "Fine Print"), the Smart Director v3 canary (v1.6.0 "Canary"), the v1.8 deep-research persona kernels for all 8 personas, plus the v2.0 session push — **fact-check layer methodology** ([`docs/FACT-CHECK-LAYER.md`](docs/FACT-CHECK-LAYER.md)) applied to Baba + Molly via `layered-fact-checker` scaffolding, **inspired-by parody frame** via `persona.inspiredBy` + a prepended PARODY FRAME block at fire time, audio polish (mute-SFX toggle, Jackie↔Jason cue swap, bowling-pin Jason cue, Fred + Lon trims, volume 0.67), Feedback & bugs drawer section, and director-v3 Cerebras shadow log-noise reduction.
+**Current manifest version:** `v2.0.0` ("The Gallery") — CWS launch release. Accumulates everything since v1.5.3: the Plus subscription pipeline (v1.8.0 "Press Pass"), the legal hard-save (v1.7.0 "Fine Print"), the Smart Director v3 canary (v1.6.0 "Canary"), the v1.8 deep-research persona kernels for all 8 personas, plus the v2.0 session push — **fact-check layer methodology** ([`docs/FACT-CHECK-LAYER.md`](docs/FACT-CHECK-LAYER.md)) applied to The Producer + The Correspondent via `layered-fact-checker` scaffolding, **inspired-by parody frame** via `persona.inspiredBy` + a prepended PARODY FRAME block at fire time, audio polish (mute-SFX toggle, The Joke Writer↔The Host cue swap, bowling-pin The Host cue, The Sound Guy + The Reframer trims, volume 0.67), Feedback & bugs drawer section, and director-v3 Cerebras shadow log-noise reduction.
 
 **v1.8.0 "The Press Pass"** — absorbed into the v2.0 manifest bump. Plus subscription pipeline end-to-end (SQLite identity, Stripe checkout + webhook, Resend transactional email, dedupe gate, one-click recover-key on 409). Live on Railway from `develop` since 2026-04-22.
 
@@ -16,7 +16,7 @@ Machine-readable map of this repo. If you are an AI resuming work here, read thi
 
 ## What this repo is
 
-Chrome extension + Next.js backend that captures a YouTube tab's audio, transcribes it, and streams back reactions from 4 AI personas. Two persona packs — Howard Stern staff (default) or This Week in Startups lineup.
+Chrome extension + Next.js backend that captures a YouTube tab's audio, transcribes it, and streams back reactions from 4 AI personas. Two persona packs — Morning Crew (default morning-radio archetypes) or the Startup Roundtable lineup.
 
 ## Top-level tree
 
@@ -25,7 +25,7 @@ Chrome extension + Next.js backend that captures a YouTube tab's audio, transcri
 | [`app/`](app/) | Next.js 15 App Router: legacy landing, `/install`, `/privacy`, API routes. `middleware.ts` 308-redirects non-`/api/*` traffic to `www.peanutgallery.live`. | [`app/INDEX.md`](app/INDEX.md) |
 | [`components/`](components/) | React components used by the Next.js landing page (post-v1.5 cleanup — only `FadeInObserver` remains). | [`components/INDEX.md`](components/INDEX.md) |
 | [`lib/`](lib/) | Server-side core: Director, PersonaEngine, packs, logging, transcription. | [`lib/INDEX.md`](lib/INDEX.md) |
-| [`lib/packs/`](lib/packs/) | Pack abstraction + Howard + TWiST persona definitions. | [`lib/packs/INDEX.md`](lib/packs/INDEX.md) |
+| [`lib/packs/`](lib/packs/) | Pack abstraction + the morning-radio host + Startup Roundtable persona definitions. | [`lib/packs/INDEX.md`](lib/packs/INDEX.md) |
 | [`extension/`](extension/) | Chrome MV3 extension (side panel, background, offscreen, content). | [`extension/INDEX.md`](extension/INDEX.md) |
 | [`scripts/`](scripts/) | Test harnesses + pack-extension release script. | [`scripts/INDEX.md`](scripts/INDEX.md) |
 | [`docs/`](docs/) | Humans and Claudes read this. | [`docs/INDEX.md`](docs/INDEX.md) |
@@ -51,8 +51,8 @@ Chrome extension + Next.js backend that captures a YouTube tab's audio, transcri
 ## Provider stack (v1.4)
 
 - **Transcription:** Deepgram Nova-3.
-- **Producer + Joker personas (Baba Booey, Jackie, Molly, Alex):** Anthropic Claude Haiku.
-- **Troll + Sound FX personas (Troll, Fred, Jason, Lon):** xAI Grok 4.1 Fast non-reasoning.
+- **Producer + Joker personas (The Producer, The Joke Writer, The Correspondent, The Quant):** Anthropic Claude Haiku.
+- **Troll + Sound FX personas (Troll, The Sound Guy, The Host, The Reframer):** xAI Grok 4.1 Fast non-reasoning.
 - **Fact-check search:** xAI Live Search (Grok Responses API with `web_search` tool). Brave Search was deprecated in v2.0.1 — one xAI key now covers both persona generation and fact-check grounding.
 
 **Required API keys:** Deepgram, Anthropic, xAI.
@@ -70,8 +70,8 @@ Chrome extension + Next.js backend that captures a YouTube tab's audio, transcri
 | Most recent session handoff | [`docs/SESSION-NOTES-2026-04-24-v2-launch-legal-onboarding.md`](docs/SESSION-NOTES-2026-04-24-v2-launch-legal-onboarding.md) |
 | Director state (modules, flags, telemetry, PR lineage) | [`docs/STATE-OF-DIRECTOR-2026-04-21.md`](docs/STATE-OF-DIRECTOR-2026-04-21.md) |
 | Design principles (durable Seth-directives) | [`docs/DESIGN-PRINCIPLES.md`](docs/DESIGN-PRINCIPLES.md) |
-| Fact-check layer (reusable methodology — applied to Baba, ready for future producers) | [`docs/FACT-CHECK-LAYER.md`](docs/FACT-CHECK-LAYER.md) |
+| Fact-check layer (reusable methodology — applied to The Producer, ready for future producers) | [`docs/FACT-CHECK-LAYER.md`](docs/FACT-CHECK-LAYER.md) |
 | Persona refinement plan (100+ transcript study) | [`docs/PERSONA-REFINEMENT-PLAN.md`](docs/PERSONA-REFINEMENT-PLAN.md) |
-| Persona character research (TWiST pack) | [`docs/packs/twist/RESEARCH.md`](docs/packs/twist/RESEARCH.md) |
+| Persona character research (Startup Roundtable pack) | [`docs/packs/twist/RESEARCH.md`](docs/packs/twist/RESEARCH.md) |
 | Linear → Claude kickoff pipeline (local daemon) | [`docs/LINEAR-AGENT-RUBRIC.md`](docs/LINEAR-AGENT-RUBRIC.md) + [`scripts/linear-daemon.ts`](scripts/linear-daemon.ts) + [`scripts/install-linear-daemon.sh`](scripts/install-linear-daemon.sh) — setup in [`docs/GITHUB-MANUAL-STEPS.md § 18`](docs/GITHUB-MANUAL-STEPS.md) |
 | Release flow + merge-method rule (main-facing PRs are "Rebase and merge" only) | [`docs/RELEASE.md`](docs/RELEASE.md) |

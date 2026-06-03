@@ -16,7 +16,7 @@ Backend running locally OR reachable at https://peanutgallery.live. If you're ab
 - [ ] In Chrome: `chrome://extensions/` → Developer mode on → Load unpacked → pick `extension/` folder
 - [ ] Confirm the version badge in the side panel reads what you expect (`v1.0.6` pre-bump, `v1.1.0` after bump)
 - [ ] Confirm Deepgram + Groq + Anthropic keys are filled; Brave optional
-- [ ] Open a YouTube video you're familiar with (ideally one with claims you know are wrong — makes Baba easier to evaluate)
+- [ ] Open a YouTube video you're familiar with (ideally one with claims you know are wrong — makes The Producer easier to evaluate)
 
 ## 1. Happy path smoke test (2 min)
 
@@ -48,9 +48,9 @@ The thing that had personas saying "$2.4 million house" in 8 straight turns. Tes
 - [ ] Find a video segment that names a specific number ("Series B at $80M valuation", "raised $2.4M", "founded in 2012", etc.). Let Peanut Gallery run through it for ~90 seconds.
 - [ ] **Watch how the personas refer to that number across turns.** Expected: the full literal ("$2.4 million house") appears maybe once or twice, then the personas shift to short references ("the house", "that price", "it"). Old behavior: the same literal phrase repeated every single turn.
 - [ ] **Character tics should still be present** — the rebalance was supposed to preserve these:
-  - [ ] Baba Booey uses "Technically…", "Right, so actually…", "Hold on, hold on…" occasionally
-  - [ ] Jackie lands rule-of-three jokes, punchline word at the end
-  - [ ] Fred drops [bracketed sound cues] like [record scratch], [sad trombone], [crickets]
+  - [ ] The Producer uses "Technically…", "Right, so actually…", "Hold on, hold on…" occasionally
+  - [ ] The Joke Writer lands rule-of-three jokes, punchline word at the end
+  - [ ] The Sound Guy drops [bracketed sound cues] like [record scratch], [sad trombone], [crickets]
   - [ ] The Troll names specific targets, ends with a twist
 - [ ] **The transcript should be the clear driver.** If the video moves to a new topic, the personas should follow within 1–2 turns, not keep riffing on the old topic. This is the 90%-transcript rule working.
 

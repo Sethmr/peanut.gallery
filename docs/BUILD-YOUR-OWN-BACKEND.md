@@ -407,7 +407,7 @@ failures emit the `search_*` pipeline events documented in
 - Abort budget: **8s**. Typically slower than Brave because the LLM round-trip
   is inside the search call.
 
-**Important**: the Producer's **force-react tap** (user clicks Baba's avatar or
+**Important**: the Producer's **force-react tap** (user clicks The Producer's avatar or
 the 🔥 button) should skip the pre-stream search entirely. The tap wants a
 fast reaction more than a sourced one; blocking on a 5–8s search on a tap
 visibly strands the spinner.
@@ -458,13 +458,13 @@ always gets visible reactions.
 The reference prompts live in [`lib/personas.ts`](../lib/personas.ts). You
 don't have to copy them verbatim, but you MUST keep the voice identifiable:
 
-- **Baba Booey (producer)** — fact-checker. Short corrections with sources
-  when possible. Stern-Show production-booth energy.
+- **The Producer (producer)** — fact-checker. Short corrections with sources
+  when possible. the morning-radio host-Show production-booth energy.
 - **The Troll (troll)** — cynical, low-effort dunks. Says what the audience
   is thinking but won't type. ~1–2 sentences.
-- **Fred Norris (soundfx)** — bracketed sound-effect cues (`[record scratch]`,
+- **The Sound Guy (soundfx)** — bracketed sound-effect cues (`[record scratch]`,
   `[sad trombone]`) plus the occasional razor-sharp one-liner.
-- **Jackie Martling (joker)** — setup-punchline jokes. Observational comedy.
+- **The Joke Writer (joker)** — setup-punchline jokes. Observational comedy.
   Groaner puns are on-brand.
 
 Every persona can "pass" by returning a single `-` character, which clients
@@ -482,8 +482,8 @@ gated by `ENABLE_SMART_DIRECTOR`), each persona may carry an optional
 one-sentence `directorHint` string — roughly 15 tokens — describing when
 this specific voice at this slot should fire. The routing LLM sees each
 persona's `id`, `name`, `role`, and (if present) `directorHint` every
-tick. Hints disambiguate same-slot voices across packs (e.g. Stern's
-Jackie at `joker` is rapid-fire one-liners; TWiST's Alex at `joker` is a
+tick. Hints disambiguate same-slot voices across packs (e.g. the morning-radio host's
+The Joke Writer at `joker` is rapid-fire one-liners; Startup Roundtable's The Quant at `joker` is a
 numerate data-joke comedian).
 
 Hints are optional. Backends that omit them still route correctly — the

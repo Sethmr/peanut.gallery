@@ -1,21 +1,21 @@
 /**
- * TWiST pack — This Week in Startups lineup.
+ * Startup-Roundtable pack (internal id: "twist").
  *
- * v1.3.0 Phase 2 made this real. Until v1.3.0 Phase 1 this file shipped as a
- * placeholder that re-exported the Howard personas under a TWiST PackMeta so
- * the registry and the test harness could compile. Phase 2 replaces that with
- * the actual TWiST lineup (Molly / Jason / Lon / Alex), authored in full voice
- * from the characterization notes in `docs/packs/twist/RESEARCH.md`.
+ * A startup-podcast writers'-room lineup of four AI personas mapped onto the
+ * fixed archetype slots:
+ *   producer  → The Correspondent (veteran tech-desk reporter — fact-checker)
+ *   troll     → The Host          (loud, warm founder-coach)
+ *   soundfx   → The Reframer      (dry pop-culture reframe)
+ *   joker     → The Quant         (data comedian)
  *
- * Role mapping (archetype slot → real person):
- *   producer  → Molly Wood
- *   troll     → Jason Calacanis
- *   soundfx   → Lon Harris
- *   joker     → Alex Wilhelm
+ * These are generic ARCHETYPES — quality, not likeness. The pack was
+ * de-identified on 2026-06-03 (§8C / §8A legal-hygiene pass; see
+ * `lib/packs/twist/personas.ts` and `legal-research/BRIEF-2026-04-24.md`):
+ * no real people, no real show, no verbatim sources, no private detail.
+ * The internal pack id stays "twist" (an opaque identifier wired through
+ * the registry, tests, and saved configs); only display content changed.
  *
  * The Director never looks at names — it only knows the 4 archetype slots.
- * That means the pack swap is content-only: zero Director changes, zero
- * downstream engine changes, zero schema changes.
  */
 
 import type { Pack } from "../types";
@@ -24,10 +24,11 @@ import { twistPersonas } from "./personas";
 export const twistPack: Pack = {
   meta: {
     id: "twist",
-    name: "This Week in Startups",
-    description: "Molly Wood, Jason Calacanis, Lon Harris, Alex Wilhelm — the TWiST lineup.",
-    universe: "TWiST",
-    updatedAt: "2026-04-23",
+    name: "Startup Roundtable",
+    description:
+      "The Correspondent, The Host, The Reframer, The Quant — a startup-podcast writers'-room lineup.",
+    universe: "Startup Roundtable",
+    updatedAt: "2026-06-03",
   },
   personas: twistPersonas,
 };

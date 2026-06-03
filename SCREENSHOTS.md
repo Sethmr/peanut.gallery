@@ -30,7 +30,7 @@ Pick videos with talking-head content (not music videos — transcription won't 
 
 | Shot | Video | Why |
 |---|---|---|
-| 1 | Any recent **TWiST** episode (`youtube.com/@twistartups`) | On-brand for the bounty. Jason says factually checkable things. |
+| 1 | Any recent **Startup Roundtable** episode (`youtube.com/@twistartups`) | On-brand for the bounty. The Host says factually checkable things. |
 | 2 | **All-In Podcast** — any episode | Multiple speakers, debate-heavy → personas fire a lot. |
 | 3 | A **news clip** (CNBC / Bloomberg interview) | Fact-checker shines on stats/dates. |
 
@@ -43,10 +43,10 @@ For the screenshots, **don't use copyrighted music videos or movie clips** — r
 **What:** YouTube video playing on the left, your side panel on the right with all 4 personas visible, 2–3 reactions already loaded, transcript scrolling.
 
 **Setup:**
-- Open a TWiST episode on YouTube
+- Open a Startup Roundtable episode on YouTube
 - Click the 🥜 toolbar icon → **Start Listening**
 - Let it run 60–90 seconds so you get 3–4 persona responses in the feed
-- Pause the YouTube video on a shot where Jason or Lon is clearly visible (not a title card, not an ad)
+- Pause the YouTube video on a shot where The Host or The Reframer is clearly visible (not a title card, not an ad)
 
 **Capture:** Full Chrome window at 1280×800.
 
@@ -56,12 +56,12 @@ For the screenshots, **don't use copyrighted music videos or movie clips** — r
 
 ## Shot 2 — Fact-checker catching a claim
 
-**What:** Close-up feel — the side panel showing Baba Booey with a correction that includes a Brave Search snippet/source link.
+**What:** Close-up feel — the side panel showing The Producer with a correction that includes a Brave Search snippet/source link.
 
 **Setup:**
-- Let it run until Baba Booey fires on a factual claim (dates, stats, company names trigger him reliably)
+- Let it run until The Producer fires on a factual claim (dates, stats, company names trigger him reliably)
 - Once you see a good correction with a source, pause YouTube
-- Scroll the side panel so Baba's response is centered and fully visible
+- Scroll the side panel so The Producer's response is centered and fully visible
 - If the YouTube video is distracting, that's fine — the side panel is the subject
 
 **Capture:** Full window.
@@ -76,7 +76,7 @@ For the screenshots, **don't use copyrighted music videos or movie clips** — r
 
 **Setup:**
 - Wait for a segment where something provocative is said (opinion, prediction, spicy take)
-- Once you see the Troll + Jackie + Fred all respond within ~5 seconds of each other, pause YouTube
+- Once you see the Troll + The Joke Writer + The Sound Guy all respond within ~5 seconds of each other, pause YouTube
 - Scroll the side panel so all four speakers' recent responses are visible in one frame
 
 **Capture:** Full window.

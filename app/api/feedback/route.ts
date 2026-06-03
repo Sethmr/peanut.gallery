@@ -43,7 +43,7 @@
  *   "entryId":   "producer-7",       // client-assigned feed entry id
  *   "action":    "upvote" | "downvote" | "clear_vote" | "pin" | "unpin" | "quote_card" | "delete",
  *   "personaId": "producer",         // producer | troll | soundfx | joker
- *   "packId":    "howard",           // howard | twist | ...
+ *   "packId":    "morning-crew",     // morning-crew | twist | ... (legacy "howard" accepted)
  *   "responseText": "Heads up — …",  // what the persona said
  *   "transcriptTail": "...",         // last ~500 chars of transcript
  *                                    // that informed the fire (optional)

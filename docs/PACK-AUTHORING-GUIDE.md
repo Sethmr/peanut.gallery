@@ -2,7 +2,7 @@
 
 **Living document.** Seth and Claude evolve this together as we ship more packs and learn what separates packs that land from packs that drift. If a contract below gets a new constraint, it lands here *first*, then in any code change — that way the doc stays the source of truth and the personas plug in against a stable target.
 
-**Last meaningful update:** 2026-04-21 — canonical producer contract extracted after Baba Booey false-pass audit.
+**Last meaningful update:** 2026-04-21 — canonical producer contract extracted after The Producer false-pass audit.
 
 ---
 
@@ -14,10 +14,10 @@ The four slots:
 
 | Slot | Purpose | Canonical exemplar | Voice fit |
 |---|---|---|---|
-| `producer` | Fact-checker. Pulls receipts on numbers, dates, attributions, claims. | Baba Booey (Howard) / Molly Wood (TWiST) | Careful, compulsive about accuracy, hedges when uncertain. |
-| `troll` | Cynical commentator. Says what the audience is thinking. | The Troll (Howard) / Jason Calacanis (TWiST) | Hot takes, conviction, "roast the BS, protect the builder." |
-| `soundfx` | Sound effects + context. Bracket-delimited cues plus deadpan asides. | Fred Norris (Howard) / Lon Harris (TWiST) | Timing-first, low word count, high density. |
-| `joker` | Comedy writer. Setup-punchline jokes, callbacks, observational wit. | Jackie Martling (Howard) / Alex Wilhelm (TWiST) | Light touch, quick in and out, not mean. |
+| `producer` | Fact-checker. Pulls receipts on numbers, dates, attributions, claims. | The Producer (the morning-radio host) / The Correspondent (Startup Roundtable) | Careful, compulsive about accuracy, hedges when uncertain. |
+| `troll` | Cynical commentator. Says what the audience is thinking. | The Troll (the morning-radio host) / The Host (Startup Roundtable) | Hot takes, conviction, "roast the BS, protect the builder." |
+| `soundfx` | Sound effects + context. Bracket-delimited cues plus deadpan asides. | The Sound Guy (the morning-radio host) / The Reframer (Startup Roundtable) | Timing-first, low word count, high density. |
+| `joker` | Comedy writer. Setup-punchline jokes, callbacks, observational wit. | The Joke Writer (the morning-radio host) / The Quant (Startup Roundtable) | Light touch, quick in and out, not mean. |
 
 A pack that maps a voice to the *wrong* slot will fight the Director forever. If a candidate character is "basically a fact-checker but also roasts people," pick one — the archetype is load-bearing.
 
@@ -42,7 +42,7 @@ Defined in [`lib/personas.ts`](../lib/personas.ts). Every pack provides 4 of the
 ```ts
 interface Persona {
   id: "producer" | "troll" | "soundfx" | "joker";   // archetype slot — fixed
-  name: string;                                      // display name ("Baba Booey")
+  name: string;                                      // display name ("The Producer")
   role: string;                                      // one-line character role
   emoji: string;                                     // avatar fallback glyph
   color: string;                                     // hex, seeds mug accents
@@ -78,14 +78,14 @@ The persona may pass with `"-"` **only** when the transcript tail is genuinely c
 
 If **any** proper noun, number, superlative, funding claim, or reporting-adjacent topic lives in the tail, the producer produces at minimum a `[HEADS UP]`. The Director already spotted something fact-adjacent before picking the producer — the producer's job is to find it and hedge, not to second-guess the pick.
 
-**Why the strict pass rule:** logs from 2026-04-21 showed Baba passing 9 times in 8 minutes, every time on a tail with at least one proper noun. Each pass fired a fallback string ("Eh — nothing clean on that one. Let me keep my ears open."). Users saw a fact-checker who does nothing but shrug. The `[HEADS UP]` tier exists to eat that failure mode.
+**Why the strict pass rule:** logs from 2026-04-21 showed The Producer passing 9 times in 8 minutes, every time on a tail with at least one proper noun. Each pass fired a fallback string ("Eh — nothing clean on that one. Let me keep my ears open."). Users saw a fact-checker who does nothing but shrug. The `[HEADS UP]` tier exists to eat that failure mode.
 
 ### 3. The `factCheckMode` dial
 
 Per-pack character design. Declares how broadly the producer's claim gate fires:
 
-- **`strict`** — Hard-claim patterns only (numbers, dates, attributions, rankings, corporate-action verbs). Low false-positive rate; producer stays quiet when the transcript is soft. Right for voices that read as careful journalists. **TWiST's Molly Wood.**
-- **`loose`** — Strict patterns *plus* speculation (`"I think X"`), predictions (`"by 2030…"`), confidence stacking (`"everyone knows"`), name-drops, and bonus scoring on proper nouns + numbers. Fires more; the "well actually" guy. Right for voices whose character IS over-correction. **Howard's Baba Booey.**
+- **`strict`** — Hard-claim patterns only (numbers, dates, attributions, rankings, corporate-action verbs). Low false-positive rate; producer stays quiet when the transcript is soft. Right for voices that read as careful journalists. **Startup Roundtable's The Correspondent.**
+- **`loose`** — Strict patterns *plus* speculation (`"I think X"`), predictions (`"by 2030…"`), confidence stacking (`"everyone knows"`), name-drops, and bonus scoring on proper nouns + numbers. Fires more; the "well actually" guy. Right for voices whose character IS over-correction. **the morning-radio host's The Producer.**
 
 Choose the mode that fits the character, not the mode that maximizes firing rate. A journalist who fires on pure speculation is out of voice; a chaos-agent fact-checker who stays silent on a name-drop is out of voice.
 
@@ -163,7 +163,7 @@ Packs are not static. After every canary window:
 
 1. **Pull fallback telemetry** for every persona in the pack:
    ```bash
-   grep '"event":"persona_fallback_fired"' logs/pipeline-debug.jsonl | jq 'select(.data.personaName == "Molly")'
+   grep '"event":"persona_fallback_fired"' logs/pipeline-debug.jsonl | jq 'select(.data.personaName == "The Correspondent")'
    ```
 2. **Read the disagreement transcripts.** When `director_producer_pass` fires, read the `transcriptTail` field — does the tail actually lack fact-adjacent content, or is the producer prompt too conservative?
 3. **Tune.** Changes land in this priority order:
@@ -178,8 +178,8 @@ Packs are not static. After every canary window:
 
 ## Changelog
 
-- **2026-04-21** — Producer contract codified after Baba Booey false-pass audit. Logs showed 9 consecutive `director_producer_pass` fallbacks in 8 min, every one on a tail with at least one proper noun. Root cause: producer prompts made `"-"` too easy an escape hatch when no `[FACT CHECK]` applied. Fix: both producers' prompts now define `[HEADS UP]` as the workhorse tier and restrict `"-"` to genuinely content-free tails. Section 2 "pass rule" and section 1 tier definitions both codify the change.
-- **2026-04-20 (retroactive)** — `factCheckMode: "strict" | "loose"` added per-pack in [PR #82](https://github.com/Sethmr/peanut.gallery/pull/82). Howard's Baba is `loose` (over-correction is the character), TWiST's Molly is `strict` (journalist).
+- **2026-04-21** — Producer contract codified after The Producer false-pass audit. Logs showed 9 consecutive `director_producer_pass` fallbacks in 8 min, every one on a tail with at least one proper noun. Root cause: producer prompts made `"-"` too easy an escape hatch when no `[FACT CHECK]` applied. Fix: both producers' prompts now define `[HEADS UP]` as the workhorse tier and restrict `"-"` to genuinely content-free tails. Section 2 "pass rule" and section 1 tier definitions both codify the change.
+- **2026-04-20 (retroactive)** — `factCheckMode: "strict" | "loose"` added per-pack in [PR #82](https://github.com/Sethmr/peanut.gallery/pull/82). the morning-radio host's The Producer is `loose` (over-correction is the character), Startup Roundtable's The Correspondent is `strict` (journalist).
 
 ---
 

@@ -11,7 +11,7 @@
 
 ## 1. Current state at end of session
 
-- **v1.3.0 "TWiST Pack" is shipped** (commit `21dae70`, plus three post-release
+- **v1.3.0 "Startup Roundtable Pack" is shipped** (commit `21dae70`, plus three post-release
   bug-fix commits: `17d83a2`, `e0bbaf1`, `4e25131`).
 - Working on **post-v1.3 persona tap / force-react reliability**. Two uncommitted
   modified files on the working tree:
@@ -24,8 +24,8 @@
 
 ## 2. The bug being chased
 
-**Symptom:** when the user taps Baba Booey or The Troll avatars (or hits 🔥 React),
-the spinner animates but no text bubble ever appears. Fred and Jackie work every
+**Symptom:** when the user taps The Producer or The Troll avatars (or hits 🔥 React),
+the spinner animates but no text bubble ever appears. The Sound Guy and The Joke Writer work every
 time. Seen repeatedly in Seth's manual testing from ~2026-04-17 evening through
 2026-04-18 ~12:49 AM (screen recording in uploads).
 
@@ -33,15 +33,15 @@ time. Seen repeatedly in Seth's manual testing from ~2026-04-17 evening through
 rules baked into each persona's system prompt more aggressively than it's
 following the force-react override.
 
-- Baba's Howard prompt (`lib/packs/howard/personas.ts` line ~76): `If none of
+- The Producer's the morning-radio host prompt (`lib/packs/howard/personas.ts` line ~76): `If none of
   these tiers apply, you DO NOT speak. Output a single "-" and the director
   will pass to someone funnier.` Plus a FORMAT rule requiring a
   `[FACT CHECK]/[CONTEXT]/[HEADS UP]/[CALLBACK]` tag prefix.
-- Troll's Howard prompt (same file, line ~183–189): `Output a single "-" to
+- Troll's the morning-radio host prompt (same file, line ~183–189): `Output a single "-" to
   pass... Always prefer silence to a mid take.`
-- Fred and Jackie don't mandate a tag-format, so they always land something.
-- Both Baba and Jackie are on Claude Haiku, so "Haiku overcompliance" is
-  **not** the whole story — it's the tag/tier structure in Baba's prompt
+- The Sound Guy and The Joke Writer don't mandate a tag-format, so they always land something.
+- Both The Producer and The Joke Writer are on Claude Haiku, so "Haiku overcompliance" is
+  **not** the whole story — it's the tag/tier structure in The Producer's prompt
   specifically.
 
 **Why we don't know if the server-side fixes worked:** Seth was not running
@@ -115,10 +115,10 @@ Translation: the director phase is where model-based judgment calls belong.
 For personas themselves, prefer deterministic mechanisms (fallbacks, explicit
 instructions) over nudging the model with prompt-language.
 
-> "Baba Booey doesn't have to fact check 100% of times and a tap is a good
+> "The Producer doesn't have to fact check 100% of times and a tap is a good
 > reason to not fact check unless he just wants to."
 
-Translation: the fact-check tiers in Baba's prompt are a *bias*, not a
+Translation: the fact-check tiers in The Producer's prompt are a *bias*, not a
 hard gate. The prompt-override language that earlier prioritized fact-check
 as option #1 was wrong and was rewritten.
 
@@ -127,7 +127,7 @@ as option #1 was wrong and was rewritten.
 1. **Run localhost.** `cd ~/peanut.gallery && npm run dev` in one terminal;
    confirm the extension is pointed at `http://localhost:3000` (not
    `peanutgallery.live`) via the extension settings in the side panel.
-2. **Tap Baba Booey three or four times** with various transcripts. Expected:
+2. **Tap The Producer three or four times** with various transcripts. Expected:
    either a real fact-check/context note, or the hedge-shaped fallback
    (`"Eh — nothing clean on that one. Let me keep my ears open."`). Never
    silent spinner, never empty bubble.
@@ -138,7 +138,7 @@ as option #1 was wrong and was rewritten.
    fallback and cut the preamble. If they're firing only occasionally, the
    preamble is helping and we can keep it as a nudge.
 5. **Director fires still work normally.** The fallback only activates on
-   `isForceReact=true`. Director-driven Baba passes should still be empty
+   `isForceReact=true`. Director-driven The Producer passes should still be empty
    (silent pass is legitimate behavior there).
 
 ## 6. Potential regressions to double-check
@@ -146,13 +146,13 @@ as option #1 was wrong and was rewritten.
 The force-react plumbing touches enough surfaces that a smoke test of
 non-tap flows is cheap insurance:
 
-- [ ] Normal director cascade — Baba/Troll can still pass with "-" silently
+- [ ] Normal director cascade — The Producer/Troll can still pass with "-" silently
       in regular flow. Fallback must NOT fire.
-- [ ] 🔥 React-button burst — all 4 personas fire; Baba/Troll get fallback
-      if they try to pass; Fred/Jackie's normal output still streams.
-- [ ] Pack swap (Howard ↔ TWiST) mid-session — archetype keys
+- [ ] 🔥 React-button burst — all 4 personas fire; The Producer/Troll get fallback
+      if they try to pass; The Sound Guy/The Joke Writer's normal output still streams.
+- [ ] Pack swap (the morning-radio host ↔ Startup Roundtable) mid-session — archetype keys
       (`producer/troll/soundfx/joker`) line up across packs, so fallback
-      strings should apply identically. Spot-check with a TWiST tap.
+      strings should apply identically. Spot-check with a Startup Roundtable tap.
 - [ ] Director fixture harness (`npm run test:director`) still 14/14 × 50.
       Confirmed at end of session; re-run after any further changes.
 - [ ] `tsc --noEmit` clean. Confirmed at end of session.
@@ -174,7 +174,7 @@ non-tap flows is cheap insurance:
 |---|---|
 | `lib/personas.ts` | `buildPersonaContext` — preamble + end override. Modified, uncommitted. |
 | `lib/persona-engine.ts` | `firePersona` pass-detection + new fallback. `FORCE_REACT_FALLBACKS` table. Modified, uncommitted. |
-| `lib/packs/howard/personas.ts` | Baba's tier/tag format rules are here (~line 76, ~line 100). Troll's pass rule ~line 183. Not modified. |
+| `lib/packs/howard/personas.ts` | The Producer's tier/tag format rules are here (~line 76, ~line 100). Troll's pass rule ~line 183. Not modified. |
 | `app/api/transcribe/route.ts` | `fire_persona` path passes `isForceReact=true` to `fireSingle`. Cascade uses `session.resolvedPack.personas`. Not modified this session. |
 | `extension/sidepanel.js` | Spinner reset gate reverted in commit `4e25131`. Not modified since. |
 | `scripts/test-director.ts` | 14 fixtures × 50 runs = 700 director-routing regression checks. Green. |
@@ -184,7 +184,7 @@ non-tap flows is cheap insurance:
 A short honest log so the next session doesn't repeat these:
 
 - **Iteration 1 override** led with "fact-check" as priority option #1.
-  Biased Baba toward tier-gated silence and gave Troll no natural fallback.
+  Biased The Producer toward tier-gated silence and gave Troll no natural fallback.
   Replaced.
 - **Iteration 2 override** was louder but still end-of-prompt only. Claude
   Haiku still obeyed the system-prompt tier rules it had already internalized.

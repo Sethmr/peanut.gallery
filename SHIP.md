@@ -30,7 +30,7 @@ npm run dev
 In Chrome:
 
 1. `chrome://extensions` → Developer mode on → Load unpacked → select `extension/`
-2. Open a TWiST episode on YouTube
+2. Open a Startup Roundtable episode on YouTube
 3. Click the 🥜 toolbar icon → side panel opens
 4. Click **Start Listening**
 5. Verify: transcript appears, at least one persona reacts, you still hear YouTube audio
@@ -54,17 +54,17 @@ Then visit `https://peanutgallery.live` and confirm:
 
 ### 1.3 Record the demo video (20–30 min)
 
-**Target length:** 60–90 seconds. Jason has a goldfish attention span for anything that isn't the product doing the thing.
+**Target length:** 60–90 seconds. The Host has a goldfish attention span for anything that isn't the product doing the thing.
 
 **Shot list:**
 
-1. **0:00–0:05** — Title card: "Peanut Gallery. The TWiST bounty, shipped."
-2. **0:05–0:20** — Open a recent TWiST clip on YouTube. Click the 🥜 icon. Side panel slides in. Click Start Listening.
-3. **0:20–0:55** — Just let it run. Don't narrate. The point is: Jason says something, Baba Booey fact-checks it, the Troll dunks, Jackie lands a punchline. Let the product speak.
+1. **0:00–0:05** — Title card: "Peanut Gallery. The Startup Roundtable bounty, shipped."
+2. **0:05–0:20** — Open a recent Startup Roundtable clip on YouTube. Click the 🥜 icon. Side panel slides in. Click Start Listening.
+3. **0:20–0:55** — Just let it run. Don't narrate. The point is: The Host says something, The Producer fact-checks it, the Troll dunks, The Joke Writer lands a punchline. Let the product speak.
 4. **0:55–1:10** — Brief cut to the landing page at peanutgallery.live showing "Install the Extension."
 5. **1:10–1:20** — End card: `peanutgallery.live` / `github.com/Sethmr/peanut.gallery` / MIT.
 
-**Tool suggestion:** macOS built-in screen recording (Cmd+Shift+5) with mic off, then trim in QuickTime. Don't over-produce. Jason retweets raw product demos, not polished pitches.
+**Tool suggestion:** macOS built-in screen recording (Cmd+Shift+5) with mic off, then trim in QuickTime. Don't over-produce. The Host retweets raw product demos, not polished pitches.
 
 **Upload to:** Twitter/X directly as a video attachment (up to 2:20 for blue-check accounts, 140s otherwise). Also upload to YouTube as an unlisted video for the GitHub README.
 
@@ -74,7 +74,7 @@ Then visit `https://peanutgallery.live` and confirm:
 
 **Option A — direct:**
 
-> @jason @LonHarris — here's the TWiST bounty, shipped.
+> @jason @LonHarris — here's the Startup Roundtable bounty, shipped.
 >
 > Chrome extension. Opens a native side panel next to any YouTube video. 4 AI personas watching the show with you in real-time: a fact-checker (Claude + Brave Search), a sound effects guy, a comedy writer, and a cynical troll.
 >
@@ -91,25 +91,25 @@ Then visit `https://peanutgallery.live` and confirm:
 
 > You know how every AI video tool makes you screen-share your own tab? Mine doesn't.
 >
-> @jason @LonHarris — the TWiST bounty. 4 AI personas react to any YouTube video from a Chrome side panel. Silent tab capture, native sidebar, open source.
+> @jason @LonHarris — the Startup Roundtable bounty. 4 AI personas react to any YouTube video from a Chrome side panel. Silent tab capture, native sidebar, open source.
 >
 > peanutgallery.live
 >
 > [attach video]
 
-**Option C — the Baba Booey opener:**
+**Option C — the Producer opener:**
 
-> @jason — Baba Booey just told me Uber was founded in 2007 (it was 2009, per the Jason Calacanis podcast archive). He's not wrong.
+> @jason — The Producer just told me Uber was founded in 2007 (it was 2009, per the Host podcast archive). He's not wrong.
 >
-> The TWiST bounty: 4 AI personas watching your podcast, live. Chrome extension, native side panel, open source.
+> The Startup Roundtable bounty: 4 AI personas watching your podcast, live. Chrome extension, native side panel, open source.
 >
 > peanutgallery.live
 >
 > [attach video]
 
-**My pick:** Option B. It leads with the novel thing (no screen-share picker) and the credits Jason already. Don't use C unless the demo actually shows Baba Booey making that specific call.
+**My pick:** Option B. It leads with the novel thing (no screen-share picker) and the credits The Host already. Don't use C unless the demo actually shows The Producer making that specific call.
 
-**Time of day:** Tuesday–Thursday, 10am–12pm PT. Matches when Jason is usually active on X.
+**Time of day:** Tuesday–Thursday, 10am–12pm PT. Matches when The Host is usually active on X.
 
 ### 1.5 Side channels (bonus, post-tweet)
 
@@ -168,16 +168,16 @@ Watch any YouTube video with an AI writers' room. 4 personas react in real-time 
 ```
 Peanut Gallery is an AI writers' room for your podcasts. 4 personas watch any YouTube video alongside you — a fact-checker, a sound effects guy, a comedy writer, and a cynical troll — reacting live in Chrome's native side panel, with no tab switching and no screen-share picker.
 
-Built for long-form talk shows, interviews, and pods — where a booth producer actually adds something. Inspired by the Howard Stern Show. Two packs ship out of the box; swap between them in the side panel per session.
+Built for long-form talk shows, interviews, and pods — where a booth producer actually adds something. Inspired by the Morning Crew. Two packs ship out of the box; swap between them in the side panel per session.
 
 THE HOWARD PACK (default)
-• Baba Booey — fact-checker (Claude Haiku + Brave Search or xAI Live Search). Mid-show corrections and background data on every claim.
-• Fred Norris — sound effects guy (xAI Grok 4.1 Fast). Well-timed cues and the occasional razor-sharp aside.
-• Jackie Martling — comedy writer (Claude Haiku). Setup-punchline jokes and callbacks.
+• The Producer — fact-checker (Claude Haiku + Brave Search or xAI Live Search). Mid-show corrections and background data on every claim.
+• The Sound Guy — sound effects guy (xAI Grok 4.1 Fast). Well-timed cues and the occasional razor-sharp aside.
+• The Joke Writer — comedy writer (Claude Haiku). Setup-punchline jokes and callbacks.
 • The Cynical Troll — contrarian commentator (xAI Grok 4.1 Fast, non-reasoning). Says what the chat is thinking.
 
 THE TWIST PACK (swap in the side panel)
-Tuned for This Week in Startups-style podcasts — Molly Wood (producer), Jason Calacanis (troll), Lon Harris (sound effects), and Alex Wilhelm (joker). Same 4 roles, startup vocabulary.
+Tuned for Startup Roundtable-style podcasts — The Correspondent (producer), The Host (troll), The Reframer (sound effects), and The Quant (joker). Same 4 roles, startup vocabulary.
 
 HOW IT WORKS
 1. Click the peanut icon on any YouTube tab → a native Chrome side panel opens.
@@ -195,7 +195,7 @@ COST
 ~$1.15 per 2-hour episode across all four providers at current rates.
 
 BUILT FOR
-The $5,000 This Week in Startups bounty from Jason Calacanis and Lon Harris. @TWiStartups.
+The $5,000 Startup Roundtable bounty from The Host and The Reframer. @TWiStartups.
 ```
 
 **Category:**

@@ -1,4 +1,4 @@
-# ElevenLabs SFX prompt — Molly Wood
+# ElevenLabs SFX prompt — The Correspondent
 
 **Duration:** 0.7s
 **Prompt influence:** 70

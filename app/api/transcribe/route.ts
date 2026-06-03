@@ -9,7 +9,7 @@
  * the Director picks ONE persona per trigger, then cascades to others
  * with decreasing probability and staggered timing. The result:
  * some moments get 1 response, some get 2-3, and occasionally all 4
- * pile on — just like the real Stern Show.
+ * pile on — just like the real the morning-radio host Show.
  *
  * Event types:
  *   transcript    — real-time transcript text
@@ -26,7 +26,6 @@ import { resolvePack } from "@/lib/packs";
 import { Director } from "@/lib/director";
 import { pickPersonaLLM, type LlmRoutingPick } from "@/lib/director-llm";
 import { pickPersonaCerebrasV3 } from "@/lib/director-llm-v3-cerebras-v3prompt";
-import { pickPersonaGroqV3 } from "@/lib/director-llm-v3-groq-v3prompt";
 import {
   pickPersonaLLMv2,
   applyStickyPenalty,
@@ -67,7 +66,7 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Groq-Key, X-Cerebras-Key, X-OpenAI-Key, X-Search-Engine, X-Install-Id, X-Sensitivity, X-Subscription-Key",
+    "Content-Type, X-Deepgram-Key, X-Anthropic-Key, X-Brave-Key, X-XAI-Key, X-Cerebras-Key, X-OpenAI-Key, X-Search-Engine, X-Install-Id, X-Sensitivity, X-Subscription-Key",
   "Access-Control-Expose-Headers": "X-Session-Id",
   "Access-Control-Max-Age": "86400",
 };
@@ -89,7 +88,7 @@ interface Session {
    * The pack that was resolved when the session started. Frozen for the life
    * of the session — pack swaps only take effect on the next Start Listening.
    * Used by PATCH handlers (e.g. fire_persona validation) so we never leak the
-   * global Howard import into pack-specific decisions.
+   * global Morning Crew import into pack-specific decisions.
    */
   resolvedPack: Pack;
   forcedPersonaId?: string; // When set, next trigger fires this specific persona
@@ -190,7 +189,6 @@ export async function POST(req: NextRequest) {
   // with older extension builds, but nothing in the PersonaEngine
   // constructor below consumes it anymore — fact-check always uses xAI.
   const headerXai = req.headers.get("X-XAI-Key");
-  const headerGroq = req.headers.get("X-Groq-Key");
   const headerCerebras = req.headers.get("X-Cerebras-Key");
   // OpenAI key for semantic anti-repetition embeddings (SET-15). Only used
   // when ENABLE_SEMANTIC_ANTI_REPEAT=true. Self-hosters who don't need
@@ -215,11 +213,9 @@ export async function POST(req: NextRequest) {
   const anthropicKey = sanitizeKey(headerAnthropic) ?? sanitizeKey(process.env.ANTHROPIC_API_KEY);
   const xaiKey = sanitizeKey(headerXai) ?? sanitizeKey(process.env.XAI_API_KEY);
   const openAiKey = sanitizeKey(headerOpenAi) ?? sanitizeKey(process.env.OPENAI_API_KEY);
-  // Shadow-provider keys for Smart Director v3 (SET-6). Never used for
+  // Shadow-provider key for Smart Director v3 (SET-6). Never used for
   // user-facing persona calls — only for the parallel shadow LLM call that
-  // logs agreement rate vs Haiku. Groq is deferred until Developer tier
-  // reopens (SET-11); Cerebras is the working fast-provider path today.
-  const groqKey = sanitizeKey(headerGroq) ?? sanitizeKey(process.env.GROQ_API_KEY);
+  // logs agreement rate vs Haiku. Cerebras is the fast-provider shadow.
   const cerebrasKey = sanitizeKey(headerCerebras) ?? sanitizeKey(process.env.CEREBRAS_API_KEY);
 
   // v2.0.1: Search-engine selection removed (Brave Search deprecated).
@@ -241,7 +237,7 @@ export async function POST(req: NextRequest) {
       400
     );
   }
-  // xAI now powers Troll/Jason AND the soundfx slot in both packs, so without
+  // xAI now powers Troll/The Host AND the soundfx slot in both packs, so without
   // a working xAI key half the sidebar is dark. We still allow the request to
   // proceed (force-react fallback handles per-persona upstream failures and
   // produces canned bubbles) but we surface the missing key clearly so users
@@ -283,7 +279,7 @@ export async function POST(req: NextRequest) {
   const usingAnyDemoKey =
     (!headerDeepgram && !!process.env.DEEPGRAM_API_KEY) ||
     (!headerAnthropic && !!process.env.ANTHROPIC_API_KEY) ||
-    // xAI Grok powers the Troll/Jason/soundfx slots — if the user didn't bring
+    // xAI Grok powers the Troll/The Host/soundfx slots — if the user didn't bring
     // their own xAI key and the server has one, count this session as demo
     // usage for free-tier metering purposes.
     (!headerXai && !!process.env.XAI_API_KEY);
@@ -338,11 +334,11 @@ export async function POST(req: NextRequest) {
   // ── Persona pack resolution (v1.3) ─────────────────────────────────────
   // resolvePack() is the SINGLE forward-compat choke point: unknown, missing,
   // null, whitespace, or malformed ids all fall back to the default pack
-  // (Howard). That means:
-  //   - Old client + new server  → no packId in body → Howard (identical to
+  // (Morning Crew). That means:
+  //   - Old client + new server  → no packId in body → Morning Crew (identical to
   //     pre-v1.3 behavior, zero regression).
-  //   - New client + old server  → server ignores the field → Howard (client
-  //     UI still shows chosen names, backend speaks Howard; tolerable drift).
+  //   - New client + old server  → server ignores the field → Morning Crew (client
+  //     UI still shows chosen names, backend speaks Morning Crew; tolerable drift).
   //   - New client + new server  → pack flows through, engine uses its
   //     persona array, Director is unchanged (same 4 archetype slots).
   const resolvedPack = resolvePack(packId);
@@ -357,17 +353,15 @@ export async function POST(req: NextRequest) {
     rate: rateClamped,
     paceMultiplier,
     // Log both requested + resolved so we can see fallbacks in the logs
-    // (e.g. someone sending "Howard" with a capital H should show
-    // requestedPackId="Howard", packId="howard" — or unknown → "howard").
+    // (e.g. someone sending "Morning-Crew" with mixed case should show
+    // requestedPackId="Morning-Crew", packId="morning-crew" — or unknown
+    // → "morning-crew", or legacy "howard" → "morning-crew").
     requestedPackId: typeof packId === "string" ? packId : null,
     packId: resolvedPack.meta.id,
     // Shadow flag state, for filtering director_v3_shadow_compare events.
-    // SET-13: v3-prompt shadows (5-slot + confidence, json_schema). The
-    // v2-prompt cohort (SET-6) was retired on 2026-04-22 along with the
-    // deprecated director-llm-v3-{cerebras,groq}.ts modules.
-    groqShadowV3Enabled:
-      process.env.ENABLE_SMART_DIRECTOR_V3_GROQ_V3PROMPT === "true" &&
-      !!groqKey,
+    // SET-13: v3-prompt Cerebras shadow (5-slot + confidence, json_schema).
+    // The v2-prompt cohort (SET-6) was retired on 2026-04-22; the Groq
+    // shadow path was retired on 2026-06-03 along with the groq-sdk dep.
     cerebrasShadowV3Enabled:
       process.env.ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT === "true" &&
       !!cerebrasKey,
@@ -379,7 +373,7 @@ export async function POST(req: NextRequest) {
     transcriber,
     // Freeze the resolved pack on the session so PATCH handlers validate
     // fire_persona requests against THIS session's pack rather than the
-    // global Howard shim. Pack swaps only take effect on the next Start.
+    // global Morning Crew shim. Pack swaps only take effect on the next Start.
     resolvedPack,
     startedAt: Date.now(),
     chargeableInstallId,
@@ -395,13 +389,13 @@ export async function POST(req: NextRequest) {
 
   const personaEngine = new PersonaEngine({
     anthropicKey: anthropicKey || "",
-    // xAI key powers the Troll/Jason AND soundfx slots in every pack AND
+    // xAI key powers the Troll/The Host AND soundfx slots in every pack AND
     // the Producer's fact-check grounding via Grok Live Search. Empty
     // string is still accepted — the force-react fallback catches per-persona
     // upstream failures — but the sidebar will look sparse without it.
     xaiKey: xaiKey || "",
     // Pass the resolved pack (never undefined — resolvePack() guarantees a
-    // valid Pack). Engine internally falls back to Howard if pack is unset,
+    // valid Pack). Engine internally falls back to Morning Crew if pack is unset,
     // so this is also the "self-documenting" seam.
     pack: resolvedPack,
     // OpenAI key for semantic anti-repetition embeddings (SET-15). Only used
@@ -674,8 +668,8 @@ export async function POST(req: NextRequest) {
           // v1.7 experimental: v3 router (SILENT slot + tool_use + confidence
           // + callback memory). Opt-in only. When the v3 flag is set, v3 wins
           // — v2 fallback is the already-shipped code path, so we don't race
-          // both Haiku calls. The Groq shadow still fires in parallel below
-          // and compares against whichever of v2/v3 was the active pick.
+          // both Haiku calls. The Cerebras shadow still fires in parallel
+          // below and compares against whichever of v2/v3 was the active pick.
           const smartV2On =
             process.env.ENABLE_SMART_DIRECTOR_V2 === "true" && !!anthropicKey;
 
@@ -683,46 +677,20 @@ export async function POST(req: NextRequest) {
           // Fire in parallel with the Haiku primary. Deliberately NOT awaited
           // before routing — the shadow pick is logged but never fed to
           // director.decide(). A 2 s timeout bounds tail latency on the async
-          // log path; sub-200 ms TTFT on both providers means the shadow
-          // usually resolves before the cascade finishes.
+          // log path; sub-200 ms TTFT means the shadow usually resolves
+          // before the cascade finishes.
           //
-          // Two shadow providers are wired, independently flag-gated, both
-          // using the v3 prompt (5-slot + confidence) with json_schema-
-          // enforced structured output:
+          // One shadow provider is wired, flag-gated, using the v3 prompt
+          // (5-slot + confidence) with json_schema-enforced structured output:
           //   - Cerebras (ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT):
-          //     working today. Llama 3.1 8B, ~100–440 ms TTFT, paid self-serve.
-          //   - Groq     (ENABLE_SMART_DIRECTOR_V3_GROQ_V3PROMPT): deferred,
-          //     tracked in Linear SET-11 until Developer tier reopens. Same
-          //     model as Cerebras so the eventual switch is a 1-env-flip.
-          // Both flags can be on at once for a head-to-head comparison.
+          //     Llama 3.1 8B, ~100–440 ms TTFT, paid self-serve.
           //
           // Historical note: the v2-prompt cohort (SET-6 / json_object) was
-          // retired 2026-04-22 along with the deprecated director-llm-v3-
-          // {cerebras,groq}.ts modules — the v2 prompt's "describe the JSON
-          // shape" style let Llama 8B echo `{"type":"object"}` instead of
-          // actually picking a persona. Json_schema enum constraints closed
-          // that class of parse failures.
-          const groqShadowV3On =
-            process.env.ENABLE_SMART_DIRECTOR_V3_GROQ_V3PROMPT === "true" &&
-            (smartOn || smartV2On) &&
-            !!groqKey;
-          const groqShadowV3Start = groqShadowV3On ? Date.now() : null;
-          const groqShadowV3Promise: Promise<LlmRoutingPickV2 | null> =
-            groqShadowV3On
-              ? pickPersonaGroqV3({
-                  recentTranscript: directorInput,
-                  isSilence: isSilenceTick,
-                  recentFirings: director.getRecentFirings(),
-                  cooldownsMs: director.getCooldownsMs(),
-                  packPersonas: session.resolvedPack.personas,
-                  liveCallbacks: director.getLiveCallbacks(),
-                  unstableTailLen,
-                  groqKey: groqKey!,
-                  signal: AbortSignal.timeout(2000),
-                  sessionId,
-                }).catch(() => null)
-              : Promise.resolve(null);
-
+          // retired 2026-04-22 — the v2 prompt's "describe the JSON shape"
+          // style let Llama 8B echo `{"type":"object"}` instead of actually
+          // picking a persona. Json_schema enum constraints closed that
+          // class of parse failures. The Groq shadow path (SET-11) was
+          // retired on 2026-06-03 along with the groq-sdk dependency.
           const cerebrasShadowV3On =
             process.env.ENABLE_SMART_DIRECTOR_V3_CEREBRAS_V3PROMPT === "true" &&
             (smartOn || smartV2On) &&
@@ -799,8 +767,8 @@ export async function POST(req: NextRequest) {
             llmElapsedMs = Date.now() - llmStart;
           }
           // v1.7: read the active pack's producer sensitivity mode.
-          // Howard's Baba uses "loose" (triggers on speculation + confidence
-          // cues + name-drops); TWiST's Molly uses "strict" (hard claims
+          // Morning Crew's The Producer uses "loose" (triggers on speculation + confidence
+          // cues + name-drops); Startup Roundtable's The Correspondent uses "strict" (hard claims
           // only). Defaults to "strict" if the pack doesn't declare one.
           const producerPersona = session.resolvedPack.personas.find(
             (p) => p.id === "producer"
@@ -902,7 +870,7 @@ export async function POST(req: NextRequest) {
           // preserves the `promptVersion` field on `fast` (always "v3" now)
           // so historical log rows from the retired v2-prompt cohort remain
           // queryable against the same shape.
-          if (groqShadowV3On || cerebrasShadowV3On) {
+          if (cerebrasShadowV3On) {
             const capturedHaikuPick = smartV2On
               ? llmPickV2?.personaId ?? null
               : llmPick?.personaId ?? null;
@@ -913,7 +881,7 @@ export async function POST(req: NextRequest) {
             const capturedHaikuVersion = smartV2On ? "v3" : "v2";
 
             const emitShadowCompare = (
-              provider: "groq" | "cerebras",
+              provider: "cerebras",
               model: string,
               shadowPick: LlmRoutingPickV2 | null,
               elapsedMs: number | null
@@ -941,21 +909,6 @@ export async function POST(req: NextRequest) {
                 isSilence: isSilenceTick,
               });
             };
-
-            if (groqShadowV3On) {
-              groqShadowV3Promise.then((groqV3Pick) => {
-                const elapsedMs =
-                  groqShadowV3Start !== null
-                    ? Date.now() - groqShadowV3Start
-                    : null;
-                emitShadowCompare(
-                  "groq",
-                  "llama-3.1-8b-instant",
-                  groqV3Pick,
-                  elapsedMs
-                );
-              });
-            }
 
             if (cerebrasShadowV3On) {
               cerebrasShadowV3Promise.then((cerebrasV3Pick) => {
@@ -1039,12 +992,13 @@ export async function POST(req: NextRequest) {
 
             // Build cascade context from previous persona's response.
             // Look the persona up in the session's resolved pack — not the
-            // global `personas` shim, which always resolves to Howard. A
-            // TWiST cascade that used the shim would stamp the cascade
-            // source with Baba Booey's name/emoji instead of Molly's, so
-            // the next persona's prompt would reference a Howard cast
-            // member who isn't in the conversation. Slot ids match across
-            // packs, so .find() still works — only the name/emoji differ.
+            // global `personas` shim, which always resolves to the default
+            // pack (Morning Crew). A Startup Roundtable cascade that used the shim
+            // would stamp the cascade source with the Producer's name/emoji
+            // instead of The Correspondent's, so the next persona's prompt would
+            // reference a Morning Crew member who isn't in the conversation.
+            // Slot ids match across packs, so .find() still works — only the
+            // name/emoji differ.
             const cascadeFrom = i > 0 && lastResponse
               ? (() => {
                   const p = session.resolvedPack.personas.find((p) => p.id === lastPersonaId);
@@ -1053,7 +1007,7 @@ export async function POST(req: NextRequest) {
               : undefined;
 
             // v1.7: hand the producer persona the Director's pre-extracted
-            // top claims so Baba's fact-check anchors on exactly the
+            // top claims so The Producer's fact-check anchors on exactly the
             // sentence the Director saw. The helper inside fireSingle
             // re-scans only when this is undefined (non-producer personas
             // ignore the arg). Guarantees the "animates then doesn't
@@ -1203,8 +1157,8 @@ export async function PATCH(req: NextRequest) {
         409
       );
     }
-    // Validate against THIS session's pack — not the global Howard shim.
-    // Today Howard and TWiST share the same four archetype IDs so either
+    // Validate against THIS session's pack — not the global Morning Crew shim.
+    // Today Morning Crew and Startup Roundtable share the same four archetype IDs so either
     // array would accept the same inputs, but a future pack that renames
     // a slot would 404 legitimate requests if we kept the global import.
     const persona = session.resolvedPack.personas.find((p) => p.id === targetPersonaId);

@@ -8,9 +8,9 @@ Peanut Gallery stands on a lot of shoulders. This is the short ledger.
 
 ## The bounty that started it
 
-**[Jason Calacanis](https://x.com/Jason)** and **[Lon Harris](https://x.com/Lons)** — the TWiST AI sidebar bounty on *This Week in Startups* is the reason this project exists. $5,000 plus a guest spot; the spec was tight; the deadline was real. [Original brief](https://www.youtube.com/@ThisWeekInStartups).
+**[The Host](https://x.com/The Host)** and **[The Reframer](https://x.com/Lons)** — the Startup Roundtable AI sidebar bounty on *Startup Roundtable* is the reason this project exists. $5,000 plus a guest spot; the spec was tight; the deadline was real. [Original brief](https://www.youtube.com/@ThisWeekInStartups).
 
-The TWiST persona pack in v1.3.0 (Molly Wood / Jason Calacanis / Lon Harris / Alex Wilhelm) is an inside-baseball thank-you, researched from public transcripts and shipped with anti-impersonation guardrails in every prompt. Characterization source: [`docs/packs/twist/RESEARCH.md`](docs/packs/twist/RESEARCH.md).
+The Startup Roundtable persona pack in v1.3.0 (The Correspondent / The Host / The Reframer / The Quant) is an inside-baseball thank-you, researched from public transcripts and shipped with anti-impersonation guardrails in every prompt. Characterization source: [`docs/packs/twist/RESEARCH.md`](docs/packs/twist/RESEARCH.md).
 
 ## Design
 
@@ -18,7 +18,7 @@ The tabloid / newsprint side-panel rebrand that landed in v1.5 ("The Broadsheet"
 
 ## Inspiration
 
-- The **Howard Stern Show** for the four-seat writers'-room structure that maps cleanly onto "producer / troll / soundfx / joker" — the best radio producers have always known that a show is a group.
+- The **Morning Crew** for the four-seat writers'-room structure that maps cleanly onto "producer / troll / soundfx / joker" — the best radio producers have always known that a show is a group.
 - **NotebookLM** for proving that a podcast-adjacent UX with real AI personas can feel like a product, not a demo.
 - **Dmooji** and **ai_licia** for showing that overlay-style reactions have an audience, and for sharpening the "Director is the moat" thesis by contrast.
 

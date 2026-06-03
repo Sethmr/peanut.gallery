@@ -2,7 +2,7 @@
  * Peanut Gallery — persona cue synthesizer
  *
  * Generates 8 short (.3–.5s) WAV earcons — one per persona across the
- * Howard + TWiST packs — and writes them to
+ * Morning Crew + Startup Roundtable packs — and writes them to
  * `extension/sounds/personas/<packId>-<personaId>.wav`.
  *
  * DESIGN CONSTRAINTS (per Seth's brief):
@@ -188,10 +188,10 @@ function writeWav(path: string, samples: Sample[]) {
 // ──────────────────────────────────────────────────────
 
 /**
- * MOLLY — fact-checker. Paper-tap + typewriter-ding. Precise, small,
+ * THE CORRESPONDENT — fact-checker. Paper-tap + typewriter-ding. Precise, small,
  * journalistic. Two short transients then a bright bell overtone.
  */
-function molly(): Sample[] {
+function correspondentCue(): Sample[] {
   const tap = noise(0.04, decay(0.008));
   const tapped = highpass(tap, 2000);
   const ding = sine(2200, 0.22, decay(0.08));
@@ -201,10 +201,10 @@ function molly(): Sample[] {
 }
 
 /**
- * JASON — podcast mic turn-on. Low pop filter thump + a touch of air.
+ * THE HOST — podcast mic turn-on. Low pop filter thump + a touch of air.
  * Load-bearing host energy without being mean-loud.
  */
-function jason(): Sample[] {
+function hostCue(): Sample[] {
   const thump = sine(80, 0.18, decay(0.05));
   const thump2 = sine(160, 0.18, decay(0.04));
   const air = noise(0.35, adsr(0.01, 0.2, 0.35));
@@ -213,10 +213,10 @@ function jason(): Sample[] {
 }
 
 /**
- * LON 🥚 — dry cinematic record-scratch tick. Short, unhurried, sardonic.
+ * THE REFRAMER 🥚 — dry cinematic record-scratch tick. Short, unhurried, sardonic.
  * Descending noise sweep with a tight click.
  */
-function lon(): Sample[] {
+function reframerCue(): Sample[] {
   const click = noise(0.01, decay(0.003));
   const sweep = noise(0.18, decay(0.04));
   // FM-style pitch descent via variable-cutoff lowpass, poor-man's version
@@ -234,10 +234,10 @@ function lon(): Sample[] {
 }
 
 /**
- * ALEX 🥔 — data comedian. Mechanical calculator key-click → bright bell.
+ * THE QUANT 🥔 — data comedian. Mechanical calculator key-click → bright bell.
  * Numbers in, punchline out.
  */
-function alex(): Sample[] {
+function quantCue(): Sample[] {
   const click = noise(0.025, decay(0.004));
   const clickFilt = highpass(click, 1500);
   const bell = mix(
@@ -249,9 +249,9 @@ function alex(): Sample[] {
 }
 
 /**
- * BABA BOOEY — bullseye dart thunk. Short, satisfying, hit-the-mark.
+ * THE PRODUCER — bullseye dart thunk. Short, satisfying, hit-the-mark.
  */
-function babaBooey(): Sample[] {
+function producerCue(): Sample[] {
   const thunk = sine(140, 0.12, decay(0.035));
   const thunk2 = triangle(280, 0.12, decay(0.03));
   const click = noise(0.008, decay(0.002));
@@ -270,9 +270,9 @@ function troll(): Sample[] {
 }
 
 /**
- * FRED — cartoon slide whistle. Rising-then-falling arc, classic SFX.
+ * THE SOUND GUY — cartoon slide whistle. Rising-then-falling arc, classic SFX.
  */
-function fred(): Sample[] {
+function soundguyCue(): Sample[] {
   const dur = 0.4;
   const n = Math.round(SR * dur);
   const out: Sample[] = new Array(n);
@@ -291,9 +291,9 @@ function fred(): Sample[] {
 }
 
 /**
- * JACKIE — shortened rimshot. Snare-like transient + low tom "dum".
+ * THE JOKE WRITER — shortened rimshot. Snare-like transient + low tom "dum".
  */
-function jackie(): Sample[] {
+function jokewriterCue(): Sample[] {
   // ba-dum-tss compressed: two thuds + a tight cymbal-like noise burst.
   const dum1 = sine(200, 0.08, decay(0.025));
   const dum2 = sine(160, 0.08, decay(0.025));
@@ -325,14 +325,14 @@ const RMS_TARGET = 0.126; // ≈ −18 dBFS
 const PEAK_TARGET = 0.5; // ≈ −6 dBFS
 
 const cues: Array<{ id: string; samples: Sample[] }> = [
-  { id: "howard-producer", samples: babaBooey() }, // Baba Booey
-  { id: "howard-troll", samples: troll() }, // The Troll
-  { id: "howard-soundfx", samples: fred() }, // Fred
-  { id: "howard-joker", samples: jason() }, // Jackie — plays Jason's cue (swap)
-  { id: "twist-producer", samples: molly() }, // Molly
-  { id: "twist-troll", samples: jackie() }, // Jason — plays Jackie's cue (swap)
-  { id: "twist-soundfx", samples: lon() }, // Lon 🥚
-  { id: "twist-joker", samples: alex() }, // Alex 🥔
+  { id: "morning-crew-producer", samples: producerCue() }, // The Producer (clipboard cue)
+  { id: "morning-crew-troll", samples: troll() }, // The Heckler
+  { id: "morning-crew-soundfx", samples: soundguyCue() }, // The Sound Guy
+  { id: "morning-crew-joker", samples: hostCue() }, // The Joke Writer (plays the laugh cue)
+  { id: "twist-producer", samples: correspondentCue() }, // The Correspondent
+  { id: "twist-troll", samples: jokewriterCue() }, // The Host (plays the wordplay cue)
+  { id: "twist-soundfx", samples: reframerCue() }, // The Reframer 🥚
+  { id: "twist-joker", samples: quantCue() }, // The Quant 🥔
 ];
 
 // Two-pass normalize: push every cue UP to the shared RMS target, then

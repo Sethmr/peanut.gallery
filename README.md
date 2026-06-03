@@ -9,7 +9,7 @@
 
 Peanut Gallery is a Chrome Manifest-V3 extension. It captures the active tab's audio silently (`chrome.tabCapture` — no permission picker, no playback interference), streams PCM to a local or hosted backend, transcribes with Deepgram Nova-3, and routes each chunk through the **Smart Director** — a Claude-powered routing brain that picks which of four personas gets to fire next (with a rule-based safety net). Text reactions stream back via SSE and stack in the native Chrome side panel right next to the video.
 
-Built in response to [Jason Calacanis](https://x.com/Jason) and [Lon Harris](https://x.com/Lons)'s $5K open bounty on [This Week in Startups](https://www.youtube.com/@ThisWeekInStartups). The TWiST pack puts Jason, Molly Wood, Lon Harris, and Alex Wilhelm on the panel — inspired by, not impersonating, with anti-impersonation guardrails baked into every prompt. Each persona ships with an illustrated peanut mascot (v1.5.3) with Phong-shaded lighting and animated reactions (v1.6.0).
+Built in response to [The Host](https://x.com/The Host) and [The Reframer](https://x.com/Lons)'s $5K open bounty on [Startup Roundtable](https://www.youtube.com/@ThisWeekInStartups). The Startup Roundtable pack puts The Host, The Correspondent, The Reframer, and The Quant on the panel — inspired by, not impersonating, with anti-impersonation guardrails baked into every prompt. Each persona ships with an illustrated peanut mascot (v1.5.3) with Phong-shaded lighting and animated reactions (v1.6.0).
 
 ---
 
@@ -52,37 +52,37 @@ Plus is an accessibility lever, not a profit center — anyone who wants can alw
 
 Every pack ships four archetype slots. The Director is pack-agnostic — same routing, same cascade, same cooldowns — only the voices change.
 
-### Howard Stern Show (default)
+### Morning Crew (default)
 
-Inspired by the Stern staff, per Jason's original spec.
+Inspired by the morning-radio host staff, per The Host's original spec.
 
 | Slot | Character | Model | Role |
 |------|-----------|-------|------|
-| **Producer** | Baba Booey (Gary Dell'Abate) | Claude Haiku + xAI Live Search | Fact-checker. Pulls receipts mid-show on numbers, dates, attributions. |
+| **Producer** | The Producer (The Producer) | Claude Haiku + xAI Live Search | Fact-checker. Pulls receipts mid-show on numbers, dates, attributions. |
 | **Troll** | The Cynical Troll | xAI Grok 4.1 Fast | Contrarian. Internet-brain energy. Says what the audience is thinking. |
-| **Sound FX** | Fred Norris | xAI Grok 4.1 Fast | Bracket-delimited sound cues plus deadpan one-liners. |
-| **Joker** | Jackie Martling | Claude Haiku | Setup-punchline jokes, callbacks, observational comedy. |
+| **Sound FX** | The Sound Guy | xAI Grok 4.1 Fast | Bracket-delimited sound cues plus deadpan one-liners. |
+| **Joker** | The Joke Writer | Claude Haiku | Setup-punchline jokes, callbacks, observational comedy. |
 
 Sample fires:
 
-> *Baba Booey:* [FACT CHECK] "Jason just said Uber was founded in 2007. It was 2009. Again."
+> *The Producer:* [FACT CHECK] "The Host just said Uber was founded in 2007. It was 2009. Again."
 >
 > *Troll:* "Oh cool, another AI wrapper. Very 2024."
 >
-> *Fred:* [record scratch] Fun fact: that company went bankrupt in 2023. [sad trombone]
+> *The Sound Guy:* [record scratch] Fun fact: that company went bankrupt in 2023. [sad trombone]
 >
-> *Jackie:* "Jason's investment thesis: if it has 'AI' in the name and the founder has a pulse, it's a yes."
+> *The Joke Writer:* "The Host's investment thesis: if it has 'AI' in the name and the founder has a pulse, it's a yes."
 
-### This Week in Startups (since v1.3.0)
+### Startup Roundtable (since v1.3.0)
 
-Researched from public TWiST transcripts and episode clips. See [`docs/packs/twist/RESEARCH.md`](docs/packs/twist/RESEARCH.md) for the characterization source.
+Researched from public Startup Roundtable transcripts and episode clips. See [`docs/packs/twist/RESEARCH.md`](docs/packs/twist/RESEARCH.md) for the characterization source.
 
 | Slot | Character | Model | Role |
 |------|-----------|-------|------|
-| **Producer** | Molly Wood | Claude Haiku + xAI Live Search | Calm journalistic corrections, "according to" framing, receipts-first. |
-| **Troll** | Jason Calacanis | xAI Grok 4.1 Fast | Provocateur. Confident takes, founder-market-fit framing, warm-not-mean. |
-| **Sound FX** | Lon Harris | xAI Grok 4.1 Fast | The Reframe. Bracket-delimited sound cues plus cultural analogies. |
-| **Joker** | Alex Wilhelm | Claude Haiku | Data Comedian. Eight joke techniques built on data plus absurdity. |
+| **Producer** | The Correspondent | Claude Haiku + xAI Live Search | Calm journalistic corrections, "according to" framing, receipts-first. |
+| **Troll** | The Host | xAI Grok 4.1 Fast | Provocateur. Confident takes, founder-market-fit framing, warm-not-mean. |
+| **Sound FX** | The Reframer | xAI Grok 4.1 Fast | The Reframe. Bracket-delimited sound cues plus cultural analogies. |
+| **Joker** | The Quant | Claude Haiku | Data Comedian. Eight joke techniques built on data plus absurdity. |
 
 Pack choice lives in the side-panel setup dropdown and persists across sessions. Change takes effect on the next Start Listening — no mid-session persona swap.
 
@@ -99,7 +99,7 @@ YouTube Tab → chrome.tabCapture → Offscreen Doc → PCM 16kHz (250ms chunks)
 
 The **Director** is the moat. It reads each transcript chunk and picks the best persona to respond, then cascades to others with decreasing probability and staggered timing. Some moments get 1 reaction, some 2-3, occasionally all four pile on. As of v1.6.0 ("The Canary") the primary router is a Claude Haiku `tool_use` call with verbalized confidence, sticky-agent penalty, unstable-tail heuristic, a live-callback ring buffer, and SILENT as a first-class choice — all behind a 400 ms budget with the rule-based scorer as the safety net. A fast-model shadow (Cerebras Llama 3.1 8B; Groq also wired) logs its pick alongside so we can verify agreement + latency before swapping primaries. The canary is flag-gated: `ENABLE_SMART_DIRECTOR_V2=true` on the backend turns the LLM router on; off keeps everything rule-based.
 
-The **Fact-Checker** has an extra step: it scores sentences for factual claims and runs parallel search queries via **xAI Live Search** (Grok Responses API with the `web_search` tool) to cross-reference. Sensitivity is per-pack design: Howard's Baba Booey is `loose` (fires on speculation + name-drops + predictions), TWiST's Molly Wood is `strict` (hard claims only). One xAI key covers both persona generation and fact-check grounding.
+The **Fact-Checker** has an extra step: it scores sentences for factual claims and runs parallel search queries via **xAI Live Search** (Grok Responses API with the `web_search` tool) to cross-reference. Sensitivity is per-pack design: the morning-radio host's The Producer is `loose` (fires on speculation + name-drops + predictions), Startup Roundtable's The Correspondent is `strict` (hard claims only). One xAI key covers both persona generation and fact-check grounding.
 
 If no audio is detected for 60 s, the extension auto-stops the session so it doesn't keep burning backend tokens on a paused tab. Press Start Listening again to resume.
 
@@ -182,7 +182,7 @@ Canonical source: [`docs/ROADMAP.md`](docs/ROADMAP.md). This table is what actua
 | Version | Theme | Date |
 |---------|-------|------|
 | v1.2.0 | **Mise en place** — Director debug panel + structured routing logs + fixture harness + pre-merge gate | 2026-04-17 |
-| v1.3.0 | **TWiST Pack** — selectable packs, Howard + TWiST voices, pack swap in side panel | 2026-04-14 |
+| v1.3.0 | **Startup Roundtable Pack** — selectable packs, the morning-radio host + Startup Roundtable voices, pack swap in side panel | 2026-04-14 |
 | v1.4.0 | **Grok & Stability** — xAI migration for troll + sound FX, search-engine toggle, session deadlock fix | 2026-04-17 |
 | v1.5.0 | **The Broadsheet** — tabloid side-panel rebuild, mute-a-critic, night theme, Markdown export | 2026-04-19 |
 | v1.5.1 | **Broadsheet Final** — 6-submenu settings drawer (absorbs old v1.6 "Settings Pane"), free-tier status strip, ON AIR, per-mug waveforms, round mugs | 2026-04-20 |
@@ -194,13 +194,13 @@ Canonical source: [`docs/ROADMAP.md`](docs/ROADMAP.md). This table is what actua
 | v1.6.0 | **The Canary** — Smart Director v3 flag-gated canary (Haiku `tool_use`, 5-slot with SILENT, Cerebras/Groq shadow), fact-check gate with per-pack sensitivity, fallback telemetry + self-correcting penalty loop, peanut avatar stage 1 (Phong lighting + unclipped bottoms), empty-state companions, director debug panel, 60s silence auto-stop | 2026-04-21 |
 | v1.7.0 | **The Fine Print** — legal hard-save: rewritten ToS/Privacy drafts, US-only gate on Plus, cookie-consent banner, email aliases. Tagged + branched; held back from main pending lawyer review | 2026-04-21 |
 | v1.8.0 | **The Press Pass** — Peanut Gallery Plus live end-to-end: SQLite identity (SET-25), Stripe checkout + webhook (SET-26), Resend email (SET-27), dedupe gate with one-click recover-key modal, four-mode access picker (Demo / Plus / My keys / Self-host), 15-min one-off free tier. Plus feed-UI polish (Regenerate, fire-count chips, session timer, transcript pulse) + fact-check hardening + privacy feedback opt-out | 2026-04-22 |
-| **v2.0.0** | **The Gallery** — CWS launch. v1.8.0 "Press Pass" Plus pipeline + v1.7.0 legal hard-save + v1.6.0 Smart Director canary all cleared to main. Persona v1.8 deep-research kernels for all 8 personas. **Fact-check layer methodology** ([`docs/FACT-CHECK-LAYER.md`](docs/FACT-CHECK-LAYER.md)) — four-tier CONFIRMS / CONTRADICTS / COMPLICATES / THIN taxonomy applied to Baba + Molly via the new `layered-fact-checker` scaffolding, voice-agnostic. **Inspired-by parody frame** — `persona.inspiredBy` field on every named-person persona, with a prepended PARODY FRAME injected at fire time closing the anti-impersonation hedge promised on the marketing site. Audio polish (mute-SFX toggle in Audio drawer, Jackie↔Jason cue swap, bowling-pin cue for Jason, Fred + Lon cue trims, cue volume reduced to 0.67). Feedback & bugs drawer section (bug → GitHub, feedback → email). Director-v3 shadow log-noise reduction (Cerebras schema-dump demotion + stringified/partial-schema confidence coercion). | 2026-04-23 |
+| **v2.0.0** | **The Gallery** — CWS launch. v1.8.0 "Press Pass" Plus pipeline + v1.7.0 legal hard-save + v1.6.0 Smart Director canary all cleared to main. Persona v1.8 deep-research kernels for all 8 personas. **Fact-check layer methodology** ([`docs/FACT-CHECK-LAYER.md`](docs/FACT-CHECK-LAYER.md)) — four-tier CONFIRMS / CONTRADICTS / COMPLICATES / THIN taxonomy applied to The Producer + The Correspondent via the new `layered-fact-checker` scaffolding, voice-agnostic. **Inspired-by parody frame** — `persona.inspiredBy` field on every named-person persona, with a prepended PARODY FRAME injected at fire time closing the anti-impersonation hedge promised on the marketing site. Audio polish (mute-SFX toggle in Audio drawer, The Joke Writer↔The Host cue swap, bowling-pin cue for The Host, The Sound Guy + The Reframer cue trims, cue volume reduced to 0.67). Feedback & bugs drawer section (bug → GitHub, feedback → email). Director-v3 shadow log-noise reduction (Cerebras schema-dump demotion + stringified/partial-schema confidence coercion). | 2026-04-23 |
 
 ### Next
 
 | Version | Theme | Status |
 |---------|-------|--------|
-| v2.1.x | **Baba fact-check tuning** — live-log-driven pass-rate rebalancing for the new fact-check layer (first application landed in v2.0 but is more conservative on fire than live data wants). Potential Cerebras model swap (Llama 3.1 8B → 3.3 70B) for cleaner structured-output shadow telemetry. | Deferred post-ship per Seth |
+| v2.1.x | **The Producer fact-check tuning** — live-log-driven pass-rate rebalancing for the new fact-check layer (first application landed in v2.0 but is more conservative on fire than live data wants). Potential Cerebras model swap (Llama 3.1 8B → 3.3 70B) for cleaner structured-output shadow telemetry. | Deferred post-ship per Seth |
 | v2.2.x | **Smart Director GA** — once the v1.6 canary clears agreement + latency bands, promote the LLM router to primary and retire the rule-based scorer. Per-pack `directorHint` calibration from canary telemetry. Kill-switch flag stays. | Blocked on canary data |
 | v2.3.x | **Persona refinement sprint 2** — re-run kernels against 100+ transcripts per pack after v2.0 launch feedback; tune anything the director says is under-firing. | Blocked on v2.1 tuning |
 | v2.4.x | **Avatar stage 2** — bobbleheads / 2.5D parallax / Lottie / MP4 fallback, whichever reads best in a 2-day spike. | Planned |
@@ -232,7 +232,7 @@ Peanut Gallery is built in the open on nights and weekends. If you get value fro
 
 ## Built By
 
-**[Seth Rininger](https://sethrininger.dev)** — iOS dev turned AI builder. 12+ years shipping apps at scale. Built for **[This Week in Startups](https://x.com/twistartups)** — Jason Calacanis and Lon Harris.
+**[Seth Rininger](https://sethrininger.dev)** — iOS dev turned AI builder. 12+ years shipping apps at scale. Built for **[Startup Roundtable](https://x.com/twistartups)** — The Host and The Reframer.
 
 Marketing site (separate repo, zero build step, iterates on a copy-and-design cadence):
 [**Sethmr/peanut.gallery.site**](https://github.com/Sethmr/peanut.gallery.site) → served at [www.peanutgallery.live](https://www.peanutgallery.live).
@@ -241,4 +241,4 @@ Marketing site (separate repo, zero build step, iterates on a copy-and-design ca
 
 ## License
 
-[MIT](LICENSE). Fact-checking powered by xAI Live Search (Grok Responses API). Peanut Gallery is not affiliated with YouTube, Google, SiriusXM, or TWiST — personas are inspired by, not impressions of.
+[MIT](LICENSE). Fact-checking powered by xAI Live Search (Grok Responses API). Peanut Gallery is not affiliated with YouTube, Google, SiriusXM, or Startup Roundtable — personas are inspired by, not impressions of.

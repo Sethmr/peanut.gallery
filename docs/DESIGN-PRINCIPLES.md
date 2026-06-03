@@ -15,12 +15,12 @@ If the side panel has started a persona's speaking animation, that persona MUST 
 
 **Applies to:**
 - Force-react taps (avatar click / 🔥 button) — protected since v1.4 via `getForceReactFallback`.
-- Director-driven producer fires — the producer slot has a dedicated status event so the UI pre-animates Baba/Molly specifically. Safety net in `lib/persona-engine.ts` emits `producer_pass_safety_net` + the fallback string on pass.
+- Director-driven producer fires — the producer slot has a dedicated status event so the UI pre-animates The Producer/The Correspondent specifically. Safety net in `lib/persona-engine.ts` emits `producer_pass_safety_net` + the fallback string on pass.
 
 **Does NOT apply to:**
 - Director cascades for troll / sfx / joker. The UI doesn't pre-animate those, so a silent `-` pass is invisible.
 
-**Corollary:** Wrong fact-check content > empty speaking animation. Aggressive fact-check sensitivity (e.g. Baba's `factCheckMode: "loose"`) is a feature, not a bug.
+**Corollary:** Wrong fact-check content > empty speaking animation. Aggressive fact-check sensitivity (e.g. The Producer's `factCheckMode: "loose"`) is a feature, not a bug.
 
 ### 2. The Director balances characters
 *(2026-04-21 reaffirmed while designing the fact-check gate.)*
@@ -41,13 +41,13 @@ No single persona should dominate for long. Even when the Director has a strong 
 
 Each pack's producer declares `Persona.factCheckMode: "strict" | "loose"`.
 
-- **Loose** — fires on speculation, predictions, "everyone knows" claims, name-drops, confidence-stacking. Howard's Baba Booey default. Being wrong-sometimes is part of the character.
-- **Strict** — hard claims only (numbers, dates, attributions, corporate actions). TWiST's Molly Wood default (veteran journalist).
+- **Loose** — fires on speculation, predictions, "everyone knows" claims, name-drops, confidence-stacking. the morning-radio host's The Producer default. Being wrong-sometimes is part of the character.
+- **Strict** — hard claims only (numbers, dates, attributions, corporate actions). Startup Roundtable's The Correspondent default (veteran journalist).
 
 The mode is a pack-design decision, NOT a user setting. When adding a new pack, pick the mode that fits the character.
 
 ### 3a. Persona prompts are the lever, not the Director
-*(2026-04-21 — codified after the Baba Booey false-pass audit; see [PACK-AUTHORING-GUIDE.md § Refinement loop](PACK-AUTHORING-GUIDE.md#refinement-loop-how-we-evolve-packs-over-time).)*
+*(2026-04-21 — codified after the Producer false-pass audit; see [PACK-AUTHORING-GUIDE.md § Refinement loop](PACK-AUTHORING-GUIDE.md#refinement-loop-how-we-evolve-packs-over-time).)*
 
 When a pack's behavior is off, the fix order is:
 
@@ -95,7 +95,7 @@ The in-app subscription ("Peanut Gallery Plus") is a third segmented-control opt
 ### 6. War-zone restraint; other politics are normal territory
 *(Memory: `feedback_persona_political_restraint.md`.)*
 
-Fact-checker personas don't defend the merits of war/military action. Other political content — climate, elections, immigration, culture — is normal fact-check territory. This is a narrow carveout driven by a specific past Stern-Show misfire; don't generalize it.
+Fact-checker personas don't defend the merits of war/military action. Other political content — climate, elections, immigration, culture — is normal fact-check territory. This is a narrow carveout driven by a specific past the morning-radio host-Show misfire; don't generalize it.
 
 ---
 

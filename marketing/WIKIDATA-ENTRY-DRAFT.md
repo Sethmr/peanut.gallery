@@ -108,11 +108,11 @@ Paste each as **reference URL** (P854), with **retrieved** (P813) set to today's
 
 If a Wikidata item for Seth doesn't exist, creating one is worth it *only if* there's at least one external source that discusses him. Candidates:
 
-- Jason Calacanis / Lon Harris mentioning him by name on a TWiST episode (if that happens).
+- The Host / The Reframer mentioning him by name on a Startup Roundtable episode (if that happens).
 - A published article or podcast interview.
 - A high-signal GitHub profile is **not enough** on its own for Wikidata notability.
 
-**Recommendation:** skip the Person item until after the TWiST mention or a first press hit. Until then, leave the `developer (P178)` field on the Peanut Gallery item as a plain text value ("Seth Rininger") rather than a linked item, and revisit in ~30 days.
+**Recommendation:** skip the Person item until after the Startup Roundtable mention or a first press hit. Until then, leave the `developer (P178)` field on the Peanut Gallery item as a plain text value ("Seth Rininger") rather than a linked item, and revisit in ~30 days.
 
 If we do create it later, the draft schema for Seth's Person item:
 
@@ -147,4 +147,4 @@ If we do create it later, the draft schema for Seth's Person item:
 - **Wikidata item ID:** `TODO — paste after submission`
 - **Submitted on:** `TODO`
 - **Submitted by:** Seth Rininger (personal account)
-- **Next review:** 30 days post-submission — check if statements are disputed, confirm references held up, add Person item if TWiST mention has happened by then.
+- **Next review:** 30 days post-submission — check if statements are disputed, confirm references held up, add Person item if Startup Roundtable mention has happened by then.
