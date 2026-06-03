@@ -4,11 +4,11 @@
  *
  * Usage:
  *   npx tsx scripts/test-personas.ts
- *   npx tsx scripts/test-personas.ts "Jason just said that Uber was founded in 2007"
- *   npx tsx scripts/test-personas.ts --fixture   # Use real TWiST episode transcript
+ *   npx tsx scripts/test-personas.ts "The host just said Uber was founded in 2007"
+ *   npx tsx scripts/test-personas.ts --fixture   # Use the synthetic sample transcript
  *
  * Requires:
- *   - XAI_API_KEY in .env.local (required — powers Troll/Jason + soundfx
+ *   - XAI_API_KEY in .env.local (required — powers Troll + soundfx
  *     slot AND the Producer's fact-check grounding via Grok Live Search)
  *   - ANTHROPIC_API_KEY in .env.local (required — powers Producer + Joker slots)
  */
@@ -20,19 +20,19 @@ import { PersonaEngine } from "../lib/persona-engine";
 import { personas } from "../lib/personas";
 
 const SAMPLE_TRANSCRIPT = `
-Jason: Look, I'm going to say something controversial here. The Series A market is completely broken right now. You've got companies raising at 50x revenue multiples with zero path to profitability. It reminds me of 2021 all over again.
+Host: Look, I'm going to say something controversial here. The Series A market is completely broken right now. You've got companies raising at 50x revenue multiples with zero path to profitability. It reminds me of 2021 all over again.
 
-Guest: I think you're being a bit dramatic, Jason. The market has actually corrected quite a bit from the highs.
+Guest: I think you're being a bit dramatic. The market has actually corrected quite a bit from the highs.
 
-Jason: No no no, listen. I just saw a pitch deck yesterday — AI wrapper, literally just a ChatGPT wrapper with a nice UI — and they're asking for 40 million dollars at a 200 million dollar valuation. Pre-revenue! This is insanity.
+Host: No no no, listen. I just saw a pitch deck yesterday — AI wrapper, literally just a ChatGPT wrapper with a nice UI — and they're asking for 40 million dollars at a 200 million dollar valuation. Pre-revenue! This is insanity.
 
 Guest: Well, to be fair, the AI market is different. The TAM is enormous.
 
-Jason: TAM! Everyone loves talking about TAM. You know what the TAM was for Pets.com? It was also "enormous." You know what Uber's TAM was when they started? Travis said it was a 4 billion dollar market. Now it's a 100 billion dollar company. TAM means nothing in the early days.
+Host: TAM! Everyone loves talking about TAM. You know what the TAM was for Pets.com? It was also "enormous." You know what Uber's TAM was when they started? Their CEO pitched it as a 4 billion dollar market. Now it's a 100 billion dollar company. TAM means nothing in the early days.
 
 Guest: But AI is genuinely transformational. This isn't like Web3 or crypto where —
 
-Jason: I agree it's transformational! I'm not an AI bear. We just invested in three AI companies through LAUNCH Fund 4. But there's a difference between "AI is important" and "every AI wrapper deserves a hundred million dollar valuation." That's what I'm pushing back on.
+Host: I agree it's transformational! I'm not an AI bear. We just invested in three AI companies through our seed fund. But there's a difference between "AI is important" and "every AI wrapper deserves a hundred million dollar valuation." That's what I'm pushing back on.
 `;
 
 import { readFileSync } from "fs";
@@ -43,7 +43,7 @@ if (process.argv[2] === "--fixture") {
   transcript = readFileSync(
     join(__dirname, "fixtures", "twist-episode-sample.txt"),
     "utf-8"
-  ).slice(0, 3000); // Use first ~3000 chars of real episode
+  ).slice(0, 3000); // Use first ~3000 chars of the synthetic sample
 } else {
   transcript = process.argv[2] || SAMPLE_TRANSCRIPT;
 }

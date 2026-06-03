@@ -8,13 +8,13 @@
 
 ## What Is This Project?
 
-**Peanut Gallery** is an open-source AI sidebar that watches podcasts in real-time and generates commentary from 4 distinct AI personas — inspired by the Howard Stern Show staff. It's being built to win a **$5,000 bounty + guest spot** from **Jason Calacanis** on **This Week in Startups (TWiST)**.
+**Peanut Gallery** is an open-source AI sidebar that watches podcasts in real-time and generates commentary from 4 distinct AI personas — inspired by the morning show staff. It's being built to win a **$5,000 bounty + guest spot** from **The Host** on **Startup Roundtable**.
 
 - **Domains:** `www.peanutgallery.live` (marketing — GitHub Pages), `api.peanutgallery.live` (backend — Railway). Apex `peanutgallery.live` currently 301s to `www.` during the Path-1 transition; Path 2 completes the split.
 - **Repo:** github.com/Sethmr/peanut.gallery
 - **Builder:** Seth (sethr@hey.com)
 - **Stack:** Next.js 15 (App Router), TypeScript, Tailwind CSS
-- **LLM providers:** Claude Haiku (Anthropic) + Grok 4.1 Fast non-reasoning (xAI) — multi-provider by design per Jason's spec
+- **LLM providers:** Claude Haiku (Anthropic) + Grok 4.1 Fast non-reasoning (xAI) — multi-provider by design per The Host's spec
 - **Audio pipeline:** yt-dlp → FFmpeg → Deepgram Nova-3 (WebSocket)
 - **Fact-checking:** Brave Search **or** xAI Live Search (picked per session via `SEARCH_ENGINE` env / `X-Search-Engine` header) → injected into Producer persona context
 
@@ -24,25 +24,25 @@
 
 As of v1.3.0 the persona layer is **pack-based**. The Director, engine, and extension UI talk to four fixed archetype slots (`producer / troll / soundfx / joker`); each pack maps its own real-world characters onto those slots. Two packs ship in the box:
 
-**Howard pack (default)** — the Stern Show crew that built the archetype slots:
+**the morning-radio host pack (default)** — the morning-radio host Show crew that built the archetype slots:
 
-| Slot | Character | Stern Staff | Model | ID | Emoji |
+| Slot | Character | the morning-radio host Staff | Model | ID | Emoji |
 |------|-----------|-------------|-------|----|-------|
-| The Fact-Checker | Flustered but smart producer | Gary Dell'Abate ("Baba Booey") | Claude Haiku | `producer` | :dart: |
+| The Fact-Checker | Flustered but smart producer | The Producer ("The Producer") | Claude Haiku | `producer` | :dart: |
 | The Cynical Troll | Brutal observer, fan-who-roasts | Artie Lange + callers | xAI Grok 4.1 Fast | `troll` | :fire: |
-| Sound Effects / Context | Laconic genius, editorial sounds | Fred Norris | xAI Grok 4.1 Fast | `soundfx` | :headphones: |
-| The Comedy Writer | Rapid-fire joke machine | Jackie "The Joke Man" Martling | Claude Haiku | `joker` | :joy: |
+| Sound Effects / Context | Laconic genius, editorial sounds | The Sound Guy | xAI Grok 4.1 Fast | `soundfx` | :headphones: |
+| The Comedy Writer | Rapid-fire joke machine | The Joke Writer "The Joke Man" The Joke Writer | Claude Haiku | `joker` | :joy: |
 
-**TWiST pack (flagship, shipped in v1.3.0)** — same slots, TWiST crew:
+**Startup Roundtable pack (flagship, shipped in v1.3.0)** — same slots, Startup Roundtable crew:
 
 | Slot | Character | Model |
 |------|-----------|-------|
-| producer | Molly Wood (the journalist / fact-check voice) | Claude Haiku |
-| troll | Jason Calacanis (the warm provocateur / host) | xAI Grok 4.1 Fast |
-| soundfx | Lon Harris (dry reframes + bracketed cues) | xAI Grok 4.1 Fast |
-| joker | Alex Wilhelm (data-comedian, numbers → punchlines) | Claude Haiku |
+| producer | The Correspondent (the journalist / fact-check voice) | Claude Haiku |
+| troll | The Host (the warm provocateur / host) | xAI Grok 4.1 Fast |
+| soundfx | The Reframer (dry reframes + bracketed cues) | xAI Grok 4.1 Fast |
+| joker | The Quant (data-comedian, numbers → punchlines) | Claude Haiku |
 
-Persona definitions live at `lib/packs/<pack>/personas.ts`. Each pack owns its own character research; the Howard pack inherits the original Stern dynamics, the TWiST pack is documented in [`docs/packs/twist/RESEARCH.md`](packs/twist/RESEARCH.md). `lib/personas.ts` is now a thin shim over `buildPersonaContext` and exposes the legacy types.
+Persona definitions live at `lib/packs/<pack>/personas.ts`. Each pack owns its own character research; the morning-radio host pack inherits the original the morning-radio host dynamics, the Startup Roundtable pack is documented in [`docs/packs/twist/RESEARCH.md`](packs/twist/RESEARCH.md). `lib/personas.ts` is now a thin shim over `buildPersonaContext` and exposes the legacy types.
 
 The model assignment (Haiku for producer + joker, Grok 4.1 Fast non-reasoning for troll + soundfx) is **consistent across packs** — we pick the provider by archetype slot, not by pack.
 
@@ -122,8 +122,8 @@ Result: some moments get 1 response, some get 2-3, occasionally all 4 pile on. *
 |------|---------|
 | `lib/transcription.ts` | Audio pipeline: yt-dlp → FFmpeg → Deepgram WebSocket. Handles live detection, keepalive, auto-reconnect, binary path resolution |
 | `lib/persona-engine.ts` | Multi-provider LLM orchestrator (Anthropic SDK + xAI over OpenAI-compatible HTTP). `fireSingle` / `firePersona` stream responses, log `force_react_fallback` when a force-react would otherwise pass. Owns the search pipeline (`search_*` events) and the 25s per-stream AbortSignal.timeout. |
-| `lib/packs/howard/personas.ts` | Howard pack — Baba Booey, The Troll, Fred Norris, Jackie Martling (default) |
-| `lib/packs/twist/personas.ts` | TWiST pack (v1.3.0+) — Molly Wood, Jason Calacanis, Lon Harris, Alex Wilhelm |
+| `lib/packs/howard/personas.ts` | the morning-radio host pack — The Producer, The Troll, The Sound Guy, The Joke Writer (default) |
+| `lib/packs/twist/personas.ts` | Startup Roundtable pack (v1.3.0+) — The Correspondent, The Host, The Reframer, The Quant |
 | `lib/personas.ts` | Pack-aware shim: types, `buildPersonaContext()` (includes the force-react preamble), re-exports. Real persona content lives under `lib/packs/<pack>/personas.ts`. |
 | `lib/director.ts` | The "booth producer" — scores transcript against persona specialties, picks who speaks, manages cascade chain with staggered timing. Rule-based only in v1.4; v1.5 adds an LLM-assisted pick. |
 | `lib/debug-logger.ts` | Structured JSONL logger. Always writes info+ to `logs/pipeline-debug.jsonl`. `DEBUG_PIPELINE=true` adds debug-level messages. `force_react_fallback` lands here at warn level. |
@@ -159,7 +159,7 @@ Result: some moments get 1 response, some get 2-3, occasionally all 4 pile on. *
 |------|---------|
 | `scripts/test-transcription.ts` | Standalone pipeline test: `npx tsx scripts/test-transcription.ts "YOUTUBE_URL"` |
 | `scripts/test-personas.ts` | Standalone persona test: `npx tsx scripts/test-personas.ts` or `--fixture` for real transcript |
-| `scripts/fixtures/twist-episode-sample.txt` | Real TWiST episode transcript (AstroForge space mining) |
+| `scripts/fixtures/twist-episode-sample.txt` | Real Startup Roundtable episode transcript (AstroForge space mining) |
 
 ### Documentation
 | File | Purpose |
@@ -171,7 +171,7 @@ Result: some moments get 1 response, some get 2-3, occasionally all 4 pile on. *
 | `docs/SESSION-NOTES-2026-04-17.md` | v1.1.1 handoff; §3 is the immutable server-side demo-keys architecture |
 | `docs/SESSION-NOTES-2026-04-16.md` | Earliest handoff; §3 is the immutable Chrome extension permissions/gesture flow |
 | `docs/DEBUGGING.md` | Canonical debugging reference with post-mortems (ISSUE-001..009), pipeline-event names, diagnostic checklist, silent failure table |
-| `docs/packs/twist/RESEARCH.md` | Character research for the TWiST pack — source of truth for voice/tone when the TWiST personas feel off |
+| `docs/packs/twist/RESEARCH.md` | Character research for the Startup Roundtable pack — source of truth for voice/tone when the Startup Roundtable personas feel off |
 | `extension/README.md` | Chrome extension install + architecture overview |
 | `TWIST-AI-SIDEBAR-BUILD-PLAN.md` | ARCHIVED — original pre-build plan. Do not trust; kept for history only. |
 | `docs/index.html` | Legacy in-repo landing page (self-host preview only). Production marketing now lives at `www.peanutgallery.live` and is served from the [`Sethmr/peanut.gallery.site`](https://github.com/Sethmr/peanut.gallery.site) repo. |
@@ -180,7 +180,7 @@ Result: some moments get 1 response, some get 2-3, occasionally all 4 pile on. *
 
 ## Chrome Extension
 
-The primary capture path for live TWiST episodes. Lives in [`extension/`](../extension). The yt-dlp pipeline still works for local dev and recorded videos, but gets bot-detected on headless servers, so the extension is the submission path.
+The primary capture path for live Startup Roundtable episodes. Lives in [`extension/`](../extension). The yt-dlp pipeline still works for local dev and recorded videos, but gets bot-detected on headless servers, so the extension is the submission path.
 
 | File | Purpose |
 |------|---------|
@@ -259,7 +259,7 @@ Zero visibility into whether data was flowing between yt-dlp → FFmpeg → Deep
 | `search_pipeline_error` | Unexpected exception in the search path; Producer still fires, just without search |
 | `force_react_fallback` | A persona tried to pass `"-"` on a force-react tap; engine substituted the archetype fallback string |
 
-All `search_*` events mean the same thing as v1.3: the Producer *always* fires on a force-react tap even if the search path errors out. Baba's force-react tap now **skips pre-stream search entirely** for latency; that's expected, not a bug.
+All `search_*` events mean the same thing as v1.3: the Producer *always* fires on a force-react tap even if the search path errors out. The Producer's force-react tap now **skips pre-stream search entirely** for latency; that's expected, not a bug.
 
 ---
 
@@ -310,7 +310,7 @@ The `/api/transcribe` endpoint streams these events:
 
 ## Fact-Checking Pipeline (Producer slot)
 
-Runs only for the Producer archetype during director-driven fires. Baba's force-react tap skips this path (the tap wants a fast reaction more than a sourced one).
+Runs only for the Producer archetype during director-driven fires. The Producer's force-react tap skips this path (the tap wants a fast reaction more than a sourced one).
 
 1. Extract last 1500 chars of transcript
 2. Split into sentences
@@ -331,7 +331,7 @@ Three UI surfaces, three distinct design systems. Each has its own canonical sou
 | Surface | Canonical design source |
 |---|---|
 | **Chrome side panel** — primary user-facing UI | Design proof at [peanutgallery.live/panel/](https://www.peanutgallery.live/panel/) + inline CSS tokens in [`extension/sidepanel.html`](../extension/sidepanel.html) (`--p-paper`, `--p-ink`, `--p-stamp`, `--p-yellow`, slab + serif stack). Newspaper / broadsheet aesthetic. Separate paper / night themes. |
-| **Landing page** — `/` via [`app/page.tsx`](../app/page.tsx) | [`app/landing.css`](../app/landing.css) + [`marketing/CLAUDE-DESIGN-BRIEF.md`](../marketing/CLAUDE-DESIGN-BRIEF.md). TWiST burnt-orange primary (`--pg-accent: #ff5a1f`), matte black base, Jason-calibrated. Shipped 2026-04-18. In production, `middleware.ts` 308-redirects non-`/api/*` traffic to `www.peanutgallery.live` (the static GitHub Pages site) — so this file is effectively dead marketing kept as a reference. |
+| **Landing page** — `/` via [`app/page.tsx`](../app/page.tsx) | [`app/landing.css`](../app/landing.css) + [`marketing/CLAUDE-DESIGN-BRIEF.md`](../marketing/CLAUDE-DESIGN-BRIEF.md). Startup Roundtable burnt-orange primary (`--pg-accent: #ff5a1f`), matte black base, The Host-calibrated. Shipped 2026-04-18. In production, `middleware.ts` 308-redirects non-`/api/*` traffic to `www.peanutgallery.live` (the static GitHub Pages site) — so this file is effectively dead marketing kept as a reference. |
 | **Public static site** — `www.peanutgallery.live` | Canonical public surface for the product. Lives in a sibling repo (`Sethmr/peanut.gallery.site`); this repo only ships the extension + backend. Design matches the side-panel broadsheet aesthetic. |
 
 If a design detail matters for the work in front of you — a color, spacing value, font, motion curve — read it from the canonical source, not from this doc.
@@ -350,7 +350,7 @@ If a design detail matters for the work in front of you — a color, spacing val
 a44eab5 feat: Chrome Side Panel + fix tabCapture permissions — the gallery lives next to the video now
 48ebbae feat: Chrome extension for tab audio capture — YouTube can't block what it can't see
 c51165b fix: restore fade-in animations + align persona card quotes to bottom padding
-bc4e371 feat: restore Jason's bounty video to landing page hero
+bc4e371 feat: restore The Host's bounty video to landing page hero
 d27e363 fix: rename /app to /watch — app/app/ directory was colliding with Next.js app router
 400e0ad feat: tap persona emoji to trigger individual reactions + label fire button
 e8290e7 Redesign persona cards: centered bubbles with profile pics, sine waves, roles, full info
@@ -362,17 +362,17 @@ c024d9c feat: SEO overhaul + restore landing page at /, move app to /app
 4178b88 feat: BYOK — users bring their own API keys via browser settings
 a31a9f3 Deep persona rewrite + transcript pipeline fix + debug infrastructure
 04f79c1 fix: the transcript was silently screaming into the void — WAV header was poisoning Deepgram
-4a5e091 Howard Stern called, he wants his show staff back — now with Fred Norris and sine waves
+4a5e091 the morning-radio host called, he wants his show staff back — now with The Sound Guy and sine waves
 c30b011 ship the whole damn MVP in one commit — this is how hustlers do it
 ```
 
 ---
 
-## What Jason Wants (Master Truth)
+## What The Host Wants (Master Truth)
 
-From Jason's X post (@twistartups), the spec calls for:
+From The Host's X post (@twistartups), the spec calls for:
 
-1. **4 personas inspired by Howard Stern Show staff** (Gary Dell'Abate, Fred Norris, Jackie Martling, cynical troll)
+1. **4 personas inspired by the morning show staff** (The Producer, The Sound Guy, The Joke Writer, cynical troll)
 2. **Real-time reactions** to live podcast audio
 3. **Bubble UI** with sine wave "speaking" animation
 4. **Multi-provider LLM** (no single-API dependency)
@@ -412,7 +412,7 @@ From Jason's X post (@twistartups), the spec calls for:
 ### Shipped so far
 
 - **v1.2.0 — "Mise en place":** Director debug panel, expanded routing logs, cascade-delay retune, director test fixtures, pre-merge `tsc`/lint/smoke gate.
-- **v1.3.0 — "TWiST Pack":** Persona-pack refactor (`lib/packs/howard/`, `lib/packs/twist/`), pack-swap UI in the side panel, pack-creation scaffolding.
+- **v1.3.0 — "Startup Roundtable Pack":** Persona-pack refactor (`lib/packs/howard/`, `lib/packs/twist/`), pack-swap UI in the side panel, pack-creation scaffolding.
 - **v1.4.0 — current:** xAI migration (Groq removed from deps + runtime); search-engine toggle (Brave ↔ xAI Live Search) on the server with a new `X-Search-Engine` header; Producer's force-react skips pre-stream search for latency; deterministic `force_react_fallback` safety net so taps never leave an empty bubble. Post-release fixes for force-react reliability are on the working tree and unverified in production — see [`SESSION-NOTES-2026-04-18.md`](SESSION-NOTES-2026-04-18.md).
 
 ### Coming Soon — version-staged plan
@@ -475,4 +475,4 @@ npx tsx scripts/test-personas.ts --fixture
 8. **When testing, use `DEBUG_PIPELINE=true`** to get structured JSONL logs in `logs/pipeline-debug.jsonl`. Info+ level logs are always written to the file regardless.
 9. **The project uses `@/*` path aliases** (e.g., `@/lib/personas`) per tsconfig.json.
 10. **`middleware.ts` at the Next.js app root 308-redirects every non-`/api/*` request to `www.peanutgallery.live`.** The apex marketing UI was retired in the v1.5 legacy cleanup; the extension's CWS distribution path and the static GitHub Pages site at `www.peanutgallery.live` are the only user-facing surfaces now.
-11. **Always end every message with a ready-to-paste git commit command.** Jason Calacanis house style: lowercase, punchy, describes the "why" not the "what", emoji at the end. Provide it as a bash code block so Seth can copy-paste locally. If the commit message contains double quotes, wrap it in single quotes or a heredoc to avoid shell quoting errors. Include `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>` on a second line.
+11. **Always end every message with a ready-to-paste git commit command.** The Host house style: lowercase, punchy, describes the "why" not the "what", emoji at the end. Provide it as a bash code block so Seth can copy-paste locally. If the commit message contains double quotes, wrap it in single quotes or a heredoc to avoid shell quoting errors. Include `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>` on a second line.

@@ -27,12 +27,12 @@ Paste this at the top of any SEO session so the model has the full picture witho
 
 **What it does**
 
-Captures a YouTube tab's audio silently via `chrome.tabCapture` → Deepgram Nova-3 transcribes → a rule-based Director routes each moment to the best-fit persona from a 4-slot cast (producer / troll / soundfx / joker) → responses stream back to Chrome's side panel next to the video. Two persona packs ship: Howard Stern staff (default) and This Week in Startups (Jason Calacanis, Molly Wood, Lon Harris, Alex Wilhelm).
+Captures a YouTube tab's audio silently via `chrome.tabCapture` → Deepgram Nova-3 transcribes → a rule-based Director routes each moment to the best-fit persona from a 4-slot cast (producer / troll / soundfx / joker) → responses stream back to Chrome's side panel next to the video. Two persona packs ship: the morning-radio host staff (default) and Startup Roundtable (The Host, The Correspondent, The Reframer, The Quant).
 
 **Primary audience**
 
-1. TWiST listeners (the bounty audience — $5k + guest spot from @jason)
-2. Howard Stern fans (default pack)
+1. Startup Roundtable listeners (the bounty audience — $5k + guest spot from @jason)
+2. the morning-radio host fans (default pack)
 3. Podcast / YouTube-interview viewers who want a writers' room vibe
 4. Indie devs / AI hobbyists interested in multi-LLM orchestration, Director pattern, open-source Chrome extensions
 5. Streamers (secondary — works on Twitch / Kick via tab capture, not yet marketed)
@@ -49,7 +49,7 @@ Free. BYOK (bring your own keys). ~$1.15 in API costs per 2-hr episode passed di
 4. `AI reacts to YouTube`
 5. `YouTube fact checker` / `live YouTube transcription`
 
-Secondary tier: `Chrome side panel extension`, `AI commentary YouTube`, `Howard Stern AI`, `TWiST extension`, `YouTube AI assistant`, `Jason Calacanis bounty`.
+Secondary tier: `Chrome side panel extension`, `AI commentary YouTube`, `the morning-radio host AI`, `Startup Roundtable extension`, `YouTube AI assistant`, `The Host bounty`.
 
 **Known rank position:** unknown — GSC is wired up (layout.tsx verification token present) but 30-day data hasn't been pulled yet. Prompt 12 closes this gap.
 
@@ -186,9 +186,9 @@ Then also scrape the last 20 GitHub issues on https://github.com/Sethmr/peanut.g
 
 Put it all in a spreadsheet (one row per competitor, columns as above).
 
-Final output: the top 10 phrases I should train my own happy users to say in a CWS review (e.g. 'works on TWiST', 'finally an AI that doesn't summarize the video', 'the fact-checker caught Jason mid-sentence') — these go in the review-request email and in the Chrome side panel's 'rate us' flow."
+Final output: the top 10 phrases I should train my own happy users to say in a CWS review (e.g. 'works on Startup Roundtable', 'finally an AI that doesn't summarize the video', 'the fact-checker caught The Host mid-sentence') — these go in the review-request email and in the Chrome side panel's 'rate us' flow."
 
-**Why this matters:** CWS review velocity is a ranking signal. Early CWS reviews also set the tone for every future prospect. Training users to mention specific keywords in reviews (TWiST, Howard Stern, side panel, fact-checker) is free CWS SEO.
+**Why this matters:** CWS review velocity is a ranking signal. Early CWS reviews also set the tone for every future prospect. Training users to mention specific keywords in reviews (Startup Roundtable, the morning-radio host, side panel, fact-checker) is free CWS SEO.
 
 #### Prompt 4 — CWS review response template system
 
@@ -200,7 +200,7 @@ Build me a response template system with 3 variants each for:
 - 3-star reviews that take accountability and point to the GitHub issue tracker for follow-up.
 - 1–2-star reviews that are empathetic, professional, never defensive, and include a link to self-host instructions since some complaints will be about hosted-mode flakiness.
 
-Each response 40–80 words, sounds human, never starts with 'Thank you for your review'. Responses should mention at minimum one of: the Director, the pack system, MIT license, or the fact that users can bring their own keys. Include at least 2 responses that mention TWiST and 2 that mention Howard Stern so the review-response surface feeds keyword signal back to CWS search."
+Each response 40–80 words, sounds human, never starts with 'Thank you for your review'. Responses should mention at minimum one of: the Director, the pack system, MIT license, or the fact that users can bring their own keys. Include at least 2 responses that mention Startup Roundtable and 2 that mention the morning-radio host so the review-response surface feeds keyword signal back to CWS search."
 
 **Why this matters:** CWS developer responses are public and indexed. Every response is another place to naturally include the target keywords without keyword-stuffing.
 
@@ -275,7 +275,7 @@ Compare and tell me:
 3. Whether the CWS promo tile (if present) is working harder than the default.
 4. Whether to produce a 15-second hero video demo — CWS accepts one, most competitors skip this, and motion dramatically outperforms static on the listing page."
 
-**Why this matters:** CWS listing CTR is almost entirely driven by the first screenshot + the short description. Replacing a low-signal screenshot with one that shows the side panel next to a recognizable TWiST/Stern moment is a 1-hour task that meaningfully lifts install rate.
+**Why this matters:** CWS listing CTR is almost entirely driven by the first screenshot + the short description. Replacing a low-signal screenshot with one that shows the side panel next to a recognizable Startup Roundtable/the morning-radio host moment is a 1-hour task that meaningfully lifts install rate.
 
 #### Prompt 9 — Money page audit (GSC-driven)
 
@@ -299,7 +299,7 @@ Then give me a 30-day sprint:
 
 #### Prompt 10 — Persona pack landing pages (replaces P11 service+city pages)
 
-"I want to build a landing page for each persona pack Peanut Gallery ships. Current packs: Howard (default) and TWiST. Planned packs per [`docs/COMPETITIVE-LANDSCAPE-2026-04-18.md`](../docs/COMPETITIVE-LANDSCAPE-2026-04-18.md): All-In, Acquired, Hard Fork, Lex Fridman. These are SEO gold — every fan of those shows is a qualified install.
+"I want to build a landing page for each persona pack Peanut Gallery ships. Current packs: the morning-radio host (default) and Startup Roundtable. Planned packs per [`docs/COMPETITIVE-LANDSCAPE-2026-04-18.md`](../docs/COMPETITIVE-LANDSCAPE-2026-04-18.md): All-In, Acquired, Hard Fork, Lex Fridman. These are SEO gold — every fan of those shows is a qualified install.
 
 For each existing + planned pack, write a dedicated landing page at `peanutgallery.live/packs/<pack-slug>`:
 - URL slug: `/packs/howard`, `/packs/twist`, `/packs/all-in`, `/packs/acquired`, `/packs/hard-fork`, `/packs/lex-fridman`.
@@ -308,14 +308,14 @@ For each existing + planned pack, write a dedicated landing page at `peanutgalle
 - H1: `The Peanut Gallery pack for [Show Name]`.
 - Opening 100 words: who the show is for, what the 4 personas are, what they do uniquely during this show.
 - 'The cast' section: 4 persona cards mirroring `README.md` format (slot / character / model / role), 40 words each.
-- 'Sample reactions' section: 3–4 fake example fires in the show's voice (use the transcript style from `scripts/fixtures/twist-episode-sample.txt` as template for the TWiST pack).
+- 'Sample reactions' section: 3–4 fake example fires in the show's voice (use the transcript style from `scripts/fixtures/twist-episode-sample.txt` as template for the Startup Roundtable pack).
 - FAQ section: 4 questions specific to that show's audience.
 - CTA: 'Install on Chrome' → CWS link + 'Try the web app' → `/watch`.
 - Internal linking: link back to `/` and to 2 other pack pages.
 
 For each pack also give me: 3 long-tail keywords the page should own (e.g. `All-In Podcast AI reactions`, `watch Acquired with AI`, `Lex Fridman AI fact checker`), the JSON-LD `WebPage` + `SoftwareApplication` schema to embed, and 3 external outreach targets (the show's subreddit, a fan Discord, the host's X reply surface).
 
-Ship the Howard + TWiST pages first since those packs actually exist — both now shipping with illustrated peanut mascots as of v1.5.3. The others are content-ready waiting for the next pack drops (third pack not yet on the v1.5 → v2.0 path; see `docs/ROADMAP.md`)."
+Ship the morning-radio host + Startup Roundtable pages first since those packs actually exist — both now shipping with illustrated peanut mascots as of v1.5.3. The others are content-ready waiting for the next pack drops (third pack not yet on the v1.5 → v2.0 path; see `docs/ROADMAP.md`)."
 
 **Why this matters:** this is the single highest-leverage content play PG has. Every fan search for `[show name] AI`, `watch [show name] with AI`, `[show name] fact checker` is a qualified install with near-zero competitive noise. Six pages, six durable organic-traffic assets, and a concrete reason to ship more packs.
 
@@ -337,7 +337,7 @@ Then build a 30-day optimization sprint, same rules as Prompt 12 in the original
 
 "Open Chrome. Pull the last 100 CWS reviews across Dmooji + the top 2 AI YouTube extensions from Prompt 1. Do a deep sentiment pass:
 - Top 20 emotional words users use ('finally', 'addictive', 'hilarious', 'weirdly useful', 'replaces the group chat').
-- Top 10 specific outcomes ('makes watching solo feel like a watch party', 'catches Jason being wrong', 'funnier than the actual podcast').
+- Top 10 specific outcomes ('makes watching solo feel like a watch party', 'catches The Host being wrong', 'funnier than the actual podcast').
 - Top 5 pre-install fears ('will it slow the browser down?', 'another AI wrapper', 'will YouTube block this?').
 - Top 5 phrases that appear in 5-star reviews but not in 3-star reviews.
 
@@ -369,7 +369,7 @@ For each high-priority link, tell me: the domain, the URL, the DR, the site type
 Then build a 90-day link plan:
 - Month 1 — 8 easy link plays: Product Hunt launch, AlternativeTo listing, Slant listing, dev.to post, r/chrome_extensions post, Hashnode cross-post, Hacker News Show HN, theresanaiforthat.com.
 - Month 2 — 5 medium plays: guest post on an AI tools blog, podcast mention on a smaller show (Indie Hackers, The Changelog), mention in an AI newsletter (Ben's Bites, Superhuman AI, TLDR AI).
-- Month 3 — 3 authority plays: pitch to TechCrunch / The Verge / Axios 'open source AI side project' angle; pitch to Jason Calacanis directly on X for the bounty resolution; pitch to a major YouTuber who covers AI tools (Matt Wolfe, The AI Advantage, David Ondrej).
+- Month 3 — 3 authority plays: pitch to TechCrunch / The Verge / Axios 'open source AI side project' angle; pitch to The Host directly on X for the bounty resolution; pitch to a major YouTuber who covers AI tools (Matt Wolfe, The AI Advantage, David Ondrej).
 
 For every outreach target include the exact first email + subject line. Do NOT write a generic 'I'd love to share our product' pitch — each email must reference something specific the target has published."
 
@@ -422,7 +422,7 @@ Also check for fake/duplicate listings scraped from our GitHub README onto rando
 
 #### Prompt 16 — Search intent mapping (de-localized)
 
-"My product: Peanut Gallery, a free Chrome extension that reacts to YouTube videos with 4 AI personas (fact-checker, troll, sound guy, comedy writer). Primary audience: TWiST / Howard Stern listeners, podcast/YouTube viewers, AI-curious indie devs. Open Chrome → SEMrush (or Ahrefs). Pull all keywords in the `AI + YouTube + Chrome extension + podcast + writers' room` semantic cluster with volume ≥ 20/month.
+"My product: Peanut Gallery, a free Chrome extension that reacts to YouTube videos with 4 AI personas (fact-checker, troll, sound guy, comedy writer). Primary audience: Startup Roundtable / the morning-radio host listeners, podcast/YouTube viewers, AI-curious indie devs. Open Chrome → SEMrush (or Ahrefs). Pull all keywords in the `AI + YouTube + Chrome extension + podcast + writers' room` semantic cluster with volume ≥ 20/month.
 
 Categorize each keyword into one of four buyer-journey stages:
 - Stage 1 (problem-unaware): `watching podcasts alone is boring`, `youtube fact check extension`.
@@ -463,7 +463,7 @@ Then build me a 4-week posting calendar for PG across X, LinkedIn, dev.to, and t
 - 1 blog/dev.to post per 2 weeks (coordinated with P14 content plan).
 - Every X post should naturally include one of: `@twistartups`, `@jason`, `@lonharris`, `@HowardStern`, or a tag to another podcast whose fans we want to reach."
 
-**Why this matters:** X is the actual bounty-resolution surface. Jason's eyes are there. LinkedIn drives dev-hire-adjacent credibility and backlinks. dev.to is where other indie developers learn about the Director pattern and link back to the repo. Reverse-engineering what's working for competitors removes guesswork.
+**Why this matters:** X is the actual bounty-resolution surface. The Host's eyes are there. LinkedIn drives dev-hire-adjacent credibility and backlinks. dev.to is where other indie developers learn about the Director pattern and link back to the repo. Reverse-engineering what's working for competitors removes guesswork.
 
 #### Prompt 18 — Entity optimization
 
@@ -486,7 +486,7 @@ Then build the entity plan:
 - LinkedIn company page for Peanut Gallery (even solo).
 - Crunchbase profile.
 - GitHub Sponsors page (if Seth enables sponsorship — optional).
-- Wikipedia: probably not notable yet (BLP-adjacent, don't force it). Re-evaluate after the TWiST bounty resolution.
+- Wikipedia: probably not notable yet (BLP-adjacent, don't force it). Re-evaluate after the Startup Roundtable bounty resolution.
 - Wikidata: a lightweight entry referencing the CWS listing, GitHub, and Seth's profile is low-stakes and helps.
 - Brand mentions pass: search Google for `\"Peanut Gallery\" chrome` in quotes and record every mention — aim for 25+ unlinked mentions over the next 90 days (forum threads, X posts, dev.to comments)."
 
@@ -572,10 +572,10 @@ Inside Claude Design, create a project called `peanut-gallery` and wire up the d
   - `bg-primary` #0a0a0a (page background)
   - `bg-secondary` #141414 (cards)
   - `bg-tertiary` #1a1a1a (hovers)
-  - Accent — Baba Booey / producer: `#3b82f6` (blue)
+  - Accent — The Producer / producer: `#3b82f6` (blue)
   - Accent — Troll: `#ef4444` (red)
-  - Accent — Fred Norris / soundfx: `#a855f7` (purple)
-  - Accent — Jackie Martling / joker: `#f59e0b` (amber)
+  - Accent — The Sound Guy / soundfx: `#a855f7` (purple)
+  - Accent — The Joke Writer / joker: `#f59e0b` (amber)
 - **Fonts:** Inter (400 / 500 / 600 / 700) for body, Space Grotesk (500 / 600 / 700) for display — matches Google Fonts config already loaded in `app/layout.tsx`.
 - **Logo / glyph:** upload `public/icon-512.png` and `public/apple-touch-icon.png`. If a cleaner vector version exists, prefer that.
 - **Brand voice notes:** paste the short description from [`marketing/cws-listing.md`](cws-listing.md) plus: *"Dark theme. Lives in Chrome's side panel. Booth-producer energy (not Silicon Valley hero-shot energy). Copy sounds like a late-night writer wrote it, not marketing. Never anthropomorphize the personas with fake faces — use bubble avatars, sine-wave speaking indicators, emoji glyphs."*
@@ -589,7 +589,7 @@ Run these through Claude Design once setup is done. Each line is one Claude Desi
 
 | Priority | Asset | Size / format | Feeds which prompt | Week |
 |---|---|---|---|---|
-| P0 | CWS screenshot #1 (hero) — side panel next to a recognizable TWiST or Stern moment, caption: *"An AI writers' room for any YouTube video"* | 1280×800 PNG | P8 | 1 |
+| P0 | CWS screenshot #1 (hero) — side panel next to a recognizable Startup Roundtable or the morning-radio host moment, caption: *"An AI writers' room for any YouTube video"* | 1280×800 PNG | P8 | 1 |
 | P0 | CWS screenshots #2–5 — side panel, live fact-check, silent tab capture, "free, MIT, BYOK" | 1280×800 PNG each | P8 | 1 |
 | P0 | CWS promo tile (small) | 440×280 PNG | P8 | 1 |
 | P0 | CWS promo tile (marquee, optional but higher-impression) | 1400×560 PNG | P8 | 1 |
@@ -597,15 +597,15 @@ Run these through Claude Design once setup is done. Each line is one Claude Desi
 | ✅ Shipped | **v1.5 narrated walkthrough** (https://youtu.be/WPyknI7-N5U) — Seth's voice-over deep dive on Smart Director v2. Already embedded at `/#walkthrough`, in `VideoObject` JSON-LD, and linked from README + ROADMAP + CHANGELOG. No Claude Design work required. | YouTube | P7, P18 | Shipped 2026-04-18 |
 | P1 | README hero banner + architecture diagram (YouTube → Deepgram → Director → 4 personas → SSE) | 1600×900 PNG | P5 | 2 |
 | P1 | GitHub social preview image | 1280×640 PNG | P5 | 2 |
-| P1 | Pack page hero — Howard (Stern-booth aesthetic, emoji glyphs in bubbles, not faces) | 1600×900 PNG | P10 | 4 |
-| P1 | Pack page hero — TWiST (All-In / VC aesthetic, same bubble treatment) | 1600×900 PNG | P10 | 4 |
+| P1 | Pack page hero — the morning-radio host (the morning-radio host-booth aesthetic, emoji glyphs in bubbles, not faces) | 1600×900 PNG | P10 | 4 |
+| P1 | Pack page hero — Startup Roundtable (All-In / VC aesthetic, same bubble treatment) | 1600×900 PNG | P10 | 4 |
 | P2 | Pack page heroes — All-In, Acquired, Hard Fork, Lex Fridman (produce as placeholders now, mark pages `noindex` until packs ship) | 1600×900 PNG each | P10 | 4–11 |
 | P1 | Director + cascade explainer diagram — for the landing page "how it works" block | SVG + PNG | P7, P14 | 3 |
 | P2 | Blog hero #1 — *Peanut Gallery vs Dmooji* | 1600×900 PNG | P14 | 6 |
 | P2 | Blog hero #2 — engineering writeup on v1.5 Smart Director v2 | 1600×900 PNG | P14 | 9 |
 | P2 | Product Hunt gallery — 6 images (problem, product shot, director diagram, personas, install UX, the bounty story) | 1270×760 PNG each | P13 M1 | 7 |
 | P3 | X thread imagery — 4 slides to pin on `@SethRininger` + cross-post to `@twistartups` tag | 1200×675 PNG each | P17 | 7 |
-| P3 | Pitch deck — 10 slides, for TechCrunch / Matt Wolfe / Jason Calacanis outreach + the bounty-resolution moment | PDF + PPTX | P13 M3 | 11 |
+| P3 | Pitch deck — 10 slides, for TechCrunch / Matt Wolfe / The Host outreach + the bounty-resolution moment | PDF + PPTX | P13 M3 | 11 |
 | P3 | Frontier-design interactive prototype — embedded Director-cascade visualizer (code-powered; Opus 4.7 is specifically strong at this) | React/HTML artifact embeddable in `/` or `/packs/*` | P7, P10 | 10 |
 
 ### §3.5.3 — The frontier-design play
@@ -644,7 +644,7 @@ JSON-LD from `app/layout.tsx` (`SoftwareApplication`, `FAQPage`, `VideoObject` �
 1. **Accidentally forcing the app dynamic.** Adding `cookies()`, `headers()`, `searchParams`, `export const dynamic = 'force-dynamic'`, or `unstable_noStore()` anywhere in `app/layout.tsx` propagates dynamic rendering through the whole tree and kills SSG. If a future PR introduces one of those, push back or scope it to a leaf route.
 2. **Railway not producing prerender output.** The Dockerfile must run `next build` cleanly and the container start command must be `next start` (not `next dev`). A 30-second sanity check any time the deploy config changes: `curl -sS https://peanutgallery.live/ | grep -c '@type":"SoftwareApplication'` should return `1`. If it returns `0`, the JSON-LD didn't make it into the initial HTML and something broke.
 
-**Future note — pack pages with dynamic routes.** When the pack landing pages from P10 land at `/packs/[slug]`, use `generateStaticParams()` to prerender all packs at build time (Howard, TWiST, All-In, Acquired, Hard Fork, Lex Fridman). That keeps them SSG even though the route is parameterized. Don't reach for ISR or SSR — the content is editorial and changes only when we ship a new pack, so a rebuild on pack launch is the right cadence.
+**Future note — pack pages with dynamic routes.** When the pack landing pages from P10 land at `/packs/[slug]`, use `generateStaticParams()` to prerender all packs at build time (the morning-radio host, Startup Roundtable, All-In, Acquired, Hard Fork, Lex Fridman). That keeps them SSG even though the route is parameterized. Don't reach for ISR or SSR — the content is editorial and changes only when we ship a new pack, so a rebuild on pack launch is the right cadence.
 
 ---
 
@@ -667,9 +667,9 @@ JSON-LD from `app/layout.tsx` (`SoftwareApplication`, `FAQPage`, `VideoObject` �
 - Ship (copy): new `<title>`+meta for `/`, `/install`, `/watch`; tighten landing page H1 using Prompt 12 language.
 
 **Week 4 — Pack landing pages wave 1**
-- Run P10 (pack pages) → ship Howard + TWiST pack pages at `/packs/howard` + `/packs/twist`.
+- Run P10 (pack pages) → ship the morning-radio host + Startup Roundtable pack pages at `/packs/howard` + `/packs/twist`.
 - Run P12 (sentiment analysis) to feed copy into those pages.
-- Ship (Claude Design): Howard + TWiST pack heroes; draft heroes for All-In / Acquired / Hard Fork / Lex Fridman pages (held behind `noindex` until those packs ship).
+- Ship (Claude Design): the morning-radio host + Startup Roundtable pack heroes; draft heroes for All-In / Acquired / Hard Fork / Lex Fridman pages (held behind `noindex` until those packs ship).
 
 **Week 5 — Directory + citation push**
 - Run P15 (software directory audit) → submit to the top 8 missing directories in 1 session.
@@ -703,8 +703,8 @@ JSON-LD from `app/layout.tsx` (`SoftwareApplication`, `FAQPage`, `VideoObject` �
 
 **Week 11 — Intent mapping + authority outreach**
 - Run P16 (intent mapping) to prioritize Stage-4 content.
-- Ship (Claude Design): 10-slide pitch deck for TechCrunch / Matt Wolfe / Jason Calacanis outreach + the bounty-resolution moment.
-- Start Month-3 outreach (TechCrunch pitch for the TWiST bounty story if PG wins it; Matt Wolfe / The AI Advantage pitch for an extension review).
+- Ship (Claude Design): 10-slide pitch deck for TechCrunch / Matt Wolfe / The Host outreach + the bounty-resolution moment.
+- Start Month-3 outreach (TechCrunch pitch for the Startup Roundtable bounty story if PG wins it; Matt Wolfe / The AI Advantage pitch for an extension review).
 
 **Week 12 — Measurement + refresh**
 - Run P19 (monthly report) for the full quarter.

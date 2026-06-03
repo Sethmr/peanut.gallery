@@ -1,4 +1,4 @@
-# ElevenLabs SFX prompt — Jason Calacanis
+# ElevenLabs SFX prompt — The Host
 
 **Duration:** 0.8s
 **Prompt influence:** 65

@@ -9,15 +9,15 @@
  * Why distribution-based assertions? The Director uses Math.random() for
  * tiebreaks, cascade rolls, and remaining-persona shuffle. Any single run
  * can be unlucky. Running each fixture 50+ times and asserting thresholds
- * (e.g. "pick is Baba in ≥ 90% of runs") catches real regressions without
+ * (e.g. "pick is The Producer in ≥ 90% of runs") catches real regressions without
  * flaking on RNG noise.
  *
  * Usage:
  *   npx tsx scripts/test-director.ts
  *   npx tsx scripts/test-director.ts --fixture baba-booey-fact-driven
  *   npx tsx scripts/test-director.ts --runs 200
- *   npx tsx scripts/test-director.ts --pack twist    // only TWiST fixtures
- *   npx tsx scripts/test-director.ts --pack howard   // only Howard fixtures
+ *   npx tsx scripts/test-director.ts --pack twist    // only Startup Roundtable fixtures
+ *   npx tsx scripts/test-director.ts --pack howard   // only the morning-radio host fixtures
  */
 
 import { readdirSync, readFileSync } from "fs";

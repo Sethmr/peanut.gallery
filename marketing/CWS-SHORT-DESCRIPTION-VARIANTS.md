@@ -9,7 +9,7 @@ This file holds three variants to rotate every 2 weeks during P2 (SEO‑PLAN §3
 ## Current (shipped in v1.4.0 — baseline)
 
 ```
-AI writers' room for YouTube. 4 personas react live — fact-checker, troll, sound guy, comedy writer. Howard or TWiST pack.
+AI writers' room for YouTube. 4 personas react live — fact-checker, troll, sound guy, comedy writer. the morning-radio host or Startup Roundtable pack.
 ```
 *122 chars.* Keyword-heavy on "AI writers' room" and persona names but **missing the primary commercial-intent query "YouTube AI sidebar" and the phrase "Chrome side panel" that matches CWS search behavior.**
 
@@ -20,14 +20,14 @@ AI writers' room for YouTube. 4 personas react live — fact-checker, troll, sou
 ```
 AI sidebar for YouTube. 4 personas react live in Chrome's side panel — fact-checker, troll, comedy writer, sound guy. Free.
 ```
-*123 chars.* Surfaces `YouTube AI sidebar`, `Chrome side panel`, `react live`, `free`. Drops "Howard/TWiST pack" (too insider for first-touch) and "writers' room" (compressed into "4 personas"). Best for cold CWS search discovery.
+*123 chars.* Surfaces `YouTube AI sidebar`, `Chrome side panel`, `react live`, `free`. Drops "the morning-radio host/Startup Roundtable pack" (too insider for first-touch) and "writers' room" (compressed into "4 personas"). Best for cold CWS search discovery.
 
 ## Variant B — Conversion-focused
 
 ```
 Watch YouTube with 4 AI personas — live fact-checker, troll, comedy writer, sound guy. Free Chrome extension. No sign-up.
 ```
-*121 chars.* Starts with the user action ("Watch YouTube with..."), ends with "No sign-up" which crushes install-page bounce. Surfaces `AI personas`, `fact-checker`, `Chrome extension`. **Run this one during Product Hunt / TWiST-episode launch weeks** — the "no sign-up" close earns the click when traffic is warm.
+*121 chars.* Starts with the user action ("Watch YouTube with..."), ends with "No sign-up" which crushes install-page bounce. Surfaces `AI personas`, `fact-checker`, `Chrome extension`. **Run this one during Product Hunt / Startup Roundtable-episode launch weeks** — the "no sign-up" close earns the click when traffic is warm.
 
 ## Variant C — Trust/authority
 
@@ -43,7 +43,7 @@ Free, open-source Chrome extension. 4 AI personas react to YouTube live — fact
 | Week | Variant | Why |
 |---|---|---|
 | W1–W2 | **A (Keyword-max)** | Build organic CWS search surface. Default for cold discovery. |
-| W3–W4 | **B (Conversion)** | Product Hunt / TWiST mention push — warm traffic, optimize for install rate. |
+| W3–W4 | **B (Conversion)** | Product Hunt / Startup Roundtable mention push — warm traffic, optimize for install rate. |
 | W5+ | **Winner of A/B on install rate** | Pick the variant with higher install‑per‑impression from CWS analytics → then re-test against Variant C. |
 
 Measure from **CWS Developer Dashboard → Statistics → Impressions / Installs per day**, not from GA. CWS search is the traffic we're optimizing.
@@ -89,7 +89,7 @@ Reordered from the baseline in `marketing/cws-listing.md` — priority slots fir
 
 **Dropped** from the old baseline: `startup podcast extension` (too narrow and overlaps 13), `youtube ai commentary` (duplicate of 6 singular/plural — CWS dedupes them).
 
-**On Jason/TWiST slots**: keeping 17-20 because they index for brand-adjacent search (e.g., a *TWiST* viewer Googling "jason calacanis chrome extension"). If Jason ever plugs the product publicly, slots 18-19 are pre-warmed.
+**On The Host/Startup Roundtable slots**: keeping 17-20 because they index for brand-adjacent search (e.g., a *Startup Roundtable* viewer Googling "jason calacanis chrome extension"). If The Host ever plugs the product publicly, slots 18-19 are pre-warmed.
 
 ---
 

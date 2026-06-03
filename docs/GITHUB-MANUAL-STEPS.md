@@ -1,6 +1,6 @@
 # Manual GitHub Steps — Page Architecture Audit Follow-ups
 
-Everything in this document has to happen in the GitHub web UI (or via `gh` from your real terminal). The sandbox I run in doesn't have `gh` or repo-settings access. Ordered by impact — top items are the ones that change how the repo reads to Jason or a drive-by visitor.
+Everything in this document has to happen in the GitHub web UI (or via `gh` from your real terminal). The sandbox I run in doesn't have `gh` or repo-settings access. Ordered by impact — top items are the ones that change how the repo reads to The Host or a drive-by visitor.
 
 **Last updated:** 2026-04-19 (post page-architecture audit)
 
@@ -39,7 +39,7 @@ Missing image = GitHub's auto-generated "code is my life" card, which looks gene
 
 ### 4. Pin the right repositories on your profile
 
-`github.com/Sethmr` → Customize your pins. Put `peanut.gallery` first. `peanut.gallery.site` second. Leave older iOS projects in the long tail. The TWiST bounty audience is going to land on your profile — make the pin order tell the story.
+`github.com/Sethmr` → Customize your pins. Put `peanut.gallery` first. `peanut.gallery.site` second. Leave older iOS projects in the long tail. The Startup Roundtable bounty audience is going to land on your profile — make the pin order tell the story.
 
 ---
 
@@ -237,7 +237,7 @@ Without this secret, [`.github/workflows/claude-triage.yml`](../.github/workflow
 
 These are committed in `chrome-extension/` and landed as part of the audit:
 
-- README rewrite — Jason-grade hero, badges, `www.peanutgallery.live` references, web-app framing de-emphasized.
+- README rewrite — The Host-grade hero, badges, `www.peanutgallery.live` references, web-app framing de-emphasized.
 - ROADMAP refresh — v1.5.0 "The Broadsheet" marked feature-complete with the canary + CWS upload gates spelled out.
 - New pages: `AUTHORS.md`, `.github/SUPPORT.md`.
 - `.github/CONTRIBUTING.md` trimmed (no stale CI-workflow references).

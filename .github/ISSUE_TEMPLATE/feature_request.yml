@@ -6,14 +6,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        Pitch the idea like you're pitching Jason: what problem, who feels it, why now.
+        Pitch the idea like you're pitching The Host: what problem, who feels it, why now.
 
   - type: textarea
     id: problem
     attributes:
       label: The problem
       description: "What's the pain you're feeling? Concrete > abstract."
-      placeholder: "I want to watch All-In podcasts but the TWiST pack doesn't sound like Chamath / Sacks / Friedberg."
+      placeholder: "I want to watch All-In podcasts but the Startup Roundtable pack doesn't sound like Chamath / Sacks / Friedberg."
     validations:
       required: true
 

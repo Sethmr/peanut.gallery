@@ -193,7 +193,7 @@ Pre-rendered sprite sheets. Use Meshy or Tripo to generate a stylized 3D peanut 
 If someone produces a Rive designer pass on the mascots, switch. Rive is the highest-ceiling option; it's also the riskiest because it depends on creative work we don't control. Keep it as "the upgrade that unlocks when a designer shows up."
 
 **What NOT to do:**
-- **Three.js** (E) for 4 × 64 px renders. The engine weight is irrational for the surface area. Only justifiable if we commit to much richer future uses (full-gallery mode, live3D during TWiST submission, etc.).
+- **Three.js** (E) for 4 × 64 px renders. The engine weight is irrational for the surface area. Only justifiable if we commit to much richer future uses (full-gallery mode, live3D during Startup Roundtable submission, etc.).
 - **Lottie** (D) over Rive. Rive is strictly more capable with ~4× the bundle, but bundle isn't the constraint — designer tooling is, and Rive's editor is more natural for character rigs.
 - **Designer-gated stage-1.** Don't wait on external work to fix the "flat" problem. Stages 1 + 2 both work without a designer in the loop.
 

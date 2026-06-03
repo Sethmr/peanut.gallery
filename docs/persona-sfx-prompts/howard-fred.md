@@ -1,4 +1,4 @@
-# ElevenLabs SFX prompt — Fred Norris
+# ElevenLabs SFX prompt — The Sound Guy
 
 **Duration:** 0.6s
 **Prompt influence:** 70

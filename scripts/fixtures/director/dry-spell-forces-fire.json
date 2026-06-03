@@ -1,6 +1,6 @@
 {
   "name": "dry-spell-forces-fire",
-  "description": "Seed Jackie (joker) with 12 cycles of silence. Dry-spell boost caps at 6 points but that's enough to dominate a neutral transcript with no strong pattern hits. Jackie should appear in the chain on most runs.",
+  "description": "Seed The Joke Writer (joker) with 12 cycles of silence. Dry-spell boost caps at 6 points but that's enough to dominate a neutral transcript with no strong pattern hits. The Joke Writer should appear in the chain on most runs.",
   "initialState": {
     "cyclesSinceFire": { "producer": 0, "troll": 0, "soundfx": 0, "joker": 12 }
   },

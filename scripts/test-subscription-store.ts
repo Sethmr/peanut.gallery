@@ -148,7 +148,6 @@ function runStoreParityTests(label: string, make: () => SubscriptionStore): void
   const recA: SubscriptionRecord = {
     licenseKey: "pg-aaaa-bbbb-ccc4",
     email: "alice@example.com",
-    stripeSubId: "sub_alice",
     createdAt: now,
     cancelledAt: null,
     status: "active",
@@ -157,7 +156,6 @@ function runStoreParityTests(label: string, make: () => SubscriptionStore): void
   const fetched = s.getActiveSubscription(recA.licenseKey);
   assert(fetched !== null, "inserted record is fetchable");
   assertEq(fetched?.email, recA.email, "email round-trips");
-  assertEq(fetched?.stripeSubId, recA.stripeSubId, "stripeSubId round-trips");
   assertEq(fetched?.status, "active", "status round-trips");
   assertEq(
     s.getSubscriptionByEmail("ALICE@example.com")?.licenseKey,

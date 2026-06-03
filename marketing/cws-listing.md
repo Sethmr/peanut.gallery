@@ -15,7 +15,7 @@ peanut mascots, illustrated AI personas.*
 
 ## Short description (≤132 chars, must match manifest.json)
 
-AI writers' room for YouTube. 4 personas react live — fact-checker, troll, sound guy, comedy writer. Howard or TWiST pack.
+AI writers' room for YouTube. 4 personas react live — fact-checker, troll, sound guy, comedy writer. the morning-radio host or Startup Roundtable pack.
 
 ---
 
@@ -27,22 +27,22 @@ Peanut Gallery mounts in Chrome's native side panel as a broadsheet: cream paper
 
 No tab switching. No screen-share picker. No interference with playback. Audio is captured silently while you watch.
 
-Built for long-form talk shows, interviews, and pods — where a booth producer actually adds something. Inspired by the Howard Stern Show. Two packs ship out of the box; swap between them in the side panel per session.
+Built for long-form talk shows, interviews, and pods — where a booth producer actually adds something. Inspired by the morning show. Two packs ship out of the box; swap between them in the side panel per session.
 
 THE HOWARD PACK (default)
 
-- Baba Booey — fact-checker. Mid-show corrections and background data on every claim. Searches the web via Brave Search or xAI Live Search to verify stats, dates, and attributions.
-- Fred Norris — sound effects guy. Well-timed cues and the occasional razor-sharp aside.
-- Jackie Martling — comedy writer. Setup-punchline jokes, callbacks, observational humor.
+- The Producer — fact-checker. Mid-show corrections and background data on every claim. Searches the web via Brave Search or xAI Live Search to verify stats, dates, and attributions.
+- The Sound Guy — sound effects guy. Well-timed cues and the occasional razor-sharp aside.
+- The Joke Writer — comedy writer. Setup-punchline jokes, callbacks, observational humor.
 - The Cynical Troll — contrarian commentator, 120ms response time. Says what the chat is thinking.
 
 THE TWIST PACK (swap in the side panel)
 
-Tuned for This Week in Startups-style podcasts — Molly Wood (producer), Jason Calacanis (troll), Lon Harris (sound effects), and Alex Wilhelm (joker). Same 4 roles, startup vocabulary.
+Tuned for Startup Roundtable-style podcasts — The Correspondent (producer), The Host (troll), The Reframer (sound effects), and The Quant (joker). Same 4 roles, startup vocabulary.
 
 THE BROADSHEET UI (v1.5 line)
 
-- Illustrated peanut mascots (v1.5.3) — each of the 8 personas across both packs ships with a hand-authored SVG peanut avatar carrying their signature prop. Baba Booey with his clipboard, Fred's purple headphones, Jackie's stand mic, the Troll as a boiled peanut. TWiST pack: Molly's reporter notebook, Jason's megaphone, Lon's clapperboard, Alex's pie chart. Idle bob at rest, excited wiggle while speaking.
+- Illustrated peanut mascots (v1.5.3) — each of the 8 personas across both packs ships with a hand-authored SVG peanut avatar carrying their signature prop. The Producer with his clipboard, The Sound Guy's purple headphones, The Joke Writer's stand mic, the Troll as a boiled peanut. Startup Roundtable pack: The Correspondent's reporter notebook, The Host's megaphone, The Reframer's clapperboard, The Quant's pie chart. Idle bob at rest, excited wiggle while speaking.
 - Two-card pack chooser (v1.5.3) — swap packs by tapping a card; see both packs' mascots side by side before committing.
 - Role-stamped wire feed — every reaction filed with FACT / DUNK / CUE / BIT and a 24h timestamp. Filter pills in the footer hide any tag you want to tune out.
 - First-run guided tour (v1.5.2) — new installs get a 4-step Editor's Note walkthrough on first open; replayable anytime from the Appearance submenu.
@@ -76,7 +76,7 @@ LINKS
 
 BUILT FOR
 
-The $5,000 This Week in Startups bounty from @jason and @lonharris. Ship it. @TWiStartups.
+The $5,000 Startup Roundtable bounty from @jason and @lonharris. Ship it. @TWiStartups.
 
 ---
 
@@ -120,7 +120,7 @@ Updated for v1.5.3 "The Cast" — mascots now lead the top screenshot. Each capt
 
 1. "Four peanut mascots, one tab. Your AI writers' room for YouTube."
 2. "Illustrated peanuts with signature props — clipboard, mic, headphones, flame."
-3. "Tap a pack card to swap between Howard and TWiST. Lineup locked during capture."
+3. "Tap a pack card to swap between the morning-radio host and Startup Roundtable. Lineup locked during capture."
 4. "Role-stamped wire feed. Live fact-checking. Paper or Night theme."
 5. "Silent tab capture. MIT licensed. Bring your own keys."
 

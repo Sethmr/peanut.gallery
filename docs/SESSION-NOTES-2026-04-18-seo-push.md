@@ -24,7 +24,7 @@ until the queue drains.**
       2 promo tiles, 1 OG card). The brief's token table has been refreshed to
       match the orange palette we shipped in `app/landing.css` today — see
       "Design alignment" section below.
-- [ ] **Drop in reference images 4 and 5** (Stern writers' room, late-night
+- [ ] **Drop in reference images 4 and 5** (the morning-radio host writers' room, late-night
       stage composition). Claude Design needs those to anchor the "writers' room
       over SaaS landing page" aesthetic. The brief flags them as Seth-to-provide.
 - [ ] **When outputs land, save them to** `marketing/promo/claude-design/2026-04/`
@@ -153,7 +153,7 @@ doable is done.
 - `app/page.tsx` — landing page. Redesign markup (nav CTA copy, hero badge,
   new ticker strip between hero and demo). Footer got `/install` link added
   earlier in the session to un-orphan it from the crawl graph.
-- `app/landing.css` — full Jason-calibrated palette redesign. Blue→TWiST
+- `app/landing.css` — full The Host-calibrated palette redesign. Blue→Startup Roundtable
   orange primary, matte black with a single orange scanline, "EPISODE 001"
   broadcast ribbon on the origin box, squared corners, uppercase chyron
   section labels, new `.ticker` + `.ticker-track` styles.
@@ -186,7 +186,7 @@ The **shipping** palette in `app/landing.css` (as of 2026-04-18):
 | `--pg-bg-panel` | `#1a1a1a` | Dark sections |
 | `--pg-text` | `#e5e5e5` | Body |
 | `--pg-text-dim` | `#9a9a9a` | Caption |
-| `--pg-accent` | `#ff5a1f` | **Primary — TWiST burnt orange. CTA, section labels, nav CTA, link color.** |
+| `--pg-accent` | `#ff5a1f` | **Primary — Startup Roundtable burnt orange. CTA, section labels, nav CTA, link color.** |
 | `--pg-accent-hot` | `#ef4444` | Recording red. LIVE/ON-AIR, CTA hover, ticker dot. |
 | `--pg-accent-soft` | `#f59e0b` | Amber. Inline code, secondary highlights. |
 

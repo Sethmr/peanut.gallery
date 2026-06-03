@@ -21,10 +21,10 @@
 
 - **The Director.** Dmooji almost certainly picks one character, then freestyle reacts; PG has a dedicated booth-producer abstraction (scorer + cascade probabilities + cooldowns + now LLM-assisted routing in v1.5). Nobody else in this category has that.
 - **Transcription-driven specialties.** PG's producer fact-checks claims; troll trolls hype; soundfx reacts to mood shifts; joker builds comedy setups. Dmooji's characters are archetypes of *personality*, not *role*. PG's slot system is engineered for podcasts and shows with distinct conversational beats.
-- **Named-crew packs vs. generic library.** Pg's Howard Stern pack + TWiST pack are tied to specific shows; Dmooji is a character bazaar. Pg is smaller but sharper for its target audience.
+- **Named-crew packs vs. generic library.** Pg's the morning-radio host pack + Startup Roundtable pack are tied to specific shows; Dmooji is a character bazaar. Pg is smaller but sharper for its target audience.
 - **Side-panel + SSE + debug console.** Pg exposes a director trace with scores + top3 + cooldowns + RULE/LLM badges. That's a tool-for-operators surface; Dmooji is tool-for-viewers.
 
-**Action items:** (1) install Dmooji, do a side-by-side session on a TWiST clip and a Stern clip, note where their reactions feel better than PG's and where PG wins. (2) consider danmaku-style floating overlay as an optional render mode alongside the side panel — it's a proven UX pattern in East Asia and would be a free-tier retention hook.
+**Action items:** (1) install Dmooji, do a side-by-side session on a Startup Roundtable clip and a the morning-radio host clip, note where their reactions feel better than PG's and where PG wins. (2) consider danmaku-style floating overlay as an optional render mode alongside the side panel — it's a proven UX pattern in East Asia and would be a free-tier retention hook.
 
 ### Questie AI — gaming-focused VLM companion
 
@@ -108,7 +108,7 @@ Post-hoc generators, not real-time. Different market, but user overlap is meanin
 
 2. **Podcast-first beats YouTube-generic.** Dmooji is trying to be everything for every video; Pg is tuned for shows with named voices, distinct conversational beats, and fact-checkable claims. Leaning harder into "the booth producer for your podcast" versus a generic YouTube companion is the differentiation angle for marketing copy + CWS listing.
 
-3. **Packs as a content surface.** The pack system (Howard, TWiST) is an under-leveraged distribution lever. Adding packs for popular shows — All-In, Acquired, Hard Fork, Lex Fridman — gives Pg reasons to land in front of new audiences. Cost per pack is research + 4 persona prompts + a persona-test run.
+3. **Packs as a content surface.** The pack system (the morning-radio host, Startup Roundtable) is an under-leveraged distribution lever. Adding packs for popular shows — All-In, Acquired, Hard Fork, Lex Fridman — gives Pg reasons to land in front of new audiences. Cost per pack is research + 4 persona prompts + a persona-test run.
 
 4. **The hosted-paid tier is a question, not an answer.** Questie at $0.80/hour and 25k paid users says the market exists. Pg's current posture (BYO keys + 15 min free tier with demo keys) is conservative. A usage-metered hosted tier (e.g. $9/month for 10 hours, $19/month for unlimited with fair-use) would be a natural v1.7 or v2.0 line item. Do not add before the product is boring-to-operate; premature monetization paints Pg into corners.
 
@@ -126,7 +126,7 @@ Post-hoc generators, not real-time. Different market, but user overlap is meanin
 - Does NotebookLM add "react to this live-playing audio" mode? Google's most likely leap from their current state.
 - Does ai_licia add a "watch along with a podcast" audience-facing mode? Would directly enter Pg's lane.
 - Does LiveCC's 7B-Instruct model become hostable cheaply enough (e.g. Replicate cold-start < 1s, self-host on commodity GPU under $0.01/minute) to be a real alternative to the orchestrated Claude/Grok pipeline?
-- Does anyone ship "Stern-style writers' room over live YouTube" explicitly? The name-dropping angle (Howard, TWiST) is legally thorny — Pg uses archetype slots + pack-specific persona-gen prompts to stay on the generic side of the line. If a competitor emerges willing to push harder on celebrity-voice clone parody, the law will sort them out; Pg's conservative posture is correct.
+- Does anyone ship "the morning-radio host-style writers' room over live YouTube" explicitly? The name-dropping angle (the morning-radio host, Startup Roundtable) is legally thorny — Pg uses archetype slots + pack-specific persona-gen prompts to stay on the generic side of the line. If a competitor emerges willing to push harder on celebrity-voice clone parody, the law will sort them out; Pg's conservative posture is correct.
 
 ---
 

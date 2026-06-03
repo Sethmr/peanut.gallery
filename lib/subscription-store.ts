@@ -45,7 +45,6 @@
  *   CREATE TABLE subscriptions (
  *     license_key    TEXT PRIMARY KEY,
  *     email          TEXT NOT NULL,
- *     stripe_sub_id  TEXT,
  *     created_at     INTEGER NOT NULL,
  *     cancelled_at   INTEGER,
  *     status         TEXT CHECK (status IN ('active','paused','revoked'))
@@ -96,7 +95,6 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 export interface SubscriptionRecord {
   licenseKey: string;
   email: string;
-  stripeSubId: string | null;
   createdAt: number;
   cancelledAt: number | null;
   status: "active" | "paused" | "revoked";
@@ -113,15 +111,6 @@ export interface SubscriptionStore {
   getActiveSubscription(licenseKey: string): SubscriptionRecord | null;
   /** Returns the most recent subscription row for this email (any status). */
   getSubscriptionByEmail(email: string): SubscriptionRecord | null;
-  /**
-   * Returns the row matching a Stripe subscription ID, any status.
-   * Used by the webhook handler to reconcile subscription.updated and
-   * subscription.deleted events back to the license key we issued.
-   * Null if no row is linked to this Stripe ID.
-   */
-  getSubscriptionByStripeSubId(
-    stripeSubId: string
-  ): SubscriptionRecord | null;
   /** Insert a new subscription. Throws if `licenseKey` already exists. */
   insertSubscription(row: SubscriptionRecord): void;
   /** Update status / cancelledAt for an existing subscription. */
@@ -172,7 +161,6 @@ export class MemorySubscriptionStore implements SubscriptionStore {
         const row: SubscriptionRecord = {
           licenseKey: k,
           email: e,
-          stripeSubId: null,
           createdAt: now,
           cancelledAt: null,
           status: "active",
@@ -192,15 +180,6 @@ export class MemorySubscriptionStore implements SubscriptionStore {
 
   getSubscriptionByEmail(email: string): SubscriptionRecord | null {
     return this.byEmail.get(email.toLowerCase()) ?? null;
-  }
-
-  getSubscriptionByStripeSubId(
-    stripeSubId: string
-  ): SubscriptionRecord | null {
-    for (const row of this.subscriptions.values()) {
-      if (row.stripeSubId === stripeSubId) return row;
-    }
-    return null;
   }
 
   insertSubscription(row: SubscriptionRecord): void {
@@ -333,7 +312,6 @@ export class SqliteSubscriptionStore implements SubscriptionStore {
       CREATE TABLE IF NOT EXISTS subscriptions (
         license_key    TEXT PRIMARY KEY,
         email          TEXT NOT NULL,
-        stripe_sub_id  TEXT,
         created_at     INTEGER NOT NULL,
         cancelled_at   INTEGER,
         status         TEXT CHECK (status IN ('active','paused','revoked'))
@@ -374,26 +352,16 @@ export class SqliteSubscriptionStore implements SubscriptionStore {
     return row ? rowToRecord(row) : null;
   }
 
-  getSubscriptionByStripeSubId(
-    stripeSubId: string
-  ): SubscriptionRecord | null {
-    const row = this.db
-      .prepare(`SELECT * FROM subscriptions WHERE stripe_sub_id = ?`)
-      .get(stripeSubId);
-    return row ? rowToRecord(row) : null;
-  }
-
   insertSubscription(row: SubscriptionRecord): void {
     this.db
       .prepare(
         `INSERT INTO subscriptions
-           (license_key, email, stripe_sub_id, created_at, cancelled_at, status)
-         VALUES (?, ?, ?, ?, ?, ?)`
+           (license_key, email, created_at, cancelled_at, status)
+         VALUES (?, ?, ?, ?, ?)`
       )
       .run(
         row.licenseKey,
         row.email,
-        row.stripeSubId,
         row.createdAt,
         row.cancelledAt,
         row.status
@@ -490,7 +458,6 @@ function rowToRecord(row: any): SubscriptionRecord {
   return {
     licenseKey: row.license_key,
     email: row.email,
-    stripeSubId: row.stripe_sub_id ?? null,
     createdAt: row.created_at,
     cancelledAt: row.cancelled_at ?? null,
     status: row.status,
@@ -587,8 +554,8 @@ export function getSubscriptionStoreKind(): "memory" | "sqlite" | "uninitialized
 }
 
 /**
- * Convenience: create a subscription row for a fresh paid user.
- * Used by the Stripe webhook (Phase 3) and the admin CLI.
+ * Convenience: create a subscription row for a fresh user.
+ * Used by the admin CLI (`scripts/subscription-issue.ts`).
  *
  * The caller is responsible for generating + validating the
  * licenseKey via `lib/subscription-keys.ts` before calling this.
@@ -596,14 +563,12 @@ export function getSubscriptionStoreKind(): "memory" | "sqlite" | "uninitialized
 export function createSubscription(args: {
   licenseKey: string;
   email: string;
-  stripeSubId: string | null;
 }): SubscriptionRecord {
   const store = getSubscriptionStore();
   const now = Date.now();
   const rec: SubscriptionRecord = {
     licenseKey: args.licenseKey,
     email: args.email,
-    stripeSubId: args.stripeSubId,
     createdAt: now,
     cancelledAt: null,
     status: "active",

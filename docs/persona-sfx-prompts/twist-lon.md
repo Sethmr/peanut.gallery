@@ -1,4 +1,4 @@
-# ElevenLabs SFX prompt — Lon Harris ("The Reframe")
+# ElevenLabs SFX prompt — The Reframer ("The Reframe")
 
 **Duration:** 0.8s
 **Prompt influence:** 70

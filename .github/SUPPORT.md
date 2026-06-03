@@ -8,7 +8,7 @@ File a [bug report](ISSUE_TEMPLATE/bug_report.yml). The template forces the righ
 
 - Extension version (from `chrome://extensions` or the side-panel footer)
 - Backend (hosted / self-hosted / build-your-own)
-- Pack (Howard / TWiST / custom)
+- Pack (the morning-radio host / Startup Roundtable / custom)
 - Repro steps, expected vs. actual, and — most important — a **paste of the browser console**.
 
 The console paste is load-bearing. Without it, the triage loop is three messages longer.

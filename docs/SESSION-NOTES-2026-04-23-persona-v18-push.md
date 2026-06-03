@@ -10,14 +10,14 @@ All 8 personas now run on v1.8 author-delivered deep-research content:
 
 | Pack   | Slot     | Persona       | Archetype change |
 |--------|----------|---------------|------------------|
-| Howard | producer | Baba Booey    | **fact-checker → trolly heckler** (new `producerMode: "heckler"`) |
-| Howard | troll    | The Troll     | **single cynical commentator → 7-sub-voice composite Wack Pack voice board** (Janks / Stuttering John / High Pitch Erik / Beetlejuice / Eric the Actor / Hank / Sal & Richard) |
-| Howard | soundfx  | Fred Norris   | five-mode output spec (SFX / zinger / impression / silence / mini-riff) |
-| Howard | joker    | Jackie        | grounded in his own "How To Tell A Joke" craft rules + 1986-2001 Stern-note template |
-| TWiST  | producer | Molly Wood    | **classical tier-tagged fact-checker → NPR-journalist conversational** (new `producerMode: "journalist"`) |
-| TWiST  | troll    | Jason         | TWiST founder-coach mode (NOT All-In panel-provocateur mode) |
-| TWiST  | soundfx  | Lon Harris    | **SFX-drop + cultural-analogy → pure considered-reframe sentence** (no more bracketed sound cues from this slot) |
-| TWiST  | joker    | Alex Wilhelm  | data-comedian with register-switching (data / incredulous / joke-deflation / earnest-nerd-out / self-deprecation) |
+| the morning-radio host | producer | The Producer    | **fact-checker → trolly heckler** (new `producerMode: "heckler"`) |
+| the morning-radio host | troll    | The Troll     | **single cynical commentator → 7-sub-voice composite Wack Pack voice board** (Janks / The Heckler / High Pitch Erik / The Heckler / Eric the Actor / Hank / Sal & Richard) |
+| the morning-radio host | soundfx  | The Sound Guy   | five-mode output spec (SFX / zinger / impression / silence / mini-riff) |
+| the morning-radio host | joker    | The Joke Writer        | grounded in his own "How To Tell A Joke" craft rules + 1986-2001 the morning-radio host-note template |
+| Startup Roundtable  | producer | The Correspondent    | **classical tier-tagged fact-checker → NPR-journalist conversational** (new `producerMode: "journalist"`) |
+| Startup Roundtable  | troll    | The Host         | Startup Roundtable founder-coach mode (NOT All-In panel-provocateur mode) |
+| Startup Roundtable  | soundfx  | The Reframer    | **SFX-drop + cultural-analogy → pure considered-reframe sentence** (no more bracketed sound cues from this slot) |
+| Startup Roundtable  | joker    | The Quant  | data-comedian with register-switching (data / incredulous / joke-deflation / earnest-nerd-out / self-deprecation) |
 
 ## Architecture additions
 
@@ -59,49 +59,49 @@ Director"), all v1.8 changes are persona-layer / content-layer /
 scaffolding-flag. 26/26 director fixtures × 50 runs green after
 every landing.
 
-## Pack-wide TWiST startup-advice lean
+## Pack-wide Startup Roundtable startup-advice lean
 
-Seth's 2026-04-23 directive: every TWiST persona should lean into
+Seth's 2026-04-23 directive: every Startup Roundtable persona should lean into
 startup advice — close lines with a benchmark to hit, a metric to
-watch, or a caveat to weigh. Baked into all four TWiST kernels
-(native to Jason; explicit "DIAL UP" in Alex; encoded in Molly's
-"LEAN: Sage over snark"; explicit in Lon's "Twist-pack tuning"
+watch, or a caveat to weigh. Baked into all four Startup Roundtable kernels
+(native to The Host; explicit "DIAL UP" in The Quant; encoded in The Correspondent's
+"LEAN: Sage over snark"; explicit in The Reframer's "Twist-pack tuning"
 section). See file-level comment in [`lib/packs/twist/personas.ts`](../lib/packs/twist/personas.ts).
 
 ## Load-bearing behavioral disciplines
 
 Preserve these exactly as shipped — they encode real-world record:
 
-- **Molly ↔ Jason 2023 TWiST exit discipline (mirror rule).** Both
-  kernels have a "no characterization of the 2023 TWiST co-host
-  departure — redirect forward" rule. Molly has had zero public
+- **The Correspondent ↔ The Host 2023 Startup Roundtable exit discipline (mirror rule).** Both
+  kernels have a "no characterization of the 2023 Startup Roundtable co-host
+  departure — redirect forward" rule. The Correspondent has had zero public
   statement on the split since March 2023 (documented in her corpus
-  §15). Jason's documented posture is "no public bad blood." The
+  §15). The Host's documented posture is "no public bad blood." The
   two kernels now mirror each other — neither persona re-litigates
   the split in public. Removing either side breaks the symmetry.
 
 - **The Troll's "inability to understand why they're funny" rule.**
-  Stern-doctrine single most leveraged guardrail — the Troll
+  the morning-radio host-doctrine single most leveraged guardrail — the Troll
   breaks the moment he winks. NO meta-commentary, NO "just kidding"
   de-escalation, NO explaining the joke. Hard-coded in the kernel.
 
-- **Stern-doctrine red-line framework** (The Troll). Anchored to
-  Stern's OWN public regrets — 1993 blackface, Feb 24 2015 r-word
+- **the morning-radio host-doctrine red-line framework** (The Troll). Anchored to
+  the morning-radio host's OWN public regrets — 1993 blackface, Feb 24 2015 r-word
   vote, Robin Williams sledgehammer interview, Aurora-Janks 2012
   false-death-toll precedent, Artie Lange arc. The kernel's test
-  is verbatim from the meta-doc: *"Would Stern today defend this
+  is verbatim from the meta-doc: *"Would the morning-radio host today defend this
   bit on-air in a Rolling Stone interview? If no, don't ship it."*
 
-- **Fred's verification ledger.** Explicit "claims you will never
-  make" list: NO 2012 stroke, NO "Howard Pack" alter-ego label
-  (it's Kurt Waldheim Jr.), NO "Hey Now Fred Norris" Bandcamp
-  authorship (fan project), NO "Silver Nickels" authorship (Howard
-  1966 composition, Fred covered), only the impressions in the
+- **The Sound Guy's verification ledger.** Explicit "claims you will never
+  make" list: NO 2012 stroke, NO "the morning-radio host Pack" alter-ego label
+  (it's Kurt Waldheim Jr.), NO "Hey Now The Sound Guy" Bandcamp
+  authorship (fan project), NO "Silver Nickels" authorship (the morning-radio host
+  1966 composition, The Sound Guy covered), only the impressions in the
   confirmed-canonical list (21 entries) — unverified fan-lore
   impressions can be attempted if the director explicitly asks
   but never volunteered.
 
-- **Molly's social-platform accuracy.** She LEFT X in April 2023.
+- **The Correspondent's social-platform accuracy.** She LEFT X in April 2023.
   Active surfaces are Bluesky (@mollywood.co), LinkedIn, Substack,
   Threads. **Simulating active X posting in 2024-2026 is the single
   biggest inaccuracy risk for her persona** (her own corpus flags
@@ -112,12 +112,12 @@ Preserve these exactly as shipped — they encode real-world record:
 ### Pre-launch blocker: "inspired by" audit (Seth's task)
 
 The v1.8 kernels use **direct "You are X" framing** (per author-
-delivered prose — "You are Jackie Martling…", "You are Jason
-Calacanis…", etc.) — a **departure** from the pre-v1.8 "You are
+delivered prose — "You are The Joke Writer…", "You are The Host
+The Host…", etc.) — a **departure** from the pre-v1.8 "You are
 an AI persona inspired by X" hedge.
 
 [`lib/packs/INDEX.md`](../lib/packs/INDEX.md) has a standing
-"Anti-impersonation guardrails" note that says *"Every TWiST
+"Anti-impersonation guardrails" note that says *"Every Startup Roundtable
 persona prompt includes: 'NEVER claim to BE [person]. You are a
 persona INSPIRED BY him/her.' This is load-bearing for the
 legal/ethical framing. Do not remove."*
@@ -140,7 +140,7 @@ Blocker for CWS ship per the INDEX note.
 
 Per the Troll meta-doc's own assessment, the persona is at ~85%
 of achievable fidelity. Two files were shared (the consolidated
-meta-summary + the gap-fill addendum on Stuttering John catalog
+meta-summary + the gap-fill addendum on The Heckler catalog
 + tier-2 Wack Pack bench) — the **~11K-word encyclopedia + the
 300-word production kernel referenced in the meta-doc were NOT
 directly shared**. I synthesized the kernel from the two delivered
@@ -152,7 +152,7 @@ the signal the encyclopedia is needed. **If Seth eventually hands
 over the real 300-word kernel, swapping in is a one-line change
 (replace `THE_TROLL_KERNEL` export).**
 
-### Jason kernel: two editorial edits I made
+### The Host kernel: two editorial edits I made
 
 Both documented in the [module header](../lib/packs/twist/prompts/jason-calacanis.ts)
 for full provenance:
@@ -166,12 +166,12 @@ for full provenance:
    customer-pain test (documented as his actual line in the corpus)
    while respecting his own rule.
 
-2. **Added a mirror-discipline bullet to "What to avoid."** Molly's
-   v1.8 kernel has a hard "refuse to characterize Jason or the 2023
+2. **Added a mirror-discipline bullet to "What to avoid."** The Correspondent's
+   v1.8 kernel has a hard "refuse to characterize The Host or the 2023
    exit — redirect forward" rule. Asymmetry felt wrong, and the
-   Reference Corpus §7 confirms Jason's public posture as *"no
+   Reference Corpus §7 confirms The Host's public posture as *"no
    public bad blood."* Added *"No characterization of the 2023
-   TWiST co-host departure"* with matching redirect-forward
+   Startup Roundtable co-host departure"* with matching redirect-forward
    instruction.
 
 If Seth disagrees with either edit, both are localized in the
@@ -228,23 +228,23 @@ force-push to strip them; just leave uncommitted.
 - `lib/personas.ts` — added `personaReference` + `producerMode` fields,
   three-way branch in `buildPersonaContext` for producer search-results
   framing, evidence-gate suppression for non-fact-checker modes.
-- `lib/packs/howard/personas.ts` — all 4 Howard personas wired to new
-  prompt modules. Role renames: Jackie "The Joke Man", Baba Booey
+- `lib/packs/howard/personas.ts` — all 4 the morning-radio host personas wired to new
+  prompt modules. Role renames: The Joke Writer "The Joke Man", The Producer
   "The Heckler".
-- `lib/packs/twist/personas.ts` — all 4 TWiST personas wired. Role
-  rename: Molly "The Journalist". File-level comment encodes the
-  TWiST pack-wide startup-advice lean.
+- `lib/packs/twist/personas.ts` — all 4 Startup Roundtable personas wired. Role
+  rename: The Correspondent "The Journalist". File-level comment encodes the
+  Startup Roundtable pack-wide startup-advice lean.
 - `lib/packs/howard/index.ts` + `lib/packs/twist/index.ts` — both
   `updatedAt: "2026-04-23"`.
 - `lib/packs/INDEX.md` — all landed personas pointed at.
-- `extension/sidepanel.html` + `.js` — Seth's work: Molly + Jason hair,
-  potato silhouette refinement, TWiST-pack cue/bit backdrop CSS.
+- `extension/sidepanel.html` + `.js` — Seth's work: The Correspondent + The Host hair,
+  potato silhouette refinement, Startup Roundtable-pack cue/bit backdrop CSS.
 - `extension/sounds/personas/*.wav` — Seth's refreshed earcons.
 - `scripts/synth-persona-cues.ts` — Seth's updated synthesis script.
 
 ## Commits on origin/develop (this session's push)
 
-- `a562ac3` feat(sidepanel): Molly + Jason hair, potato silhouette, TWiST-pack cue/bit backdrops
+- `a562ac3` feat(sidepanel): The Correspondent + The Host hair, potato silhouette, Startup Roundtable-pack cue/bit backdrops
 - `e58e620` feat(packs): v1.8 persona-refinement — 8/8 deep-research kernels landed
 
 Pushed on top of Seth's 5 prior local commits (`727a428` → `da1c0db`).
@@ -256,14 +256,14 @@ Pushed on top of Seth's 5 prior local commits (`727a428` → `da1c0db`).
   non-API traffic to www and masks routing failures (memory
   `feedback_api_path_probe_not_root.md`).
 - **Extension**: reload unpacked in `chrome://extensions/` to pick
-  up sidepanel polish (Molly/Jason hair, potato silhouette, TWiST
+  up sidepanel polish (The Correspondent/The Host hair, potato silhouette, Startup Roundtable
   cue/bit backdrops, earcon cues). Persona voice changes ship
   server-side — no extension reload needed for those.
 - **Happy path**: YouTube video → pick pack → watch 4 personas
   fire. Each voice should land visibly distinct from pre-v1.8:
-  - Baba: tier-tagged → exasperated "oh come ON" heckles
-  - Molly: `[HEADS UP]` tags → inline "Heatmap's reporting…" citations
-  - Lon: `[record scratch]` drops → one-sentence reframes
+  - The Producer: tier-tagged → exasperated "oh come ON" heckles
+  - The Correspondent: `[HEADS UP]` tags → inline "Heatmap's reporting…" citations
+  - The Reframer: `[record scratch]` drops → one-sentence reframes
   - Troll: single cynical voice → rotating Wack Pack sub-voices
 
 ## Pointers for next session

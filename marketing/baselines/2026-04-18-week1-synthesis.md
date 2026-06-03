@@ -27,13 +27,13 @@ Blocked at the CWS scripting wall (Chrome explicitly disallows automation on the
 
 ## The 5 findings that matter most
 
-These are what I'd lead with if we had 60 seconds for a Calacanis pitch on "what changed this week."
+These are what I'd lead with if we had 60 seconds for a The Host pitch on "what changed this week."
 
 ### 1. We're in a blue ocean — and also a desert
 
 Every major YouTube-AI extension on the Chrome Web Store is a **summarizer** (Glasp 2M users, NoteGPT 400K, Eightify 200K, Clarify 20K). None of them do live AI reactions. That's the *differentiation* story — but it's also the *demand* story: there is **zero existing search volume** for "live AI reactions YouTube," "AI writers room Chrome extension," or any query that maps to our exact pitch.
 
-Implication (lived in the SEO plan already but now sharpened by data): we can't win on existing demand — we have to **create the category** via content + podcast mentions + TWiST coverage. And in parallel we need **defensive plays** for the big summarizer queries, knowing conversion rate will be poor (users searching "youtube summary" don't want reactions).
+Implication (lived in the SEO plan already but now sharpened by data): we can't win on existing demand — we have to **create the category** via content + podcast mentions + Startup Roundtable coverage. And in parallel we need **defensive plays** for the big summarizer queries, knowing conversion rate will be poor (users searching "youtube summary" don't want reactions).
 
 Detail: `marketing/baselines/2026-04-18-competitor-landscape.md` §"The big finding".
 
@@ -41,7 +41,7 @@ Detail: `marketing/baselines/2026-04-18-competitor-landscape.md` §"The big find
 
 GA4 shows **212 views/7d on `/watch`** vs. **9 views on `/`**. That's a 23× skew. The legacy reference web app is out-acquiring the real marketing page.
 
-Likely cause: stale TWiST / Twitter links from the bounty announcement era still point at `/watch`. We're not going to rebuild `/watch` (project rule), but we *can* harvest the traffic with a page-specific metadata block + a thin CTA banner routing to the CWS listing. Proposed diff is ready: `marketing/baselines/2026-04-18-watch-proposed-diff.md`.
+Likely cause: stale Startup Roundtable / Twitter links from the bounty announcement era still point at `/watch`. We're not going to rebuild `/watch` (project rule), but we *can* harvest the traffic with a page-specific metadata block + a thin CTA banner routing to the CWS listing. Proposed diff is ready: `marketing/baselines/2026-04-18-watch-proposed-diff.md`.
 
 Decision needed from Seth: ship the proposed diff or push back.
 
@@ -74,7 +74,7 @@ The full graph now published on every page:
 - `FAQPage` with 7 Q&As
 - `Organization` with `@id` anchor + logo + GitHub + CWS `sameAs`
 - `Person` (Seth) with `@id` + `jobTitle` + `knowsAbout` + social `sameAs`
-- 3 × `VideoObject` (v1.5 walkthrough, product demo, Jason's bounty clip)
+- 3 × `VideoObject` (v1.5 walkthrough, product demo, The Host's bounty clip)
 - Cross-linked via `publisher` / `author` / `founder` `@id` refs
 
 Glasp's landing page has `SoftwareApplication` + `FAQPage` but no `Organization` or `Person` graph. Our entity graph is now deeper than the 2M-user market leader's. That's a real asset for LLM-era search (Claude, Copilot, Perplexity all consume structured data heavily) and for Wikidata linkage (the WikidataP2283 "uses (software)" plays in the Wikidata draft ride on this graph).
@@ -123,11 +123,13 @@ Ordered by (impact × ease) descending. Numbered for easy reference in chat.
 
 | Date | Milestone | Status |
 |---|---|---|
-| 2026-04-20 (Mon) | GSC indexing data populates; Bing Search Performance data unlocks | ⏳ **scheduled task ran; delta docs scaffolded at `2026-04-20-{gsc,bing}-delta.md`; numeric pulls blocked on Seth's keyboard** |
-| 2026-04-25 (Sat) | 7-day post-variant-ship delta measurable in GA4 + GSC | ⏳ pending |
-| 2026-05-02 (Sat) | First real position data in GSC; first install-CTR trend | ⏳ pending |
-| 2026-05-16 (Sat) | 4-week view; CWV starts to populate if we've pushed traffic | ⏳ pending |
-| 2026-07-11 (Sat) | End-of-plan measurement. Target: 100+ clicks from non-branded queries | ⏳ pending |
+| 2026-04-20 (Mon) | GSC indexing data populates; Bing Search Performance data unlocks | ⚠️ scheduled task ran; delta docs scaffolded at `2026-04-20-{gsc,bing}-delta.md`; numeric pulls blocked on Seth's keyboard |
+| 2026-04-22 (Wed) | Manual SEO snapshot — Seth-driven re-pull of GSC + Bing + GA4 | ✅ done — see `2026-04-22-seo-snapshot.md` (13 GSC impressions, pos 20.8, 72 active users / 28d) |
+| 2026-04-25 (Sat) | 7-day post-variant-ship delta measurable in GA4 + GSC | ❌ no delta doc in repo — Variant A ship not confirmed |
+| 2026-05-02 (Sat) | First real position data in GSC; first install-CTR trend | ❌ no delta doc in repo |
+| 2026-05-16 (Sat) | 4-week view; CWV starts to populate if we've pushed traffic | ✅ done — see `2026-05-16-4week-snapshot.md`. GSC: **3 clicks / 115 impressions / pos 13.8 / 8 indexed**. GA4: 51 users / 107 sessions / 28d (down 29–30% vs. 2026-04-22). CWV: **still "insufficient data"** in CrUX, both Mobile + Desktop. On pace for ~9 clicks by 2026-07-11 (target: 100). Snapshot surfaces 3 accelerations to close the gap. |
+| 2026-06-13 (Sat) | 8-week view; pack pages should be live + indexed | ⏳ pending |
+| 2026-07-11 (Sat) | End-of-plan measurement. Target: 100+ clicks from non-branded queries | ⏳ pending — **at risk** at current pace |
 
 Each checkpoint has a specific deliverable (see each baseline doc's "Next-measurement checkpoints" section). I'll write a short delta doc at each one — `marketing/baselines/YYYY-MM-DD-{gsc|ga4|bing}-delta.md`.
 
@@ -135,8 +137,8 @@ Each checkpoint has a specific deliverable (see each baseline doc's "Next-measur
 
 Nothing blocking. But flagging for your next pass so they don't sit in my head only:
 
-1. Do we want to push any of the `/watch`-attributed traffic back to `/` by updating stale links (TWiST / Twitter / etc.)? Or better to let them land on `/watch` and get caught by the new CTA banner? Either is defensible.
-2. Is there appetite for a Week 3 content piece targeting the Howard Stern audience specifically (the "Baba Booey fact-checker" angle)? It's a narrow but very passionate community and could seed the demand-creation track for zero marketing spend.
+1. Do we want to push any of the `/watch`-attributed traffic back to `/` by updating stale links (Startup Roundtable / Twitter / etc.)? Or better to let them land on `/watch` and get caught by the new CTA banner? Either is defensible.
+2. Is there appetite for a Week 3 content piece targeting the morning-radio host audience specifically (the "The Producer fact-checker" angle)? It's a narrow but very passionate community and could seed the demand-creation track for zero marketing spend.
 3. Do you want me to register Peanut Gallery in G2 / AlternativeTo / Product Hunt backlog this quarter? Those are the three SEO-friendliest software directories and each gives us a ranking-eligible backlink + an entity-graph citation. Low effort; useful Week 3-4.
 
 ## Files touched / created this session

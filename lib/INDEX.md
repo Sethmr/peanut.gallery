@@ -28,11 +28,11 @@ Everything the Next.js API routes import. Parent: [`../INDEX.md`](../INDEX.md). 
 
 | Dir | Index |
 |---|---|
-| [`packs/`](packs/) | Pack abstraction + Howard + TWiST personas. | [`packs/INDEX.md`](packs/INDEX.md) |
+| [`packs/`](packs/) | Pack abstraction + the morning-radio host + Startup Roundtable personas. | [`packs/INDEX.md`](packs/INDEX.md) |
 
 ## Load-bearing invariants (do not break)
 
 - `personasFiring` in `/api/transcribe` must be released via `finally`. Paired with `AbortSignal.timeout(25_000)` on every stream — do not remove either layer.
-- `director.ts` and `persona-engine.ts` are pack-agnostic. Packs are injected via constructor. Do not hard-code Howard persona ids inside the director.
-- `resolvePack(id)` in [`packs/index.ts`](packs/index.ts) never throws. Unknown / missing / malformed ids always resolve to Howard.
+- `director.ts` and `persona-engine.ts` are pack-agnostic. Packs are injected via constructor. Do not hard-code the morning-radio host persona ids inside the director.
+- `resolvePack(id)` in [`packs/index.ts`](packs/index.ts) never throws. Unknown / missing / malformed ids always resolve to the morning-radio host.
 - Force-react is deterministic: a tap commits the persona to speak. Silent-spin fallbacks live in `getForceReactFallback`. Model decides **how**, not **if**.

@@ -49,7 +49,7 @@ Telemetry:
 - 5 new fixtures (all v1.7, all under `scripts/fixtures/director/v3-*.json`):
   - `v3-silent-backchannel-invite` — tag-question tail → SILENT
   - `v3-silent-disfluency-tail` — mid-restart → SILENT
-  - `v3-silent-third-party-addressed` — "Molly, what do you think?" → SILENT
+  - `v3-silent-third-party-addressed` — "The Correspondent, what do you think?" → SILENT
   - `v3-sticky-agent-seed` — recentFirings=[troll, troll], v3 picks joker, asserts hoist
   - `v3-callback-memory-seed` — ring buffer seeded, v3 picks soundfx with callbackUsed
 - `npm run check` extended to also run the v2 unit tests.

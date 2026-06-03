@@ -9,7 +9,7 @@
  * the Director picks ONE persona per trigger, then cascades to others
  * with decreasing probability and staggered timing. The result:
  * some moments get 1 response, some get 2-3, and occasionally all 4
- * pile on — just like the real Stern Show.
+ * pile on — just like the real the morning-radio host Show.
  *
  * Event types:
  *   transcript    — real-time transcript text
@@ -89,7 +89,7 @@ interface Session {
    * The pack that was resolved when the session started. Frozen for the life
    * of the session — pack swaps only take effect on the next Start Listening.
    * Used by PATCH handlers (e.g. fire_persona validation) so we never leak the
-   * global Howard import into pack-specific decisions.
+   * global Morning Crew import into pack-specific decisions.
    */
   resolvedPack: Pack;
   forcedPersonaId?: string; // When set, next trigger fires this specific persona
@@ -241,7 +241,7 @@ export async function POST(req: NextRequest) {
       400
     );
   }
-  // xAI now powers Troll/Jason AND the soundfx slot in both packs, so without
+  // xAI now powers Troll/The Host AND the soundfx slot in both packs, so without
   // a working xAI key half the sidebar is dark. We still allow the request to
   // proceed (force-react fallback handles per-persona upstream failures and
   // produces canned bubbles) but we surface the missing key clearly so users
@@ -283,7 +283,7 @@ export async function POST(req: NextRequest) {
   const usingAnyDemoKey =
     (!headerDeepgram && !!process.env.DEEPGRAM_API_KEY) ||
     (!headerAnthropic && !!process.env.ANTHROPIC_API_KEY) ||
-    // xAI Grok powers the Troll/Jason/soundfx slots — if the user didn't bring
+    // xAI Grok powers the Troll/The Host/soundfx slots — if the user didn't bring
     // their own xAI key and the server has one, count this session as demo
     // usage for free-tier metering purposes.
     (!headerXai && !!process.env.XAI_API_KEY);
@@ -338,11 +338,11 @@ export async function POST(req: NextRequest) {
   // ── Persona pack resolution (v1.3) ─────────────────────────────────────
   // resolvePack() is the SINGLE forward-compat choke point: unknown, missing,
   // null, whitespace, or malformed ids all fall back to the default pack
-  // (Howard). That means:
-  //   - Old client + new server  → no packId in body → Howard (identical to
+  // (Morning Crew). That means:
+  //   - Old client + new server  → no packId in body → Morning Crew (identical to
   //     pre-v1.3 behavior, zero regression).
-  //   - New client + old server  → server ignores the field → Howard (client
-  //     UI still shows chosen names, backend speaks Howard; tolerable drift).
+  //   - New client + old server  → server ignores the field → Morning Crew (client
+  //     UI still shows chosen names, backend speaks Morning Crew; tolerable drift).
   //   - New client + new server  → pack flows through, engine uses its
   //     persona array, Director is unchanged (same 4 archetype slots).
   const resolvedPack = resolvePack(packId);
@@ -380,7 +380,7 @@ export async function POST(req: NextRequest) {
     transcriber,
     // Freeze the resolved pack on the session so PATCH handlers validate
     // fire_persona requests against THIS session's pack rather than the
-    // global Howard shim. Pack swaps only take effect on the next Start.
+    // global Morning Crew shim. Pack swaps only take effect on the next Start.
     resolvedPack,
     startedAt: Date.now(),
     chargeableInstallId,
@@ -396,13 +396,13 @@ export async function POST(req: NextRequest) {
 
   const personaEngine = new PersonaEngine({
     anthropicKey: anthropicKey || "",
-    // xAI key powers the Troll/Jason AND soundfx slots in every pack AND
+    // xAI key powers the Troll/The Host AND soundfx slots in every pack AND
     // the Producer's fact-check grounding via Grok Live Search. Empty
     // string is still accepted — the force-react fallback catches per-persona
     // upstream failures — but the sidebar will look sparse without it.
     xaiKey: xaiKey || "",
     // Pass the resolved pack (never undefined — resolvePack() guarantees a
-    // valid Pack). Engine internally falls back to Howard if pack is unset,
+    // valid Pack). Engine internally falls back to Morning Crew if pack is unset,
     // so this is also the "self-documenting" seam.
     pack: resolvedPack,
     // OpenAI key for semantic anti-repetition embeddings (SET-15). Only used
@@ -800,8 +800,8 @@ export async function POST(req: NextRequest) {
             llmElapsedMs = Date.now() - llmStart;
           }
           // v1.7: read the active pack's producer sensitivity mode.
-          // Howard's Baba uses "loose" (triggers on speculation + confidence
-          // cues + name-drops); TWiST's Molly uses "strict" (hard claims
+          // Morning Crew's The Producer uses "loose" (triggers on speculation + confidence
+          // cues + name-drops); Startup Roundtable's The Correspondent uses "strict" (hard claims
           // only). Defaults to "strict" if the pack doesn't declare one.
           const producerPersona = session.resolvedPack.personas.find(
             (p) => p.id === "producer"
@@ -1041,9 +1041,9 @@ export async function POST(req: NextRequest) {
             // Build cascade context from previous persona's response.
             // Look the persona up in the session's resolved pack — not the
             // global `personas` shim, which always resolves to the default
-            // pack (Morning Crew). A TWiST cascade that used the shim
+            // pack (Morning Crew). A Startup Roundtable cascade that used the shim
             // would stamp the cascade source with the Producer's name/emoji
-            // instead of Molly's, so the next persona's prompt would
+            // instead of The Correspondent's, so the next persona's prompt would
             // reference a Morning Crew member who isn't in the conversation.
             // Slot ids match across packs, so .find() still works — only the
             // name/emoji differ.
@@ -1055,7 +1055,7 @@ export async function POST(req: NextRequest) {
               : undefined;
 
             // v1.7: hand the producer persona the Director's pre-extracted
-            // top claims so Baba's fact-check anchors on exactly the
+            // top claims so The Producer's fact-check anchors on exactly the
             // sentence the Director saw. The helper inside fireSingle
             // re-scans only when this is undefined (non-producer personas
             // ignore the arg). Guarantees the "animates then doesn't
@@ -1205,8 +1205,8 @@ export async function PATCH(req: NextRequest) {
         409
       );
     }
-    // Validate against THIS session's pack — not the global Howard shim.
-    // Today Howard and TWiST share the same four archetype IDs so either
+    // Validate against THIS session's pack — not the global Morning Crew shim.
+    // Today Morning Crew and Startup Roundtable share the same four archetype IDs so either
     // array would accept the same inputs, but a future pack that renames
     // a slot would 404 legitimate requests if we kept the global import.
     const persona = session.resolvedPack.personas.find((p) => p.id === targetPersonaId);

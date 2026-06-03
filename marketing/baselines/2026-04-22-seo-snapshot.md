@@ -183,7 +183,7 @@ That's a 343→21→6 funnel from page-view to outbound GitHub click — ~1.7% o
 4. **GA4 is missing the install-funnel event.** The CWS install button is not instrumented. `github_click` exists; `cws_install_click` should too. Without it the headline "did organic traffic convert to an install?" question can't be answered.
 5. **Two distinct page-title fingerprints for `/`** (212 + 101 views) confirm the title changed mid-window. Title changes don't break GA4 but they fragment historical analysis — note in the next monthly report.
 6. **Two privacy-policy titles** suggest a duplicate page or canonical issue. Worth checking which template is winning.
-7. **Direct dominates traffic (71%).** Plausible mix is X/Slack/Discord/LinkedIn drops by Seth + the inbound from the v1.5.x blog post / TWiST bounty announcements. Not a problem; it's the expected shape for a builder-led launch. SEO is supposed to take this from "100% Seth-driven" to "50% organic" over the next 90 days.
+7. **Direct dominates traffic (71%).** Plausible mix is X/Slack/Discord/LinkedIn drops by Seth + the inbound from the v1.5.x blog post / Startup Roundtable bounty announcements. Not a problem; it's the expected shape for a builder-led launch. SEO is supposed to take this from "100% Seth-driven" to "50% organic" over the next 90 days.
 8. **`/terms/` is not in Google's or Bing's discovered set.** The sitemap with `/terms/` only exists locally — the site needs to deploy before either crawler will pick it up.
 
 ---
@@ -220,17 +220,17 @@ That's a 343→21→6 funnel from page-view to outbound GitHub click — ~1.7% o
 8. **Refresh the OG image cache on social platforms** post-deploy: [X Card Validator](https://cards-dev.twitter.com/validator), [Meta Sharing Debugger](https://developers.facebook.com/tools/debug/), [LinkedIn Post Inspector](https://www.linkedin.com/post-inspector/).
 
 ### Pre-2.0 content gaps (recommended additions)
-9. **Pack landing pages for Howard + TWiST** — `/packs/howard` + `/packs/twist`. [SEO-PLAN.md § Prompt 10](../SEO-PLAN.md) calls these "the single highest-leverage content play PG has." Each fan search for `[show name] AI`, `watch [show name] with AI`, `[show name] fact checker` is a qualified install with near-zero competitive noise. Both packs already ship with illustrated peanut mascots, so the content is real (not aspirational). ~half day of work for both.
+9. **Pack landing pages for the morning-radio host + Startup Roundtable** — `/packs/howard` + `/packs/twist`. [SEO-PLAN.md § Prompt 10](../SEO-PLAN.md) calls these "the single highest-leverage content play PG has." Each fan search for `[show name] AI`, `watch [show name] with AI`, `[show name] fact checker` is a qualified install with near-zero competitive noise. Both packs already ship with illustrated peanut mascots, so the content is real (not aspirational). ~half day of work for both.
 10. **A `/plus` landing page** — a real Plus subscription page (separate from the pricing page). Today the FAQ schema describes Plus, the pricing page mentions Plus, but no dedicated `/plus` URL exists for fans of competitor `/pricing` pages or for Stripe `success_url` cleanup. Stripe's success URL (`/plus/welcome`) and cancel URL (`/plus/cancelled`) per the checkout route are both 404 today. Three pages: `/plus`, `/plus/welcome`, `/plus/cancelled`. ~2 hours.
 11. **`/install` landing page** — currently absent (per [SEO-PLAN.md § Already in place](../SEO-PLAN.md), `/install` was assumed but actually was never built on this static site iteration; the `installUrl` JSON-LD points directly at the CWS URL). A dedicated `/install` page that walks Chrome users through the install (with screenshots, "what to expect" copy, and an FAQ) would absorb the GSC search-term pattern `install [extension name]` and be the natural target for the "Install" CTA from `/`. ~half day.
 
 ### 90 days
 12. **Re-run the [Prompt 1 — CWS category audit](../SEO-PLAN.md)** and [Prompt 9 — Money page audit](../SEO-PLAN.md) once GSC has 90 days of richer data.
-13. **Update [`SEO-PLAN.md`](../SEO-PLAN.md) §1**: it still describes the product as "Free. BYOK." with no Plus tier; the Claude Design tokens cite the dark-theme palette; "current packs: Howard and TWiST" is correct but Plus needs to be added to "Pricing / monetization."
+13. **Update [`SEO-PLAN.md`](../SEO-PLAN.md) §1**: it still describes the product as "Free. BYOK." with no Plus tier; the Claude Design tokens cite the dark-theme palette; "current packs: the morning-radio host and Startup Roundtable" is correct but Plus needs to be added to "Pricing / monetization."
 
 ### 90 days
 10. **Re-run the [Prompt 1 — CWS category audit](../SEO-PLAN.md)** and [Prompt 9 — Money page audit](../SEO-PLAN.md) once GSC has 90 days of richer data.
-11. **Update [`SEO-PLAN.md`](../SEO-PLAN.md) §1**: it still describes the product as "Free. BYOK." with no Plus tier; the Claude Design tokens cite the dark-theme palette; "current packs: Howard and TWiST" is correct but Plus needs to be added to "Pricing / monetization."
+11. **Update [`SEO-PLAN.md`](../SEO-PLAN.md) §1**: it still describes the product as "Free. BYOK." with no Plus tier; the Claude Design tokens cite the dark-theme palette; "current packs: the morning-radio host and Startup Roundtable" is correct but Plus needs to be added to "Pricing / monetization."
 
 ---
 
