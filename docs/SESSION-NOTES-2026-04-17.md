@@ -17,9 +17,9 @@ v1.1.1 is built and zipped at `peanut-gallery-v1.1.1.zip` in the repo root (88.5
 
 ---
 
-## 2. What Jason wants (unchanged from 2026-04-16)
+## 2. What The Host wants (unchanged from 2026-04-16)
 
-Still the same eight-point spec from [`SESSION-NOTES-2026-04-16.md §1`](SESSION-NOTES-2026-04-16.md). One subtle evolution: point 8 ("pause behavior") is now implemented as **silence** detection (dead air *in the show*), not viewer-spacebar pauses. The current behavior matches the spirit of Jason's spec (personas react to the show going quiet) while being more useful — it also fires during natural lulls in the audio, not just user-initiated pauses.
+Still the same eight-point spec from [`SESSION-NOTES-2026-04-16.md §1`](SESSION-NOTES-2026-04-16.md). One subtle evolution: point 8 ("pause behavior") is now implemented as **silence** detection (dead air *in the show*), not viewer-spacebar pauses. The current behavior matches the spirit of The Host's spec (personas react to the show going quiet) while being more useful — it also fires during natural lulls in the audio, not just user-initiated pauses.
 
 Current state: the full pipeline is working end-to-end against the hosted backend. Extension zip ready. Ready for Chrome Web Store publish and demo video.
 
@@ -45,7 +45,7 @@ A previous pass in this session hard-coded demo keys into `extension/sidepanel.j
 
 New (2026-04-17): four demo keys in Vercel env vars (Deepgram, Groq, Anthropic, Brave). Caps configured per provider. See [`OPS.md`](OPS.md) for dashboards, cap locations, and the rotation runbook.
 
-**Post-TWiST rotation is expected.** Anyone who captures the running extension zip during the demo window could theoretically intercept requests mid-flight. Rotating all four keys after the bounty airs is the cheap defensive move — runbook in `OPS.md`.
+**Post-Startup Roundtable rotation is expected.** Anyone who captures the running extension zip during the demo window could theoretically intercept requests mid-flight. Rotating all four keys after the bounty airs is the cheap defensive move — runbook in `OPS.md`.
 
 ---
 
@@ -59,8 +59,8 @@ Status of the bounty submission as of end-of-session:
 - [x] v1.1.1 zip built and clean of secrets.
 - [x] Documentation current (this session).
 - [ ] **Chrome Web Store listing.** Upload `peanut-gallery-v1.1.1.zip`, paste store copy, submit for review.
-- [ ] **Demo video.** ~60s showing the personas reacting to a live TWiST clip. Capture without keys entered to showcase zero-setup demo flow.
-- [ ] **TWiST submission post.** Link to CWS listing + demo video + `peanutgallery.live`.
+- [ ] **Demo video.** ~60s showing the personas reacting to a live Startup Roundtable clip. Capture without keys entered to showcase zero-setup demo flow.
+- [ ] **Startup Roundtable submission post.** Link to CWS listing + demo video + `peanutgallery.live`.
 
 ---
 
@@ -69,7 +69,7 @@ Status of the bounty submission as of end-of-session:
 See [`ROADMAP.md`](ROADMAP.md) for the full plan. One-line summary per release:
 
 - **v1.2.0 — "Mise en place" (next up):** Director debug panel, expanded structured routing logs, cascade-delay retune, real test coverage for `lib/director.ts`, pre-merge `tsc` + lint + smoke-test gate. All low-risk + additive; wire-compatible with v1.1.x backends.
-- **v1.3.0 — "TWiST Pack" (flagship):** Persona-pack refactor, Howard + TWiST packs (Jason/Molly/Alex/Lon), pack-swap dropdown in the side panel, pack-creation installer so community packs hit our quality bar.
+- **v1.3.0 — "Startup Roundtable Pack" (flagship):** Persona-pack refactor, the morning-radio host + Startup Roundtable packs (The Host/The Correspondent/The Quant/The Reframer), pack-swap dropdown in the side panel, pack-creation installer so community packs hit our quality bar.
 - **v1.4.0 — "Smart Director v2":** LLM-assisted routing with the rule-based scorer as fallback under a 400ms budget. Cascade + cooldown bookkeeping unchanged. Rationale surfaces in the v1.2 debug panel automatically.
 - **v1.5.0 — "Voice + Clip Share":** TTS per persona (opt-in, ducked under source audio). Clip-sharing / highlight export — ~30s transcript + persona reactions as a shareable clip or GIF.
 - **v2.0.0 — "Bobbleheads":** 3D character models per persona with procedural rig animation tied to fire events + sentiment.

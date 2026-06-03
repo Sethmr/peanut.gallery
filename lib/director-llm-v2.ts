@@ -164,7 +164,7 @@ AND — equally valid, often the correct pick:
       · The transcript ends mid-clause / mid-thought ("because…", "so…", "if…")
       · The host is mid-disfluency or self-correction ("um", "uh", "let me rephrase")
       · The tail is a backchannel invitation the speaker is about to answer themselves ("right?", "you know?")
-      · Another participant was just directly addressed ("Molly, what do you think?")
+      · Another participant was just directly addressed ("Dana, what do you think?")
       · The cast just landed a punchline — give it 1-3 beats to breathe
       · The current chunk is a content-free restart, repetition, or filler
       · There's no claim, joke, hype, or mood-shift worth reacting to yet
@@ -208,11 +208,11 @@ slot: troll    — The Heckler (Cynical Commentator): puncture hype, valuation m
 slot: soundfx  — The Sound Guy (SFX & Context): drops bracketed sound cues as editorial commentary. Pick on mood shifts, awkward pauses, confident-but-wrong beats.
 slot: joker    — The Joke Writer (Comedy Writer): rapid-fire one-liners, misdirection, rule of three, callbacks. Pick on absurdity or clean comic setups.
 
-### TWiST Pack
-slot: producer — Molly (Fact-Checker): veteran tech journalist; cites own reporting. Pick on verifiable funding / timeline / startup-history claims.
-slot: troll    — Jason (Provocateur): TWiST host energy; loud, founder-protective, brutal on hype cycles. Pick on bold claims + founder-market-fit moments.
-slot: soundfx  — Lon (Reframe): dry pop-culture reframes + sound cues ("this is WeWork energy"). Pick on mood shifts + cultural analogies.
-slot: joker    — Alex (Data Comedian): numbers-as-punchline, cap-table burns, hype-cycle comps. Pick on specific numbers / valuations / unit economics.
+### Startup Roundtable Pack
+slot: producer — The Correspondent (Fact-Checker): veteran tech-desk reporter; cites generic reporting. Pick on verifiable funding / timeline / startup-history claims.
+slot: troll    — The Host (Provocateur): startup-podcast host energy; loud, founder-protective, brutal on hype cycles. Pick on bold claims + founder-market-fit moments.
+slot: soundfx  — The Reframer (Reframe): dry pop-culture reframes + sound cues ("this is bubble-era energy"). Pick on mood shifts + cultural analogies.
+slot: joker    — The Quant (Data Comedian): numbers-as-punchline, cap-table burns, hype-cycle comps. Pick on specific numbers / valuations / unit economics.
 
 ---
 
@@ -246,9 +246,9 @@ SILENCE: false
 CORRECT: {"personaId":"joker","rationale":"Triple claim is a rule-of-three setup — joker's technique."}
 
 ### Example 6 — Host directly addressed another participant → SILENT (let the human answer)
-TRANSCRIPT: "Jason pitched the whole AstroForge thing for ten minutes straight. Molly, what do you think about the market sizing?"
+TRANSCRIPT: "The host pitched the whole asteroid-mining startup for ten minutes straight. Dana, what do you think about the market sizing?"
 SILENCE: false
-CORRECT: {"personaId":"silent","rationale":"Host directly addressed Molly by name — human should speak next."}
+CORRECT: {"personaId":"silent","rationale":"Host directly addressed Dana by name — human should speak next."}
 
 ### Example 7 — Awkward on-air stumble → soundfx
 TRANSCRIPT: "And then... sorry, I lost my train of thought."
@@ -260,10 +260,10 @@ TRANSCRIPT: ""
 SILENCE: true
 CORRECT: {"personaId":"soundfx","rationale":"Silence tick; soundfx fits dead air better than joker without a premise."}
 
-### Example 9 — Cap-table number (TWiST pack) → joker (data-comedy lane)
+### Example 9 — Cap-table number (Startup Roundtable pack) → joker (data-comedy lane)
 TRANSCRIPT: "The founders retained 8% combined going into their Series B."
 SILENCE: false
-CORRECT: {"personaId":"joker","rationale":"Specific cap-table number is a data-comedy setup — joker owns it in TWiST."}
+CORRECT: {"personaId":"joker","rationale":"Specific cap-table number is a data-comedy setup — joker owns it in the Startup Roundtable pack."}
 
 ### Example 10 — Speculative opinion, producer passes → joker
 TRANSCRIPT: "I believe AI will be smarter than humans within five years."

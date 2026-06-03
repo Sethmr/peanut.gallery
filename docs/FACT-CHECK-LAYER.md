@@ -1,6 +1,6 @@
 # Peanut Gallery — Fact-Check Layer (reusable methodology)
 
-This doc captures the deep-research fact-check methodology commissioned on 2026-04-23 and landed on Baba Booey. **It is intentionally persona-agnostic** so it can be applied to another avatar (Molly, a future pack's fact-checker, etc.) without re-running the research.
+This doc captures the deep-research fact-check methodology commissioned on 2026-04-23 and landed on The Producer. **It is intentionally persona-agnostic** so it can be applied to another avatar (The Correspondent, a future pack's fact-checker, etc.) without re-running the research.
 
 The layer is a **prompt-kernel patch plus a scaffolding flag**, designed to graft real-time fact-check discipline onto a character-driven persona without collapsing the voice into reporter-neutral register.
 
@@ -14,7 +14,7 @@ Apply it to any persona where all three are true:
 2. The persona's **voice contract is character-driven**, not anchor-neutral — i.e., a pure neutral-journalist voice is not the deliverable.
 3. You want the persona to **fire with substance every time the Director picks them**, instead of passing (`"-"`) when they can't find a crisp correction.
 
-The v1.8 trolly-heckler Baba was a concrete case of all three. A future "lawyer-heckler" persona, or a "cynical reporter" variant of Molly, would be additional candidates.
+The v1.8 trolly-heckler The Producer was a concrete case of all three. A future "lawyer-heckler" persona, or a "cynical reporter" variant of The Correspondent, would be additional candidates.
 
 ---
 
@@ -43,7 +43,7 @@ Why not FEVER's 3-class (too coarse — collapses the "technically-but" register
 
 ### 3. Tier-to-voice mapping
 
-Each tier gets a distinct register. The **canonical line patterns below are Baba-flavored**; when applying the layer to a new persona, rewrite the patterns in that persona's voice but preserve the register shape.
+Each tier gets a distinct register. The **canonical line patterns below are The Producer-flavored**; when applying the layer to a new persona, rewrite the patterns in that persona's voice but preserve the register shape.
 
 - **CONFIRMS → "broken clock"**. The persona does NOT flip into approval when the speaker is right; they stay in-character and reframe the correctness as suspicious/coincidental.
 - **CONTRADICTS → "hold the tape"**. Direct dunk. Land the right fact in the first clause, rotate to signature pivot in the second.
@@ -72,7 +72,7 @@ The failure mode the layer solves: the persona too often emits `"-"`. Fix:
 **Pass is LAZY when any hold:**
 - Any bullet contains a concrete number/date/name/event loosely related to the tail (COMPLICATES or CONTRADICTS is available).
 - The tail has a check-worthy claim but bullets are THIN (THIN-register heckle is the right move, not pass).
-- Bullets *support* the speaker (CONFIRMS register is available — passing on confirms is the most common v1.8 Baba bug).
+- Bullets *support* the speaker (CONFIRMS register is available — passing on confirms is the most common v1.8 The Producer bug).
 
 **Quantitative threshold:** *fire if ≥1 bullet is topically on-target OR the tail contains ≥1 specific number/date/named entity that implies a check-worthy claim; pass only if both conditions fail.*
 
@@ -86,7 +86,7 @@ Why: the heckler register collapses if source attribution appears. AP Stylebook 
 
 ### 7. Anti-repetition & cascade discipline
 
-Two failure modes: (a) persona corrects the same fact twice; (b) persona re-heckles a claim Jackie or The Troll already addressed from a different angle.
+Two failure modes: (a) persona corrects the same fact twice; (b) persona re-heckles a claim The Joke Writer or The Troll already addressed from a different angle.
 
 **Discipline:** *Read the last ~8 persona replies in the feed log before speaking. If any prior reply — from any persona — already addressed the current claim's topic, pivot to a NEW angle (adjacent fact, meta-heckle, different tier) rather than repeating.*
 
@@ -107,7 +107,7 @@ Preserves the existing Peanut Gallery memory rule (fact-checker personas don't d
 
 ### 9. Red-team cases
 
-10 adversarial transcript tails where voice and fact-check collide badly. Each shows failure mode + correct handling. Full case list in the Baba landing doc and the authoring research — summarized as kernel rules:
+10 adversarial transcript tails where voice and fact-check collide badly. Each shows failure mode + correct handling. Full case list in the Producer landing doc and the authoring research — summarized as kernel rules:
 
 - **RT-1 confidently-wrong hedge**: don't hedge a true claim. CONFIRMS → broken-clock, no invented distinction.
 - **RT-2 corrected the wrong thing**: claimed atom must directly mismatch a bullet atom. No mismatch → no correction.
@@ -136,7 +136,7 @@ This flag (defined in [`lib/personas.ts`](../lib/personas.ts)) is **voice-agnost
 - Uses the default `SEARCH RESULTS (use for fact-checking)` framing on the bullet block.
 - **Skips** the legacy `EVIDENCE: GREEN / THIN / NONE` tier-gate injection (which prescribes obsolete `[FACT CHECK]` / `[HEADS UP]` tags — the new kernel patch's four-tier taxonomy supersedes it).
 
-The voice contract lives entirely in the persona's kernel — a trolly-EP (Baba), an NPR journalist (Molly), or any future register all use the same scaffolding flag. Other `producerMode` values (`"fact-checker"` legacy, `"heckler"`, `"journalist"`) are orthogonal and don't apply this layer.
+The voice contract lives entirely in the persona's kernel — a trolly-EP (The Producer), an NPR journalist (The Correspondent), or any future register all use the same scaffolding flag. Other `producerMode` values (`"fact-checker"` legacy, `"heckler"`, `"journalist"`) are orthogonal and don't apply this layer.
 
 **Step 3 — append the kernel patch.** Drop the ~200-word block below into the persona's `systemPrompt` / `KERNEL`, between the voice/direction sections and the avoid list. Rewrite the four canonical tier lines at the bottom in the new persona's voice while preserving the register shape (see §3).
 
@@ -176,4 +176,4 @@ Research commissioned 2026-04-23, citing:
 - **Jon Stewart / John Oliver** framing of fact-check-as-joke-requirement (NPR interviews 2010, 2016).
 - **ClaimBuster** (Hassan et al. KDD 2017) for check-worthiness thresholds.
 
-First application: Baba Booey (Howard pack, producer slot) — landed alongside this doc. See [`lib/packs/howard/prompts/baba-booey.ts`](../lib/packs/howard/prompts/baba-booey.ts) for the concrete kernel patch integration.
+First application: The Producer (the morning-radio host pack, producer slot) — landed alongside this doc. See [`lib/packs/howard/prompts/baba-booey.ts`](../lib/packs/howard/prompts/baba-booey.ts) for the concrete kernel patch integration.

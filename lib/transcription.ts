@@ -158,7 +158,7 @@ export class TranscriptionManager extends EventEmitter {
   private firstTranscriptTime: number | null = null;
   // Wall-clock of the most recent FINAL transcript. Powers silence detection:
   // if this hasn't updated in `SILENCE_THRESHOLD_MS` and we've had some prior
-  // activity, the personas get one shot to react to the quiet (like Fred
+  // activity, the personas get one shot to react to the quiet (like The Sound Guy
   // dropping [crickets]).
   private lastTranscriptTime: number | null = null;
   // Flips to true once we've fired a silence reaction for the current quiet
@@ -186,7 +186,7 @@ export class TranscriptionManager extends EventEmitter {
   // How long the transcript must be quiet before the personas react to the
   // silence. Long enough that a guest pausing to breathe doesn't trip it;
   // short enough that real dead air (ad break, speaker lost their train of
-  // thought) gets a joke. 18s matches how the real Howard crew reads a room.
+  // thought) gets a joke. 18s matches how the real Morning Crew crew reads a room.
   private SILENCE_THRESHOLD_MS = TranscriptionManager.DEFAULT_SILENCE_THRESHOLD_MS;
   // The active pace multiplier — 1.0 means "default cadence", >1 means slower,
   // <1 means faster. Stored so we can log it alongside decisions.

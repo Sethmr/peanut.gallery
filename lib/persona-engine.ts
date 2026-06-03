@@ -5,8 +5,8 @@
  * and streams responses back via callbacks.
  *
  * Multi-provider: xAI Grok (non-reasoning) for fast/reflexive voices (the
- * Heckler, Jason, the Sound Guy, Lon) and Claude Haiku for the nuanced
- * voices (the Producer / Molly producer slot, the Joke Writer / Alex joker
+ * Heckler, The Host, the Sound Guy, The Reframer) and Claude Haiku for the nuanced
+ * voices (the Producer / The Correspondent producer slot, the Joke Writer / The Quant joker
  * slot). Groq was in the mix pre-v1.4 but hit free-tier
  * TPD caps in production; swapped out for Grok which has a better-fitting
  * voice for the sarcastic/reflex slots anyway.
@@ -60,7 +60,7 @@ interface LogEntry {
  * model decided.
  *
  * Keyed by archetype slot id (`producer` / `troll` / `soundfx` / `joker`)
- * so they work across any pack (Morning Crew, TWiST, future). Lines are
+ * so they work across any pack (Morning Crew, Startup Roundtable, future). Lines are
  * deliberately short + hedge-shaped — enough to fill the bubble, easy on
  * the eye, not trying to impersonate the specific persona's sharp voice.
  */
@@ -325,7 +325,7 @@ export class PersonaEngine {
   constructor(config: {
     anthropicKey: string;
     /**
-     * xAI Grok key. Every pack's Troll/Jason AND soundfx slot routes through
+     * xAI Grok key. Every pack's Troll/The Host AND soundfx slot routes through
      * Grok as of v1.4, so a working xAI key is required for both packs to
      * fire cleanly. As of v2.0.1, also carries the Producer's fact-check
      * search traffic (Brave Search deprecated). Empty-string is still
@@ -1170,7 +1170,7 @@ export class PersonaEngine {
         // context because our claim-extraction heuristics flagged nothing.
         // If this fires too often, CLAIM_PATTERNS in lib/claim-detector.ts
         // probably needs a new rule (common in new domains — see how many
-        // TWiST episodes lean on startup-speak the early Morning Crew
+        // Startup Roundtable episodes lean on startup-speak the early Morning Crew
         // patterns never caught).
         logPipeline({
           event: "search_no_claims_detected",

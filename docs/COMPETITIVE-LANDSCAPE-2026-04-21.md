@@ -79,7 +79,7 @@ Priority: Should-have v2.0.
 **D1. YouTube chapter / description ingestion**
 One-line: scrape the current video's chapter markers + description; feed them to the Director as structural hints.
 Competitors: [Glasp summaries use YT transcript + metadata](https://glasp.co/youtube-summary), Sider podcast transcription.
-Why: a chapter change is a free "topic shift" signal for the Director — producer gets a chance to fact-check the new topic, troll can set up a new bit. Description often names guests (perfect for Baba "you know this guy"). Strictly additive, no privacy cost (all public YouTube data on the page).
+Why: a chapter change is a free "topic shift" signal for the Director — producer gets a chance to fact-check the new topic, troll can set up a new bit. Description often names guests (perfect for The Producer "you know this guy"). Strictly additive, no privacy cost (all public YouTube data on the page).
 Build cost: **M** — YT DOM scrape in content script + schema on the Director context + prompt tweak.
 Priority: Should-have v2.1.
 
@@ -93,7 +93,7 @@ Priority: Should-have v2.x.
 ### Theme E — Discovery & retention
 
 **E1. "Who's hot this week" in the side-panel header**
-One-line: tiny stat strip — "Baba has been the loudest critic in your last 3 sessions."
+One-line: tiny stat strip — "The Producer has been the loudest critic in your last 3 sessions."
 Competitors: Spotify Wrapped-style personalization; Character.AI's featured-characters surface.
 Why: turns aggregate session data into a reason to open the panel again. Privacy-safe (all local). Pairs with A2.
 Build cost: **S.**
@@ -111,7 +111,7 @@ Priority: Should-have v2.x.
 **F1. Spotify Web Player support**
 One-line: detect and attach to `open.spotify.com` tabs the same way the extension attaches to YouTube.
 Competitors: [PodBrief works natively inside open.spotify.com](https://chromewebstore.google.com/detail/podbrief-%E2%80%94-ai-podcast-sum/abnkodnmoehkgphfcghabgdljefhbabk), [Sider tab-audio capture](https://sider.ai/extensions/podcast-transcript), [Notta live-tab transcription](https://www.notta.ai/).
-Why: podcasts are the design center, and a large share of podcast listeners use Spotify. Same tab-capture pipeline; real work is (a) attach logic for the Spotify tab, (b) UI affordances when the active source is Spotify (no video thumbnail), (c) probably a pack recommendation ("Stern pack works well here" vs "TWiST pack for business shows"). Positioning: "the show that reacts to your podcast player, wherever you listen" — a genuine expansion of the addressable audience.
+Why: podcasts are the design center, and a large share of podcast listeners use Spotify. Same tab-capture pipeline; real work is (a) attach logic for the Spotify tab, (b) UI affordances when the active source is Spotify (no video thumbnail), (c) probably a pack recommendation ("the morning-radio host pack works well here" vs "Startup Roundtable pack for business shows"). Positioning: "the show that reacts to your podcast player, wherever you listen" — a genuine expansion of the addressable audience.
 Build cost: **M.**
 Priority: Should-have v2.x — first non-YouTube surface.
 
@@ -134,7 +134,7 @@ Priority: Should-have v2.x.
 
 **G4. "Podcast newsletter" Markdown → Substack export** — Extension of the existing Markdown export. [Castmagic's blog-article export](https://www.castmagic.io/features) is the pattern. **Cost: S.** Nice-to-have.
 
-**G5. Persona-reply chat ("reply to Baba")** — User types a one-liner back to a quip; the persona answers once. Otter-Chat-like but narrow. [Otter AI Chat pattern](https://otter.ai/chat). **Cost: M** — needs a guardrail layer because it's a user-injected prompt surface. Nice-to-have v2.x (be thoughtful about prompt-injection + war-zone restraint rule #6).
+**G5. Persona-reply chat ("reply to The Producer")** — User types a one-liner back to a quip; the persona answers once. Otter-Chat-like but narrow. [Otter AI Chat pattern](https://otter.ai/chat). **Cost: M** — needs a guardrail layer because it's a user-injected prompt surface. Nice-to-have v2.x (be thoughtful about prompt-injection + war-zone restraint rule #6).
 
 ---
 

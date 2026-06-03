@@ -44,7 +44,7 @@ My vote: **Option B.**
 ## Other concerns (non-blocking but worth addressing)
 
 ### 1. Force-react should skip the semantic path entirely
-Force-react (🔥 tap on an avatar) is the "I want a fast reaction" path — Baba's Producer fact-check already skips pre-stream search for exactly this reason. Adding embed + possible re-roll to force-react doubles the slow tail. Skip semantic check when `isForceReact === true`.
+Force-react (🔥 tap on an avatar) is the "I want a fast reaction" path — The Producer's Producer fact-check already skips pre-stream search for exactly this reason. Adding embed + possible re-roll to force-react doubles the slow tail. Skip semantic check when `isForceReact === true`.
 
 ### 2. Re-roll cost is material
 At 0.82 threshold, expect 10–20% of fires to re-roll. That's ~$0.05–0.10/episode extra on top of the embeddings. Worth noting in `docs/CONTEXT.md` cost table and the SET-8 ticket rationale.

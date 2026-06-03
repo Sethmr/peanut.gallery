@@ -41,7 +41,7 @@ ce60a5c feat(sidepanel): add "Feedback & bugs" section to settings drawer
 f0e2874 feat(molly): apply fact-check layer — NPR-journalist voice + CONFIRMS/CONTRADICTS/COMPLICATES/THIN taxonomy
 32a4d8e feat(baba): fact-check layer applied — trolly voice + CONFIRMS/CONTRADICTS/COMPLICATES/THIN taxonomy
 e96d3c6 fix(director-v3): silence cerebras schema-dump log spam + recover stringified confidence
-3babdc4 feat(sidepanel+sfx): mute-sfx toggle, Jackie↔Jason cue swap, trim Fred+Lon, bowling-pin cue for Jason
+3babdc4 feat(sidepanel+sfx): mute-sfx toggle, The Joke Writer↔The Host cue swap, trim The Sound Guy+The Reframer, bowling-pin cue for The Host
 ```
 
 **`site/main`:**
@@ -49,7 +49,7 @@ e96d3c6 fix(director-v3): silence cerebras schema-dump log spam + recover string
 502b734 legal: post-lawyer-brief rewrite — Manu Games LLC entity, Plus deferred, AI-training/DMCA/export sections
 dab3d9c legal: mechanical fixes to cross-doc links (pre-lawyer-brief audit)
 391321d seo: backfill Twitter card + og:image dimensions on /terms/ and /privacy/
-eefe40c site: bump to v2.0.0 "The Gallery" — JSON-LD + Howard pack stamp
+eefe40c site: bump to v2.0.0 "The Gallery" — JSON-LD + the morning-radio host pack stamp
 eed855e pricing: add "Are these the real people?" FAQ + JSON-LD entry
 ```
 
@@ -91,7 +91,7 @@ hard constraints from its Executive Summary:
 
 3. **Right-of-publicity is the dominant non-contractual risk.** CA §3344 +
    AB 1836, TN ELVIS Act §47-25-1101 et seq., IL IRPA, IN extraterritorial.
-   Jason Calacanis (CA) and Gary Dell'Abate (NY/CT) anchor forum exposure
+   The Host (CA) and The Producer (NY/CT) anchor forum exposure
    on two coasts. Soft-gates + synthesized-text-only (no voice clone) +
    parody framing + claim-allow/deny list are the minimum mitigations.
 
@@ -158,7 +158,7 @@ deliberate product-direction calls
   exists in the v1.8 persona kernels per `DESIGN-PRINCIPLES.md § 3a`; a
   hardcoded block-list of private individuals does not. Design decision
   pending: allow-list vs. deny-list vs. pattern-based detector. Defer to a
-  post-Jason-consent-outcome pass.
+  post-The Host-consent-outcome pass.
 
 ### Operational follow-ups — Seth's tasks, not code changes
 
@@ -185,7 +185,7 @@ deliberate product-direction calls
 - **Email Anthropic partnerships + Deepgram sales** about reseller approval
   — only relevant when Plus returns at v2.5+. Don't email yet if not
   relaunching soon. Warm conversations are easier with a named first
-  customer (see "Jason consent path" below).
+  customer (see "The Host consent path" below).
 
 ---
 
@@ -286,7 +286,7 @@ Keys → Create Key. `sk-ant-…` prefix. Phone verification required
 **Step 4/4 (optional) · Brave Search (fact-check grounding).** Mark
 "optional" clearly. `https://api-dashboard.search.brave.com/app/subscriptions/subscribe`.
 Has a $5/mo free-credit envelope, no free-forever tier. Pure add-on
-that makes Baba Booey's fact-checks richer; extension works without
+that makes The Producer's fact-checks richer; extension works without
 it.
 
 **Completion state.** "You're set. Click Start Listening on any
@@ -349,16 +349,16 @@ architecture decision doc when that work begins.
 
 ## Open product + strategic decisions (Seth's calls)
 
-### Jason Calacanis consent path
+### The Host consent path
 
-Seth raised the question: *"If Jason signs off on rmtp is there for
+Seth raised the question: *"If The Host signs off on rmtp is there for
 his personal use, any legal problem there?"*
 
-**Short answer from the prior-turn analysis:** for Jason's **truly
+**Short answer from the prior-turn analysis:** for The Host's **truly
 private** personal use, essentially zero legal problem. Consent is a
 complete defense to CA §3344, AB 1836, NY §51, and TN ELVIS Act for
-the Jason persona specifically. **Does not transfer** to other
-personas (Molly, Alex, Lon, Howard pack) — separate consents needed,
+the Host persona specifically. **Does not transfer** to other
+personas (The Correspondent, The Quant, The Reframer, the morning-radio host pack) — separate consents needed,
 or keep parody framing.
 
 **If pursued, paper it properly:**
@@ -375,18 +375,18 @@ or keep parody framing.
   replica-of-living-performer contracts without specific use
   description + counsel representation.
 
-**Strategic value if Jason signs:**
-- Clean launch story for the Jason persona specifically.
+**Strategic value if The Host signs:**
+- Clean launch story for the Host persona specifically.
 - Anthropic + Deepgram reseller conversations much warmer with a
-  named first customer. "$5K TWiST bounty fulfilled" is a press hook.
+  named first customer. "$5K Startup Roundtable bounty fulfilled" is a press hook.
 - Potential v2.5 launch anchor: "Peanut Gallery, now available on
-  TWiST with Jason's blessing."
+  Startup Roundtable with The Host's blessing."
 - Doesn't unlock broadcast of ANY persona commenting on third
-  parties during a Jason stream — claim-detector + soft-gate still
+  parties during a The Host stream — claim-detector + soft-gate still
   required to prevent unconsenting names.
 
 **Status:** parked. Revisit when Seth decides whether to approach
-Jason directly or wait for organic traction.
+The Host directly or wait for organic traction.
 
 ### RTMP directions
 
@@ -422,12 +422,12 @@ relaunch at v2.5+. A later, if ever — strategic call.
   inspired-by PARODY FRAME injection (new field + injection block),
   four-flavor producer scaffolding (`fact-checker` /
   `heckler` / `journalist` / `layered-fact-checker`).
-- `lib/packs/howard/personas.ts` — Howard pack Persona entries. All 4
-  now carry `inspiredBy`. Baba on `layered-fact-checker`.
-- `lib/packs/twist/personas.ts` — TWiST pack. Molly on
-  `layered-fact-checker`. Jason, Alex, Lon all tagged.
+- `lib/packs/howard/personas.ts` — the morning-radio host pack Persona entries. All 4
+  now carry `inspiredBy`. The Producer on `layered-fact-checker`.
+- `lib/packs/twist/personas.ts` — Startup Roundtable pack. The Correspondent on
+  `layered-fact-checker`. The Host, The Quant, The Reframer all tagged.
 - `lib/packs/howard/prompts/*.ts` + `lib/packs/twist/prompts/*.ts`
-  — per-persona KERNEL + REFERENCE strings. Baba + Molly kernels
+  — per-persona KERNEL + REFERENCE strings. The Producer + The Correspondent kernels
   now embed the four-tier fact-check-layer taxonomy.
 
 **Director + engine**
@@ -481,10 +481,10 @@ terms — the reason the onboarding wizard is the strategic move.
 
 | Statute | Scope | Remedies | Applies |
 |---|---|---|---|
-| CA Civ. Code §3344 | Living; name/voice/signature/photo/likeness | $750 floor, actuals, profits, **mandatory fees** | Calacanis |
+| CA Civ. Code §3344 | Living; name/voice/signature/photo/likeness | $750 floor, actuals, profits, **mandatory fees** | The Host |
 | CA §3344.1 + AB 1836 | Deceased; digital replica | $10K floor for replica | future |
-| CA AB 2602 | Contracts authorizing replica of performer | Voids unless specific-use + counsel | Jason-consent paper |
-| NY §51 | Living; advertising/trade; "voice" covered | Injunction, actuals, punitives | Dell'Abate |
+| CA AB 2602 | Contracts authorizing replica of performer | Voids unless specific-use + counsel | The Host-consent paper |
+| NY §51 | Living; advertising/trade; "voice" covered | Injunction, actuals, punitives | The Producer |
 | NY §50-f | Deceased performers; digital replica | $2K floor, fees | future |
 | TN ELVIS Act §47-25-1105 | Voice simulation explicitly covered; tool-liability §47-25-1105(b) | Treble + fees | all personas if voice clone (we don't) |
 | IL IRPA (HB 4762 2025) | Living; digital replica | $1K floor, fees | potential forum |
@@ -503,7 +503,7 @@ terms — the reason the onboarding wizard is the strategic move.
 - Private-figure claim-detector block (brief §12.8).
 - DMCA agent registration at copyright.gov.
 - Media-liability insurance.
-- Optional: Jason consent paper (strategic).
+- Optional: The Host consent paper (strategic).
 
 ---
 
@@ -533,7 +533,7 @@ Picking these up will unblock v2.0.1 finalize:
 Items surfaced this session that are NOT for v2.0.1 and NOT blocking
 anything:
 
-- **Baba pass-rate tuning.** Live-log data from v2.0 captures will
+- **The Producer pass-rate tuning.** Live-log data from v2.0 captures will
   drive the tuning pass. Queued for post-v2.0 iteration.
 - **Llama 3.3 70B swap on Cerebras** as structural fix for Llama 3.1
   8B schema-echo shadow failures. Current coercion handles three

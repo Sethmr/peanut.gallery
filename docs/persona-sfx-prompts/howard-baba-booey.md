@@ -1,4 +1,4 @@
-# ElevenLabs SFX prompt — Baba Booey (Gary)
+# ElevenLabs SFX prompt — The Producer (The Producer)
 
 **Duration:** 0.7s
 **Prompt influence:** 60 (lean toward the description)

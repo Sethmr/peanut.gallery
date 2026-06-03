@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Peanut Gallery",
   "version": "2.0.1",
-  "description": "AI writers' room for YouTube. 4 personas react live — fact-checker, troll, sound guy, comedy writer. Howard or TWiST pack.",
+  "description": "AI writers' room for YouTube. 4 personas react live — fact-checker, troll, sound guy, comedy writer. Morning Crew or Startup Roundtable pack.",
   "homepage_url": "https://www.peanutgallery.live/",
   "permissions": [
     "tabCapture",

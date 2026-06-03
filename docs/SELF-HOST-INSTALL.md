@@ -151,14 +151,14 @@ tiers that are enough to run the app for hours without paying anything.
    - Sign up, verify, click **Create Key**, copy the `sk-ant-...` string.
    - New accounts typically receive starter credit. Haiku is the cheapest
      Claude model — a 2-hour session costs pennies.
-   - Powers the Producer + Joker archetype slots (Baba Booey + Jackie in the
-     Howard pack; Molly Wood + Alex Wilhelm in the TWiST pack). Required.
+   - Powers the Producer + Joker archetype slots (The Producer + The Joke Writer in the
+     the morning-radio host pack; The Correspondent + The Quant in the Startup Roundtable pack). Required.
 3. **xAI** — <https://console.x.ai>
    - Sign up, verify, create an API key, copy the `xai-...` string.
    - Grok 4.1 Fast non-reasoning is cheap and fast; it also powers the
      optional Live Search fact-check pipeline with no separate signup.
-   - Powers the Troll + Sound FX archetype slots (The Troll + Fred in Howard;
-     Jason Calacanis + Lon Harris in TWiST). Required. Replaces Groq, which
+   - Powers the Troll + Sound FX archetype slots (The Troll + The Sound Guy in the morning-radio host;
+     The Host + The Reframer in Startup Roundtable). Required. Replaces Groq, which
      was removed in v1.4.
 4. **Brave Search** (optional, only for `SEARCH_ENGINE=brave`) —
    <https://api-dashboard.search.brave.com/app/keys>
@@ -275,7 +275,7 @@ additive content work. You do NOT touch the Director or UI.
 Before you start, skim the two shipping packs as reference:
 
 - [`lib/packs/howard/personas.ts`](../lib/packs/howard/personas.ts) —
-  Stern-style lineup. The "loud and prank-y" archetype calibration.
+  the morning-radio host-style lineup. The "loud and prank-y" archetype calibration.
 - [`lib/packs/twist/personas.ts`](../lib/packs/twist/personas.ts) —
   startup-podcast lineup. The "numerate and roasting" calibration.
 
@@ -340,15 +340,15 @@ which persona speaks each tick based on the transcript, recent firings,
 and cooldowns. The router sees each persona's `id`, `name`, `role`, and
 (if present) `directorHint`. The hint is the **compressed "when to pick
 this voice" heuristic** — it lets the router tell your `joker` apart from
-Jackie Martling or Alex Wilhelm even though they share the slot id.
+The Joke Writer or The Quant even though they share the slot id.
 
 Keep hints terse (1–2 sentences, ~15 tokens). They're NOT the full system
 prompt — the router doesn't need that. Reference the distinctive trigger
 for this voice at this slot. A few working examples from the shipping
 packs:
 
-- Howard's Jackie (`joker`) — *"Rapid-fire one-liners and hyena laugh. Lean in on absurd comparisons, confident hype, easy dunks."*
-- TWiST's Alex (`joker`) — *"Numerate comedian — jokes about valuations, cap tables, and dashboards. Pick on data-flavored absurdity."*
+- the morning-radio host's The Joke Writer (`joker`) — *"Rapid-fire one-liners and hyena laugh. Lean in on absurd comparisons, confident hype, easy dunks."*
+- Startup Roundtable's The Quant (`joker`) — *"Numerate comedian — jokes about valuations, cap tables, and dashboards. Pick on data-flavored absurdity."*
 
 Hints are optional. Packs that omit them still route correctly (the
 router falls back to `role` alone). Add hints when your pack has a voice
@@ -412,7 +412,7 @@ fixture suite already covers your pack's structural behavior. What's
 worth testing for a new pack is whether **your transcript vocabulary
 lights up the right slots**.
 
-Copy a Howard fixture that matches the vibe you're aiming for, rewrite
+Copy a the morning-radio host fixture that matches the vibe you're aiming for, rewrite
 the transcript with your show's language, and run:
 
 ```bash
@@ -466,7 +466,7 @@ missing — fine for the Chrome extension path).
 ```bash
 curl -sSN -X POST http://localhost:3000/api/personas \
   -H 'Content-Type: application/json' \
-  -d '{"transcript": "Jason just said Uber was founded in 2007.", "persona": "producer"}'
+  -d '{"transcript": "The Host just said Uber was founded in 2007.", "persona": "producer"}'
 ```
 
 Expected: an SSE stream that emits `data: {"type":"chunk", ...}` lines,
@@ -510,10 +510,10 @@ Deepgram key is missing or invalid. Check the server logs for
 `[transcribe] Deepgram WS error` or `401`. Test the key with
 <https://developers.deepgram.com/playground>.
 
-**Only the producer + joker slots react** (Baba + Jackie in Howard; Molly + Alex in TWiST). Troll + soundfx stay silent.
+**Only the producer + joker slots react** (The Producer + The Joke Writer in the morning-radio host; The Correspondent + The Quant in Startup Roundtable). Troll + soundfx stay silent.
 No `XAI_API_KEY`. Add it to `.env.local` and restart the server.
 
-**Only the troll + soundfx slots react** (Troll + Fred in Howard; Jason + Lon in TWiST). Producer + joker stay silent.
+**Only the troll + soundfx slots react** (Troll + The Sound Guy in the morning-radio host; The Host + The Reframer in Startup Roundtable). Producer + joker stay silent.
 No `ANTHROPIC_API_KEY`. Add it to `.env.local` and restart the server.
 
 **Audio sounds choppy / personas are half a minute behind.**

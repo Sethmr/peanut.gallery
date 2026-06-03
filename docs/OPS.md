@@ -43,7 +43,7 @@ See `.env.example` for the canonical list.
 
 ## Rotating a shared demo key
 
-Standard rotation (e.g. after TWiST airs, or after a suspected leak):
+Standard rotation (e.g. after Startup Roundtable airs, or after a suspected leak):
 
 1. **Create the new key on the provider dashboard.** Don't delete the old one yet.
 2. **Add the new key to Vercel.** Project → Settings → Environment Variables → edit the relevant `*_API_KEY` variable → Save.
@@ -56,7 +56,7 @@ If the old key is actively leaking (e.g. caught in a public commit), reverse the
 
 ---
 
-## Post-TWiST rotation checklist
+## Post-Startup Roundtable rotation checklist
 
 After the bounty demo airs, rotate all four shared keys as a matter of hygiene — there's no way to know whether a curious viewer captured the running extension zip between CWS publish and show time.
 
@@ -74,14 +74,14 @@ After the bounty demo airs, rotate all four shared keys as a matter of hygiene �
 Likely failure modes, in order of probability:
 
 1. **One of the shared demo keys hit its cap.** Check `GET /api/health` (reports env var presence only, not quota), then hit each provider dashboard to see usage. Rotate or top up the offending key. Partial silence is diagnostic:
-   - Baba + Jackie silent, Troll + Fred fine → **Anthropic** (producer + joker run on Claude Haiku).
-   - Troll + Fred silent, Baba + Jackie fine → **xAI** (troll + soundfx run on Grok 4.1 Fast).
+   - The Producer + The Joke Writer silent, Troll + The Sound Guy fine → **Anthropic** (producer + joker run on Claude Haiku).
+   - Troll + The Sound Guy silent, The Producer + The Joke Writer fine → **xAI** (troll + soundfx run on Grok 4.1 Fast).
    - Everyone silent → **Deepgram** (no transcript, no fires).
-   - Baba's fact-checks stop citing sources but he still talks → **Brave** or **xAI Live Search** (depending on `SEARCH_ENGINE`). Check `search_upstream_error` / `search_timeout` in the JSONL log.
+   - The Producer's fact-checks stop citing sources but he still talks → **Brave** or **xAI Live Search** (depending on `SEARCH_ENGINE`). Check `search_upstream_error` / `search_timeout` in the JSONL log.
 2. **User is on a non-hosted backend** (self-host / wrong server URL) **without their own keys.** The extension's pre-flight should block this. If it didn't, check the side panel's "Backend server" field matches `https://peanutgallery.live`.
 3. **Deepgram WebSocket dropped and didn't reconnect.** Check server logs for `deepgram_error` or repeated `reconnect` events. `lib/transcription.ts` has exponential backoff but a persistent auth failure will surface after a few retries.
 4. **Chrome extension lost tabCapture permission.** User re-installed or reset permissions. See `extension/README.md` for the fix (re-enable site access).
-5. **Search backend mis-toggled.** If `SEARCH_ENGINE=brave` is set on Vercel but `BRAVE_SEARCH_API_KEY` is blank, the Producer will still fire but with no fact-check context. Symptom: Baba talks, but his lines don't cite anything. Flip to `SEARCH_ENGINE=xai` (reuses `XAI_API_KEY`) or set a Brave key and redeploy.
+5. **Search backend mis-toggled.** If `SEARCH_ENGINE=brave` is set on Vercel but `BRAVE_SEARCH_API_KEY` is blank, the Producer will still fire but with no fact-check context. Symptom: The Producer talks, but his lines don't cite anything. Flip to `SEARCH_ENGINE=xai` (reuses `XAI_API_KEY`) or set a Brave key and redeploy.
 
 ---
 

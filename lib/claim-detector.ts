@@ -22,7 +22,7 @@
  * Upgrade path
  * ────────────
  * The regex patterns here are grep-brittle but calibrated over ~30 real
- * TWiST + Morning Crew sessions. If a pattern is added, add a corresponding
+ * Startup Roundtable + Morning Crew sessions. If a pattern is added, add a corresponding
  * unit test in scripts/test-claim-detector.ts so the Director fixture
  * suite keeps its grip on behavior.
  */
@@ -33,7 +33,7 @@
  * **strict** — Original pattern set (numbers, dates, explicit attributions,
  *  rankings, corporate-action facts, specific named-entity claims). Only
  *  triggers on hard, sourceable claims. The right mode for voices that
- *  read as careful journalists — TWiST's Molly Wood, for example. Low
+ *  read as careful journalists — Startup Roundtable's the Correspondent, for example. Low
  *  false-positive rate; producer stays quiet when the transcript is soft.
  *
  * **loose** — Strict patterns PLUS soft-claim cues: speculation ("I think

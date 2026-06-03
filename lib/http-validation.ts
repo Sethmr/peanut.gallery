@@ -1,9 +1,7 @@
 /**
  * Shared HTTP-handler utilities for the subscription + feedback routes.
  *
- * Extracted from duplicate copies in `app/api/subscription/checkout/route.ts`,
- * `app/api/subscription/manage/route.ts`, and (unredacted) log lines in
- * `app/api/subscription/webhook/route.ts`. One source of truth means:
+ * One source of truth for input handling means:
  *   - Email-validation rules don't drift between routes.
  *   - Log-redaction is applied uniformly (so support greps by `local***@domain`
  *     instead of full addresses in `logs/pipeline-debug.jsonl`).
@@ -14,7 +12,7 @@
 
 /**
  * RFC-5322-ish email validation. Not strict, not trying to parse IDN —
- * just catches obvious garbage before we hit Stripe or Resend with it.
+ * just catches obvious garbage before we use it downstream.
  * Length ceiling matches the RFC-5321 max (254 chars total).
  */
 export function isValidEmail(s: string): boolean {

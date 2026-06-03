@@ -13,7 +13,7 @@
 | Tag | Name | Landed | Headline |
 |-----|------|--------|----------|
 | v1.2.0 | "Mise en place" | 2026-04-11 | Director debug panel + `director_decision` SSE + fixture harness |
-| v1.3.0 | "TWiST Pack" | 2026-04-14 | Pack refactor + TWiST crew + side-panel pack swap |
+| v1.3.0 | "Startup Roundtable Pack" | 2026-04-14 | Pack refactor + Startup Roundtable crew + side-panel pack swap |
 | v1.4.0 | "Grok & Stability" | 2026-04-17 | Troll + Sound FX → xAI Grok; search-engine toggle; force-react hardening |
 | v1.5.0 | "The Broadsheet" | 2026-04-19 | Tabloid side-panel rebrand (mute-a-critic, night theme, Markdown export) + Smart Director v2 client scaffold + Path-2 URL readiness |
 | v1.5.1 | "Broadsheet Final" | 2026-04-20 | 6-submenu settings drawer (absorbs old v1.6 "Settings Pane") + free-tier status strip + episode card + ON AIR + per-mug waveforms + rolling-window ticker + round mugs |
@@ -124,7 +124,7 @@ The Director is the moat. v1.6.0 ships the LLM router as a flag-gated canary wit
 
 **Pre-requisite:** v1.7 canary must be steady. The persona refinement only works against a known-good router baseline — if the router's picking wrong personas, prompt tuning on those personas is measuring noise.
 
-**Scope:** re-run every pack's system prompt against 100+ recent transcripts from the reference shows (Howard Stern clips, TWiST episodes, plus whichever other packs have shipped by then). For each persona, score on three axes:
+**Scope:** re-run every pack's system prompt against 100+ recent transcripts from the reference shows (the morning-radio host clips, Startup Roundtable episodes, plus whichever other packs have shipped by then). For each persona, score on three axes:
 
 1. *Did the right persona fire?* — Director's job; surfaced here only if a persona is systematically missing its moment because the Director is under-selecting it, which feeds a v1.7 hint-refinement loop.
 2. *Did the persona sound like itself?* — the main focus. Compare output against the pack's `docs/packs/<pack>/RESEARCH.md` characterization.
@@ -179,8 +179,8 @@ Seth's call: 3D bobbleheads land here **if and only if** we can get a credible v
 
 **The 2-day gamble (preferred path):**
 
-1. **Day 1 — Spike + decision.** Stand up Three.js inside the side panel. Load one peanut bobblehead (Howard) with: a baked rig, an idle bob, and a single "react" pose triggered on fire. Eval at end-of-day: does it look like a Peanut Gallery thing or a generic Three.js demo? If generic → drop to fallback path Day 2. If on-brand → continue.
-2. **Day 2 — Pack rollout + animation hooks.** Replicate the rig across the four TWiST personas with their key items. Wire `Persona.bobblehead` schema (`modelSrc`, `idlePose`, `reactPose`, `prop`). Hook fire events to the react pose with a 600 ms decay back to idle. Performance budget: side panel render stays under 16 ms/frame at 60 fps on an M1.
+1. **Day 1 — Spike + decision.** Stand up Three.js inside the side panel. Load one peanut bobblehead (the morning-radio host) with: a baked rig, an idle bob, and a single "react" pose triggered on fire. Eval at end-of-day: does it look like a Peanut Gallery thing or a generic Three.js demo? If generic → drop to fallback path Day 2. If on-brand → continue.
+2. **Day 2 — Pack rollout + animation hooks.** Replicate the rig across the four Startup Roundtable personas with their key items. Wire `Persona.bobblehead` schema (`modelSrc`, `idlePose`, `reactPose`, `prop`). Hook fire events to the react pose with a 600 ms decay back to idle. Performance budget: side panel render stays under 16 ms/frame at 60 fps on an M1.
 3. **Tag the minor.** Release notes lead with: "the gallery now reacts in 3D."
 
 **Fallback path (if Day 1 says "not credible"):** ship the **maximum** version of what 2 days *can* deliver. In priority order:
@@ -194,7 +194,7 @@ The fallback is not a failure — it's the same "visual moment" goal hit with a 
 
 **Touches:** `extension/sidepanel.html` (canvas/video slot), `extension/sidepanel.js` (animation hook on fire events), `extension/lib/bobblehead.js` (new — Three.js wrapper) **or** `extension/lib/parallax.js` / `extension/lib/lottie-host.js` / `extension/assets/reactions/*.mp4` depending on path, `lib/packs/*/personas.ts` (`bobblehead` or `reaction` field on Persona), `marketing/CLAUDE-DESIGN-BRIEF.md` (animation brief — designer source of truth).
 
-**Risk:** scope creep on the 3D path. **Mitigation:** the Day 1 eval is binding; if Howard doesn't read as on-brand by EOD, switch paths Day 2 morning. No "one more day" extensions. The point of v1.10 is the visual upgrade, not the technology choice.
+**Risk:** scope creep on the 3D path. **Mitigation:** the Day 1 eval is binding; if the morning-radio host doesn't read as on-brand by EOD, switch paths Day 2 morning. No "one more day" extensions. The point of v1.10 is the visual upgrade, not the technology choice.
 
 ---
 
@@ -211,12 +211,12 @@ Deltas from the original v1.8 plan worth knowing about:
 
 The final prop mapping differs slightly from the designer reference list above:
 
-| Slot | Howard prop | TWiST prop |
+| Slot | the morning-radio host prop | Startup Roundtable prop |
 |---|---|---|
-| Producer | Clipboard + blue ✓ (Baba Booey) | Spiral-bound reporter notebook (Molly) |
-| Troll | Boiled peanut (no prop — state IS the character) | Red megaphone with sound-wave lines (Jason) |
-| Sound FX | Purple DJ headphones (Fred) | B&W clapperboard with purple scene tag (Lon) |
-| Joker | Amber-trimmed stand mic (Jackie) | Three-slice pie chart, amber dominant (Alex) |
+| Producer | Clipboard + blue ✓ (The Producer) | Spiral-bound reporter notebook (The Correspondent) |
+| Troll | Boiled peanut (no prop — state IS the character) | Red megaphone with sound-wave lines (The Host) |
+| Sound FX | Purple DJ headphones (The Sound Guy) | B&W clapperboard with purple scene tag (The Reframer) |
+| Joker | Amber-trimmed stand mic (The Joke Writer) | Three-slice pie chart, amber dominant (The Quant) |
 
 ---
 
@@ -235,7 +235,7 @@ The brand moment. Everything from v1.5 → v1.10 stacks into a single coherent p
    - Each snippet renders to a canvas matching the Broadsheet aesthetic + mascots/bobbleheads (v1.5.3 + v1.9) + footer attribution.
    - Copy PNG to clipboard **or** download. No server round-trip.
    - Privacy note in settings: sessions are stored locally, never uploaded; "Clear all sessions" button.
-2. **Full audit.** Walk every surface against a "first-time user from Jason's audience" persona. The README. The CWS listing. The marketing site. The first 60 seconds inside the side panel. Every transition, every error state, every empty state.
+2. **Full audit.** Walk every surface against a "first-time user from The Host's audience" persona. The README. The CWS listing. The marketing site. The first 60 seconds inside the side panel. Every transition, every error state, every empty state.
 3. **Bug fix sweep.** Triage every open issue, every TODO comment, every "we'll fix this later" deferred from v1.5–v1.9. Fix or formally defer with a v2.1 milestone.
 4. **Performance pass.** p95 director-tick latency, p95 first-byte from Deepgram, side-panel render budget. Establish a baseline; fix anything > 2x last release's budget.
 5. **Accessibility regression check.** Re-walk the v1.5.4 a11y pass (SR labels, `aria-pressed`, `role="log"`, `:focus-visible`, per [PR #31](https://github.com/Sethmr/peanut.gallery/pull/31)) against everything that landed since, plus add the contrast-across-themes check that hasn't happened yet.
@@ -243,7 +243,7 @@ The brand moment. Everything from v1.5 → v1.10 stacks into a single coherent p
 7. **Launch day.**
    - CWS upload of `peanut-gallery-v2.0.0.zip`.
    - Marketing site flips to the new hero.
-   - TWiST submission follow-up post (the bounty has been the throughline since v1.0; close the loop publicly).
+   - Startup Roundtable submission follow-up post (the bounty has been the throughline since v1.0; close the loop publicly).
    - Sponsors thank-you in release notes.
 8. **Tag `v2.0.0`.** Release notes lead with: "Peanut Gallery 2.0 — the gallery is open."
 
