@@ -1,0 +1,12 @@
+name = "peanutgallery-apex-redirect"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = false
+preview_urls = false
+
+# Both hostnames are proxied DNS records in the peanutgallery.live zone, so the routes
+# catch every request before it reaches the old Railway origin.
+routes = [
+  { pattern = "peanutgallery.live/*", zone_name = "peanutgallery.live" },
+  { pattern = "api.peanutgallery.live/*", zone_name = "peanutgallery.live" },
+]
