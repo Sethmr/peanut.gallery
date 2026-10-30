@@ -53,6 +53,7 @@ Map of every markdown file in the repo, ordered by when you should read it.
 
 ## Strategy & research
 
+- [`docs/BYOK-ONBOARDING-RESEARCH-2026-04-24.md`](BYOK-ONBOARDING-RESEARCH-2026-04-24.md) — deep research on onboarding for consumer bring-your-own-key AI products: a practical playbook for a multi-provider Chrome extension (key entry, provider choice, first-run). Filed from Seth's Desktop 2026-10-30.
 - [`docs/COMPETITIVE-LANDSCAPE-2026-04-21.md`](COMPETITIVE-LANDSCAPE-2026-04-21.md) — **latest** competitive / feature-gap pass. Top-5 must-haves for v2.0 (Broadsheet quote card, auto-highlights, Room Volume dial, upvote/downvote, pin favorite) + should-haves (Spotify / Twitch support, chapter ingestion, live-chat spike trigger, persona intros) + opportunity gaps. Read before triaging v2.0 Linear tickets. Priors: [`COMPETITIVE-LANDSCAPE-2026-04-18.md`](COMPETITIVE-LANDSCAPE-2026-04-18.md). Refresh every ~90 days.
 - [`docs/AUDIT-2026-04-21.md`](AUDIT-2026-04-21.md) — pre-v2.0 codebase audit. 19 findings triaged (3 already resolved, 3 fixed inline, 13 deferred with suggested tickets). Cross-checked against design principles. Priority order for deferred tickets lives at the bottom.
 
